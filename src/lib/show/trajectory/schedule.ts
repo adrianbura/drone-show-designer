@@ -123,7 +123,22 @@ function clampArc(arc: number, startY: number, endY: number, ceiling: number): n
 }
 
 export function buildShowPlan(project: ShowProject, options: BuildShowPlanOptions = {}): ShowPlan {
-  const drones = buildDroneDefinitions(project);
+  const preShowConfig =
+    options.preShow === null
+      ? null
+      : options.preShow ?? (project.preShow?.enabled ? resolvePreShowConfig(project.preShow) : null);
+  const usePreShow = !!preShowConfig?.enabled;
+
+  // With a launch plan the physical home positions are the LAUNCH PADS, so
+  // LANDING also returns every drone to its own pad.
+  const padHome = usePreShow
+    ? launchHomePositions({
+        droneCount: project.droneCount,
+        config: preShowConfig!,
+        limits: project.limits,
+      })
+    : null;
+  const drones = buildDroneDefinitions(project, padHome ?? undefined);
   const home = drones.map((d) => d.homePosition);
   const clips = [...project.timeline].sort((a, b) => a.start - b.start);
   const errors: TrajectoryPlanningError[] = [];
@@ -137,7 +152,31 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
     segments: [],
   }));
 
-  let current: Vector3Tuple[] = home.slice();
+  // PRE-SHOW: launch grid -> grouped takeoff -> staging, in negative show time.
+  let preShow: PreShowPlan | null = null;
+  if (usePreShow) {
+    const stagingFormation =
+      preShowConfig!.staging.formationKind === "formation"
+        ? project.formations.find((f) => f.id === preShowConfig!.staging.formationId)
+        : undefined;
+    const composed = composePreShow(
+      {
+        droneCount: project.droneCount,
+        config: preShowConfig!,
+        limits: project.limits,
+        ...(stagingFormation ? { stagingFormation } : {}),
+      },
+      drones,
+    );
+    preShow = composed.plan;
+    composed.schedules.forEach((s, i) => {
+      schedules[i]!.segments.push(...s.segments);
+    });
+  }
+
+  // The artistic timeline starts from the staging formation when a pre-show
+  // exists, otherwise from the home pads.
+  let current: Vector3Tuple[] = usePreShow && preShow ? preShow.targetByDrone.slice() : home.slice();
 
   for (const clip of clips) {
     const phase = clipPhase(clip);
