@@ -182,15 +182,45 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [svgDraft, setSvgDraft] = useState<SvgDraft | null>(null);
   const [svgBusy, setSvgBusy] = useState(false);
   const [svgError, setSvgError] = useState<SvgFormationError | null>(null);
+  const [assignmentStrategy, setAssignmentStrategy] = useState<AssignmentStrategyId>("nearestNeighbor");
+  const [transitionOverrides, setTransitionOverrides] = useState<Record<string, ClipTransitionOverride>>({});
+  const [transitionAnalysis, setTransitionAnalysis] = useState<
+    { clipId: string; analysis: TransitionAnalysis } | null
+  >(null);
+  const [assignmentComparison, setAssignmentComparison] = useState<
+    { clipId: string; comparison: AssignmentComparison } | null
+  >(null);
+  const [optimization, setOptimization] = useState<
+    { clipId: string; result: TransitionOptimizationResult } | null
+  >(null);
+  const [transitionBusy, setTransitionBusy] = useState(false);
+  const [transitionError, setTransitionError] = useState<{ code: string; message: string } | null>(null);
+  const [showPaths, setShowPaths] = useState(false);
+  const [showConflicts, setShowConflicts] = useState(false);
 
   // Pure engine pipeline: formations -> assignment -> planning -> sampling -> safety.
-  const plan = useMemo(() => buildShowPlan(project), [project]);
+  const plan = useMemo(
+    () => buildShowPlan(project, { assignmentStrategy, transitionOverrides }),
+    [project, assignmentStrategy, transitionOverrides],
+  );
   const trajectorySet = useMemo(() => sampleTrajectorySet(plan, { sampleRate }), [plan, sampleRate]);
   const safety = useMemo(
     () => validateShow(project, trajectorySet, plan.drones),
     [project, trajectorySet, plan.drones],
   );
   const beatGrid = useMemo(() => buildBeatGrid(project.audio), [project.audio]);
+
+  // Stale-result guard: any project edit invalidates analysis AND any applied
+  // optimiser override, because both were computed for the previous geometry.
+  const projectGeneration = useRef(0);
+  useEffect(() => {
+    projectGeneration.current += 1;
+    setTransitionAnalysis(null);
+    setAssignmentComparison(null);
+    setOptimization(null);
+    setTransitionError(null);
+    setTransitionOverrides({});
+  }, [project.formations, project.droneCount, project.timeline, project.limits, project.area]);
 
   // Canonical duration — NEVER project.audio.duration.
   const duration = useMemo(() => Math.max(showDuration(project), 1), [project]);
