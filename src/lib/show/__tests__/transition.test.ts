@@ -107,8 +107,10 @@ describe("transition analysis", () => {
   it("reports conflicts for a fully crossing transition", () => {
     const analysis = analyzeTransition(crossingInput());
     expect(analysis.metrics.droneCount).toBe(16);
-    expect(analysis.metrics.conflictCount).toBeGreaterThanOrEqual(0);
-    expect(analysis.metrics.potentialGeometricCrossings).toBeGreaterThan(0);
+    // Head-on lanes are collinear rather than crossing, so the geometric
+    // crossing count can be zero while proximity conflicts are what matter.
+    expect(analysis.metrics.conflictCount).toBeGreaterThan(0);
+    expect(analysis.metrics.potentialGeometricCrossings).toBeGreaterThanOrEqual(0);
     expect(analysis.timeBase).toBe("transition-relative");
   });
 
