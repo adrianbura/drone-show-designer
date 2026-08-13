@@ -76,6 +76,8 @@ export function toGenericShowJson({ project, plan, set, safety }: GenericExportI
         kind: f.kind,
         params: f.params,
         points: f.points.map((p) => p.map((v) => round(v))),
+        // Reproducibility metadata for logo/vector formations (kind "svg").
+        ...(f.svg ? { svg: f.svg } : {}),
       })),
       timeline: project.timeline.map((c) => ({ ...c, phase: c.phase ?? "SHOW" })),
       assignments: plan.assignments,

@@ -25,7 +25,7 @@ published format.
 | `project` | id, name, droneCount, duration (canonical show duration), seed, versions, area, altitudes, audio metadata |
 | `coordinateSystem` | machine-readable description of the frame above |
 | `safetyProfile` | the configured limits used for validation |
-| `formations` | id, name, kind, params, points |
+| `formations` | id, name, kind, params, points, plus `svg` reproducibility metadata for imported vector formations |
 | `timeline` | creative clips with explicit `phase` (`TAKEOFF` / `SHOW` / `LANDING`) |
 | `assignments` | drone-index → formation-point mapping per clip |
 | `trajectorySet` | droneCount, duration, sampleRate, algorithmVersion |
@@ -49,3 +49,25 @@ Each entry of `drones[].samples`:
 `validation.status === "ok"` means **validated against the current safety
 profile**. It is not a real-world safety guarantee: no wind, GPS error, battery
 state, hardware failure, airspace or regulatory constraint is modelled.
+
+## Vector (SVG) formations
+
+Formations with `kind: "svg"` are generated from an imported vector file. They
+carry a `svg` block so a point set can be reproduced bit-for-bit:
+
+```
+{
+  sourceType: "svg",
+  assetId, sourceFileName,
+  samplingMode: "outline" | "fill",
+  seed,
+  sourceBounds: { minX, minY, maxX, maxY, width, height },
+  generationParameters: { ...all sampling / placement params },
+  svgAlgorithmVersion: "0.1.0"
+}
+```
+
+The imported SVG file itself is never embedded or uploaded. Sampling always
+returns exactly `droneCount` points; the same file, parameters and seed always
+produce the same points, and `svgAlgorithmVersion` is bumped whenever the
+distribution algorithm changes behaviour.
