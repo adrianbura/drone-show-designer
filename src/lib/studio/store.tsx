@@ -79,7 +79,7 @@ import {
   type IntervalSearchResult,
   type LaunchScheduleEstimate,
   type PreShowConfig,
-  type PreShowConfigPatch,
+  type DeepPartialPreShow,
   type PreShowPlan,
   type PreShowValidationReport,
 } from "../show/preshow";
@@ -183,7 +183,7 @@ interface StudioContextValue {
   preShowConfig: PreShowConfig;
   preShowEnabled: boolean;
   setPreShowEnabled: (enabled: boolean) => void;
-  patchPreShow: (patch: PreShowConfigPatch) => void;
+  patchPreShow: (patch: DeepPartialPreShow) => void;
   /** Composed pre-show plan of the CURRENT project, or null when disabled. */
   preShowPlan: PreShowPlan | null;
   /** First playable show time (negative during pre-show). */
@@ -674,7 +674,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const preShowConfig = useMemo(() => resolvePreShowConfig(project.preShow), [project.preShow]);
   const preShowEnabled = !!project.preShow?.enabled;
 
-  const patchPreShow = useCallback((patch: PreShowConfigPatch) => {
+  const patchPreShow = useCallback((patch: DeepPartialPreShow) => {
     setProject((p) => ({ ...p, preShow: patchPreShowConfig(resolvePreShowConfig(p.preShow), patch) }));
   }, []);
 
