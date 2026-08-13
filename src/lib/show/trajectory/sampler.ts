@@ -3,9 +3,22 @@
  * TrajectorySet at a configurable rate. The data model is rate agnostic: 10, 20,
  * 25, 50 and 100 Hz all work without any type change.
  */
-import type { ShowPlan } from "./schedule";
+import type { DroneDefinition } from "../drones";
+import type { DroneSchedule } from "./schedule";
 import { sampleScheduleAt } from "./schedule";
 import type { DroneTrajectory, TrajectorySample, TrajectorySet } from "./types";
+
+/**
+ * Minimal structural contract the sampler needs. `ShowPlan` satisfies it, and so
+ * does a standalone pre-show plan, so both sample through the SAME code path.
+ */
+export interface SamplablePlan {
+  readonly schedules: readonly DroneSchedule[];
+  readonly drones: readonly DroneDefinition[];
+  readonly duration: number;
+  readonly startTime?: number;
+  readonly algorithmVersion: string;
+}
 
 export const DEFAULT_SAMPLE_RATE = 10;
 export const SUPPORTED_SAMPLE_RATES = [10, 20, 25, 50, 100] as const;
