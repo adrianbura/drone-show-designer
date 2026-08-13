@@ -9,6 +9,7 @@ import { activeClipAt } from "@/lib/show/timeline";
 import type { TrajectorySample } from "@/lib/show/trajectory";
 import type { ShowProject } from "@/lib/show/types";
 import SvgDraftPreview from "./SvgDraftPreview";
+import TransitionOverlay from "./TransitionOverlay";
 
 /**
  * Instanced drone swarm. One InstancedMesh + per-instance colour keeps draw
@@ -101,7 +102,21 @@ function ShowVolume({ width, depth, height }: { width: number; depth: number; he
 }
 
 export default function Viewport3D() {
-  const { project, time, safety, samplesAtTime, svgDraft } = useStudio();
+  const {
+    project,
+    time,
+    safety,
+    samplesAtTime,
+    svgDraft,
+    transitionAnalysis,
+    selectedClipId,
+    showPaths,
+    showConflicts,
+  } = useStudio();
+  const overlayAnalysis =
+    transitionAnalysis && transitionAnalysis.clipId === selectedClipId
+      ? transitionAnalysis.analysis
+      : null;
   const highlighted = useMemo(
     () =>
       safety.issues
@@ -138,6 +153,13 @@ export default function Viewport3D() {
         highlighted={highlighted}
       />
       {svgDraft ? <SvgDraftPreview draft={svgDraft} /> : null}
+      {overlayAnalysis && (showPaths || showConflicts) ? (
+        <TransitionOverlay
+          analysis={overlayAnalysis}
+          paths={showPaths}
+          conflicts={showConflicts}
+        />
+      ) : null}
       <OrbitControls
         enableDamping
         dampingFactor={0.08}

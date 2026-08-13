@@ -9,7 +9,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -17,9 +19,24 @@ import {
 import { createDefaultProject } from "../show/defaultProject";
 import { generatePoints, makeFormation } from "../show/formations";
 import { buildShowPlan, samplesAt, sampleTrajectorySet, DEFAULT_SAMPLE_RATE } from "../show/trajectory";
-import type { ShowPlan, TrajectorySample, TrajectorySet } from "../show/trajectory";
+import type { ClipTransitionOverride, ShowPlan, TrajectorySample, TrajectorySet } from "../show/trajectory";
 import { validateShow, type SafetyReport } from "../show/safety";
 import { buildBeatGrid, type BeatGrid } from "../show/audio";
+import {
+  compareAssignmentStrategies,
+  type AssignmentComparison,
+  type AssignmentStrategyId,
+} from "../show/assignment";
+import {
+  analyzeTransition as analyzeTransitionCore,
+  describeTransitionError,
+  isOptimizableClip,
+  optimizeTransition as optimizeTransitionCore,
+  transitionInputForClip,
+  DEFAULT_OPTIMIZATION_SETTINGS,
+  type TransitionAnalysis,
+  type TransitionOptimizationResult,
+} from "../show/transition";
 import type {
   Formation,
   FormationKind,
@@ -96,6 +113,30 @@ interface StudioContextValue {
   commitSvgDraft: (options?: { name?: string; addToTimeline?: boolean }) => Formation | null;
   patchClip: (id: string, patch: Partial<TimelineClip>) => void;
   removeClip: (id: string) => void;
+
+  // ---- Transition analysis / optimisation (Sprint 3) ----------------------
+  /** Assignment strategy used for SHOW clips and for analysis. */
+  assignmentStrategy: AssignmentStrategyId;
+  setAssignmentStrategy: (id: AssignmentStrategyId) => void;
+  /** Applied optimiser results, keyed by clip id. Not part of ShowProject. */
+  transitionOverrides: Record<string, ClipTransitionOverride>;
+  transitionAnalysis: { clipId: string; analysis: TransitionAnalysis } | null;
+  assignmentComparison: { clipId: string; comparison: AssignmentComparison } | null;
+  optimization: { clipId: string; result: TransitionOptimizationResult } | null;
+  transitionBusy: boolean;
+  transitionError: { code: string; message: string } | null;
+  /** Analyses the selected SHOW clip transition (assignment + conflicts). */
+  analyzeSelectedTransition: () => void;
+  /** Runs the bounded optimiser and applies the result to the preview. */
+  optimizeSelectedTransition: () => void;
+  clearTransitionAnalysis: () => void;
+  /** Applies the estimated minimum duration to the analysed clip. */
+  applySuggestedDuration: () => void;
+  canAnalyzeSelectedClip: boolean;
+  showPaths: boolean;
+  setShowPaths: (v: boolean) => void;
+  showConflicts: boolean;
+  setShowConflicts: (v: boolean) => void;
 }
 
 const StudioContext = createContext<StudioContextValue | null>(null);
@@ -141,15 +182,45 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [svgDraft, setSvgDraft] = useState<SvgDraft | null>(null);
   const [svgBusy, setSvgBusy] = useState(false);
   const [svgError, setSvgError] = useState<SvgFormationError | null>(null);
+  const [assignmentStrategy, setAssignmentStrategy] = useState<AssignmentStrategyId>("nearestNeighbor");
+  const [transitionOverrides, setTransitionOverrides] = useState<Record<string, ClipTransitionOverride>>({});
+  const [transitionAnalysis, setTransitionAnalysis] = useState<
+    { clipId: string; analysis: TransitionAnalysis } | null
+  >(null);
+  const [assignmentComparison, setAssignmentComparison] = useState<
+    { clipId: string; comparison: AssignmentComparison } | null
+  >(null);
+  const [optimization, setOptimization] = useState<
+    { clipId: string; result: TransitionOptimizationResult } | null
+  >(null);
+  const [transitionBusy, setTransitionBusy] = useState(false);
+  const [transitionError, setTransitionError] = useState<{ code: string; message: string } | null>(null);
+  const [showPaths, setShowPaths] = useState(false);
+  const [showConflicts, setShowConflicts] = useState(false);
 
   // Pure engine pipeline: formations -> assignment -> planning -> sampling -> safety.
-  const plan = useMemo(() => buildShowPlan(project), [project]);
+  const plan = useMemo(
+    () => buildShowPlan(project, { assignmentStrategy, transitionOverrides }),
+    [project, assignmentStrategy, transitionOverrides],
+  );
   const trajectorySet = useMemo(() => sampleTrajectorySet(plan, { sampleRate }), [plan, sampleRate]);
   const safety = useMemo(
     () => validateShow(project, trajectorySet, plan.drones),
     [project, trajectorySet, plan.drones],
   );
   const beatGrid = useMemo(() => buildBeatGrid(project.audio), [project.audio]);
+
+  // Stale-result guard: any project edit invalidates analysis AND any applied
+  // optimiser override, because both were computed for the previous geometry.
+  const projectGeneration = useRef(0);
+  useEffect(() => {
+    projectGeneration.current += 1;
+    setTransitionAnalysis(null);
+    setAssignmentComparison(null);
+    setOptimization(null);
+    setTransitionError(null);
+    setTransitionOverrides({});
+  }, [project.formations, project.droneCount, project.timeline, project.limits, project.area]);
 
   // Canonical duration — NEVER project.audio.duration.
   const duration = useMemo(() => Math.max(showDuration(project), 1), [project]);
@@ -350,6 +421,94 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setSelectedClipId(null);
   }, []);
 
+  // ---- Transition analysis / optimisation --------------------------------
+  const canAnalyzeSelectedClip = !!selectedClipId && isOptimizableClip(project, selectedClipId);
+
+  /** Converts an analysis into a plan override the full-show planner can apply. */
+  const overrideFromAnalysis = useCallback(
+    (clipId: string, analysis: TransitionAnalysis): ClipTransitionOverride | null => {
+      const clip = project.timeline.find((c) => c.id === clipId);
+      const points = project.formations.find((f) => f.id === clip?.formationId)?.points ?? [];
+      if (points.length === 0) return null;
+      return {
+        targetPointIndex: analysis.dronePlans.map((p) => p.targetPointIndex % points.length),
+        startOffsets: analysis.dronePlans.map((p) => p.startOffset),
+        laneOffsets: analysis.dronePlans.map((p) => p.lane.offsetMetres),
+        strategy: `${analysis.metrics.assignmentStrategy}+optimized`,
+      };
+    },
+    [project],
+  );
+
+  const analyzeSelectedTransition = useCallback(() => {
+    const clipId = selectedClipId;
+    if (!clipId || !isOptimizableClip(project, clipId)) return;
+    setTransitionBusy(true);
+    setTransitionError(null);
+    try {
+      const input = transitionInputForClip(project, plan, clipId, {
+        strategy: assignmentStrategy,
+        sampleRate,
+      });
+      const analysis = analyzeTransitionCore(input, DEFAULT_OPTIMIZATION_SETTINGS);
+      setTransitionAnalysis({ clipId, analysis });
+      setAssignmentComparison({
+        clipId,
+        comparison: compareAssignmentStrategies({
+          source: input.source,
+          target: input.target,
+          drones: input.drones,
+        }),
+      });
+      setOptimization(null);
+    } catch (err) {
+      setTransitionAnalysis(null);
+      setAssignmentComparison(null);
+      setTransitionError(describeTransitionError(err));
+    } finally {
+      setTransitionBusy(false);
+    }
+  }, [project, plan, selectedClipId, assignmentStrategy, sampleRate]);
+
+  const optimizeSelectedTransition = useCallback(() => {
+    const clipId = selectedClipId;
+    if (!clipId || !isOptimizableClip(project, clipId)) return;
+    setTransitionBusy(true);
+    setTransitionError(null);
+    try {
+      const input = transitionInputForClip(project, plan, clipId, {
+        strategy: assignmentStrategy,
+        sampleRate,
+      });
+      const result = optimizeTransitionCore(input, DEFAULT_OPTIMIZATION_SETTINGS);
+      setOptimization({ clipId, result });
+      setTransitionAnalysis({ clipId, analysis: result.final });
+      const override = overrideFromAnalysis(clipId, result.final);
+      // Only the preview/validation layer changes; the project stays untouched.
+      if (override) setTransitionOverrides((prev) => ({ ...prev, [clipId]: override }));
+    } catch (err) {
+      setTransitionError(describeTransitionError(err));
+    } finally {
+      setTransitionBusy(false);
+    }
+  }, [project, plan, selectedClipId, assignmentStrategy, sampleRate, overrideFromAnalysis]);
+
+  const clearTransitionAnalysis = useCallback(() => {
+    setTransitionAnalysis(null);
+    setAssignmentComparison(null);
+    setOptimization(null);
+    setTransitionError(null);
+    setTransitionOverrides({});
+  }, []);
+
+  const applySuggestedDuration = useCallback(() => {
+    if (!transitionAnalysis) return;
+    const { clipId, analysis } = transitionAnalysis;
+    const next = Math.ceil(analysis.feasibility.minimumEstimatedDuration * 10) / 10;
+    if (!Number.isFinite(next) || next <= 0) return;
+    patchClip(clipId, { transition: Math.max(0.5, next) });
+  }, [transitionAnalysis, patchClip]);
+
   const value = useMemo<StudioContextValue>(
     () => ({
       project,
@@ -390,6 +549,23 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       updateSvgDraft,
       cancelSvgDraft,
       commitSvgDraft,
+      assignmentStrategy,
+      setAssignmentStrategy,
+      transitionOverrides,
+      transitionAnalysis,
+      assignmentComparison,
+      optimization,
+      transitionBusy,
+      transitionError,
+      analyzeSelectedTransition,
+      optimizeSelectedTransition,
+      clearTransitionAnalysis,
+      applySuggestedDuration,
+      canAnalyzeSelectedClip,
+      showPaths,
+      setShowPaths,
+      showConflicts,
+      setShowConflicts,
     }),
     [
       project,
@@ -418,6 +594,20 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       updateSvgDraft,
       cancelSvgDraft,
       commitSvgDraft,
+      assignmentStrategy,
+      transitionOverrides,
+      transitionAnalysis,
+      assignmentComparison,
+      optimization,
+      transitionBusy,
+      transitionError,
+      analyzeSelectedTransition,
+      optimizeSelectedTransition,
+      clearTransitionAnalysis,
+      applySuggestedDuration,
+      canAnalyzeSelectedClip,
+      showPaths,
+      showConflicts,
     ],
   );
 
