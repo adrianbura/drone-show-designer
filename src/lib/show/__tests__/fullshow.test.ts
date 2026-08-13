@@ -62,8 +62,7 @@ describe("full show composition", () => {
       const last = drone.samples[drone.samples.length - 1]!.position;
       expect(first[1]).toBeLessThan(0.05);
       expect(last[1]).toBeLessThan(0.35);
-      expect(Math.hypot(last[0] - home[0], last[2] - home[2])).toBeLessThan 
-        (1);
+      expect(Math.hypot(last[0] - home[0], last[2] - home[2])).toBeLessThan(1);
     });
   });
 
