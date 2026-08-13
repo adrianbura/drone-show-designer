@@ -554,6 +554,81 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     patchClip(clipId, { transition: Math.max(0.5, next) });
   }, [transitionAnalysis, patchClip]);
 
+  // ---- Full show simulation & validation ---------------------------------
+  //
+  // The analysis composes the show with EXACTLY the settings the viewport plays
+  // (same project, strategy, overrides and sample rate), so a report can never
+  // describe a different show than the one on screen.
+  const analyzeFullShow = useCallback(() => {
+    if (fullShowBusy) return;
+    cancelFullShow.current = false;
+    setFullShowBusy(true);
+    setFullShowError(null);
+    setFullShowProgress(null);
+    // Deferred so the busy state and first progress label paint before the
+    // synchronous engine work starts.
+    const run = () => {
+      try {
+        const analyzedClipIds = transitionAnalysis ? [transitionAnalysis.clipId] : [];
+        const unresolvedClipIds =
+          transitionAnalysis &&
+          transitionAnalysis.analysis.conflicts.criticalCount > 0 &&
+          !transitionOverrides[transitionAnalysis.clipId]
+            ? [transitionAnalysis.clipId]
+            : [];
+        const result = analyzeFullShowCore(project, {
+          sampleRate,
+          assignmentStrategy,
+          transitionOverrides,
+          analyzedClipIds,
+          unresolvedClipIds,
+          onProgress: setFullShowProgress,
+          isCancelled: () => cancelFullShow.current,
+        });
+        setFullShow(result);
+      } catch (err) {
+        setFullShow(null);
+        setFullShowError(
+          err instanceof FullShowError
+            ? { code: err.code, message: err.message }
+            : { code: "UNKNOWN", message: err instanceof Error ? err.message : String(err) },
+        );
+      } finally {
+        setFullShowBusy(false);
+        setFullShowProgress(null);
+      }
+    };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => run());
+    else run();
+  }, [
+    fullShowBusy,
+    project,
+    sampleRate,
+    assignmentStrategy,
+    transitionOverrides,
+    transitionAnalysis,
+  ]);
+
+  const cancelFullShowAnalysis = useCallback(() => {
+    cancelFullShow.current = true;
+  }, []);
+
+  const clearFullShowReport = useCallback(() => {
+    setFullShow(null);
+    setFullShowError(null);
+    setHighlightedDrones([]);
+  }, []);
+
+  const focusIssue = useCallback(
+    (issue: FullShowIssue) => {
+      if (typeof issue.time === "number" && Number.isFinite(issue.time)) clock.seek(issue.time);
+      if (issue.clipId) setSelectedClipId(issue.clipId);
+      setHighlightedDrones(issue.droneIndices ?? []);
+    },
+    [clock],
+  );
+
+
   const value = useMemo<StudioContextValue>(
     () => ({
       project,
