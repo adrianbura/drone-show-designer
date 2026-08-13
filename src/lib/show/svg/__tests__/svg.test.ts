@@ -362,7 +362,7 @@ describe("project integration", () => {
     expect(set.duration).toBeCloseTo(showDuration(withSvg), 3);
     const report = validateShow(withSvg, set, plan.drones);
     expect(report.issues).toBeInstanceOf(Array);
-    expect(Number.isFinite(report.metrics.peakVelocity)).toBe(true);
+    expect(Number.isFinite(report.metrics.maxVelocity)).toBe(true);
   });
 
   it("regenerates exact N when the fleet size changes", () => {
