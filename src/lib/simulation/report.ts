@@ -71,11 +71,11 @@ export function historyEntryFromReport(report: SimulationRunReport): SimulationR
 export function statusLabel(status: SimulationRunStatus): string {
   switch (status) {
     case "PASS":
-      return "PX4 SITL simulation result: PASS";
+      return "Simulation result: PASS";
     case "PASS_WITH_WARNINGS":
-      return "PX4 SITL simulation result: PASS (warnings)";
+      return "Simulation result: PASS (warnings)";
     case "FAIL":
-      return "PX4 SITL simulation result: FAIL";
+      return "Simulation result: FAIL";
     case "CANCELLED":
       return "Simulation cancelled";
     default:
