@@ -17,6 +17,7 @@ export type Vec3 = Vector3Tuple;
 export type RGB = readonly [number, number, number];
 
 import type { SvgFormationSource } from "./svg/types";
+import type { PreShowConfig } from "./preshow/types";
 
 export type FormationKind =
   | "grid"
@@ -51,8 +52,10 @@ export type Easing = "linear" | "smooth" | "minJerk";
 /**
  * Explicit choreography phases. TAKEOFF and LANDING have vertical semantics and
  * are planned differently from SHOW transitions; LANDING always ends at y = 0.
+ * PRE_SHOW covers everything before SHOW TIME ZERO (launch grid -> staging) and
+ * only ever occupies negative show time — see src/lib/show/preshow.
  */
-export type ShowPhase = "TAKEOFF" | "SHOW" | "LANDING";
+export type ShowPhase = "PRE_SHOW" | "TAKEOFF" | "SHOW" | "LANDING";
 
 export interface TimelineClip {
   id: string;
@@ -137,6 +140,12 @@ export interface ShowProject {
   versions: ProjectVersions;
   /** Deterministic seed for every generator that needs pseudo-randomness. */
   seed: number;
+  /**
+   * Launch grid / staging / grouped-takeoff configuration. When
+   * `preShow.enabled` is false the project behaves exactly as before: the show
+   * starts at t = 0 with no pre-show trajectories.
+   */
+  preShow?: PreShowConfig;
 }
 
 export interface DroneSample {

@@ -10,6 +10,7 @@
  * airspace clearance, and it is never an authorisation to fly.
  */
 import { detectConflicts, type ConflictReport } from "../conflicts";
+import { validatePreShow, type PreShowValidationReport } from "../preshow/validate";
 import { validateTrajectorySet, type SafetyReport } from "../safety";
 import type { ShowProject } from "../types";
 import { composeFullShow, describeSegment, segmentAt } from "./composer";
@@ -207,6 +208,28 @@ export function analyzeFullShow(
     });
   }
 
+  // PRE-SHOW section: the launch grid, staging formation and grouped takeoff
+  // are validated against the SAME composed set and conflict report.
+  const preShowReport: PreShowValidationReport | null = plan.preShow
+    ? validatePreShow({ project, plan: plan.preShow, set: plan.trajectorySet, conflicts })
+    : null;
+  if (preShowReport) {
+    for (const issue of preShowReport.issues) {
+      add({
+        severity: issue.severity,
+        category: "preShow",
+        code: issue.code,
+        message: `PRE-SHOW: ${issue.message}`,
+        ...(issue.time !== undefined ? { time: issue.time } : {}),
+        ...(issue.droneIds ? { droneIds: issue.droneIds } : {}),
+        ...(issue.droneIndices ? { droneIndices: issue.droneIndices } : {}),
+        ...(issue.value !== undefined ? { value: issue.value } : {}),
+        ...(issue.limit !== undefined ? { limit: issue.limit } : {}),
+        phase: "PRE_SHOW",
+      });
+    }
+  }
+
   const unresolvedTransitions = transitions.filter(
     (t) => t.status === "unresolved" || (t.conflictCount > 0 && t.phase === "SHOW"),
   );
@@ -289,6 +312,7 @@ export function analyzeFullShow(
     timeline,
     homePads,
     lighting,
+    preShow: preShowReport,
     phaseReports,
     transitionReports: transitions,
     transitionAggregate: aggregate,

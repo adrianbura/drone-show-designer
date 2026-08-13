@@ -75,6 +75,8 @@ export function computeAnalysisRevision(project: ShowProject, inputs: RevisionIn
     JSON.stringify(project.limits),
     JSON.stringify(project.altitudes),
     JSON.stringify(project.versions),
+    // Any launch/staging/grouping change invalidates the analysis.
+    `ps=${JSON.stringify(project.preShow ?? null)}`,
     `sr=${inputs.sampleRate}`,
     `as=${inputs.assignmentStrategy}`,
     clips.join("~"),

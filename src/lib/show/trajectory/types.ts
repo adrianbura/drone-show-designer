@@ -24,7 +24,10 @@ export interface DroneTrajectory {
 
 export interface TrajectorySet {
   readonly droneCount: number;
+  /** Sampled SPAN in seconds (end - startTime). */
   readonly duration: number;
+  /** First sampled show time. Negative when the set contains a pre-show. */
+  readonly startTime?: number;
   /** Samples per second. Any of 10/20/25/50/100 Hz (or other) is supported. */
   readonly sampleRate: number;
   readonly drones: DroneTrajectory[];

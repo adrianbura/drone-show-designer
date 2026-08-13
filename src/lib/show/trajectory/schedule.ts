@@ -12,6 +12,9 @@ import {
   type DroneAssignment,
 } from "../assignment";
 import { buildDroneDefinitions, type DroneDefinition } from "../drones";
+import { composePreShow, launchHomePositions } from "../preshow/plan";
+import { resolvePreShowConfig } from "../preshow/config";
+import type { PreShowConfig, PreShowPhaseName, PreShowPlan } from "../preshow/types";
 import type { ShowPhase, ShowProject, Vector3Tuple } from "../types";
 import { clipPhase, showDuration, TRAJECTORY_ALGORITHM_VERSION } from "../types";
 import { withStartOffset, withVerticalLane } from "./offsets";
@@ -30,6 +33,8 @@ export interface ScheduleSegment {
   readonly phase: ShowPhase;
   readonly kind: "transition" | "hold";
   readonly planned: PlannedTrajectory;
+  /** Set only on PRE_SHOW segments (see preshow/plan.ts). */
+  readonly preShowPhase?: PreShowPhaseName;
 }
 
 export interface DroneSchedule {
@@ -50,7 +55,17 @@ export interface ShowPlan {
   readonly drones: DroneDefinition[];
   readonly schedules: DroneSchedule[];
   readonly assignments: ClipAssignment[];
+  /** Artistic show duration: show time 0 .. duration. */
   readonly duration: number;
+  /**
+   * First show time covered by the schedules. 0 without a pre-show, and
+   * -preShow.duration when a launch plan is composed (pre-show occupies
+   * negative show time and SHOW TIME ZERO is always t = 0).
+   */
+  readonly startTime: number;
+  /** Operational time of SHOW TIME ZERO = pre-show duration (0 when absent). */
+  readonly showStartOperationalTime: number;
+  readonly preShow: PreShowPlan | null;
   readonly algorithmVersion: string;
   /** Assignment strategy used for SHOW clips without an override. */
   readonly assignmentStrategy: AssignmentStrategyId;
@@ -79,6 +94,8 @@ export interface BuildShowPlanOptions {
   /** Strategy for SHOW clips. TAKEOFF uses `identity`, LANDING `optimalDistance`. */
   readonly assignmentStrategy?: AssignmentStrategyId;
   readonly transitionOverrides?: Readonly<Record<string, ClipTransitionOverride>>;
+  /** Overrides `project.preShow`. Pass `null` to plan the show without pre-show. */
+  readonly preShow?: PreShowConfig | null;
 }
 
 function padPoints(points: readonly Vector3Tuple[], count: number, fallback: Vector3Tuple[]): Vector3Tuple[] {
@@ -106,7 +123,22 @@ function clampArc(arc: number, startY: number, endY: number, ceiling: number): n
 }
 
 export function buildShowPlan(project: ShowProject, options: BuildShowPlanOptions = {}): ShowPlan {
-  const drones = buildDroneDefinitions(project);
+  const preShowConfig =
+    options.preShow === null
+      ? null
+      : options.preShow ?? (project.preShow?.enabled ? resolvePreShowConfig(project.preShow) : null);
+  const usePreShow = !!preShowConfig?.enabled;
+
+  // With a launch plan the physical home positions are the LAUNCH PADS, so
+  // LANDING also returns every drone to its own pad.
+  const padHome = usePreShow
+    ? launchHomePositions({
+        droneCount: project.droneCount,
+        config: preShowConfig!,
+        limits: project.limits,
+      })
+    : null;
+  const drones = buildDroneDefinitions(project, padHome ?? undefined);
   const home = drones.map((d) => d.homePosition);
   const clips = [...project.timeline].sort((a, b) => a.start - b.start);
   const errors: TrajectoryPlanningError[] = [];
@@ -120,7 +152,31 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
     segments: [],
   }));
 
-  let current: Vector3Tuple[] = home.slice();
+  // PRE-SHOW: launch grid -> grouped takeoff -> staging, in negative show time.
+  let preShow: PreShowPlan | null = null;
+  if (usePreShow) {
+    const stagingFormation =
+      preShowConfig!.staging.formationKind === "formation"
+        ? project.formations.find((f) => f.id === preShowConfig!.staging.formationId)
+        : undefined;
+    const composed = composePreShow(
+      {
+        droneCount: project.droneCount,
+        config: preShowConfig!,
+        limits: project.limits,
+        ...(stagingFormation ? { stagingFormation } : {}),
+      },
+      drones,
+    );
+    preShow = composed.plan;
+    composed.schedules.forEach((s, i) => {
+      schedules[i]!.segments.push(...s.segments);
+    });
+  }
+
+  // The artistic timeline starts from the staging formation when a pre-show
+  // exists, otherwise from the home pads.
+  let current: Vector3Tuple[] = usePreShow && preShow ? preShow.targetByDrone.slice() : home.slice();
 
   for (const clip of clips) {
     const phase = clipPhase(clip);
@@ -245,6 +301,9 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
     schedules,
     assignments,
     duration: showDuration(project),
+    startTime: preShow ? -preShow.duration : 0,
+    showStartOperationalTime: preShow ? preShow.showStartOperationalTime : 0,
+    preShow,
     algorithmVersion: TRAJECTORY_ALGORITHM_VERSION,
     assignmentStrategy: showStrategy,
     optimizedClipIds,

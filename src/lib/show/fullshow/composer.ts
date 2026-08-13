@@ -78,7 +78,15 @@ export function composeFullShow(
 
   const t1 = nowMs();
   const duration = Math.max(showDuration(project), 0);
-  const trajectorySet = sampleTrajectorySet(showPlan, { sampleRate, duration });
+  // PRE-SHOW occupies negative show time; the composed set therefore spans
+  // [-preShowDuration, showDuration] and SHOW TIME ZERO stays exactly t = 0.
+  const preShow = showPlan.preShow;
+  const startTime = showPlan.startTime;
+  const trajectorySet = sampleTrajectorySet(showPlan, {
+    sampleRate,
+    startTime,
+    duration: duration - startTime,
+  });
   const samplingMs = nowMs() - t1;
 
   // Segments come from the planner itself (drone 0 carries the canonical time
@@ -126,6 +134,9 @@ export function composeFullShow(
   });
 
   const phases: PhaseWindow[] = [];
+  if (preShow) {
+    phases.push({ phase: "PRE_SHOW", start: -preShow.duration, end: 0, clipIds: [] });
+  }
   for (const clip of clips) {
     const phase: ShowPhase = clipPhase(clip);
     const end = clip.start + clip.transition + clip.hold;
@@ -160,6 +171,10 @@ export function composeFullShow(
     projectId: project.id,
     droneCount: project.droneCount,
     duration,
+    startTime,
+    operationalDuration: duration - startTime,
+    showStartOperationalTime: showPlan.showStartOperationalTime,
+    preShow,
     sampleRate,
     drones: showPlan.drones,
     phases,

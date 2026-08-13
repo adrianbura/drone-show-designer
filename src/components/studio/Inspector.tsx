@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import FullShowPanel from "./FullShowPanel";
+import LaunchPanel from "./LaunchPanel";
 
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
 import {
@@ -442,6 +443,8 @@ export default function Inspector() {
           ))}
         </ul>
       </section>
+
+      <LaunchPanel />
 
       <FullShowPanel />
 

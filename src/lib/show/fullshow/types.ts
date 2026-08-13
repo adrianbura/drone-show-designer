@@ -17,6 +17,8 @@ import type { DroneDefinition } from "../drones";
 import type { SafetyReport } from "../safety";
 import type { ClipTransitionOverride, ShowPlan } from "../trajectory/schedule";
 import type { TrajectorySet } from "../trajectory/types";
+import type { PreShowPlan } from "../preshow/types";
+import type { PreShowValidationReport } from "../preshow/validate";
 import type { RGB, ShowPhase, ShowProject } from "../types";
 
 export const FULL_SHOW_ENGINE_VERSION = "0.1.0";
@@ -128,7 +130,15 @@ export interface FullShowAlgorithmVersions {
 export interface FullShowPlan {
   readonly projectId: string;
   readonly droneCount: number;
+  /** Artistic show duration (show time 0 .. duration). */
   readonly duration: number;
+  /** First covered show time: -preShowDuration, or 0 without a pre-show. */
+  readonly startTime: number;
+  /** duration - startTime: the whole operation, pre-show included. */
+  readonly operationalDuration: number;
+  /** Operational time of SHOW TIME ZERO (= pre-show duration). */
+  readonly showStartOperationalTime: number;
+  readonly preShow: PreShowPlan | null;
   readonly sampleRate: number;
   readonly drones: readonly DroneDefinition[];
   readonly phases: PhaseWindow[];
@@ -167,7 +177,8 @@ export type FullShowIssueCategory =
   | "takeoff"
   | "landing"
   | "lighting"
-  | "transition";
+  | "transition"
+  | "preShow";
 
 export interface FullShowIssue {
   readonly id: string;
@@ -358,6 +369,8 @@ export interface FullShowValidationReport {
   readonly timeline: TimelineValidationReport;
   readonly homePads: HomePadReport;
   readonly lighting: LightingReport;
+  /** PRE-SHOW section (launch grid, staging, takeoff schedule). */
+  readonly preShow: PreShowValidationReport | null;
   readonly phaseReports: PhaseMetrics[];
   readonly transitionReports: TransitionReport[];
   readonly transitionAggregate: TransitionAggregate;

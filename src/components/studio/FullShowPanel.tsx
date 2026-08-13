@@ -22,6 +22,7 @@ const CATEGORY_LABEL: Record<FullShowIssueCategory, string> = {
   landing: "Landing",
   lighting: "Lighting",
   transition: "Transition",
+  preShow: "Pre-show",
 };
 
 const SEVERITY_ORDER: FullShowIssueSeverity[] = ["error", "warning", "info"];
