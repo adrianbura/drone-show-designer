@@ -37,6 +37,15 @@ import {
   type TransitionAnalysis,
   type TransitionOptimizationResult,
 } from "../show/transition";
+import {
+  analyzeFullShow as analyzeFullShowCore,
+  computeAnalysisRevision,
+  FullShowError,
+  type FullShowIssue,
+  type FullShowPlan,
+  type FullShowProgress,
+  type FullShowValidationReport,
+} from "../show/fullshow";
 import type {
   Formation,
   FormationKind,
