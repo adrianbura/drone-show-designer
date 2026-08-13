@@ -95,13 +95,15 @@ export const ADAPTER_REGISTRY: AdapterDescriptor[] = [
   },
   {
     id: "px4-sitl",
-    name: "PX4 SITL",
+    name: "PX4 SITL (single vehicle, via Simulation Bridge)",
     kind: "simulation",
-    status: "planned",
+    status: "configured",
     upstream: "PX4 Autopilot (BSD-3)",
     license: "BSD-3 — process boundary, no code copied",
-    notes: "Spawns N SITL instances via the Python service; telemetry over WS.",
+    notes:
+      "Sprint 5: replays ONE validated trajectory through a local PX4 SITL vehicle over the Python bridge. Simulation only.",
   },
+
   {
     id: "mavsdk",
     name: "MAVSDK / MAVLink",
