@@ -24,13 +24,23 @@ export function droneIndexFromId(id: string): number {
 }
 
 /**
- * Home (take-off / landing) pad positions: the XZ footprint of the first
- * formation projected onto the ground plane, which is what the fleet physically
- * launches from. Deterministic for a given project.
+ * Home (take-off / landing) pad positions.
+ *
+ * Without a launch plan these are the XZ footprint of the first formation
+ * projected onto the ground plane. When a pre-show launch grid exists, the
+ * caller passes the LAUNCH PAD positions in `homeOverride` so that pads are the
+ * conceptual physical home of every drone. Deterministic either way.
  */
-export function buildDroneDefinitions(project: ShowProject): DroneDefinition[] {
+export function buildDroneDefinitions(
+  project: ShowProject,
+  homeOverride?: readonly Vector3Tuple[],
+): DroneDefinition[] {
   const pad = project.formations[0]?.points ?? [];
   return Array.from({ length: project.droneCount }, (_, i) => {
+    const override = homeOverride?.[i];
+    if (override) {
+      return { id: droneIdForIndex(i), index: i, homePosition: override };
+    }
     const p = pad[i % Math.max(1, pad.length)] ?? [0, 0, 0];
     return {
       id: droneIdForIndex(i),
