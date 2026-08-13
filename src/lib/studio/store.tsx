@@ -146,6 +146,26 @@ interface StudioContextValue {
   setShowPaths: (v: boolean) => void;
   showConflicts: boolean;
   setShowConflicts: (v: boolean) => void;
+
+  // ---- Full show simulation & validation (Sprint 4) ----------------------
+  /** Composed full-show plan of the last analysis (TAKEOFF..LANDING). */
+  fullShowPlan: FullShowPlan | null;
+  fullShowReport: FullShowValidationReport | null;
+  fullShowBusy: boolean;
+  fullShowProgress: FullShowProgress | null;
+  /** True when the project changed after the report was produced. */
+  fullShowStale: boolean;
+  fullShowError: { code: string; message: string } | null;
+  /** Deterministic revision of the CURRENT project + analysis settings. */
+  analysisRevision: string;
+  analyzeFullShow: () => void;
+  cancelFullShowAnalysis: () => void;
+  clearFullShowReport: () => void;
+  /** Seeks to an issue, selects its clip and highlights the drones involved. */
+  focusIssue: (issue: FullShowIssue) => void;
+  /** Drone indices highlighted in the viewport (issue navigation). */
+  highlightedDrones: number[];
+  setHighlightedDrones: (indices: number[]) => void;
 }
 
 const StudioContext = createContext<StudioContextValue | null>(null);
