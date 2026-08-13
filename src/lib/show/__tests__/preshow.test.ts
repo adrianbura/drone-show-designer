@@ -9,7 +9,7 @@ import {
   analyzePreShow,
   buildLaunchGroups,
   buildLaunchLayout,
-  buildStagingPlan,
+  buildStagingLayout,
   compareGroupOrders,
   composePreShow,
   DEFAULT_PRE_SHOW,
@@ -39,7 +39,7 @@ describe("launch grid", () => {
       const layout = buildLaunchLayout(count, DEFAULT_PRE_SHOW.launch);
       expect(layout.pads).toHaveLength(count);
       expect(new Set(layout.pads.map((p) => p.id)).size).toBe(count);
-      expect(new Set(layout.pads.map((p) => p.droneId)).size).toBe(count);
+      expect(layout.pads.map((p) => p.index)).toEqual(Array.from({ length: count }, (_, i) => i));
     }
   });
 
@@ -62,17 +62,16 @@ describe("launch grid", () => {
 
 describe("staging", () => {
   it("generates exactly N staging targets at the configured altitude", () => {
-    const staging = buildStagingPlan(24, resolvePreShowConfig({ enabled: true }), {
-      center: [0, 0, 0],
-    });
+    const layout = buildLaunchLayout(24, DEFAULT_PRE_SHOW.launch);
+    const staging = buildStagingLayout(24, DEFAULT_PRE_SHOW.staging, layout);
     expect(staging.targets).toHaveLength(24);
     for (const t of staging.targets) expect(t[1]).toBeCloseTo(DEFAULT_PRE_SHOW.staging.altitude, 6);
   });
 
   it("is deterministic for identical configuration", () => {
-    const cfg = resolvePreShowConfig({ enabled: true });
-    const a = buildStagingPlan(31, cfg, { center: [5, 0, -3] });
-    const b = buildStagingPlan(31, cfg, { center: [5, 0, -3] });
+    const layout = buildLaunchLayout(31, DEFAULT_PRE_SHOW.launch);
+    const a = buildStagingLayout(31, DEFAULT_PRE_SHOW.staging, layout);
+    const b = buildStagingLayout(31, DEFAULT_PRE_SHOW.staging, layout);
     expect(a.targets).toEqual(b.targets);
   });
 });
