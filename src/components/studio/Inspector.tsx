@@ -295,9 +295,9 @@ export default function Inspector() {
             )}
             {comparison && (
               <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
-                greedy {comparison.greedy.metrics.totalDistance.toFixed(0)} m → optimal{" "}
-                {comparison.optimal.metrics.totalDistance.toFixed(0)} m (
-                {comparison.improvementPercent.toFixed(1)}% shorter)
+                greedy {comparison.nearestNeighbor.metrics.totalDistance.toFixed(0)} m → optimal{" "}
+                {comparison.optimalDistance.metrics.totalDistance.toFixed(0)} m (
+                {(comparison.totalDistanceImprovement * 100).toFixed(1)}% shorter)
               </p>
             )}
             {optimizationResult && (
