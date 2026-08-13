@@ -60,3 +60,28 @@ report means "validated against the current safety profile", never "safe to fly"
 3. SVG / image / 3D-mesh importers feeding the Formation Engine.
 4. Real beat/onset detection and waveform display.
 5. PX4 SITL fleet spawning and MAVSDK mission upload behind `SimulationAdapter`.
+
+## Vector / SVG formation engine (`src/lib/show/svg/`)
+
+Pure, DOM-free package that turns an untrusted SVG document into an **exact-N**
+point set in show-local coordinates. It never plans flight: output is a plain
+`Formation` (`kind: "svg"`), so assignment, trajectory planning, sampling,
+safety validation and export are entirely unchanged downstream.
+
+```
+file -> import.ts (File -> text, size limit)
+     -> parser.ts (inert XML scan; no DOM, no scripts, no network)
+     -> paths.ts + flatten.ts (all path commands, arcs -> cubics, adaptive flattening)
+     -> normalize.ts (viewBox -> centred plane metres -> world, +Y up)
+     -> sampling.ts (outline: arc-length + largest-remainder | fill: stratified + farthest-point)
+     -> distribute.ts (seeded PRNG, allocation, fill rules, constrained relaxation)
+     -> validation.ts (static spacing / duplicate / placement report)
+     -> formation.ts (Formation + reproducibility metadata)
+```
+
+Guarantees: exactly `targetCount` points or a structured `SvgError`;
+deterministic for a given (file, params, seed); no remote fetches; live text,
+raster images, masks and filters are reported as warnings rather than silently
+approximated. Fleet-size changes regenerate through the stored `SvgAsset`, which
+keeps exact-N valid. Design-time reports are quality metrics, never a safety
+statement — the SafetyValidator remains the only authority on flight limits.
