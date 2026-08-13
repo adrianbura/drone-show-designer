@@ -8,23 +8,13 @@ from app.services.integrity import simulation_payload_hash
 
 def make_package(
     *,
-    validation_status: str = "VALIDATED",
+    validation_state: str = "VALIDATED",
     stale: bool = False,
     samples: list[tuple[float, tuple[float, float, float]]] | None = None,
     drone_id: str = "DRN-001",
+    payload_hash: str | None = None,
 ) -> SimulationPackage:
     pts = samples or [(i * 0.04, (0.0, 2.0 + i * 0.01, 0.0)) for i in range(60)]
-    payload_samples = [{"t": t, "p": list(p), "v": [0.0, 0.0, 0.0]} for t, p in pts]
-    trajectory = {
-        "droneId": drone_id,
-        "droneIndex": 0,
-        "homePosition": [0.0, 0.0, 0.0],
-        "sampleCount": len(payload_samples),
-        "startTime": pts[0][0],
-        "endTime": pts[-1][0],
-        "duration": pts[-1][0] - pts[0][0],
-        "samples": payload_samples,
-    }
     body = {
         "schema": "DroneShowStudioSimulationPackage",
         "schemaVersion": 1,
@@ -35,22 +25,44 @@ def make_package(
         "projectId": "prj-test",
         "projectName": "Bridge Test Show",
         "coordinateSystem": {
-            "frame": "show-local",
-            "upAxis": "Y",
-            "handedness": "right",
-            "units": "metres",
+            "id": "show-local",
+            "handedness": "right-handed",
+            "altitudeAxis": "y",
         },
         "sampleRate": 25.0,
         "showTimeZero": 0.0,
-        "operationalTiming": {"showStartTime": 0.0, "preShowStartTime": 0.0},
+        "operationalTiming": {
+            "firstPlayableShowTime": pts[0][0],
+            "showStartOperationalTime": 0.0,
+            "includesPreShow": False,
+        },
         "algorithmVersions": {"planner": "0.1.0"},
         "validationProvenance": {
-            "fullShowStatus": validation_status,
-            "exportReadiness": "READY" if validation_status == "VALIDATED" else "BLOCKED",
+            "state": validation_state,
+            "fullShowStatus": "VALIDATED" if validation_state.startswith("VALIDATED") else "FAILED",
             "stale": stale,
-            "analysisRevision": "rev-test-0001",
+            "exportReadiness": "READY" if validation_state == "VALIDATED" else "BLOCKED",
+            "errorCount": 0,
+            "warningCount": 0,
             "engineVersion": "0.1.0",
         },
-        "trajectory": trajectory,
+        "trajectory": {
+            "droneId": drone_id,
+            "droneIndex": 0,
+            "homePosition": [0.0, 0.0, 0.0],
+            "sampleCount": len(pts),
+            "startTime": pts[0][0],
+            "endTime": pts[-1][0],
+            "duration": pts[-1][0] - pts[0][0],
+            "samples": [{"t": t, "p": list(p), "v": [0.0, 0.0, 0.0]} for t, p in pts],
+        },
     }
-    return SimulationPackage(**body, payloadHash=simulation_payload_hash(body))
+    computed = simulation_payload_hash(
+        schema_version=1,
+        show_package_id=body["showPackageId"],
+        analysis_revision=body["analysisRevision"],
+        drone_id=drone_id,
+        sample_rate=25.0,
+        samples=[(t, p) for t, p in pts],
+    )
+    return SimulationPackage(**body, payloadHash=payload_hash or computed)
