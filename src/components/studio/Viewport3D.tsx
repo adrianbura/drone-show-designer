@@ -152,6 +152,13 @@ export default function Viewport3D() {
         highlighted={highlighted}
       />
       {svgDraft ? <SvgDraftPreview draft={svgDraft} /> : null}
+      {overlayAnalysis && (showPaths || showConflicts) ? (
+        <TransitionOverlay
+          analysis={overlayAnalysis}
+          paths={showPaths}
+          conflicts={showConflicts}
+        />
+      ) : null}
       <OrbitControls
         enableDamping
         dampingFactor={0.08}
