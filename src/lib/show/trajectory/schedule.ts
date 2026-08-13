@@ -5,10 +5,16 @@
  *
  * Pure: no React, no Three.js, usable from Node tests.
  */
-import { applyAssignment, getAssignmentStrategy, type DroneAssignment } from "../assignment";
+import {
+  applyAssignment,
+  getAssignmentStrategy,
+  type AssignmentStrategyId,
+  type DroneAssignment,
+} from "../assignment";
 import { buildDroneDefinitions, type DroneDefinition } from "../drones";
 import type { ShowPhase, ShowProject, Vector3Tuple } from "../types";
 import { clipPhase, showDuration, TRAJECTORY_ALGORITHM_VERSION } from "../types";
+import { withStartOffset, withVerticalLane } from "./offsets";
 import { minJerkPlanner, planHold } from "./planner";
 import {
   TrajectoryPlanningError,
