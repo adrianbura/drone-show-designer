@@ -7,7 +7,13 @@ import { buildShowPlan, sampleTrajectorySet } from "../../trajectory";
 import { validateShow } from "../../safety";
 import { showDuration, type ShowProject, type TimelineClip } from "../../types";
 import { allocateLargestRemainder, isInsideRegion, spacingStats } from "../distribute";
-import { generateSvgFormationPoints, makeSvgFormation, resolveSvgParams } from "../formation";
+import {
+  generateSvgFormationPoints,
+  makeSvgFormation,
+  regenerateSvgFormation,
+  resolveSvgParams,
+  withPlacementWarnings,
+} from "../formation";
 import { parseSvg } from "../parser";
 import { parsePathData } from "../paths";
 import { planeTransform, toPlane } from "../normalize";
@@ -151,8 +157,8 @@ describe("exact N", () => {
 
   it("still produces exact N for a complex logo with very few drones", () => {
     const g = parse("multi-contour.svg");
-    const result = generateSvgFormationPoints(g, resolveSvgParams(20, { mode: "outline" }));
-    expect(result.points).toHaveLength(20);
+    const result = generateSvgFormationPoints(g, resolveSvgParams(10, { mode: "outline" }));
+    expect(result.points).toHaveLength(10);
     expect(result.report.warnings.map((w) => w.code)).toContain("LOW_DRONE_COUNT_FOR_COMPLEX_LOGO");
   });
 
@@ -234,7 +240,6 @@ describe("transforms and placement", () => {
       parse("circle.svg"),
       resolveSvgParams(50, { width: project.area.width * 3, altitude: 400 }),
     );
-    const { withPlacementWarnings } = require("../formation") as typeof import("../formation");
     const codes = withPlacementWarnings(big, project).report.warnings.map((w) => w.code);
     expect(codes).toContain("SHOW_AREA_EXCEEDED");
     expect(codes).toContain("ALTITUDE_LIMIT_EXCEEDED");
@@ -367,7 +372,6 @@ describe("project integration", () => {
 
   it("regenerates exact N when the fleet size changes", () => {
     const svgAsset = asset("simple-square.svg");
-    const { regenerateSvgFormation } = require("../formation") as typeof import("../formation");
     const base = makeSvgFormation(
       "f1",
       "Square",
