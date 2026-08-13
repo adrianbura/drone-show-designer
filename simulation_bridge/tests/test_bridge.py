@@ -223,11 +223,18 @@ def test_test_trajectory_run_reports_calibration(client):
 
 def test_failed_validation_package_cannot_run(client):
     pkg = make_package(validation_state="FAILED_VALIDATION").model_dump(by_alias=True)
+    # Preparing is allowed (the built-in test trajectory stays available), but
+    # replaying an unvalidated SHOW trajectory is refused by the execution gate.
     prepared = client.post(
         "/api/v1/simulation/prepare", json={"package": pkg, "environmentMode": "MOCK"}
     )
-    assert prepared.status_code in (409, 422)
-    assert prepared.json()["code"] in ("SHOW_VALIDATION_FAILED", "PACKAGE_INVALID", "PACKAGE_STALE")
+    assert prepared.status_code == 200, prepared.text
+    started = client.post(
+        "/api/v1/simulation/run",
+        json={"runId": prepared.json()["runId"], "mode": "SHOW_TRAJECTORY"},
+    )
+    assert started.status_code == 409
+    assert started.json()["code"] == "SHOW_VALIDATION_FAILED"
 
 
 def test_history_records_completed_runs(client):
