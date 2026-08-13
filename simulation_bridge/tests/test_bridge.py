@@ -15,7 +15,6 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings, assert_local_endpoint
 from app.models.errors import BridgeError
-from app.models.package import SimulationPackage
 from app.models.run import TrackingPoint
 from app.main import create_app
 from app.services.coordinates import ned_to_studio, studio_to_ned, studio_yaw_to_ned
@@ -80,12 +79,12 @@ def test_valid_package_is_runnable():
 
 
 def test_failed_show_validation_is_not_runnable():
-    result = validate_package(make_package(validation_status="FAILED"))
+    result = validate_package(make_package(validation_state="FAILED_VALIDATION"))
     assert result["runnable"] is False
 
 
 def test_stale_analysis_is_not_runnable():
-    result = validate_package(make_package(stale=True))
+    result = validate_package(make_package(validation_state="STALE_VALIDATION", stale=True))
     assert result["runnable"] is False
 
 
@@ -101,8 +100,7 @@ def test_non_finite_sample_rejected():
 
 
 def test_tampered_payload_hash_rejected():
-    pkg = make_package()
-    tampered = SimulationPackage(**{**pkg.model_dump(by_alias=True), "payloadHash": "deadbeef"})
+    tampered = make_package(payload_hash="sph-deadbeef-deadbeef")
     assert validate_package(tampered)["accepted"] is False
 
 
@@ -224,7 +222,7 @@ def test_test_trajectory_run_reports_calibration(client):
 
 
 def test_failed_validation_package_cannot_run(client):
-    pkg = make_package(validation_status="FAILED").model_dump(by_alias=True)
+    pkg = make_package(validation_state="FAILED_VALIDATION").model_dump(by_alias=True)
     prepared = client.post(
         "/api/v1/simulation/prepare", json={"package": pkg, "environmentMode": "MOCK"}
     )
