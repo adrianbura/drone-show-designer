@@ -54,16 +54,24 @@ describe("full show composition", () => {
     expect(segmentAt(plan, plan.duration)!.phase).toBe("LANDING");
   });
 
-  it("starts and ends on the ground at the drone's own home pad", () => {
+  it("starts on its own pad and lands on exactly one pad each", () => {
     const plan = composeFullShow(smallProject(), settings);
+    const padKey = (p: readonly number[]) => `${p[0]!.toFixed(1)},${p[2]!.toFixed(1)}`;
+    const pads = new Set(plan.drones.map((d) => padKey(d.homePosition)));
+    const landedOn = new Set<string>();
     plan.trajectorySet.drones.forEach((drone, i) => {
-      const home = plan.drones[i]!.homePosition;
       const first = drone.samples[0]!.position;
       const last = drone.samples[drone.samples.length - 1]!.position;
       expect(first[1]).toBeLessThan(0.05);
+      expect(padKey(first)).toBe(padKey(plan.drones[i]!.homePosition));
       expect(last[1]).toBeLessThan(0.35);
-      expect(Math.hypot(last[0] - home[0], last[2] - home[2])).toBeLessThan(1);
+      // LANDING uses optimal pad assignment: pads are interchangeable, but the
+      // mapping must stay a bijection so no pad receives two drones.
+      expect(pads.has(padKey(last))).toBe(true);
+      expect(landedOn.has(padKey(last))).toBe(false);
+      landedOn.add(padKey(last));
     });
+    expect(landedOn.size).toBe(plan.drones.length);
   });
 
   it("is deterministic: identical input yields identical samples and revision", () => {
