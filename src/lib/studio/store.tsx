@@ -75,6 +75,8 @@ import {
   resolvePreShowConfig,
   suggestGroupInterval,
   suggestLaunchSchedule,
+  buildPreShowOverlay,
+  type PreShowOverlayModel,
   type GroupOrderComparison,
   type IntervalSearchResult,
   type LaunchScheduleEstimate,
@@ -203,6 +205,18 @@ interface StudioContextValue {
   suggestInterval: () => void;
   compareOrders: () => void;
   applySuggestedInterval: () => void;
+  /** Read-only launch/staging visualization model of the current plan. */
+  preShowOverlay: PreShowOverlayModel | null;
+  /** True when the pre-show report describes a different project revision. */
+  preShowStale: boolean;
+  showLaunchPads: boolean;
+  setShowLaunchPads: (v: boolean) => void;
+  showStaging: boolean;
+  setShowStaging: (v: boolean) => void;
+  showLaunchGroups: boolean;
+  setShowLaunchGroups: (v: boolean) => void;
+  selectedLaunchGroupId: string | null;
+  selectLaunchGroup: (id: string | null) => void;
   /** Drone indices highlighted in the viewport (issue navigation). */
   highlightedDrones: number[];
   setHighlightedDrones: (indices: number[]) => void;
@@ -277,8 +291,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [preShowPreview, setPreShowPreview] = useState<{
     plan: PreShowPlan;
     report: PreShowValidationReport;
+    /** Project revision the preview was computed for (staleness provenance). */
+    revision: string;
   } | null>(null);
   const [preShowBusy, setPreShowBusy] = useState(false);
+  const [showLaunchPads, setShowLaunchPads] = useState(false);
+  const [showStaging, setShowStaging] = useState(false);
+  const [showLaunchGroups, setShowLaunchGroups] = useState(false);
+  const [selectedLaunchGroupId, setSelectedLaunchGroupId] = useState<string | null>(null);
   const [preShowError, setPreShowError] = useState<{ code: string; message: string } | null>(null);
   const [intervalSuggestion, setIntervalSuggestion] = useState<IntervalSearchResult | null>(null);
   const [groupOrderComparison, setGroupOrderComparison] = useState<GroupOrderComparison[] | null>(
@@ -688,6 +708,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [preShowEnabled, plan.preShow, project, preShowConfig],
   );
 
+  const preShowOverlay = useMemo(
+    () => (plan.preShow ? buildPreShowOverlay(plan.preShow) : null),
+    [plan.preShow],
+  );
+
   const previewLaunch = useCallback(() => {
     setPreShowBusy(true);
     setPreShowError(null);
@@ -696,7 +721,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         config: preShowConfig,
         sampleRate,
       });
-      setPreShowPreview({ plan: preShowPlan, report });
+      setPreShowPreview({ plan: preShowPlan, report, revision: analysisRevision });
     } catch (err) {
       setPreShowPreview(null);
       setPreShowError({
@@ -706,7 +731,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     } finally {
       setPreShowBusy(false);
     }
-  }, [project, preShowConfig, sampleRate]);
+  }, [project, preShowConfig, sampleRate, analysisRevision]);
 
   const clearPreShowReport = useCallback(() => {
     setPreShowPreview(null);
@@ -835,6 +860,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       suggestInterval,
       compareOrders,
       applySuggestedInterval,
+      preShowOverlay,
+      preShowStale: preShowPreview
+        ? preShowPreview.revision !== analysisRevision
+        : fullShowStale,
+      showLaunchPads,
+      setShowLaunchPads,
+      showStaging,
+      setShowStaging,
+      showLaunchGroups,
+      setShowLaunchGroups,
+      selectedLaunchGroupId,
+      selectLaunchGroup: setSelectedLaunchGroupId,
       highlightedDrones,
       setHighlightedDrones,
     }),
@@ -904,6 +941,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       suggestInterval,
       compareOrders,
       applySuggestedInterval,
+      preShowOverlay,
+      fullShowStale,
+      showLaunchPads,
+      showStaging,
+      showLaunchGroups,
+      selectedLaunchGroupId,
       highlightedDrones,
     ],
   );
