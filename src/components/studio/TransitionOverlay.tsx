@@ -49,10 +49,17 @@ export default function TransitionOverlay({
         </lineSegments>
       )}
       {conflictPoints.map((c) => (
-        <mesh key={c.id} position={[c.midpoint[0], c.midpoint[1], c.midpoint[2]]}>
+        <mesh
+          key={c.id}
+          position={[
+            (c.positionA[0] + c.positionB[0]) / 2,
+            (c.positionA[1] + c.positionB[1]) / 2,
+            (c.positionA[2] + c.positionB[2]) / 2,
+          ]}
+        >
           <sphereGeometry args={[1.1, 10, 10]} />
           <meshBasicMaterial
-            color={c.severity === "critical" ? "#ff4d5e" : "#ffc martial"}
+            color={c.severity === "critical" ? "#ff4d5e" : "#ffc861"}
             transparent
             opacity={0.5}
             toneMapped={false}
