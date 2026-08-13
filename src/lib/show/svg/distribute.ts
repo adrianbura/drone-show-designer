@@ -42,7 +42,6 @@ export function allocateLargestRemainder(
   const sum = weights.reduce((s, w) => s + Math.max(0, w), 0);
   if (sum <= 0 || remaining <= 0) {
     // Spread anything left over in a stable round-robin.
-    for (let i = 0; remaining > 0; i = (i + 1) % n, remaining--) out[i]!;
     let idx = 0;
     while (remaining > 0) {
       out[idx % n] = (out[idx % n] ?? 0) + 1;
