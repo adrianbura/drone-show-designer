@@ -480,7 +480,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         strategy: assignmentStrategy,
         sampleRate,
       });
-      const result = optimizeTransitionCore(input, { settings: DEFAULT_OPTIMIZATION_SETTINGS });
+      const result = optimizeTransitionCore(input, DEFAULT_OPTIMIZATION_SETTINGS);
       setOptimization({ clipId, result });
       setTransitionAnalysis({ clipId, analysis: result.final });
       const override = overrideFromAnalysis(clipId, result.final);
