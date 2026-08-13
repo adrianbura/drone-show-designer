@@ -421,6 +421,94 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setSelectedClipId(null);
   }, []);
 
+  // ---- Transition analysis / optimisation --------------------------------
+  const canAnalyzeSelectedClip = !!selectedClipId && isOptimizableClip(project, selectedClipId);
+
+  /** Converts an analysis into a plan override the full-show planner can apply. */
+  const overrideFromAnalysis = useCallback(
+    (clipId: string, analysis: TransitionAnalysis): ClipTransitionOverride | null => {
+      const clip = project.timeline.find((c) => c.id === clipId);
+      const points = project.formations.find((f) => f.id === clip?.formationId)?.points ?? [];
+      if (points.length === 0) return null;
+      return {
+        targetPointIndex: analysis.dronePlans.map((p) => p.targetPointIndex % points.length),
+        startOffsets: analysis.dronePlans.map((p) => p.startOffset),
+        laneOffsets: analysis.dronePlans.map((p) => p.lane.offsetMetres),
+        strategy: `${analysis.metrics.assignmentStrategy}+optimized`,
+      };
+    },
+    [project],
+  );
+
+  const analyzeSelectedTransition = useCallback(() => {
+    const clipId = selectedClipId;
+    if (!clipId || !isOptimizableClip(project, clipId)) return;
+    setTransitionBusy(true);
+    setTransitionError(null);
+    try {
+      const input = transitionInputForClip(project, plan, clipId, {
+        strategy: assignmentStrategy,
+        sampleRate,
+      });
+      const analysis = analyzeTransitionCore(input, DEFAULT_OPTIMIZATION_SETTINGS);
+      setTransitionAnalysis({ clipId, analysis });
+      setAssignmentComparison({
+        clipId,
+        comparison: compareAssignmentStrategies({
+          source: input.source,
+          target: input.target,
+          drones: input.drones,
+        }),
+      });
+      setOptimization(null);
+    } catch (err) {
+      setTransitionAnalysis(null);
+      setAssignmentComparison(null);
+      setTransitionError(describeTransitionError(err));
+    } finally {
+      setTransitionBusy(false);
+    }
+  }, [project, plan, selectedClipId, assignmentStrategy, sampleRate]);
+
+  const optimizeSelectedTransition = useCallback(() => {
+    const clipId = selectedClipId;
+    if (!clipId || !isOptimizableClip(project, clipId)) return;
+    setTransitionBusy(true);
+    setTransitionError(null);
+    try {
+      const input = transitionInputForClip(project, plan, clipId, {
+        strategy: assignmentStrategy,
+        sampleRate,
+      });
+      const result = optimizeTransitionCore(input, { settings: DEFAULT_OPTIMIZATION_SETTINGS });
+      setOptimization({ clipId, result });
+      setTransitionAnalysis({ clipId, analysis: result.final });
+      const override = overrideFromAnalysis(clipId, result.final);
+      // Only the preview/validation layer changes; the project stays untouched.
+      if (override) setTransitionOverrides((prev) => ({ ...prev, [clipId]: override }));
+    } catch (err) {
+      setTransitionError(describeTransitionError(err));
+    } finally {
+      setTransitionBusy(false);
+    }
+  }, [project, plan, selectedClipId, assignmentStrategy, sampleRate, overrideFromAnalysis]);
+
+  const clearTransitionAnalysis = useCallback(() => {
+    setTransitionAnalysis(null);
+    setAssignmentComparison(null);
+    setOptimization(null);
+    setTransitionError(null);
+    setTransitionOverrides({});
+  }, []);
+
+  const applySuggestedDuration = useCallback(() => {
+    if (!transitionAnalysis) return;
+    const { clipId, analysis } = transitionAnalysis;
+    const next = Math.ceil(analysis.feasibility.minimumEstimatedDuration * 10) / 10;
+    if (!Number.isFinite(next) || next <= 0) return;
+    patchClip(clipId, { transition: Math.max(0.5, next) });
+  }, [transitionAnalysis, patchClip]);
+
   const value = useMemo<StudioContextValue>(
     () => ({
       project,
