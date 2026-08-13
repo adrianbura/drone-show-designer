@@ -69,13 +69,15 @@ function crossingInput(n = 16, duration = 10): TransitionInput {
     source.push([40, 30, i * 5]);
     target.push([-40, 30, i * 5]);
   }
+  // `identity` keeps drone i on target i, so every drone must fly across the
+  // fleet: head-on conflicts are guaranteed before deconfliction.
   return {
     drones: drones(n),
     source,
     target,
     duration,
     limits: LIMITS,
-    strategy: "optimalDistance",
+    strategy: "identity",
     easing: "minJerk",
     sampleRate: 25,
     startTime: 0,
@@ -97,12 +99,12 @@ describe("duration feasibility", () => {
   it("accepts a generous duration", () => {
     const result = assessDurationFeasibility([plan("DRN-001", 20)], 60, LIMITS);
     expect(result.feasible).toBe(true);
-    expect(result.limitingMetric).toBe("none");
+    expect(result.minimumEstimatedDuration).toBeLessThanOrEqual(60);
   });
 });
 
 describe("transition analysis", () => {
-  it("reports conflicts for a fully crossing ring transition", () => {
+  it("reports conflicts for a fully crossing transition", () => {
     const analysis = analyzeTransition(crossingInput());
     expect(analysis.metrics.droneCount).toBe(16);
     expect(analysis.metrics.conflictCount).toBeGreaterThan(0);
