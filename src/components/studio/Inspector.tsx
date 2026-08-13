@@ -196,6 +196,150 @@ export default function Inspector() {
 
       <section className="panel-card">
         <h2 className="panel-title">
+          <Shuffle className="size-3.5" /> Transition planning
+        </h2>
+        <label className="space-y-1.5">
+          <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            Assignment strategy
+          </span>
+          <select
+            value={assignmentStrategy}
+            onChange={(e) => setAssignmentStrategy(e.target.value as AssignmentStrategyId)}
+            className="studio-input"
+          >
+            {SELECTABLE_ASSIGNMENT_STRATEGIES.map((id) => (
+              <option key={id} value={id}>
+                {assignmentStrategyLabel(id)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <button
+            onClick={analyzeSelectedTransition}
+            disabled={!canAnalyzeSelectedClip || transitionBusy}
+            className="chip-btn justify-center disabled:opacity-40"
+          >
+            {transitionBusy ? "Working…" : "Analyse"}
+          </button>
+          <button
+            onClick={optimizeSelectedTransition}
+            disabled={!canAnalyzeSelectedClip || transitionBusy}
+            className="chip-btn justify-center disabled:opacity-40"
+          >
+            <Wand2 className="size-3" /> Optimise
+          </button>
+        </div>
+        {!canAnalyzeSelectedClip && (
+          <p className="text-[10px] leading-relaxed text-muted-foreground">
+            Select a SHOW clip. Takeoff and landing keep their dedicated vertical planners.
+          </p>
+        )}
+        {transitionError && (
+          <p className="text-[10px] leading-relaxed text-critical">
+            {transitionError.code}: {transitionError.message}
+          </p>
+        )}
+        {analysis && (
+          <>
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-1 pt-1 font-mono text-[10px] text-muted-foreground">
+              <dt>strategy</dt>
+              <dd className="text-right text-foreground">{analysis.metrics.assignmentStrategy}</dd>
+              <dt>total path</dt>
+              <dd className="text-right text-foreground">
+                {analysis.metrics.totalTravelDistance.toFixed(0)} m
+              </dd>
+              <dt>max path</dt>
+              <dd className="text-right text-foreground">
+                {analysis.metrics.maximumTravelDistance.toFixed(1)} m
+              </dd>
+              <dt>min sep</dt>
+              <dd className="text-right text-foreground">
+                {analysis.metrics.minimumDynamicSeparation.toFixed(2)} m
+              </dd>
+              <dt>conflicts</dt>
+              <dd
+                className={`text-right ${analysis.metrics.criticalConflictCount > 0 ? "text-critical" : "text-safe"}`}
+              >
+                {analysis.metrics.conflictCount} ({analysis.metrics.criticalConflictCount} crit)
+              </dd>
+              <dt>crossings</dt>
+              <dd className="text-right text-foreground">
+                {analysis.metrics.potentialGeometricCrossings}
+              </dd>
+              <dt>peak v / a</dt>
+              <dd className="text-right text-foreground">
+                {analysis.metrics.maximumVelocity.toFixed(1)} / {analysis.metrics.maximumAcceleration.toFixed(1)}
+              </dd>
+              <dt>stagger Σ</dt>
+              <dd className="text-right text-foreground">
+                {analysis.metrics.totalStartOffset.toFixed(1)} s
+              </dd>
+              <dt>lanes Σ</dt>
+              <dd className="text-right text-foreground">
+                {analysis.metrics.totalVerticalOffset.toFixed(1)} m
+              </dd>
+              <dt>solve time</dt>
+              <dd className="text-right text-foreground">{analysis.timings.totalMs.toFixed(0)} ms</dd>
+            </dl>
+            <p className="text-[10px] leading-relaxed text-muted-foreground">
+              Duration {analysis.feasibility.requestedDuration.toFixed(1)}s ·{" "}
+              {analysis.feasibility.feasible ? "feasible" : "INFEASIBLE"} · minimum ≈{" "}
+              {analysis.feasibility.minimumEstimatedDuration.toFixed(1)}s (
+              {analysis.feasibility.limitingMetric}-limited)
+            </p>
+            {!analysis.feasibility.feasible && (
+              <button onClick={applySuggestedDuration} className="chip-btn w-full justify-center">
+                Apply suggested duration
+              </button>
+            )}
+            {comparison && (
+              <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+                greedy {comparison.greedy.metrics.totalDistance.toFixed(0)} m → optimal{" "}
+                {comparison.optimal.metrics.totalDistance.toFixed(0)} m (
+                {comparison.improvementPercent.toFixed(1)}% shorter)
+              </p>
+            )}
+            {optimizationResult && (
+              <p className="text-[10px] leading-relaxed text-muted-foreground">
+                Optimiser: {optimizationResult.status} in {optimizationResult.iterations} iterations
+                {optimizationResult.appliedStrategies.length > 0
+                  ? ` · ${optimizationResult.appliedStrategies.join(", ")}`
+                  : ""}
+                {optimizationResult.warnings.length > 0 ? ` · ${optimizationResult.warnings[0]}` : ""}
+              </p>
+            )}
+            {isOptimized && (
+              <button onClick={clearTransitionAnalysis} className="chip-btn w-full justify-center">
+                Revert optimised transition
+              </button>
+            )}
+          </>
+        )}
+        <div className="flex items-center justify-between gap-2 pt-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Eye className="size-3" /> Overlays
+          </span>
+          <span className="flex gap-2">
+            <button
+              onClick={() => setShowPaths(!showPaths)}
+              className={`chip-btn ${showPaths ? "chip-btn-active" : ""}`}
+            >
+              paths
+            </button>
+            <button
+              onClick={() => setShowConflicts(!showConflicts)}
+              className={`chip-btn ${showConflicts ? "chip-btn-active" : ""}`}
+            >
+              conflicts
+            </button>
+          </span>
+        </div>
+      </section>
+
+
+      <section className="panel-card">
+        <h2 className="panel-title">
           <ShieldCheck className="size-3.5" /> Flight envelope
         </h2>
         <NumberRow
