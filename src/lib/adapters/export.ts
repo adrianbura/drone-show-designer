@@ -80,6 +80,14 @@ export function toGenericShowJson({ project, plan, set, safety }: GenericExportI
         ...(f.svg ? { svg: f.svg } : {}),
       })),
       timeline: project.timeline.map((c) => ({ ...c, phase: c.phase ?? "SHOW" })),
+      // Assignment + deconfliction provenance (Sprint 3).
+      planning: {
+        assignmentAlgorithmVersion: ASSIGNMENT_ALGORITHM_VERSION,
+        assignmentStrategy: plan.assignmentStrategy,
+        optimizerVersion: TRANSITION_OPTIMIZER_VERSION,
+        conflictDetectionVersion: CONFLICT_DETECTION_VERSION,
+        optimizedClipIds: plan.optimizedClipIds,
+      },
       assignments: plan.assignments,
       trajectorySet: {
         droneCount: set.droneCount,
