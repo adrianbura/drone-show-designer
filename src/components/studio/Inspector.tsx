@@ -92,6 +92,7 @@ export default function Inspector() {
     showConflicts,
     setShowConflicts,
     fullShowReport,
+    fullShowStale,
   } = useStudio();
   const exportBlocked = fullShowReport?.exportReadiness.status === "BLOCKED";
   const clip = project.timeline.find((c) => c.id === selectedClipId);
@@ -458,7 +459,14 @@ export default function Inspector() {
           onClick={() =>
             downloadText(
               `${project.name.replace(/\s+/g, "-").toLowerCase()}.dss.show.json`,
-              toGenericShowJson({ project, plan, set: trajectorySet, safety }),
+              toGenericShowJson({
+                project,
+                plan,
+                set: trajectorySet,
+                safety,
+                fullShow: fullShowReport,
+                fullShowStale,
+              }),
               "application/json",
             )
           }
