@@ -4,6 +4,7 @@ import { useState } from "react";
 import { probeAudioFile } from "@/lib/show/audio";
 import type { FormationKind } from "@/lib/show/types";
 import { useStudio } from "@/lib/studio/store";
+import SvgImportPanel from "./SvgImportPanel";
 
 const KINDS: { kind: FormationKind; label: string }[] = [
   { kind: "grid", label: "Grid" },
@@ -134,6 +135,8 @@ export default function LeftPanel() {
           </button>
         </div>
       </section>
+
+      <SvgImportPanel />
 
       <section className="panel-card flex-1">
         <h2 className="panel-title">

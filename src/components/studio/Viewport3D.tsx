@@ -8,6 +8,7 @@ import { lightColorAt } from "@/lib/show/lights";
 import { activeClipAt } from "@/lib/show/timeline";
 import type { TrajectorySample } from "@/lib/show/trajectory";
 import type { ShowProject } from "@/lib/show/types";
+import SvgDraftPreview from "./SvgDraftPreview";
 
 /**
  * Instanced drone swarm. One InstancedMesh + per-instance colour keeps draw
@@ -100,7 +101,7 @@ function ShowVolume({ width, depth, height }: { width: number; depth: number; he
 }
 
 export default function Viewport3D() {
-  const { project, time, safety, samplesAtTime } = useStudio();
+  const { project, time, safety, samplesAtTime, svgDraft } = useStudio();
   const highlighted = useMemo(
     () =>
       safety.issues
@@ -136,6 +137,7 @@ export default function Viewport3D() {
         samplesAtTime={samplesAtTime}
         highlighted={highlighted}
       />
+      {svgDraft ? <SvgDraftPreview draft={svgDraft} /> : null}
       <OrbitControls
         enableDamping
         dampingFactor={0.08}
