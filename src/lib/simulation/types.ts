@@ -14,7 +14,7 @@
  */
 import type { Vector3Tuple } from "../show/types";
 
-export const SIMULATION_PACKAGE_SCHEMA = "DroneShowStudioSimulationPackage";
+export const SIMULATION_PACKAGE_SCHEMA = "DroneShowStudioSimulationPackage" as const;
 export const SIMULATION_PACKAGE_SCHEMA_VERSION = 1;
 export const SIMULATION_REPORT_SCHEMA_NAME = "DroneShowStudioSimulationReport";
 export const SIMULATION_REPORT_SCHEMA_VERSION = "1.0";
