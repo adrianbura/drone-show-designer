@@ -1,7 +1,12 @@
 import { AlertTriangle, CheckCircle2, Download, Plug, ShieldCheck } from "lucide-react";
 
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
-import { downloadText, toSkybrushShow, toStudioProject, toTrajectoryCsv } from "@/lib/adapters/export";
+import {
+  downloadText,
+  toGenericShowJson,
+  toStudioProject,
+  toTrajectoryCsv,
+} from "@/lib/adapters/export";
 import { hexToRgb, rgbToHex } from "@/lib/show/lights";
 import { snapToBeat } from "@/lib/show/audio";
 import type { Easing, LightEffect } from "@/lib/show/types";
@@ -43,7 +48,10 @@ function NumberRow({
 export default function Inspector() {
   const {
     project,
-    resolved,
+    plan,
+    trajectorySet,
+    sampleRate,
+    setSampleRate,
     safety,
     selectedClipId,
     patchClip,
@@ -189,8 +197,27 @@ export default function Inspector() {
           ) : (
             <AlertTriangle className="size-3.5 text-warning" />
           )}
-          Validation ({safety.issues.length})
+          Validation ({safety.errors.length} err / {safety.warnings.length} warn)
         </h2>
+        <p className="pb-1 text-[10px] leading-relaxed text-muted-foreground">
+          {safety.status === "ok"
+            ? "VALIDATED AGAINST CURRENT SAFETY PROFILE — not a real-world safety guarantee."
+            : "Violations of the configured safety profile. This is not a real-world safety assessment."}
+        </p>
+        <label className="flex items-center justify-between gap-2 pb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          Sample rate
+          <select
+            value={sampleRate}
+            onChange={(e) => setSampleRate(Number(e.target.value))}
+            className="studio-input w-24 text-right font-mono"
+          >
+            {[10, 20, 25, 50, 100].map((hz) => (
+              <option key={hz} value={hz}>
+                {hz} Hz
+              </option>
+            ))}
+          </select>
+        </label>
         <dl className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[10px] text-muted-foreground">
           <dt>peak v</dt>
           <dd className="text-right text-foreground">{safety.worst.maxVelocity.toFixed(1)} m/s</dd>
@@ -200,8 +227,12 @@ export default function Inspector() {
           <dd className="text-right text-foreground">{safety.worst.maxYawRate.toFixed(0)} °/s</dd>
           <dt>min sep</dt>
           <dd className="text-right text-foreground">{safety.worst.minSeparation.toFixed(2)} m</dd>
+          <dt>peak jerk</dt>
+          <dd className="text-right text-foreground">{safety.metrics.maxJerk.toFixed(1)} m/s³</dd>
           <dt>frames</dt>
           <dd className="text-right text-foreground">{safety.frames}</dd>
+          <dt>plan errors</dt>
+          <dd className="text-right text-foreground">{plan.errors.length}</dd>
         </dl>
         <ul className="max-h-52 space-y-1 overflow-y-auto pt-1">
           {safety.issues.length === 0 && (
@@ -228,20 +259,20 @@ export default function Inspector() {
         <button
           onClick={() =>
             downloadText(
-              `${project.name.replace(/\s+/g, "-").toLowerCase()}.show.json`,
-              toSkybrushShow(project, resolved),
+              `${project.name.replace(/\s+/g, "-").toLowerCase()}.dss.show.json`,
+              toGenericShowJson({ project, plan, set: trajectorySet, safety }),
               "application/json",
             )
           }
           className="chip-btn w-full justify-center"
         >
-          Skybrush-compatible show JSON
+          Generic show JSON (documented schema)
         </button>
         <button
           onClick={() =>
             downloadText(
               `${project.name.replace(/\s+/g, "-").toLowerCase()}.trajectories.csv`,
-              toTrajectoryCsv(project, resolved),
+              toTrajectoryCsv(project, trajectorySet),
               "text/csv",
             )
           }

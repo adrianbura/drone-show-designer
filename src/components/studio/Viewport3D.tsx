@@ -5,45 +5,46 @@ import * as THREE from "three";
 
 import { useStudio } from "@/lib/studio/store";
 import { lightColorAt } from "@/lib/show/lights";
-import { activeClip, samplePositions } from "@/lib/show/trajectory";
-import type { ResolvedClip } from "@/lib/show/trajectory";
+import { activeClipAt } from "@/lib/show/timeline";
+import type { TrajectorySample } from "@/lib/show/trajectory";
 import type { ShowProject } from "@/lib/show/types";
 
 /**
  * Instanced drone swarm. One InstancedMesh + per-instance colour keeps draw
  * calls constant, so 200+ drones stay at interactive frame rates.
+ *
+ * The viewport CONSUMES computed data: it samples the planned schedules through
+ * the store and never generates trajectories itself.
  */
 function Swarm({
   project,
-  resolved,
   time,
-  playing,
+  samplesAtTime,
   highlighted,
 }: {
   project: ShowProject;
-  resolved: ResolvedClip[];
   time: number;
-  playing: boolean;
+  samplesAtTime: (t: number) => TrajectorySample[];
   highlighted: number[];
 }) {
   const bodies = useRef<THREE.InstancedMesh>(null);
   const halos = useRef<THREE.InstancedMesh>(null);
-  const clock = useRef(time);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
   const highlightSet = useMemo(() => new Set(highlighted), [highlighted]);
 
-  useFrame((_, delta) => {
-    clock.current = playing ? (clock.current + delta) % Math.max(1, project.audio.duration) : time;
-    const t = playing ? clock.current : time;
-    const positions = samplePositions(project, resolved, t);
-    const clip = activeClip(resolved, t);
+  useFrame(() => {
     const bodyMesh = bodies.current;
     const haloMesh = halos.current;
     if (!bodyMesh || !haloMesh) return;
 
-    positions.forEach((p, i) => {
+    const samples = samplesAtTime(time);
+    const clip = activeClipAt(project, time);
+
+    samples.forEach((sample, i) => {
+      const p = sample.position;
       dummy.position.set(p[0], p[1], p[2]);
+      dummy.rotation.set(0, (-sample.yaw * Math.PI) / 180, 0);
       dummy.scale.setScalar(1);
       dummy.updateMatrix();
       bodyMesh.setMatrixAt(i, dummy.matrix);
@@ -51,7 +52,7 @@ function Swarm({
       dummy.updateMatrix();
       haloMesh.setMatrixAt(i, dummy.matrix);
 
-      const c = lightColorAt(clip, i, project.droneCount, t);
+      const c = lightColorAt(clip, i, project.droneCount, time);
       if (highlightSet.has(i)) color.setRGB(1, 0.25, 0.25);
       else color.setRGB(c[0] / 255, c[1] / 255, c[2] / 255);
       bodyMesh.setColorAt(i, color);
@@ -99,7 +100,7 @@ function ShowVolume({ width, depth, height }: { width: number; depth: number; he
 }
 
 export default function Viewport3D() {
-  const { project, resolved, time, playing, safety } = useStudio();
+  const { project, time, safety, samplesAtTime } = useStudio();
   const highlighted = useMemo(
     () =>
       safety.issues
@@ -131,9 +132,8 @@ export default function Viewport3D() {
       <ShowVolume {...project.area} />
       <Swarm
         project={project}
-        resolved={resolved}
         time={time}
-        playing={playing}
+        samplesAtTime={samplesAtTime}
         highlighted={highlighted}
       />
       <OrbitControls

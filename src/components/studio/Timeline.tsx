@@ -1,7 +1,8 @@
-import { Pause, Play, Plus, SkipBack, Trash2 } from "lucide-react";
+import { Pause, Play, Plus, Repeat, SkipBack, Square, Trash2 } from "lucide-react";
 import { useCallback, useRef } from "react";
 
 import { rgbToHex } from "@/lib/show/lights";
+import { PLAYBACK_SPEEDS, type PlaybackSpeed } from "@/lib/studio/clock";
 import { useStudio } from "@/lib/studio/store";
 
 function fmt(t: number) {
@@ -18,6 +19,11 @@ export default function Timeline() {
     time,
     playing,
     togglePlay,
+    stop,
+    speed,
+    setSpeed,
+    loop,
+    setLoop,
     setTime,
     selectedClipId,
     selectClip,
@@ -52,9 +58,32 @@ export default function Timeline() {
         <button onClick={togglePlay} className="control-btn control-btn-accent" aria-label={playing ? "Pause" : "Play"}>
           {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
         </button>
+        <button onClick={stop} className="control-btn" aria-label="Stop and rewind">
+          <Square className="size-3.5" />
+        </button>
         <span className="font-mono text-sm tabular-nums text-accent">{fmt(time)}</span>
         <span className="font-mono text-xs text-muted-foreground">/ {fmt(duration)}</span>
         <div className="ml-auto flex items-center gap-3 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          <select
+            value={speed}
+            onChange={(e) => setSpeed(Number(e.target.value) as PlaybackSpeed)}
+            className="studio-input w-16 py-0.5 font-mono text-[11px]"
+            aria-label="Playback speed"
+          >
+            {PLAYBACK_SPEEDS.map((s) => (
+              <option key={s} value={s}>
+                {s}x
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => setLoop(!loop)}
+            className={`control-btn ${loop ? "text-accent" : ""}`}
+            aria-label="Toggle loop"
+            aria-pressed={loop}
+          >
+            <Repeat className="size-4" />
+          </button>
           <span>{project.audio.bpm} BPM</span>
           <span>{project.timeline.length} clips</span>
           <button
