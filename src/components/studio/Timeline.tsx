@@ -6,10 +6,12 @@ import { PLAYBACK_SPEEDS, type PlaybackSpeed } from "@/lib/studio/clock";
 import { useStudio } from "@/lib/studio/store";
 
 function fmt(t: number) {
-  const m = Math.floor(t / 60);
-  const s = Math.floor(t % 60);
-  const f = Math.floor((t % 1) * 25);
-  return `${m}:${s.toString().padStart(2, "0")}.${f.toString().padStart(2, "0")}`;
+  const sign = t < 0 ? "-" : "";
+  const abs = Math.abs(t);
+  const m = Math.floor(abs / 60);
+  const s = Math.floor(abs % 60);
+  const f = Math.floor((abs % 1) * 25);
+  return `${sign}${m}:${s.toString().padStart(2, "0")}.${f.toString().padStart(2, "0")}`;
 }
 
 export default function Timeline() {
@@ -32,6 +34,8 @@ export default function Timeline() {
     addClip,
     fullShowReport,
     focusIssue,
+    startTime,
+    preShowPlan,
   } = useStudio();
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -40,20 +44,23 @@ export default function Timeline() {
       const el = trackRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      setTime(((clientX - rect.left) / rect.width) * duration);
+      setTime(startTime + ((clientX - rect.left) / rect.width) * (duration - startTime));
     },
-    [duration, setTime],
+    [duration, startTime, setTime],
   );
 
-  const pct = (v: number) => `${(v / duration) * 100}%`;
+  // The track spans the WHOLE operation: pre-show (negative show time) + show.
+  const span = Math.max(0.001, duration - startTime);
+  const pct = (v: number) => `${((v - startTime) / span) * 100}%`;
+  const widthPct = (v: number) => `${(v / span) * 100}%`;
 
   return (
     <section className="flex h-full flex-col bg-panel">
       <header className="flex items-center gap-3 border-b border-border px-4 py-2">
         <button
-          onClick={() => setTime(0)}
+          onClick={() => setTime(startTime)}
           className="control-btn"
-          aria-label="Return to show start"
+          aria-label={preShowPlan ? "Return to pre-show start" : "Return to show start"}
         >
           <SkipBack className="size-4" />
         </button>
@@ -110,6 +117,29 @@ export default function Timeline() {
           }}
           className="relative h-full min-h-24 cursor-ew-resize rounded-md border border-border bg-surface-sunken"
         >
+          {/* PRE-SHOW region: negative show time, launch + staging */}
+          {preShowPlan ? (
+            <>
+              <div
+                className="pointer-events-none absolute top-0 h-full border-r border-dashed border-accent/60 bg-accent/[0.06]"
+                style={{ left: pct(startTime), width: widthPct(-startTime) }}
+              >
+                <span className="absolute left-1.5 top-1 text-[10px] uppercase tracking-[0.18em] text-accent/80">
+                  Pre-show · launch + staging
+                </span>
+              </div>
+              {/* SHOW TIME ZERO */}
+              <div
+                className="pointer-events-none absolute top-0 h-full w-px bg-accent/80"
+                style={{ left: pct(0) }}
+              >
+                <span className="absolute -top-0.5 left-1 text-[10px] font-medium uppercase tracking-[0.18em] text-accent">
+                  Show start
+                </span>
+              </div>
+            </>
+          ) : null}
+
           {/* Beat grid */}
           {beatGrid.bars.map((b) => (
             <div
@@ -154,7 +184,7 @@ export default function Timeline() {
                 className={`clip-block ${selected ? "clip-block-selected" : ""}`}
                 style={{
                   left: pct(clip.start),
-                  width: pct(total),
+                  width: widthPct(total),
                   top: `${8 + (row % 3) * 30}px`,
                   borderColor: rgbToHex(clip.color),
                   background: `linear-gradient(90deg, ${rgbToHex(clip.color)}33, ${rgbToHex(clip.color)}12)`,
@@ -175,7 +205,7 @@ export default function Timeline() {
           {/* Playhead */}
           <div
             className="pointer-events-none absolute top-0 h-full w-[2px] bg-accent shadow-[0_0_12px_var(--accent)]"
-            style={{ left: pct(Math.min(time, duration)) }}
+            style={{ left: pct(Math.max(startTime, Math.min(time, duration))) }}
           >
             <div className="absolute -left-[5px] top-0 size-3 rotate-45 bg-accent" />
           </div>
