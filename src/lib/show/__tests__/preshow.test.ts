@@ -142,7 +142,10 @@ describe("pre-show composition", () => {
     const a = analyzePreShow(project, { sampleRate: 10 });
     const b = analyzePreShow(project, { sampleRate: 10 });
     expect(b.set.drones[0]!.samples).toEqual(a.set.drones[0]!.samples);
-    expect(b.report.metrics).toEqual(a.report.metrics);
+    // planningMs is wall-clock instrumentation, not part of the deterministic result.
+    const { planningMs: _a, ...ma } = a.report.metrics;
+    const { planningMs: _b, ...mb } = b.report.metrics;
+    expect(mb).toEqual(ma);
   });
 });
 
@@ -151,7 +154,7 @@ describe("pre-show validation", () => {
     const { report, plan } = analyzePreShow(projectWithPreShow());
     expect(["VALID", "WARNING", "FAIL"]).toContain(report.status);
     expect(report.groupMetrics).toHaveLength(plan.groups.length);
-    expect(report.statement).toMatch(/not a real-world safety guarantee/i);
+    expect(report.statement).toMatch(/not an authorisation to launch/i);
     expect(report.metrics.droneCount).toBe(24);
     expect(report.launchGrid.padCount).toBe(24);
   });
