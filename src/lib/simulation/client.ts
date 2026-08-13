@@ -51,7 +51,8 @@ export class SimulationClient {
   }
 
   /** Sends the whole package once — never one request per trajectory sample. */
-  prepare(pkg: SimulationPackage, mode: "MOCK" | "PX4_SITL"): Promise<PrepareResponse> {
+  /** A null package prepares the built-in bridge test trajectory instead. */
+  prepare(pkg: SimulationPackage | null, mode: "MOCK" | "PX4_SITL"): Promise<PrepareResponse> {
     return bridgeRequest<PrepareResponse>(BRIDGE_PATHS.prepare, this.options, {
       method: "POST",
       body: JSON.stringify({ package: pkg, environmentMode: mode }),

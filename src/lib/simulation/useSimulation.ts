@@ -7,14 +7,13 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { SimulationClient } from "./client";
+import { SimulationClient, type RunMode } from "./client";
 import { buildSimulationPackage, SimulationPackageError, deriveValidationState } from "./package";
 import { historyEntryFromReport, parseSimulationRunReport } from "./report";
 import {
   BridgeError,
   type BridgeHealth,
   type PackageValidationState,
-  type RunMode,
   type SimulationEnvironmentMode,
   type SimulationPackage,
   type SimulationRunHistoryEntry,
