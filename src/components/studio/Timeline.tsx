@@ -30,6 +30,8 @@ export default function Timeline() {
     removeClip,
     beatGrid,
     addClip,
+    fullShowReport,
+    focusIssue,
   } = useStudio();
   const trackRef = useRef<HTMLDivElement>(null);
 
