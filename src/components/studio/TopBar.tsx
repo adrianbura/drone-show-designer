@@ -3,7 +3,7 @@ import { Activity, Radio } from "lucide-react";
 import { useStudio } from "@/lib/studio/store";
 
 export default function TopBar() {
-  const { project, safety, duration } = useStudio();
+  const { project, safety, duration, fullShowReport, fullShowStale, fullShowBusy } = useStudio();
   const status =
     safety.status === "ok" ? "nominal" : safety.status === "warning" ? "review" : "unsafe";
 
@@ -27,6 +27,23 @@ export default function TopBar() {
         <span className={`metric-pill status-${status}`}>
           <Activity className="size-3" /> {status}
         </span>
+        {fullShowBusy ? (
+          <span className="metric-pill">validating…</span>
+        ) : fullShowReport ? (
+          <span
+            className={`metric-pill status-${
+              fullShowReport.status === "FAIL"
+                ? "unsafe"
+                : fullShowReport.status === "PASS_WITH_WARNINGS"
+                  ? "review"
+                  : "nominal"
+            }`}
+            title={fullShowReport.statement}
+          >
+            full show {fullShowReport.status === "FAIL" ? "fail" : "pass"}
+            {fullShowStale ? " · stale" : ""}
+          </span>
+        ) : null}
       </div>
     </header>
   );
