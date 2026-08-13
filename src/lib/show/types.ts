@@ -16,6 +16,8 @@ export type Vec3 = Vector3Tuple;
 /** sRGB, 0-255. */
 export type RGB = readonly [number, number, number];
 
+import type { SvgFormationSource } from "./svg/types";
+
 export type FormationKind =
   | "grid"
   | "circle"
@@ -25,6 +27,7 @@ export type FormationKind =
   | "wave"
   | "heart"
   | "text"
+  | "svg"
   | "custom";
 
 export interface Formation {
@@ -35,6 +38,11 @@ export interface Formation {
   points: Vec3[];
   /** Parameters used to (re)generate the point cloud. Includes `seed`. */
   params: Record<string, number | string>;
+  /**
+   * Reproducibility metadata for formations generated from an imported SVG
+   * asset. Present only when `kind === "svg"`; every other layer ignores it.
+   */
+  svg?: SvgFormationSource;
 }
 
 export type LightEffect = "solid" | "pulse" | "rainbow" | "chase" | "twinkle";
@@ -143,6 +151,7 @@ export const HOME_ALTITUDE = 0;
 export const SCHEMA_VERSION = "1.0";
 export const TRAJECTORY_ALGORITHM_VERSION = "0.1.0";
 export const FORMATION_ALGORITHM_VERSION = "0.1.0";
+export const SVG_FORMATION_ALGORITHM_VERSION = "0.1.0";
 
 /** Canonical show duration. Never use `project.audio.duration` for this. */
 export function showDuration(project: ShowProject): number {
