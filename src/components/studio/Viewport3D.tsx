@@ -101,7 +101,21 @@ function ShowVolume({ width, depth, height }: { width: number; depth: number; he
 }
 
 export default function Viewport3D() {
-  const { project, time, safety, samplesAtTime, svgDraft } = useStudio();
+  const {
+    project,
+    time,
+    safety,
+    samplesAtTime,
+    svgDraft,
+    transitionAnalysis,
+    selectedClipId,
+    showPaths,
+    showConflicts,
+  } = useStudio();
+  const overlayAnalysis =
+    transitionAnalysis && transitionAnalysis.clipId === selectedClipId
+      ? transitionAnalysis.analysis
+      : null;
   const highlighted = useMemo(
     () =>
       safety.issues
