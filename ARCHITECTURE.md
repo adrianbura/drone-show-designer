@@ -20,6 +20,7 @@ interfaces already defined here.
 | Coordinate contract | `src/lib/show/coordinates.ts` (+Y up, yaw 0 = +X) | implemented |
 | Trajectory Engine | `src/lib/show/trajectory/*` (planner, schedule, sampler) | implemented |
 | Safety Validation Engine | `src/lib/show/safety.ts` (separation via spatial hash, v/a/yaw, ceiling, area, landing) | implemented |
+| Full Show Engine | `src/lib/show/fullshow/*` (composer, continuity, metrics, lighting, validator, revision) | implemented |
 | Audio/Music Engine | `src/lib/show/audio.ts` (local probe + BPM beat grid) | implemented (client-side) |
 | Light Program Engine | `src/lib/show/lights.ts` | implemented |
 | Export Adapter Layer | `src/lib/adapters/export.ts` (documented `DroneShowStudioShow` JSON, CSV, project file — see docs/EXPORT_FORMAT.md) | implemented |
@@ -51,6 +52,21 @@ Skybrush-*like* layout, so it was replaced by the studio's own documented
 `DroneShowStudioShow` v1 schema. The registry lists Skybrush as `planned`; a real
 adapter must be written against the published format. Likewise, a passing safety
 report means "validated against the current safety profile", never "safe to fly".
+
+## Full-show validation (`src/lib/show/fullshow/`)
+
+The whole timeline is composed into ONE canonical `TrajectorySet` (TAKEOFF ->
+SHOW -> LANDING) and validated as a single artefact: continuity across clip
+boundaries, global proximity conflicts, safety envelope, light program gamut,
+timeline structure and home pads. Output is a `FullShowValidationReport` with a
+deterministic `analysisRevision`; the UI marks the report stale whenever any
+input to that revision changes, and exports embed the report as provenance.
+
+LANDING assigns pads with the globally optimal (minimum total distance) matching
+rather than index identity: pads are interchangeable, and identity mapping made
+descent paths cross, which the validator correctly reported as proximity
+violations. A PASS still means "validated against the configured profile", never
+"safe to fly".
 
 ## Not yet in place (next phases)
 
