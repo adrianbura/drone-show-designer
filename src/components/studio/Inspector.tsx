@@ -91,7 +91,9 @@ export default function Inspector() {
     setShowPaths,
     showConflicts,
     setShowConflicts,
+    fullShowReport,
   } = useStudio();
+  const exportBlocked = fullShowReport?.exportReadiness.status === "BLOCKED";
   const clip = project.timeline.find((c) => c.id === selectedClipId);
   const analysis =
     transitionAnalysis && transitionAnalysis.clipId === selectedClipId
