@@ -15,7 +15,7 @@ import { sampleTrajectorySet, DEFAULT_SAMPLE_RATE } from "../trajectory/sampler"
 import type { TrajectorySet } from "../trajectory/types";
 import type { ShowProject } from "../types";
 import { resolvePreShowConfig } from "./config";
-import { composePreShow } from "./plan";
+import { composePreShow, launchHomePositions } from "./plan";
 import {
   PRE_SHOW_HONESTY_STATEMENT,
   PRE_SHOW_STATUS_LABELS,
@@ -459,7 +459,7 @@ export function analyzePreShow(
     buildDroneDefinitions(
       project,
       // Pads are the physical home positions of the fleet.
-      composePreShowHome(project, config),
+      launchHomePositions({ droneCount: project.droneCount, config, limits: project.limits }),
     );
   const composed = composePreShow(
     {
@@ -484,8 +484,3 @@ export function analyzePreShow(
   return { plan: composed.plan, set, report };
 }
 
-function composePreShowHome(project: ShowProject, config: PreShowConfig) {
-  // Local import avoidance: the launch layout is cheap and deterministic.
-  const { launchHomePositions } = require("./plan") as typeof import("./plan");
-  return launchHomePositions({ droneCount: project.droneCount, config, limits: project.limits });
-}
