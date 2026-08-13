@@ -62,7 +62,7 @@ function padPoints(points: readonly Vector3Tuple[], count: number, fallback: Vec
  * avoidance mechanism — a collision-aware planner replaces it later.
  */
 function arcForDrone(index: number): number {
-  return 1 + (index % 12) * 1.6;
+  return 1 + ((index * 5) % 16) * 1.5;
 }
 
 /**
