@@ -12,6 +12,9 @@ import {
   type DroneAssignment,
 } from "../assignment";
 import { buildDroneDefinitions, type DroneDefinition } from "../drones";
+import { composePreShow, launchHomePositions } from "../preshow/plan";
+import { resolvePreShowConfig } from "../preshow/config";
+import type { PreShowConfig, PreShowPhaseName, PreShowPlan } from "../preshow/types";
 import type { ShowPhase, ShowProject, Vector3Tuple } from "../types";
 import { clipPhase, showDuration, TRAJECTORY_ALGORITHM_VERSION } from "../types";
 import { withStartOffset, withVerticalLane } from "./offsets";
