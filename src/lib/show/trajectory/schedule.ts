@@ -52,8 +52,33 @@ export interface ShowPlan {
   readonly assignments: ClipAssignment[];
   readonly duration: number;
   readonly algorithmVersion: string;
+  /** Assignment strategy used for SHOW clips without an override. */
+  readonly assignmentStrategy: AssignmentStrategyId;
+  /** Clip ids whose transition came from an optimiser override. */
+  readonly optimizedClipIds: string[];
   /** Structured planning failures. Never thrown away silently. */
   readonly errors: TrajectoryPlanningError[];
+}
+
+/**
+ * Result of a TransitionOptimizer run, applied to one SHOW clip so the 3D
+ * preview and the final SafetyValidator see exactly what was analysed.
+ * Arrays are indexed by drone index.
+ */
+export interface ClipTransitionOverride {
+  /** Index into the clip's formation point list, per drone. */
+  readonly targetPointIndex: readonly number[];
+  /** Bounded start stagger in seconds, per drone. */
+  readonly startOffsets: readonly number[];
+  /** Bounded signed vertical lane offset in metres, per drone. */
+  readonly laneOffsets: readonly number[];
+  readonly strategy: string;
+}
+
+export interface BuildShowPlanOptions {
+  /** Strategy for SHOW clips. TAKEOFF/LANDING always use `identity`. */
+  readonly assignmentStrategy?: AssignmentStrategyId;
+  readonly transitionOverrides?: Readonly<Record<string, ClipTransitionOverride>>;
 }
 
 function padPoints(points: readonly Vector3Tuple[], count: number, fallback: Vector3Tuple[]): Vector3Tuple[] {
