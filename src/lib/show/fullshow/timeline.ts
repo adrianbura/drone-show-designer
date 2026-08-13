@@ -8,7 +8,7 @@ import { buildDroneDefinitions } from "../drones";
 import { clipPhase, showDuration, type ShowProject } from "../types";
 import type { FullShowIssue, HomePadReport, TimelineValidationReport } from "./types";
 
-const PHASE_ORDER = { TAKEOFF: 0, SHOW: 1, LANDING: 2 } as const;
+const PHASE_ORDER = { PRE_SHOW: -1, TAKEOFF: 0, SHOW: 1, LANDING: 2 } as const;
 
 export function validateTimelineStructure(project: ShowProject): TimelineValidationReport {
   const issues: FullShowIssue[] = [];
