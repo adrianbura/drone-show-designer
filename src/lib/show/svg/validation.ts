@@ -37,7 +37,7 @@ export function buildFormationReport(
   contourCount: number,
 ): SVGFormationReport {
   const warnings: SvgWarning[] = [...inputWarnings];
-  const stats = spacingStats(points as readonly number[][]);
+  const stats = spacingStats(points);
 
   if (stats.duplicates > 0) {
     warnings.push({
