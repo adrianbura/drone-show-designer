@@ -55,7 +55,17 @@ export interface ShowPlan {
   readonly drones: DroneDefinition[];
   readonly schedules: DroneSchedule[];
   readonly assignments: ClipAssignment[];
+  /** Artistic show duration: show time 0 .. duration. */
   readonly duration: number;
+  /**
+   * First show time covered by the schedules. 0 without a pre-show, and
+   * -preShow.duration when a launch plan is composed (pre-show occupies
+   * negative show time and SHOW TIME ZERO is always t = 0).
+   */
+  readonly startTime: number;
+  /** Operational time of SHOW TIME ZERO = pre-show duration (0 when absent). */
+  readonly showStartOperationalTime: number;
+  readonly preShow: PreShowPlan | null;
   readonly algorithmVersion: string;
   /** Assignment strategy used for SHOW clips without an override. */
   readonly assignmentStrategy: AssignmentStrategyId;
@@ -84,6 +94,8 @@ export interface BuildShowPlanOptions {
   /** Strategy for SHOW clips. TAKEOFF uses `identity`, LANDING `optimalDistance`. */
   readonly assignmentStrategy?: AssignmentStrategyId;
   readonly transitionOverrides?: Readonly<Record<string, ClipTransitionOverride>>;
+  /** Overrides `project.preShow`. Pass `null` to plan the show without pre-show. */
+  readonly preShow?: PreShowConfig | null;
 }
 
 function padPoints(points: readonly Vector3Tuple[], count: number, fallback: Vector3Tuple[]): Vector3Tuple[] {
