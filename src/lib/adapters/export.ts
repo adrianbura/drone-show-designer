@@ -7,7 +7,10 @@
  * `DroneShowStudioShow` (see docs/EXPORT_FORMAT.md). A real, verified
  * SkybrushAdapter can be added later behind the existing adapter contract.
  */
+import { ASSIGNMENT_ALGORITHM_VERSION } from "../show/assignment";
+import { CONFLICT_DETECTION_VERSION } from "../show/conflicts";
 import { COORDINATE_SYSTEM } from "../show/coordinates";
+import { TRANSITION_OPTIMIZER_VERSION } from "../show/transition";
 import { lightColorAt } from "../show/lights";
 import { activeClipAt } from "../show/timeline";
 import type { ShowPlan } from "../show/trajectory";
