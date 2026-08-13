@@ -7,6 +7,7 @@ import {
   assessDurationFeasibility,
   estimateMinimumDuration,
   optimizeTransition,
+  type TransitionDronePlan,
   type TransitionInput,
 } from "../transition";
 import type { SafetyLimits, Vector3Tuple } from "../types";
@@ -20,6 +21,20 @@ const LIMITS: SafetyLimits = {
   minAltitude: 5,
   maxAltitude: 95,
 };
+
+/** Minimal TransitionDronePlan used only for duration feasibility checks. */
+function plan(droneId: string, distance: number): TransitionDronePlan {
+  return {
+    droneId,
+    index: 0,
+    from: [0, 30, 0],
+    to: [distance, 30, 0],
+    targetPointIndex: 0,
+    distance,
+    startOffset: 0,
+    lane: { index: 0, offsetMetres: 0 },
+  };
+}
 
 function drones(n: number): DroneDefinition[] {
   return Array.from({ length: n }, (_, i) => ({
@@ -62,11 +77,7 @@ describe("duration feasibility", () => {
   it("flags an impossible duration and names the limiting metric", () => {
     const estimate = estimateMinimumDuration(200, LIMITS);
     expect(estimate.duration).toBeGreaterThan(0);
-    const result = assessDurationFeasibility(
-      [{ droneId: "DRN-001", distance: 200 }],
-      1,
-      LIMITS,
-    );
+    const result = assessDurationFeasibility([plan("DRN-001", 200)], 1, LIMITS);
     expect(result.feasible).toBe(false);
     expect(result.worstDroneId).toBe("DRN-001");
     expect(["velocity", "acceleration", "jerk"]).toContain(result.limitingMetric);
@@ -74,7 +85,7 @@ describe("duration feasibility", () => {
   });
 
   it("accepts a generous duration", () => {
-    const result = assessDurationFeasibility([{ droneId: "DRN-001", distance: 20 }], 60, LIMITS);
+    const result = assessDurationFeasibility([plan("DRN-001", 20)], 60, LIMITS);
     expect(result.feasible).toBe(true);
     expect(result.limitingMetric).toBe("none");
   });
@@ -148,7 +159,7 @@ describe("transition optimizer", () => {
       expect(p.startOffset).toBeGreaterThanOrEqual(0);
       expect(p.startOffset).toBeLessThanOrEqual(input.duration * 0.5 + 1e-9);
       expect(Math.abs(p.lane.offsetMetres)).toBeLessThanOrEqual(
-        result.settings.maxLaneIndex * result.settings.laneSpacing + 1e-9,
+        result.settings.maxVerticalOffset + 1e-9,
       );
       expect(p.to[1] + p.lane.offsetMetres).toBeLessThanOrEqual(LIMITS.maxAltitude + 1e-6);
     }
