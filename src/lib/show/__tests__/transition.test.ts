@@ -52,13 +52,23 @@ function ring(n: number, radius: number, y: number): Vector3Tuple[] {
   });
 }
 
+/**
+ * Two clusters swapping sides along shared lanes. Any bijection has to send the
+ * left cluster to the right one, so head-on conflicts are unavoidable without
+ * staggering or vertical lanes — the exact case the optimiser must handle.
+ */
 function crossingInput(n = 16, duration = 10): TransitionInput {
-  const source = ring(n, 30, 30);
-  // Target is the same ring rotated by half a step -> maximum path crossing.
-  const target = source.map((_, i) => {
-    const a = ((i + n / 2) / n) * Math.PI * 2;
-    return [Math.cos(a) * 30, 30, Math.sin(a) * 30] as Vector3Tuple;
-  });
+  const half = Math.max(1, Math.floor(n / 2));
+  const source: Vector3Tuple[] = [];
+  const target: Vector3Tuple[] = [];
+  for (let i = 0; i < half; i++) {
+    source.push([-40, 30, i * 5]);
+    target.push([40, 30, i * 5]);
+  }
+  for (let i = 0; i < n - half; i++) {
+    source.push([40, 30, i * 5]);
+    target.push([-40, 30, i * 5]);
+  }
   return {
     drones: drones(n),
     source,
