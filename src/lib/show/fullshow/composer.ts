@@ -69,13 +69,11 @@ export function composeFullShow(
   const composeMs = nowMs() - t0;
 
   for (const err of showPlan.errors) {
-    errors.push(
-      new FullShowError("TRAJECTORY_COMPOSITION_FAILED", err.message, {
-        clipId: err.details["clipId"] as string | undefined,
-        droneId: err.droneId,
-        code: err.code,
-      }),
-    );
+    const details: Record<string, unknown> = { code: err.code };
+    const clipId = err.details["clipId"];
+    if (typeof clipId === "string") details["clipId"] = clipId;
+    if (err.droneId) details["droneId"] = err.droneId;
+    errors.push(new FullShowError("TRAJECTORY_COMPOSITION_FAILED", err.message, details));
   }
 
   const t1 = nowMs();
