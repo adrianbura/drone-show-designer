@@ -46,9 +46,9 @@ export async function importSvgFile(file: File, options: ImportSvgOptions): Prom
 /** Normalises any thrown value into a user-presentable structured error. */
 export function toSvgFormationError(err: unknown): SvgFormationError {
   if (err instanceof SvgError) return err.toStructured();
-  return {
+  const base: SvgFormationError = {
     code: "INVALID_SVG",
     message: "The SVG could not be processed.",
-    details: err instanceof Error ? err.message : undefined,
   };
+  return err instanceof Error ? { ...base, details: err.message } : base;
 }
