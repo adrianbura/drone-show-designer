@@ -12,8 +12,13 @@ export const SUPPORTED_SAMPLE_RATES = [10, 20, 25, 50, 100] as const;
 
 export interface SampleOptions {
   sampleRate?: number;
-  /** Overrides plan duration (seconds). */
+  /** Overrides the sampled SPAN in seconds (defaults to the plan duration). */
   duration?: number;
+  /**
+   * First sampled show time. Defaults to `plan.startTime` (negative when the
+   * plan contains a pre-show) so pre-show samples are part of the canonical set.
+   */
+  startTime?: number;
 }
 
 export function sampleTrajectorySet(plan: ShowPlan, options: SampleOptions = {}): TrajectorySet {
@@ -21,15 +26,16 @@ export function sampleTrajectorySet(plan: ShowPlan, options: SampleOptions = {})
   if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
     throw new Error(`Invalid sampleRate: ${sampleRate}`);
   }
-  const duration = Math.max(0, options.duration ?? plan.duration);
-  const stepCount = Math.floor(duration * sampleRate) + 1;
+  const startTime = options.startTime ?? plan.startTime ?? 0;
+  const span = Math.max(0, options.duration ?? plan.duration - startTime);
+  const stepCount = Math.floor(span * sampleRate) + 1;
 
   const drones: DroneTrajectory[] = plan.schedules.map((schedule, i) => {
     const home = plan.drones[i]?.homePosition ?? ([0, 0, 0] as const);
     const samples: TrajectorySample[] = new Array(stepCount);
     for (let k = 0; k < stepCount; k++) {
       // t derived from the index (no accumulation) to avoid float drift.
-      const t = k / sampleRate;
+      const t = startTime + k / sampleRate;
       samples[k] = sampleScheduleAt(schedule, home, t);
     }
     return { droneId: schedule.droneId, samples };
@@ -37,7 +43,8 @@ export function sampleTrajectorySet(plan: ShowPlan, options: SampleOptions = {})
 
   return {
     droneCount: plan.drones.length,
-    duration,
+    duration: span,
+    startTime,
     sampleRate,
     drones,
     algorithmVersion: plan.algorithmVersion,
@@ -52,6 +59,9 @@ export function sampleAtTime(
 ): TrajectorySample | undefined {
   const samples = set.drones[droneIndex]?.samples;
   if (!samples || samples.length === 0) return undefined;
-  const k = Math.max(0, Math.min(samples.length - 1, Math.round(t * set.sampleRate)));
+  const k = Math.max(
+    0,
+    Math.min(samples.length - 1, Math.round((t - (set.startTime ?? 0)) * set.sampleRate)),
+  );
   return samples[k];
 }
