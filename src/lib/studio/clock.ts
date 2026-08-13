@@ -22,9 +22,11 @@ export interface ShowClock {
   readonly speed: PlaybackSpeed;
   readonly loop: boolean;
   readonly duration: number;
+  /** First playable show time: negative when a PRE-SHOW is planned. */
+  readonly startTime: number;
   play: () => void;
   pause: () => void;
-  /** Pause and rewind to 0. */
+  /** Pause and rewind to the first playable time (pre-show start). */
   stop: () => void;
   toggle: () => void;
   seek: (t: number) => void;
@@ -32,19 +34,20 @@ export interface ShowClock {
   setLoop: (loop: boolean) => void;
 }
 
-export function useShowClock(duration: number): ShowClock {
+export function useShowClock(duration: number, startTime = 0): ShowClock {
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<PlaybackSpeed>(1);
   const [loop, setLoop] = useState(true);
 
+  const start = Math.min(0, startTime);
   const anchorShow = useRef(0);
   const anchorWall = useRef(0);
   const raf = useRef<number | null>(null);
 
   const clamp = useCallback(
-    (t: number) => Math.max(0, Math.min(Math.max(duration, 0), t)),
-    [duration],
+    (t: number) => Math.max(start, Math.min(Math.max(duration, 0), t)),
+    [duration, start],
   );
 
   const seek = useCallback(
@@ -58,7 +61,7 @@ export function useShowClock(duration: number): ShowClock {
   );
 
   const play = useCallback(() => {
-    anchorShow.current = time >= duration ? 0 : time;
+    anchorShow.current = time >= duration ? start : time;
     anchorWall.current = typeof performance !== "undefined" ? performance.now() : 0;
     setPlaying(true);
   }, [time, duration]);
@@ -66,8 +69,8 @@ export function useShowClock(duration: number): ShowClock {
   const pause = useCallback(() => setPlaying(false), []);
   const stop = useCallback(() => {
     setPlaying(false);
-    seek(0);
-  }, [seek]);
+    seek(start);
+  }, [seek, start]);
   const toggle = useCallback(() => (playing ? pause() : play()), [playing, pause, play]);
 
   useEffect(() => {
@@ -78,7 +81,8 @@ export function useShowClock(duration: number): ShowClock {
       let next = anchorShow.current + elapsed;
       if (next >= duration) {
         if (loop) {
-          next = duration > 0 ? next % duration : 0;
+          const span = duration - start;
+          next = span > 0 ? start + ((next - start) % span) : start;
           anchorShow.current = next;
           anchorWall.current = now;
         } else {
@@ -95,12 +99,12 @@ export function useShowClock(duration: number): ShowClock {
       if (raf.current !== null) cancelAnimationFrame(raf.current);
       raf.current = null;
     };
-  }, [playing, speed, loop, duration]);
+  }, [playing, speed, loop, duration, start]);
 
   // Shrinking the show must never leave the playhead past the end.
   useEffect(() => {
-    setTime((t) => Math.min(t, Math.max(duration, 0)));
-  }, [duration]);
+    setTime((t) => Math.max(start, Math.min(t, Math.max(duration, 0))));
+  }, [duration, start]);
 
   return useMemo(
     () => ({
@@ -109,6 +113,7 @@ export function useShowClock(duration: number): ShowClock {
       speed,
       loop,
       duration,
+      startTime: start,
       play,
       pause,
       stop,
@@ -117,6 +122,6 @@ export function useShowClock(duration: number): ShowClock {
       setSpeed,
       setLoop,
     }),
-    [time, playing, speed, loop, duration, play, pause, stop, toggle, seek],
+    [time, playing, speed, loop, duration, start, play, pause, stop, toggle, seek],
   );
 }
