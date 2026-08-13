@@ -11,6 +11,8 @@ import {
 
 import FullShowPanel from "./FullShowPanel";
 import LaunchPanel from "./LaunchPanel";
+import SimulationPanel from "./SimulationPanel";
+
 
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
 import {
@@ -449,6 +451,9 @@ export default function Inspector() {
       <LaunchPanel />
 
       <FullShowPanel />
+
+      <SimulationPanel />
+
 
       <section className="panel-card">
         <h2 className="panel-title">
