@@ -338,8 +338,8 @@ export function parsePathData(d: string): SubPath[] {
         }
         case "T": {
           const smooth = prevCmd === "Q" || prevCmd === "T";
-          const qx = smooth && lastQ ? 2 * x - lastQ[0] : x;
-          const qy = smooth && lastQ ? 2 * y - lastQ[1] : y;
+          const qx: number = smooth && lastQ ? 2 * x - lastQ[0] : x;
+          const qy: number = smooth && lastQ ? 2 * y - lastQ[1] : y;
           const px = x;
           const py = y;
           x = relative ? x + a[0]! : a[0]!;
