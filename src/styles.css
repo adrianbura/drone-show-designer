@@ -149,6 +149,13 @@
     color 0.15s;
 }
 
+@utility chip-btn-active {
+  border-color: color-mix(in oklab, var(--primary) 60%, transparent);
+  background: color-mix(in oklab, var(--primary) 18%, var(--surface-sunken));
+  color: var(--primary);
+}
+
+
 @utility mini-btn {
   border-radius: 4px;
   border: 1px solid var(--border);
