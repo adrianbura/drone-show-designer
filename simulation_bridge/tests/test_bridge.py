@@ -24,7 +24,7 @@ from app.services.state_machine import SimulationStateMachine
 from app.services.test_trajectory import build_test_trajectory_samples
 from app.services.validation import validate_package
 
-from .factories import make_package
+from tests.factories import make_package
 
 
 # --------------------------------------------------------------- coordinates
