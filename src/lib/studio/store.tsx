@@ -741,6 +741,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       canAnalyzeSelectedClip,
       showPaths,
       showConflicts,
+      fullShow,
+      fullShowBusy,
+      fullShowProgress,
+      fullShowStale,
+      fullShowError,
+      analysisRevision,
+      analyzeFullShow,
+      cancelFullShowAnalysis,
+      clearFullShowReport,
+      focusIssue,
+      highlightedDrones,
     ],
   );
 
