@@ -13,12 +13,16 @@ interfaces already defined here.
 | 3D Visualization | `src/components/studio/Viewport3D.tsx` (R3F, instanced swarm) | implemented |
 | Show Core (domain model) | `src/lib/show/types.ts` | implemented |
 | Formation Engine | `src/lib/show/formations.ts` | implemented (grid/circle/sphere/helix/cube/wave/heart/text) |
-| Choreography Engine | `src/lib/studio/store.tsx` (timeline clips, beat snapping) | implemented |
-| Trajectory Engine | `src/lib/show/trajectory.ts` (assignment, min-jerk morphs, layered arcs) | implemented |
+| Choreography Engine | `src/lib/show/timeline.ts` + `src/lib/studio/store.tsx` | implemented |
+| Canonical show clock | `src/lib/studio/clock.ts` (anchor-based, drift-free, speed + loop) | implemented |
+| Assignment Engine | `src/lib/show/assignment.ts` (strategy-based) | implemented |
+| Drone identity | `src/lib/show/drones.ts` (stable `DRN-001` ids, home positions) | implemented |
+| Coordinate contract | `src/lib/show/coordinates.ts` (+Y up, yaw 0 = +X) | implemented |
+| Trajectory Engine | `src/lib/show/trajectory/*` (planner, schedule, sampler) | implemented |
 | Safety Validation Engine | `src/lib/show/safety.ts` (separation via spatial hash, v/a/yaw, ceiling, area, landing) | implemented |
 | Audio/Music Engine | `src/lib/show/audio.ts` (local probe + BPM beat grid) | implemented (client-side) |
 | Light Program Engine | `src/lib/show/lights.ts` | implemented |
-| Export Adapter Layer | `src/lib/adapters/export.ts` (Skybrush-compatible JSON, CSV, project file) | implemented |
+| Export Adapter Layer | `src/lib/adapters/export.ts` (documented `DroneShowStudioShow` JSON, CSV, project file — see docs/EXPORT_FORMAT.md) | implemented |
 | Adapter registry / contracts | `src/lib/adapters/index.ts` (`SimulationAdapter`, `ExportAdapter`) | interfaces defined |
 | Skybrush / PX4-SITL / MAVSDK adapters | Python service, behind the same interfaces | planned |
 | Project persistence, Job/Worker system | Lovable Cloud (Postgres) + Python workers | planned |
@@ -39,6 +43,14 @@ interfaces already defined here.
 - **Compliance.** No GPL-derived source is vendored. Skybrush is targeted as an
   interchange format. Any move toward external distribution or commercial
   redistribution requires a license/compliance review before shipping.
+
+## Naming honesty
+
+There is no Skybrush exporter. The old `toSkybrushShow()` emitted an unverified
+Skybrush-*like* layout, so it was replaced by the studio's own documented
+`DroneShowStudioShow` v1 schema. The registry lists Skybrush as `planned`; a real
+adapter must be written against the published format. Likewise, a passing safety
+report means "validated against the current safety profile", never "safe to fly".
 
 ## Not yet in place (next phases)
 
