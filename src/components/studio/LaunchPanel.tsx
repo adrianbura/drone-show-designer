@@ -85,6 +85,15 @@ export default function LaunchPanel() {
     project,
     setTime,
     startTime,
+    preShowOverlay,
+    showLaunchPads,
+    setShowLaunchPads,
+    showStaging,
+    setShowStaging,
+    showLaunchGroups,
+    setShowLaunchGroups,
+    selectedLaunchGroupId,
+    selectLaunchGroup,
   } = useStudio();
 
   const status = preShowReport?.status ?? null;
@@ -94,6 +103,7 @@ export default function LaunchPanel() {
 
   const capacity = preShowConfig.launch.rows * preShowConfig.launch.columns;
   const groups = preShowPlan?.groups ?? [];
+  const overlayGroups = preShowOverlay?.groups ?? [];
   const issues = useMemo(() => preShowReport?.issues.slice(0, 40) ?? [], [preShowReport]);
 
   return (
@@ -352,6 +362,65 @@ export default function LaunchPanel() {
                 onChange={(v) => patchPreShow({ stagingHold: Math.max(0, v) })}
               />
             </div>
+          </div>
+
+          {/* ------------------------------------------------- overlays */}
+          <div className="space-y-2">
+            <h3 className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Viewport overlays (design guides)
+            </h3>
+            <div className="flex flex-wrap gap-3 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={showLaunchPads}
+                  onChange={(e) => setShowLaunchPads(e.target.checked)}
+                  className="accent-[var(--accent)]"
+                />
+                Launch pads
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={showStaging}
+                  onChange={(e) => setShowStaging(e.target.checked)}
+                  className="accent-[var(--accent)]"
+                />
+                Staging
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={showLaunchGroups}
+                  onChange={(e) => setShowLaunchGroups(e.target.checked)}
+                  className="accent-[var(--accent)]"
+                />
+                Groups
+              </label>
+            </div>
+            {overlayGroups.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                <button
+                  onClick={() => selectLaunchGroup(null)}
+                  className={`mini-btn ${selectedLaunchGroupId === null ? "mini-btn-accent" : ""}`}
+                >
+                  All
+                </button>
+                {overlayGroups.map((g) => (
+                  <button
+                    key={g.groupId}
+                    onClick={() =>
+                      selectLaunchGroup(selectedLaunchGroupId === g.groupId ? null : g.groupId)
+                    }
+                    className={`mini-btn ${selectedLaunchGroupId === g.groupId ? "mini-btn-accent" : ""}`}
+                    style={{ borderColor: `rgb(${g.color[0]},${g.color[1]},${g.color[2]})` }}
+                    title={`${g.droneIndices.length} drones · +${num(g.startTime, 1)} s`}
+                  >
+                    {g.groupId.replace(/^GRP-?/, "G")}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           {/* --------------------------------------------------- schedule */}

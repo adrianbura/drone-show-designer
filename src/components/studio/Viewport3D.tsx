@@ -8,7 +8,9 @@ import { lightColorAt } from "@/lib/show/lights";
 import { activeClipAt } from "@/lib/show/timeline";
 import type { TrajectorySample } from "@/lib/show/trajectory";
 import type { ShowProject } from "@/lib/show/types";
+import { preShowStatesAt, type PreShowDroneState, type PreShowPlan } from "@/lib/show/preshow";
 import SvgDraftPreview from "./SvgDraftPreview";
+import PreShowOverlay from "./PreShowOverlay";
 import TransitionOverlay from "./TransitionOverlay";
 
 /**
@@ -18,16 +20,35 @@ import TransitionOverlay from "./TransitionOverlay";
  * The viewport CONSUMES computed data: it samples the planned schedules through
  * the store and never generates trajectories itself.
  */
+/** Diagnostic pre-show state tint — never used during the artistic show. */
+const PRE_SHOW_STATE_RGB: Record<PreShowDroneState, [number, number, number]> = {
+  ON_PAD: [0.42, 0.48, 0.56],
+  ASCENT: [0.95, 0.71, 0.24],
+  TRANSIT: [0.22, 0.88, 0.82],
+  STAGED: [0.36, 0.89, 0.48],
+  SHOW: [0.22, 0.31, 0.42],
+};
+
 function Swarm({
   project,
   time,
   samplesAtTime,
   highlighted,
+  preShowPlan,
+  showGroups,
+  groupIdByDrone,
+  groupRgbByDrone,
+  selectedGroupId,
 }: {
   project: ShowProject;
   time: number;
   samplesAtTime: (t: number) => TrajectorySample[];
   highlighted: number[];
+  preShowPlan: PreShowPlan | null;
+  showGroups: boolean;
+  groupIdByDrone: string[];
+  groupRgbByDrone: Map<number, [number, number, number]>;
+  selectedGroupId: string | null;
 }) {
   const bodies = useRef<THREE.InstancedMesh>(null);
   const halos = useRef<THREE.InstancedMesh>(null);
@@ -42,6 +63,9 @@ function Swarm({
 
     const samples = samplesAtTime(time);
     const clip = activeClipAt(project, time);
+    // Pre-show context comes from the canonical plan segments — there is no
+    // separate pre-show simulation path.
+    const states = preShowPlan && time < 0 ? preShowStatesAt(preShowPlan, time) : null;
 
     samples.forEach((sample, i) => {
       const p = sample.position;
@@ -55,8 +79,15 @@ function Swarm({
       haloMesh.setMatrixAt(i, dummy.matrix);
 
       const c = lightColorAt(clip, i, project.droneCount, time);
+      const group = groupRgbByDrone.get(i);
+      const dimmed = !!selectedGroupId && groupIdByDrone[i] !== selectedGroupId;
       if (highlightSet.has(i)) color.setRGB(1, 0.25, 0.25);
-      else color.setRGB(c[0] / 255, c[1] / 255, c[2] / 255);
+      else if (dimmed) color.setRGB(0.16, 0.21, 0.28);
+      else if (showGroups && group) color.setRGB(group[0], group[1], group[2]);
+      else if (states) {
+        const s = PRE_SHOW_STATE_RGB[states[i] ?? "ON_PAD"];
+        color.setRGB(s[0], s[1], s[2]);
+      } else color.setRGB(c[0] / 255, c[1] / 255, c[2] / 255);
       bodyMesh.setColorAt(i, color);
       haloMesh.setColorAt(i, color);
     });
@@ -108,6 +139,12 @@ export default function Viewport3D() {
     safety,
     samplesAtTime,
     svgDraft,
+    plan,
+    preShowOverlay,
+    showLaunchPads,
+    showStaging,
+    showLaunchGroups,
+    selectedLaunchGroupId,
     transitionAnalysis,
     selectedClipId,
     showPaths,
@@ -129,6 +166,15 @@ export default function Viewport3D() {
     ],
     [safety.issues, time, highlightedDrones],
   );
+
+  const groupRgbByDrone = useMemo(() => {
+    const map = new Map<number, [number, number, number]>();
+    preShowOverlay?.groups.forEach((g) => {
+      const rgb: [number, number, number] = [g.color[0] / 255, g.color[1] / 255, g.color[2] / 255];
+      g.droneIndices.forEach((i) => map.set(i, rgb));
+    });
+    return map;
+  }, [preShowOverlay]);
 
   return (
     <Canvas
@@ -156,7 +202,23 @@ export default function Viewport3D() {
         time={time}
         samplesAtTime={samplesAtTime}
         highlighted={highlighted}
+        preShowPlan={plan.preShow}
+        showGroups={showLaunchGroups}
+        groupIdByDrone={preShowOverlay?.groupIdByDrone ?? []}
+        groupRgbByDrone={groupRgbByDrone}
+        selectedGroupId={selectedLaunchGroupId}
       />
+      {preShowOverlay && plan.preShow && (showLaunchPads || showStaging) ? (
+        <PreShowOverlay
+          overlay={preShowOverlay}
+          plan={plan.preShow}
+          time={time}
+          showPads={showLaunchPads}
+          showStaging={showStaging}
+          showGroups={showLaunchGroups}
+          selectedGroupId={selectedLaunchGroupId}
+        />
+      ) : null}
       {svgDraft ? <SvgDraftPreview draft={svgDraft} /> : null}
       {overlayAnalysis && (showPaths || showConflicts) ? (
         <TransitionOverlay

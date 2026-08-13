@@ -94,6 +94,8 @@ export default function Inspector() {
     setShowConflicts,
     fullShowReport,
     fullShowStale,
+    preShowReport,
+    preShowStale,
   } = useStudio();
   const exportBlocked = fullShowReport?.exportReadiness.status === "BLOCKED";
   const clip = project.timeline.find((c) => c.id === selectedClipId);
@@ -469,6 +471,8 @@ export default function Inspector() {
                 safety,
                 fullShow: fullShowReport,
                 fullShowStale,
+                preShowReport,
+                preShowStale,
               }),
               "application/json",
             )

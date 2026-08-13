@@ -18,6 +18,8 @@ import type { TrajectorySet } from "../show/trajectory";
 import type { ShowProject } from "../show/types";
 import { showDuration } from "../show/types";
 import type { SafetyReport } from "../show/safety";
+import type { PreShowValidationReport } from "../show/preshow";
+import { toPreShowExportSection } from "./preshowExport";
 import type { FullShowValidationReport } from "../show/fullshow/types";
 
 export const EXPORT_SCHEMA_NAME = "DroneShowStudioShow";
@@ -34,6 +36,10 @@ export interface GenericExportInput {
   fullShow?: FullShowValidationReport | null;
   /** True when the report was produced for a DIFFERENT project revision. */
   fullShowStale?: boolean;
+  /** Pre-show validation provenance for `plan.preShow`, when one exists. */
+  preShowReport?: PreShowValidationReport | null;
+  /** True when the pre-show report describes a DIFFERENT project revision. */
+  preShowStale?: boolean;
 }
 
 /**
@@ -47,6 +53,8 @@ export function toGenericShowJson({
   safety,
   fullShow,
   fullShowStale,
+  preShowReport,
+  preShowStale,
 }: GenericExportInput): string {
   const drones = plan.drones.map((drone, i) => {
     const trajectory = set.drones[i];
@@ -104,6 +112,21 @@ export function toGenericShowJson({
         optimizedClipIds: plan.optimizedClipIds,
       },
       assignments: plan.assignments,
+      // Pre-show / launch provenance (Sprint 4.5). `null` means the exported
+      // show contains NO launch plan, not that launching was validated.
+      preShow: plan.preShow
+        ? toPreShowExportSection({
+            plan: plan.preShow,
+            report: preShowReport ?? null,
+            stale: !!preShowStale,
+            analysisRevision: fullShow?.analysisRevision ?? null,
+          })
+        : null,
+      operationalTiming: {
+        showTimeZero: 0,
+        firstPlayableShowTime: round(plan.startTime),
+        showStartOperationalTime: round(plan.showStartOperationalTime),
+      },
       trajectorySet: {
         droneCount: set.droneCount,
         duration: set.duration,
