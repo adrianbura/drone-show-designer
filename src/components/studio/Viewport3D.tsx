@@ -9,6 +9,7 @@ import { activeClipAt } from "@/lib/show/timeline";
 import type { TrajectorySample } from "@/lib/show/trajectory";
 import type { ShowProject } from "@/lib/show/types";
 import SvgDraftPreview from "./SvgDraftPreview";
+import TransitionOverlay from "./TransitionOverlay";
 
 /**
  * Instanced drone swarm. One InstancedMesh + per-instance colour keeps draw
