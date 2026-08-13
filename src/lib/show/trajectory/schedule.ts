@@ -30,6 +30,8 @@ export interface ScheduleSegment {
   readonly phase: ShowPhase;
   readonly kind: "transition" | "hold";
   readonly planned: PlannedTrajectory;
+  /** Set only on PRE_SHOW segments (see preshow/plan.ts). */
+  readonly preShowPhase?: PreShowPhaseName;
 }
 
 export interface DroneSchedule {
