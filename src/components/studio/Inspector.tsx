@@ -1,4 +1,13 @@
-import { AlertTriangle, CheckCircle2, Download, Plug, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Download,
+  Eye,
+  Plug,
+  ShieldCheck,
+  Shuffle,
+  Wand2,
+} from "lucide-react";
 
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
 import {
@@ -7,6 +16,11 @@ import {
   toStudioProject,
   toTrajectoryCsv,
 } from "@/lib/adapters/export";
+import {
+  assignmentStrategyLabel,
+  SELECTABLE_ASSIGNMENT_STRATEGIES,
+  type AssignmentStrategyId,
+} from "@/lib/show/assignment";
 import { hexToRgb, rgbToHex } from "@/lib/show/lights";
 import { snapToBeat } from "@/lib/show/audio";
 import type { Easing, LightEffect } from "@/lib/show/types";
