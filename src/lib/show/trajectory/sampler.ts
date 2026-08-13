@@ -34,7 +34,7 @@ export interface SampleOptions {
   startTime?: number;
 }
 
-export function sampleTrajectorySet(plan: ShowPlan, options: SampleOptions = {}): TrajectorySet {
+export function sampleTrajectorySet(plan: SamplablePlan, options: SampleOptions = {}): TrajectorySet {
   const sampleRate = options.sampleRate ?? DEFAULT_SAMPLE_RATE;
   if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
     throw new Error(`Invalid sampleRate: ${sampleRate}`);
