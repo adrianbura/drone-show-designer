@@ -68,6 +68,21 @@ import {
   type SvgFormationParams,
   type SvgFormationResult,
 } from "../show/svg";
+import {
+  analyzePreShow,
+  compareGroupOrders,
+  patchPreShowConfig,
+  resolvePreShowConfig,
+  suggestGroupInterval,
+  suggestLaunchSchedule,
+  type GroupOrderComparison,
+  type IntervalSearchResult,
+  type LaunchScheduleEstimate,
+  type PreShowConfig,
+  type PreShowConfigPatch,
+  type PreShowPlan,
+  type PreShowValidationReport,
+} from "../show/preshow";
 import { useShowClock, type PlaybackSpeed } from "./clock";
 
 /** Draft state of an SVG import, before it is committed as a Formation. */
@@ -163,6 +178,31 @@ interface StudioContextValue {
   clearFullShowReport: () => void;
   /** Seeks to an issue, selects its clip and highlights the drones involved. */
   focusIssue: (issue: FullShowIssue) => void;
+  // ---- Pre-show: launch grid, staging, grouped take-off (Sprint 4.5) -----
+  /** Resolved pre-show configuration (defaults merged with project overrides). */
+  preShowConfig: PreShowConfig;
+  preShowEnabled: boolean;
+  setPreShowEnabled: (enabled: boolean) => void;
+  patchPreShow: (patch: PreShowConfigPatch) => void;
+  /** Composed pre-show plan of the CURRENT project, or null when disabled. */
+  preShowPlan: PreShowPlan | null;
+  /** First playable show time (negative during pre-show). */
+  startTime: number;
+  /** Operational time of SHOW TIME ZERO, i.e. the pre-show duration. */
+  showStartOperationalTime: number;
+  /** Standalone launch preview report (Preview launch), independent of the full show. */
+  preShowReport: PreShowValidationReport | null;
+  preShowBusy: boolean;
+  preShowError: { code: string; message: string } | null;
+  previewLaunch: () => void;
+  clearPreShowReport: () => void;
+  launchSchedule: LaunchScheduleEstimate | null;
+  /** Bounded deterministic suggestions. Nothing is applied automatically. */
+  intervalSuggestion: IntervalSearchResult | null;
+  groupOrderComparison: GroupOrderComparison[] | null;
+  suggestInterval: () => void;
+  compareOrders: () => void;
+  applySuggestedInterval: () => void;
   /** Drone indices highlighted in the viewport (issue navigation). */
   highlightedDrones: number[];
   setHighlightedDrones: (indices: number[]) => void;
@@ -234,6 +274,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [fullShowProgress, setFullShowProgress] = useState<FullShowProgress | null>(null);
   const [fullShowError, setFullShowError] = useState<{ code: string; message: string } | null>(null);
   const [highlightedDrones, setHighlightedDrones] = useState<number[]>([]);
+  const [preShowPreview, setPreShowPreview] = useState<{
+    plan: PreShowPlan;
+    report: PreShowValidationReport;
+  } | null>(null);
+  const [preShowBusy, setPreShowBusy] = useState(false);
+  const [preShowError, setPreShowError] = useState<{ code: string; message: string } | null>(null);
+  const [intervalSuggestion, setIntervalSuggestion] = useState<IntervalSearchResult | null>(null);
+  const [groupOrderComparison, setGroupOrderComparison] = useState<GroupOrderComparison[] | null>(
+    null,
+  );
   const cancelFullShow = useRef(false);
 
   // Pure engine pipeline: formations -> assignment -> planning -> sampling -> safety.
@@ -269,7 +319,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   // Canonical duration — NEVER project.audio.duration.
   const duration = useMemo(() => Math.max(showDuration(project), 1), [project]);
-  const clock = useShowClock(duration);
+  // PRE-SHOW extends playback into negative show time; SHOW TIME ZERO is fixed.
+  const clock = useShowClock(duration, plan.startTime);
 
   const samplesAtTime = useCallback((t: number) => samplesAt(plan, t), [plan]);
 
@@ -619,6 +670,75 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setHighlightedDrones([]);
   }, []);
 
+  // ---- Pre-show (launch grid / staging / grouped take-off) ---------------
+  const preShowConfig = useMemo(() => resolvePreShowConfig(project.preShow), [project.preShow]);
+  const preShowEnabled = !!project.preShow?.enabled;
+
+  const patchPreShow = useCallback((patch: PreShowConfigPatch) => {
+    setProject((p) => ({ ...p, preShow: patchPreShowConfig(resolvePreShowConfig(p.preShow), patch) }));
+  }, []);
+
+  const setPreShowEnabled = useCallback(
+    (enabled: boolean) => patchPreShow({ enabled }),
+    [patchPreShow],
+  );
+
+  const launchSchedule = useMemo(
+    () => (preShowEnabled && plan.preShow ? suggestLaunchSchedule(project, preShowConfig) : null),
+    [preShowEnabled, plan.preShow, project, preShowConfig],
+  );
+
+  const previewLaunch = useCallback(() => {
+    setPreShowBusy(true);
+    setPreShowError(null);
+    try {
+      const { plan: preShowPlan, report } = analyzePreShow(project, {
+        config: preShowConfig,
+        sampleRate,
+      });
+      setPreShowPreview({ plan: preShowPlan, report });
+    } catch (err) {
+      setPreShowPreview(null);
+      setPreShowError({
+        code: "PRE_SHOW_PREVIEW_FAILED",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setPreShowBusy(false);
+    }
+  }, [project, preShowConfig, sampleRate]);
+
+  const clearPreShowReport = useCallback(() => {
+    setPreShowPreview(null);
+    setPreShowError(null);
+    setIntervalSuggestion(null);
+    setGroupOrderComparison(null);
+  }, []);
+
+  const suggestInterval = useCallback(() => {
+    setPreShowBusy(true);
+    try {
+      setIntervalSuggestion(suggestGroupInterval(project, { sampleRate: 10 }));
+    } finally {
+      setPreShowBusy(false);
+    }
+  }, [project]);
+
+  const compareOrders = useCallback(() => {
+    setPreShowBusy(true);
+    try {
+      setGroupOrderComparison(compareGroupOrders(project));
+    } finally {
+      setPreShowBusy(false);
+    }
+  }, [project]);
+
+  const applySuggestedInterval = useCallback(() => {
+    const suggested = intervalSuggestion?.suggestedInterval;
+    if (typeof suggested !== "number") return;
+    patchPreShow({ grouping: { groupIntervalSeconds: suggested } });
+  }, [intervalSuggestion, patchPreShow]);
+
   const focusIssue = useCallback(
     (issue: FullShowIssue) => {
       if (typeof issue.time === "number" && Number.isFinite(issue.time)) clock.seek(issue.time);
@@ -697,6 +817,24 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       cancelFullShowAnalysis,
       clearFullShowReport,
       focusIssue,
+      preShowConfig,
+      preShowEnabled,
+      setPreShowEnabled,
+      patchPreShow,
+      preShowPlan: plan.preShow,
+      startTime: plan.startTime,
+      showStartOperationalTime: plan.showStartOperationalTime,
+      preShowReport: preShowPreview?.report ?? fullShow?.report.preShow ?? null,
+      preShowBusy,
+      preShowError,
+      previewLaunch,
+      clearPreShowReport,
+      launchSchedule,
+      intervalSuggestion,
+      groupOrderComparison,
+      suggestInterval,
+      compareOrders,
+      applySuggestedInterval,
       highlightedDrones,
       setHighlightedDrones,
     }),
@@ -751,6 +889,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       cancelFullShowAnalysis,
       clearFullShowReport,
       focusIssue,
+      preShowConfig,
+      preShowEnabled,
+      setPreShowEnabled,
+      patchPreShow,
+      preShowPreview,
+      preShowBusy,
+      preShowError,
+      previewLaunch,
+      clearPreShowReport,
+      launchSchedule,
+      intervalSuggestion,
+      groupOrderComparison,
+      suggestInterval,
+      compareOrders,
+      applySuggestedInterval,
       highlightedDrones,
     ],
   );
