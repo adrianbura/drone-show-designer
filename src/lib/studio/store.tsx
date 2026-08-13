@@ -37,6 +37,15 @@ import {
   type TransitionAnalysis,
   type TransitionOptimizationResult,
 } from "../show/transition";
+import {
+  analyzeFullShow as analyzeFullShowCore,
+  computeAnalysisRevision,
+  FullShowError,
+  type FullShowIssue,
+  type FullShowPlan,
+  type FullShowProgress,
+  type FullShowValidationReport,
+} from "../show/fullshow";
 import type {
   Formation,
   FormationKind,
@@ -137,6 +146,26 @@ interface StudioContextValue {
   setShowPaths: (v: boolean) => void;
   showConflicts: boolean;
   setShowConflicts: (v: boolean) => void;
+
+  // ---- Full show simulation & validation (Sprint 4) ----------------------
+  /** Composed full-show plan of the last analysis (TAKEOFF..LANDING). */
+  fullShowPlan: FullShowPlan | null;
+  fullShowReport: FullShowValidationReport | null;
+  fullShowBusy: boolean;
+  fullShowProgress: FullShowProgress | null;
+  /** True when the project changed after the report was produced. */
+  fullShowStale: boolean;
+  fullShowError: { code: string; message: string } | null;
+  /** Deterministic revision of the CURRENT project + analysis settings. */
+  analysisRevision: string;
+  analyzeFullShow: () => void;
+  cancelFullShowAnalysis: () => void;
+  clearFullShowReport: () => void;
+  /** Seeks to an issue, selects its clip and highlights the drones involved. */
+  focusIssue: (issue: FullShowIssue) => void;
+  /** Drone indices highlighted in the viewport (issue navigation). */
+  highlightedDrones: number[];
+  setHighlightedDrones: (indices: number[]) => void;
 }
 
 const StudioContext = createContext<StudioContextValue | null>(null);
@@ -197,6 +226,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [transitionError, setTransitionError] = useState<{ code: string; message: string } | null>(null);
   const [showPaths, setShowPaths] = useState(false);
   const [showConflicts, setShowConflicts] = useState(false);
+  const [fullShow, setFullShow] = useState<{
+    plan: FullShowPlan;
+    report: FullShowValidationReport;
+  } | null>(null);
+  const [fullShowBusy, setFullShowBusy] = useState(false);
+  const [fullShowProgress, setFullShowProgress] = useState<FullShowProgress | null>(null);
+  const [fullShowError, setFullShowError] = useState<{ code: string; message: string } | null>(null);
+  const [highlightedDrones, setHighlightedDrones] = useState<number[]>([]);
+  const cancelFullShow = useRef(false);
 
   // Pure engine pipeline: formations -> assignment -> planning -> sampling -> safety.
   const plan = useMemo(
@@ -209,6 +247,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [project, trajectorySet, plan.drones],
   );
   const beatGrid = useMemo(() => buildBeatGrid(project.audio), [project.audio]);
+
+  // Deterministic revision of everything the full-show analysis depends on.
+  const analysisRevision = useMemo(
+    () => computeAnalysisRevision(project, { sampleRate, assignmentStrategy, transitionOverrides }),
+    [project, sampleRate, assignmentStrategy, transitionOverrides],
+  );
+  const fullShowStale = !!fullShow && fullShow.report.analysisRevision !== analysisRevision;
 
   // Stale-result guard: any project edit invalidates analysis AND any applied
   // optimiser override, because both were computed for the previous geometry.
@@ -509,6 +554,81 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     patchClip(clipId, { transition: Math.max(0.5, next) });
   }, [transitionAnalysis, patchClip]);
 
+  // ---- Full show simulation & validation ---------------------------------
+  //
+  // The analysis composes the show with EXACTLY the settings the viewport plays
+  // (same project, strategy, overrides and sample rate), so a report can never
+  // describe a different show than the one on screen.
+  const analyzeFullShow = useCallback(() => {
+    if (fullShowBusy) return;
+    cancelFullShow.current = false;
+    setFullShowBusy(true);
+    setFullShowError(null);
+    setFullShowProgress(null);
+    // Deferred so the busy state and first progress label paint before the
+    // synchronous engine work starts.
+    const run = () => {
+      try {
+        const analyzedClipIds = transitionAnalysis ? [transitionAnalysis.clipId] : [];
+        const unresolvedClipIds =
+          transitionAnalysis &&
+          transitionAnalysis.analysis.conflicts.criticalCount > 0 &&
+          !transitionOverrides[transitionAnalysis.clipId]
+            ? [transitionAnalysis.clipId]
+            : [];
+        const result = analyzeFullShowCore(project, {
+          sampleRate,
+          assignmentStrategy,
+          transitionOverrides,
+          analyzedClipIds,
+          unresolvedClipIds,
+          onProgress: setFullShowProgress,
+          isCancelled: () => cancelFullShow.current,
+        });
+        setFullShow(result);
+      } catch (err) {
+        setFullShow(null);
+        setFullShowError(
+          err instanceof FullShowError
+            ? { code: err.code, message: err.message }
+            : { code: "UNKNOWN", message: err instanceof Error ? err.message : String(err) },
+        );
+      } finally {
+        setFullShowBusy(false);
+        setFullShowProgress(null);
+      }
+    };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => run());
+    else run();
+  }, [
+    fullShowBusy,
+    project,
+    sampleRate,
+    assignmentStrategy,
+    transitionOverrides,
+    transitionAnalysis,
+  ]);
+
+  const cancelFullShowAnalysis = useCallback(() => {
+    cancelFullShow.current = true;
+  }, []);
+
+  const clearFullShowReport = useCallback(() => {
+    setFullShow(null);
+    setFullShowError(null);
+    setHighlightedDrones([]);
+  }, []);
+
+  const focusIssue = useCallback(
+    (issue: FullShowIssue) => {
+      if (typeof issue.time === "number" && Number.isFinite(issue.time)) clock.seek(issue.time);
+      if (issue.clipId) setSelectedClipId(issue.clipId);
+      setHighlightedDrones(issue.droneIndices ?? []);
+    },
+    [clock],
+  );
+
+
   const value = useMemo<StudioContextValue>(
     () => ({
       project,
@@ -566,6 +686,19 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setShowPaths,
       showConflicts,
       setShowConflicts,
+      fullShowPlan: fullShow?.plan ?? null,
+      fullShowReport: fullShow?.report ?? null,
+      fullShowBusy,
+      fullShowProgress,
+      fullShowStale,
+      fullShowError,
+      analysisRevision,
+      analyzeFullShow,
+      cancelFullShowAnalysis,
+      clearFullShowReport,
+      focusIssue,
+      highlightedDrones,
+      setHighlightedDrones,
     }),
     [
       project,
@@ -608,6 +741,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       canAnalyzeSelectedClip,
       showPaths,
       showConflicts,
+      fullShow,
+      fullShowBusy,
+      fullShowProgress,
+      fullShowStale,
+      fullShowError,
+      analysisRevision,
+      analyzeFullShow,
+      cancelFullShowAnalysis,
+      clearFullShowReport,
+      focusIssue,
+      highlightedDrones,
     ],
   );
 

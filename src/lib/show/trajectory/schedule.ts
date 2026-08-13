@@ -76,7 +76,7 @@ export interface ClipTransitionOverride {
 }
 
 export interface BuildShowPlanOptions {
-  /** Strategy for SHOW clips. TAKEOFF/LANDING always use `identity`. */
+  /** Strategy for SHOW clips. TAKEOFF uses `identity`, LANDING `optimalDistance`. */
   readonly assignmentStrategy?: AssignmentStrategyId;
   readonly transitionOverrides?: Readonly<Record<string, ClipTransitionOverride>>;
 }
@@ -158,7 +158,10 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
       strategyId = override.strategy;
       optimizedClipIds.push(clip.id);
     } else {
-      const strategy = getAssignmentStrategy(phase === "LANDING" ? "identity" : showStrategy);
+      // LANDING: pads are interchangeable, so the globally optimal (minimum
+      // total distance) pad assignment is used. On straight-line descents this
+      // removes the path crossings that an index-identity mapping produces.
+      const strategy = getAssignmentStrategy(phase === "LANDING" ? "optimalDistance" : showStrategy);
       clipAssignments = strategy.assign({ source: current, target: rawTarget, drones });
       strategyId = strategy.id;
     }

@@ -30,6 +30,8 @@ export default function Timeline() {
     removeClip,
     beatGrid,
     addClip,
+    fullShowReport,
+    focusIssue,
   } = useStudio();
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -116,6 +118,26 @@ export default function Timeline() {
               style={{ left: pct(b) }}
             />
           ))}
+
+          {/* Full-show validation markers (errors and warnings, in show time) */}
+          {fullShowReport?.issues
+            .filter((i) => typeof i.time === "number" && i.severity !== "info")
+            .slice(0, 400)
+            .map((issue) => (
+              <button
+                key={`iss-${issue.id}`}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  focusIssue(issue);
+                }}
+                title={issue.message}
+                aria-label={issue.message}
+                className={`absolute bottom-0 h-2.5 w-[3px] ${
+                  issue.severity === "error" ? "bg-destructive" : "bg-warning"
+                }`}
+                style={{ left: pct(issue.time ?? 0) }}
+              />
+            ))}
 
           {/* Clips */}
           {project.timeline.map((clip, row) => {

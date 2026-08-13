@@ -112,17 +112,22 @@ export default function Viewport3D() {
     selectedClipId,
     showPaths,
     showConflicts,
+    highlightedDrones,
   } = useStudio();
   const overlayAnalysis =
     transitionAnalysis && transitionAnalysis.clipId === selectedClipId
       ? transitionAnalysis.analysis
       : null;
+  // Live critical violations near the playhead, plus whatever the operator
+  // selected in the full-show issue list.
   const highlighted = useMemo(
-    () =>
-      safety.issues
+    () => [
+      ...safety.issues
         .filter((i) => i.severity === "critical" && Math.abs(i.time - time) < 1.5)
         .flatMap((i) => i.drones),
-    [safety.issues, time],
+      ...highlightedDrones,
+    ],
+    [safety.issues, time, highlightedDrones],
   );
 
   return (

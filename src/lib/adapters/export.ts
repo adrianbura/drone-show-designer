@@ -18,6 +18,7 @@ import type { TrajectorySet } from "../show/trajectory";
 import type { ShowProject } from "../show/types";
 import { showDuration } from "../show/types";
 import type { SafetyReport } from "../show/safety";
+import type { FullShowValidationReport } from "../show/fullshow/types";
 
 export const EXPORT_SCHEMA_NAME = "DroneShowStudioShow";
 export const EXPORT_SCHEMA_VERSION = 1;
@@ -29,13 +30,24 @@ export interface GenericExportInput {
   plan: ShowPlan;
   set: TrajectorySet;
   safety?: SafetyReport;
+  /** Full-show validation provenance, when a report exists for this revision. */
+  fullShow?: FullShowValidationReport | null;
+  /** True when the report was produced for a DIFFERENT project revision. */
+  fullShowStale?: boolean;
 }
 
 /**
  * Documented internal interchange schema, version 1. Self-describing: a reader
  * only needs this file and docs/EXPORT_FORMAT.md.
  */
-export function toGenericShowJson({ project, plan, set, safety }: GenericExportInput): string {
+export function toGenericShowJson({
+  project,
+  plan,
+  set,
+  safety,
+  fullShow,
+  fullShowStale,
+}: GenericExportInput): string {
   const drones = plan.drones.map((drone, i) => {
     const trajectory = set.drones[i];
     return {
@@ -107,6 +119,24 @@ export function toGenericShowJson({ project, plan, set, safety }: GenericExportI
             errorCount: safety.errors.length,
             warningCount: safety.warnings.length,
             sampleRate: safety.sampleRate,
+          }
+        : null,
+      // Full-show validation provenance (Sprint 4). `null` means the package was
+      // exported WITHOUT a full-show validation pass — never assume it passed.
+      fullShowValidation: fullShow
+        ? {
+            statement: fullShow.statement,
+            status: fullShow.status,
+            stale: !!fullShowStale,
+            analysisRevision: fullShow.analysisRevision,
+            showPackageId: fullShow.showPackageId,
+            engineVersion: fullShow.engineVersion,
+            algorithmVersions: fullShow.algorithmVersions,
+            metrics: fullShow.metrics,
+            errorCount: fullShow.errors.length,
+            warningCount: fullShow.warnings.length,
+            unresolvedTransitions: fullShow.unresolvedTransitions,
+            exportReadiness: fullShow.exportReadiness,
           }
         : null,
       planningErrors: plan.errors.map((e) => ({

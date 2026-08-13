@@ -9,6 +9,8 @@ import {
   Wand2,
 } from "lucide-react";
 
+import FullShowPanel from "./FullShowPanel";
+
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
 import {
   downloadText,
@@ -89,7 +91,10 @@ export default function Inspector() {
     setShowPaths,
     showConflicts,
     setShowConflicts,
+    fullShowReport,
+    fullShowStale,
   } = useStudio();
+  const exportBlocked = fullShowReport?.exportReadiness.status === "BLOCKED";
   const clip = project.timeline.find((c) => c.id === selectedClipId);
   const analysis =
     transitionAnalysis && transitionAnalysis.clipId === selectedClipId
@@ -438,15 +443,30 @@ export default function Inspector() {
         </ul>
       </section>
 
+      <FullShowPanel />
+
       <section className="panel-card">
         <h2 className="panel-title">
           <Download className="size-3.5" /> Export
         </h2>
+        {exportBlocked && (
+          <p className="rounded border border-destructive/60 bg-destructive/10 p-2 text-[10px] leading-relaxed text-destructive">
+            Full-show validation FAILED. Exporting is still possible, but the package is flagged as
+            not validated — resolve the blocking issues first.
+          </p>
+        )}
         <button
           onClick={() =>
             downloadText(
               `${project.name.replace(/\s+/g, "-").toLowerCase()}.dss.show.json`,
-              toGenericShowJson({ project, plan, set: trajectorySet, safety }),
+              toGenericShowJson({
+                project,
+                plan,
+                set: trajectorySet,
+                safety,
+                fullShow: fullShowReport,
+                fullShowStale,
+              }),
               "application/json",
             )
           }
