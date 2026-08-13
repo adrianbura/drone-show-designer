@@ -393,7 +393,7 @@ export function parseSvg(source: string, options: ParseSvgOptions = {}): SvgGeom
     for (const key of Object.keys(node.attrs)) {
       if (key.startsWith("on")) warn("ACTIVE_CONTENT_STRIPPED", "Event handler attributes were ignored; SVG is imported as inert geometry.");
       const v = node.attrs[key] ?? "";
-      const isNamespaceAttr = key === "xmlns" || key.startsWith("xmlns:") || key.endsWith(":href") === false && key.includes(":") && key.split(":")[0] === "xmlns";
+      const isNamespaceAttr = key === "xmlns" || key.startsWith("xmlns:");
       if (!isNamespaceAttr && (/^\s*(https?:)?\/\//i.test(v) || /url\(\s*['"]?(https?:)?\/\//i.test(v))) {
         warn("REMOTE_RESOURCE_IGNORED", "References to remote resources were ignored; nothing is downloaded.");
       }
