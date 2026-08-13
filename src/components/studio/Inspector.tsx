@@ -9,6 +9,8 @@ import {
   Wand2,
 } from "lucide-react";
 
+import FullShowPanel from "./FullShowPanel";
+
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
 import {
   downloadText,
