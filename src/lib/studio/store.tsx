@@ -9,7 +9,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -17,9 +19,24 @@ import {
 import { createDefaultProject } from "../show/defaultProject";
 import { generatePoints, makeFormation } from "../show/formations";
 import { buildShowPlan, samplesAt, sampleTrajectorySet, DEFAULT_SAMPLE_RATE } from "../show/trajectory";
-import type { ShowPlan, TrajectorySample, TrajectorySet } from "../show/trajectory";
+import type { ClipTransitionOverride, ShowPlan, TrajectorySample, TrajectorySet } from "../show/trajectory";
 import { validateShow, type SafetyReport } from "../show/safety";
 import { buildBeatGrid, type BeatGrid } from "../show/audio";
+import {
+  compareAssignmentStrategies,
+  type AssignmentComparison,
+  type AssignmentStrategyId,
+} from "../show/assignment";
+import {
+  analyzeTransition as analyzeTransitionCore,
+  describeTransitionError,
+  isOptimizableClip,
+  optimizeTransition as optimizeTransitionCore,
+  transitionInputForClip,
+  DEFAULT_OPTIMIZATION_SETTINGS,
+  type TransitionAnalysis,
+  type TransitionOptimizationResult,
+} from "../show/transition";
 import type {
   Formation,
   FormationKind,
