@@ -4,7 +4,7 @@ import type { ShowArea, ShowProject } from "./types";
 export const DEFAULT_AREA: ShowArea = { width: 120, depth: 120, height: 80 };
 
 export const DEFAULT_LIMITS = {
-  maxVelocity: 8,
+  maxVelocity: 10,
   maxAcceleration: 4,
   maxYawRate: 90,
   minSeparation: 2.5,

@@ -105,8 +105,10 @@ export function samplePositions(
       const k = ease(clip.transition > 0 ? (t - clip.start) / clip.transition : 1, clip.easing);
       return positions.map((p, i) => {
         const a = prev[i] ?? p;
-        // Lift the arc slightly so drones separate vertically while morphing.
-        const arc = Math.sin(k * Math.PI) * 1.5;
+        // Deterministic vertical layering: drones morph through distinct
+        // altitude bands so crossing paths do not intersect. A full
+        // collision-aware planner belongs in the Python computation service.
+        const arc = Math.sin(k * Math.PI) * (1 + (i % 8) * 1.35);
         return [
           a[0] + (p[0] - a[0]) * k,
           a[1] + (p[1] - a[1]) * k + arc,
