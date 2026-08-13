@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { defaultProject } from "@/lib/show/defaultProject";
-import { buildShowPlan } from "@/lib/show/trajectory";
-import { sampleTrajectorySet } from "@/lib/show/trajectory";
+import { createDefaultProject } from "@/lib/show/defaultProject";
+import { buildShowPlan, sampleTrajectorySet } from "@/lib/show/trajectory";
 import { simulationPayloadHash } from "../hash";
 import {
   buildSimulationPackage,
@@ -12,7 +11,7 @@ import {
 import { BRIDGE_PATHS } from "../api";
 
 function fixture() {
-  const project = defaultProject();
+  const project = createDefaultProject(12);
   const plan = buildShowPlan(project);
   const set = sampleTrajectorySet(plan, { sampleRate: 10 });
   return { project, plan, set };
