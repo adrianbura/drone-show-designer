@@ -105,12 +105,15 @@ function clampArc(arc: number, startY: number, endY: number, ceiling: number): n
   return Math.max(0, Math.min(arc, headroom));
 }
 
-export function buildShowPlan(project: ShowProject): ShowPlan {
+export function buildShowPlan(project: ShowProject, options: BuildShowPlanOptions = {}): ShowPlan {
   const drones = buildDroneDefinitions(project);
   const home = drones.map((d) => d.homePosition);
   const clips = [...project.timeline].sort((a, b) => a.start - b.start);
   const errors: TrajectoryPlanningError[] = [];
   const assignments: ClipAssignment[] = [];
+  const showStrategy: AssignmentStrategyId = options.assignmentStrategy ?? "nearestNeighbor";
+  const overrides = options.transitionOverrides ?? {};
+  const optimizedClipIds: string[] = [];
   const schedules: DroneSchedule[] = drones.map((d) => ({
     droneId: d.id,
     index: d.index,
@@ -133,9 +136,33 @@ export function buildShowPlan(project: ShowProject): ShowPlan {
     }
     const rawTarget =
       phase === "LANDING" ? home : padPoints(formation?.points ?? [], project.droneCount, home);
-    const strategy = getAssignmentStrategy(phase === "LANDING" ? "identity" : "nearestNeighbor");
-    const clipAssignments = strategy.assign({ source: current, target: rawTarget, drones });
-    assignments.push({ clipId: clip.id, phase, strategy: strategy.id, assignments: clipAssignments });
+
+    // An optimiser override replaces both the assignment and the deconfliction
+    // decorators for this clip; otherwise the configured strategy runs.
+    const override =
+      phase === "SHOW" && overrides[clip.id]?.targetPointIndex.length === drones.length
+        ? overrides[clip.id]!
+        : undefined;
+    let clipAssignments: DroneAssignment[];
+    let strategyId: string;
+    if (override) {
+      const points = formation?.points ?? [];
+      clipAssignments = drones.map((d, i) => ({
+        droneId: d.id,
+        sourcePointIndex: i,
+        targetPointIndex: Math.min(
+          Math.max(0, override.targetPointIndex[i] ?? i),
+          Math.max(0, (points.length || rawTarget.length) - 1),
+        ),
+      }));
+      strategyId = override.strategy;
+      optimizedClipIds.push(clip.id);
+    } else {
+      const strategy = getAssignmentStrategy(phase === "LANDING" ? "identity" : showStrategy);
+      clipAssignments = strategy.assign({ source: current, target: rawTarget, drones });
+      strategyId = strategy.id;
+    }
+    assignments.push({ clipId: clip.id, phase, strategy: strategyId, assignments: clipAssignments });
     const target = applyAssignment(clipAssignments, rawTarget);
 
     const transition = Math.max(0.01, clip.transition);
@@ -145,22 +172,35 @@ export function buildShowPlan(project: ShowProject): ShowPlan {
       const to = target[i] ?? drone.homePosition;
       const yawPolicy: YawPolicy =
         phase === "SHOW" ? { kind: "faceDirectionOfTravel", fallbackYaw: 0 } : { kind: "fixed", yaw: 0 };
+      const startOffset = override
+        ? Math.max(0, Math.min(override.startOffsets[i] ?? 0, transition * 0.5))
+        : 0;
       let planned: PlannedTrajectory;
       try {
         planned = minJerkPlanner.plan({
           start: from,
           end: to,
-          duration: transition,
+          duration: Math.max(0.01, transition - startOffset),
           maxVelocity: project.limits.maxVelocity,
           maxAcceleration: project.limits.maxAcceleration,
           maxJerk: project.limits.maxJerk,
           yawPolicy,
           easing: clip.easing,
+          // Optimised clips use explicit lane offsets instead of the legacy
+          // index-derived layering arc.
           verticalArc:
-            phase === "SHOW"
+            phase === "SHOW" && !override
               ? clampArc(arcForDrone(i), from[1], to[1], project.limits.maxAltitude)
               : 0,
         });
+        if (override) {
+          planned = withStartOffset(
+            withVerticalLane(planned, override.laneOffsets[i] ?? 0),
+            startOffset,
+            from,
+            transition,
+          );
+        }
       } catch (err) {
         const planningError =
           err instanceof TrajectoryPlanningError
@@ -203,6 +243,8 @@ export function buildShowPlan(project: ShowProject): ShowPlan {
     assignments,
     duration: showDuration(project),
     algorithmVersion: TRAJECTORY_ALGORITHM_VERSION,
+    assignmentStrategy: showStrategy,
+    optimizedClipIds,
     errors,
   };
 }
