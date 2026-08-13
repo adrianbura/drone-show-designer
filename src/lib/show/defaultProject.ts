@@ -1,25 +1,44 @@
 import { makeFormation } from "./formations";
-import type { ShowArea, ShowProject } from "./types";
+import type { PhaseAltitudes, SafetyLimits, ShowArea, ShowProject } from "./types";
+import {
+  FORMATION_ALGORITHM_VERSION,
+  SCHEMA_VERSION,
+  TRAJECTORY_ALGORITHM_VERSION,
+} from "./types";
 
-export const DEFAULT_AREA: ShowArea = { width: 120, depth: 120, height: 80 };
+export const DEFAULT_AREA: ShowArea = { width: 140, depth: 140, height: 100 };
 
-export const DEFAULT_LIMITS = {
-  maxVelocity: 10,
-  maxAcceleration: 4,
+export const DEFAULT_LIMITS: SafetyLimits = {
+  maxVelocity: 12,
+  maxAcceleration: 5,
+  maxJerk: 10,
   maxYawRate: 90,
   minSeparation: 2.5,
-  maxAltitude: 80,
+  minAltitude: 2,
+  maxAltitude: 95,
 };
+
+/** Phase altitude contract (metres, +Y up). Landing always terminates at 0. */
+export const DEFAULT_ALTITUDES: PhaseAltitudes = { takeoff: 15, show: 40, landing: 0 };
+
+export const DEFAULT_SEED = 20260814;
 
 /** Deterministic demo show — no randomness (module scope must stay pure). */
 export function createDefaultProject(droneCount = 48): ShowProject {
   const area = DEFAULT_AREA;
+  const alt = DEFAULT_ALTITUDES;
   const formations = [
-    makeFormation("f-launch", "Launch Grid", "grid", droneCount, area, { size: 60, altitude: 15 }),
-    makeFormation("f-sphere", "Orb", "sphere", droneCount, area, { size: 50, altitude: 40 }),
+    makeFormation("f-launch", "Launch Grid", "grid", droneCount, area, {
+      size: 60,
+      altitude: alt.takeoff,
+    }),
+    makeFormation("f-sphere", "Orb", "sphere", droneCount, area, { size: 56, altitude: alt.show }),
     makeFormation("f-helix", "Ascending Helix", "helix", droneCount, area, { size: 45, height: 55 }),
-    makeFormation("f-heart", "Heart", "heart", droneCount, area, { size: 60, altitude: 42 }),
-    makeFormation("f-land", "Landing Grid", "grid", droneCount, area, { size: 60, altitude: 3 }),
+    makeFormation("f-heart", "Heart", "heart", droneCount, area, { size: 76, altitude: 42 }),
+    makeFormation("f-approach", "Landing Approach", "grid", droneCount, area, {
+      size: 60,
+      altitude: 8,
+    }),
   ];
 
   return {
@@ -29,58 +48,136 @@ export function createDefaultProject(droneCount = 48): ShowProject {
     area,
     limits: { ...DEFAULT_LIMITS },
     audio: { name: "No track loaded", bpm: 120, offset: 0, duration: 128 },
+    altitudes: { ...alt },
+    seed: DEFAULT_SEED,
+    versions: {
+      schemaVersion: SCHEMA_VERSION,
+      trajectoryAlgorithmVersion: TRAJECTORY_ALGORITHM_VERSION,
+      formationAlgorithmVersion: FORMATION_ALGORITHM_VERSION,
+    },
     formations,
     timeline: [
       {
         id: "c-1",
         formationId: "f-launch",
         start: 0,
-        transition: 18,
+        transition: 22,
         hold: 8,
         easing: "minJerk",
         color: [80, 200, 255],
         effect: "solid",
+        phase: "TAKEOFF",
       },
       {
         id: "c-2",
         formationId: "f-sphere",
-        start: 26,
-        transition: 18,
+        start: 30,
+        transition: 22,
         hold: 8,
         easing: "minJerk",
         color: [120, 255, 190],
         effect: "pulse",
+        phase: "SHOW",
       },
       {
         id: "c-3",
         formationId: "f-helix",
-        start: 52,
-        transition: 18,
+        start: 60,
+        transition: 22,
         hold: 8,
         easing: "smooth",
         color: [255, 190, 90],
         effect: "rainbow",
+        phase: "SHOW",
       },
       {
         id: "c-4",
         formationId: "f-heart",
-        start: 78,
-        transition: 18,
+        start: 90,
+        transition: 22,
         hold: 8,
         easing: "minJerk",
         color: [255, 90, 130],
         effect: "twinkle",
+        phase: "SHOW",
       },
       {
         id: "c-5",
-        formationId: "f-land",
-        start: 104,
-        transition: 18,
-        hold: 6,
+        formationId: "f-approach",
+        start: 120,
+        transition: 16,
+        hold: 2,
         easing: "minJerk",
         color: [90, 130, 255],
         effect: "solid",
+        phase: "SHOW",
+      },
+      {
+        // Explicit LANDING phase: ignores formation geometry and returns every
+        // drone to its own home pad at y = 0.
+        id: "c-6",
+        formationId: "f-approach",
+        start: 138,
+        transition: 12,
+        hold: 2,
+        easing: "minJerk",
+        color: [70, 100, 200],
+        effect: "solid",
+        phase: "LANDING",
       },
     ],
   };
 }
+
+/**
+ * Backward compatibility: projects saved before schema 1.0 lack phase
+ * altitudes, versions, seed, jerk/min-altitude limits and clip phases. Nothing
+ * is discarded — missing fields get documented defaults.
+ */
+export function migrateProject(input: unknown): ShowProject {
+  const raw = (input ?? {}) as Partial<ShowProject> & Record<string, unknown>;
+  const limits = (raw.limits ?? {}) as Partial<SafetyLimits>;
+  const timeline = Array.isArray(raw.timeline) ? raw.timeline : [];
+  const count = typeof raw.droneCount === "number" ? raw.droneCount : 48;
+  const base = createDefaultProject(count);
+  const lastIndex = timeline.length - 1;
+
+  return {
+    ...base,
+    ...raw,
+    id: raw.id ?? base.id,
+    name: raw.name ?? base.name,
+    droneCount: count,
+    area: (raw.area as ShowArea) ?? base.area,
+    audio: raw.audio ?? base.audio,
+    formations: Array.isArray(raw.formations) && raw.formations.length > 0 ? raw.formations : base.formations,
+    limits: {
+      maxVelocity: limits.maxVelocity ?? DEFAULT_LIMITS.maxVelocity,
+      maxAcceleration: limits.maxAcceleration ?? DEFAULT_LIMITS.maxAcceleration,
+      maxJerk: limits.maxJerk ?? DEFAULT_LIMITS.maxJerk,
+      maxYawRate: limits.maxYawRate ?? DEFAULT_LIMITS.maxYawRate,
+      minSeparation: limits.minSeparation ?? DEFAULT_LIMITS.minSeparation,
+      minAltitude: limits.minAltitude ?? DEFAULT_LIMITS.minAltitude,
+      maxAltitude: limits.maxAltitude ?? DEFAULT_LIMITS.maxAltitude,
+    },
+    altitudes: raw.altitudes ?? { ...DEFAULT_ALTITUDES },
+    seed: typeof raw.seed === "number" ? raw.seed : DEFAULT_SEED,
+    versions: {
+      schemaVersion: SCHEMA_VERSION,
+      trajectoryAlgorithmVersion: TRAJECTORY_ALGORITHM_VERSION,
+      formationAlgorithmVersion: FORMATION_ALGORITHM_VERSION,
+    },
+    timeline:
+      timeline.length > 0
+        ? timeline.map((clip, i) => ({
+            ...clip,
+            // Pre-1.0 projects had no phases: first clip is the take-off, the
+            // last one is the landing, everything between is show content.
+            phase: clip.phase ?? (i === 0 ? "TAKEOFF" : i === lastIndex ? "LANDING" : "SHOW"),
+          }))
+        : base.timeline,
+  };
+}
+
+/** @deprecated kept for older call sites. */
+export const migrateProjectV1ToV2 = migrateProject;

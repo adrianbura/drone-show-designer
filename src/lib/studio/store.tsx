@@ -1,17 +1,23 @@
+/**
+ * Studio store — the controller layer between UI and the pure show core.
+ *
+ * Dependency direction: UI -> store -> show core -> pure engines. No flight
+ * planning maths lives in this file or above it; everything here is delegation
+ * plus memoisation of pure engine calls.
+ */
 import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
 
 import { createDefaultProject } from "../show/defaultProject";
 import { generatePoints, makeFormation } from "../show/formations";
-import { resolveShow, type ResolvedClip } from "../show/trajectory";
+import { buildShowPlan, samplesAt, sampleTrajectorySet, DEFAULT_SAMPLE_RATE } from "../show/trajectory";
+import type { ShowPlan, TrajectorySample, TrajectorySet } from "../show/trajectory";
 import { validateShow, type SafetyReport } from "../show/safety";
 import { buildBeatGrid, type BeatGrid } from "../show/audio";
 import type {
@@ -22,18 +28,32 @@ import type {
   TimelineClip,
 } from "../show/types";
 import { showDuration } from "../show/types";
+import { useShowClock, type PlaybackSpeed } from "./clock";
 
 interface StudioContextValue {
   project: ShowProject;
-  resolved: ResolvedClip[];
+  plan: ShowPlan;
+  trajectorySet: TrajectorySet;
+  sampleRate: number;
+  setSampleRate: (hz: number) => void;
   safety: SafetyReport;
   beatGrid: BeatGrid;
+  /** Canonical show duration — always showDuration(project). */
   duration: number;
   time: number;
   playing: boolean;
+  speed: PlaybackSpeed;
+  loop: boolean;
   selectedClipId: string | null;
+  /** Live sample of every drone at show time t (continuous, O(drones)). */
+  samplesAtTime: (t: number) => TrajectorySample[];
   setTime: (t: number) => void;
   togglePlay: () => void;
+  play: () => void;
+  pause: () => void;
+  stop: () => void;
+  setSpeed: (s: PlaybackSpeed) => void;
+  setLoop: (loop: boolean) => void;
   selectClip: (id: string | null) => void;
   patchProject: (patch: Partial<ShowProject>) => void;
   setDroneCount: (n: number) => void;
@@ -53,38 +73,23 @@ const nextId = (prefix: string) => `${prefix}-${++counter}-${Date.now().toString
 export function StudioProvider({ children }: { children: ReactNode }) {
   // Lazy initializer: keeps module scope free of runtime work (Worker-safe).
   const [project, setProject] = useState<ShowProject>(() => createDefaultProject());
-  const [time, setTimeState] = useState(0);
-  const [playing, setPlaying] = useState(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>("c-1");
+  const [sampleRate, setSampleRate] = useState<number>(DEFAULT_SAMPLE_RATE);
 
-  const resolved = useMemo(() => resolveShow(project), [project]);
-  const duration = useMemo(() => Math.max(showDuration(project), 1), [project]);
-  const safety = useMemo(() => validateShow(project, resolved, 0.25), [project, resolved]);
+  // Pure engine pipeline: formations -> assignment -> planning -> sampling -> safety.
+  const plan = useMemo(() => buildShowPlan(project), [project]);
+  const trajectorySet = useMemo(() => sampleTrajectorySet(plan, { sampleRate }), [plan, sampleRate]);
+  const safety = useMemo(
+    () => validateShow(project, trajectorySet, plan.drones),
+    [project, trajectorySet, plan.drones],
+  );
   const beatGrid = useMemo(() => buildBeatGrid(project.audio), [project.audio]);
 
-  const raf = useRef<number | null>(null);
-  const last = useRef<number>(0);
+  // Canonical duration — NEVER project.audio.duration.
+  const duration = useMemo(() => Math.max(showDuration(project), 1), [project]);
+  const clock = useShowClock(duration);
 
-  useEffect(() => {
-    if (!playing) return;
-    last.current = performance.now();
-    const tick = (now: number) => {
-      const dt = (now - last.current) / 1000;
-      last.current = now;
-      setTimeState((t) => {
-        const next = t + dt;
-        return next >= duration ? 0 : next;
-      });
-      raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => {
-      if (raf.current) cancelAnimationFrame(raf.current);
-    };
-  }, [playing, duration]);
-
-  const setTime = useCallback((t: number) => setTimeState(Math.max(0, t)), []);
-  const togglePlay = useCallback(() => setPlaying((p) => !p), []);
+  const samplesAtTime = useCallback((t: number) => samplesAt(plan, t), [plan]);
 
   const patchProject = useCallback((patch: Partial<ShowProject>) => {
     setProject((p) => ({ ...p, ...patch }));
@@ -110,22 +115,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     (kind: FormationKind, params: Record<string, number | string> = {}) => {
       const id = nextId("f");
       const label = kind === "text" ? `Text "${params["text"] ?? "SHOW"}"` : kind;
-      let created: Formation | null = null;
-      setProject((p) => {
-        created = makeFormation(
-          id,
-          label.charAt(0).toUpperCase() + label.slice(1),
-          kind,
-          p.droneCount,
-          p.area,
-          params,
-        );
-        return { ...p, formations: [...p.formations, created] };
-      });
-      return (
-        created ??
-        makeFormation(id, label, kind, project.droneCount, project.area, params)
+      const created = makeFormation(
+        id,
+        label.charAt(0).toUpperCase() + label.slice(1),
+        kind,
+        project.droneCount,
+        project.area,
+        params,
       );
+      setProject((p) => ({ ...p, formations: [...p.formations, created] }));
+      return created;
     },
     [project.area, project.droneCount],
   );
@@ -158,6 +157,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         easing: "minJerk",
         color: [120, 220, 255],
         effect: "solid",
+        phase: "SHOW",
       };
       return { ...p, timeline: [...p.timeline, clip] };
     });
@@ -179,15 +179,26 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const value = useMemo<StudioContextValue>(
     () => ({
       project,
-      resolved,
+      plan,
+      trajectorySet,
+      sampleRate,
+      setSampleRate,
       safety,
       beatGrid,
       duration,
-      time,
-      playing,
+      time: clock.time,
+      playing: clock.playing,
+      speed: clock.speed,
+      loop: clock.loop,
       selectedClipId,
-      setTime,
-      togglePlay,
+      samplesAtTime,
+      setTime: clock.seek,
+      togglePlay: clock.toggle,
+      play: clock.play,
+      pause: clock.pause,
+      stop: clock.stop,
+      setSpeed: clock.setSpeed,
+      setLoop: clock.setLoop,
       selectClip: setSelectedClipId,
       patchProject,
       setDroneCount,
@@ -200,15 +211,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }),
     [
       project,
-      resolved,
+      plan,
+      trajectorySet,
+      sampleRate,
       safety,
       beatGrid,
       duration,
-      time,
-      playing,
+      clock,
       selectedClipId,
-      setTime,
-      togglePlay,
+      samplesAtTime,
       patchProject,
       setDroneCount,
       setLimits,

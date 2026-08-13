@@ -1,14 +1,18 @@
 /**
  * DRONE SHOW STUDIO — Show Core domain model.
  *
- * This module is the single source of truth for show data. It is intentionally
- * platform agnostic: no Three.js, no React, no PX4/MAVLink/Skybrush concepts.
- * Adapters (see src/lib/adapters) translate this model to/from external
- * ecosystems. Heavy computation (>200 drones, full-show solving) is expected to
- * migrate behind the same interfaces to a Python computation service.
+ * Single source of truth for show data. Platform agnostic: no Three.js, no
+ * React, no PX4/MAVLink/Skybrush concepts. Adapters (src/lib/adapters)
+ * translate this model to/from external ecosystems.
+ *
+ * Units and axes: see src/lib/show/coordinates.ts (metres, seconds, degrees,
+ * +Y up, ground at y = 0).
  */
 
-export type Vec3 = readonly [number, number, number];
+/** Canonical 3-component vector tuple in show-local metres. */
+export type Vector3Tuple = readonly [number, number, number];
+/** Legacy alias kept so existing call sites keep compiling. */
+export type Vec3 = Vector3Tuple;
 /** sRGB, 0-255. */
 export type RGB = readonly [number, number, number];
 
@@ -29,12 +33,18 @@ export interface Formation {
   kind: FormationKind;
   /** Local show-frame points, metres. +Y is up. */
   points: Vec3[];
-  /** Parameters used to (re)generate the point cloud. */
+  /** Parameters used to (re)generate the point cloud. Includes `seed`. */
   params: Record<string, number | string>;
 }
 
 export type LightEffect = "solid" | "pulse" | "rainbow" | "chase" | "twinkle";
 export type Easing = "linear" | "smooth" | "minJerk";
+
+/**
+ * Explicit choreography phases. TAKEOFF and LANDING have vertical semantics and
+ * are planned differently from SHOW transitions; LANDING always ends at y = 0.
+ */
+export type ShowPhase = "TAKEOFF" | "SHOW" | "LANDING";
 
 export interface TimelineClip {
   id: string;
@@ -48,13 +58,17 @@ export interface TimelineClip {
   easing: Easing;
   color: RGB;
   effect: LightEffect;
+  /** Defaults to "SHOW" when absent (backward compatible). */
+  phase?: ShowPhase;
 }
 
 export interface SafetyLimits {
   maxVelocity: number; // m/s
   maxAcceleration: number; // m/s^2
+  maxJerk: number; // m/s^3
   maxYawRate: number; // deg/s
   minSeparation: number; // m
+  minAltitude: number; // m — minimum altitude while airborne
   maxAltitude: number; // m
 }
 
@@ -69,7 +83,37 @@ export interface AudioTrack {
   bpm: number;
   /** Seconds before the first beat. */
   offset: number;
+  /** Duration of the AUDIO FILE. This is NOT the show duration. */
   duration: number;
+}
+
+/**
+ * Placeholder for future real audio analysis (librosa/aubio in the computation
+ * service). Nothing fakes onsets today: only `bpm`/`beats` derived from the
+ * manual tempo grid are ever populated, and `source` says so.
+ */
+export interface AudioAnalysisResult {
+  source: "manual-bpm-grid" | "analysis";
+  bpm: number;
+  beats: number[];
+  bars: number[];
+  onsets?: number[];
+  sections?: { start: number; end: number; label: string }[];
+  energy?: number[];
+  confidence?: number;
+}
+
+/** Altitude contract for the explicit choreography phases (metres, +Y up). */
+export interface PhaseAltitudes {
+  takeoff: number;
+  show: number;
+  landing: number;
+}
+
+export interface ProjectVersions {
+  schemaVersion: string;
+  trajectoryAlgorithmVersion: string;
+  formationAlgorithmVersion: string;
 }
 
 export interface ShowProject {
@@ -81,6 +125,10 @@ export interface ShowProject {
   audio: AudioTrack;
   formations: Formation[];
   timeline: TimelineClip[];
+  altitudes: PhaseAltitudes;
+  versions: ProjectVersions;
+  /** Deterministic seed for every generator that needs pseudo-randomness. */
+  seed: number;
 }
 
 export interface DroneSample {
@@ -88,8 +136,19 @@ export interface DroneSample {
   color: RGB;
 }
 
+export const GROUND_ALTITUDE = 0;
+/** @deprecated use GROUND_ALTITUDE */
 export const HOME_ALTITUDE = 0;
 
+export const SCHEMA_VERSION = "1.0";
+export const TRAJECTORY_ALGORITHM_VERSION = "0.1.0";
+export const FORMATION_ALGORITHM_VERSION = "0.1.0";
+
+/** Canonical show duration. Never use `project.audio.duration` for this. */
 export function showDuration(project: ShowProject): number {
   return project.timeline.reduce((end, c) => Math.max(end, c.start + c.transition + c.hold), 0);
+}
+
+export function clipPhase(clip: TimelineClip): ShowPhase {
+  return clip.phase ?? "SHOW";
 }

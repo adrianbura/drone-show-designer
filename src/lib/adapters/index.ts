@@ -11,7 +11,7 @@
  * distribution, triggers a license/compliance review.
  */
 import type { ShowProject } from "../show/types";
-import type { ResolvedClip } from "../show/trajectory";
+import type { ShowPlan, TrajectorySet } from "../show/trajectory";
 
 export type AdapterStatus = "available" | "configured" | "unavailable" | "planned";
 
@@ -30,7 +30,7 @@ export interface ExportAdapter extends AdapterDescriptor {
   kind: "export";
   extension: string;
   mime: string;
-  serialize(project: ShowProject, resolved: ResolvedClip[]): string;
+  serialize(project: ShowProject, plan: ShowPlan, set: TrajectorySet): string;
 }
 
 export interface TelemetryFrame {
@@ -50,7 +50,7 @@ export interface SimulationAdapter extends AdapterDescriptor {
   kind: "simulation" | "fleet";
   connect(): Promise<void>;
   disconnect(): Promise<void>;
-  uploadShow(project: ShowProject, resolved: ResolvedClip[]): Promise<void>;
+  uploadShow(project: ShowProject, plan: ShowPlan, set: TrajectorySet): Promise<void>;
   start(): Promise<void>;
   stop(): Promise<void>;
   subscribe(cb: (frames: TelemetryFrame[]) => void): () => void;
@@ -67,13 +67,22 @@ export const ADAPTER_REGISTRY: AdapterDescriptor[] = [
     notes: "Kinematic preview fleet. Default target during design work.",
   },
   {
-    id: "skybrush",
-    name: "Skybrush Show (.json)",
+    id: "generic-show-json",
+    name: "Generic Show JSON (.dss.show.json)",
     kind: "export",
     status: "available",
+    upstream: "n/a — internal documented schema",
+    license: "internal",
+    notes: "DroneShowStudioShow v1: trajectories, lighting, safety profile, versions.",
+  },
+  {
+    id: "skybrush",
+    name: "Skybrush Show (.skyc)",
+    kind: "export",
+    status: "planned",
     upstream: "Skybrush Studio / Live",
     license: "format interop only — no GPL sources vendored",
-    notes: "Trajectory + light program in Skybrush-compatible show JSON layout.",
+    notes: "NOT IMPLEMENTED: needs the real, verified Skybrush format. Generic Show JSON is used meanwhile.",
   },
   {
     id: "generic-csv",
@@ -82,7 +91,7 @@ export const ADAPTER_REGISTRY: AdapterDescriptor[] = [
     status: "available",
     upstream: "n/a",
     license: "internal",
-    notes: "time,drone,x,y,z,r,g,b — universal handoff format.",
+    notes: "time,drone_id,position,velocity,yaw,colour — universal handoff format.",
   },
   {
     id: "px4-sitl",
