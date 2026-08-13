@@ -72,8 +72,36 @@ export default function Inspector() {
     setLimits,
     beatGrid,
     setTime,
+    assignmentStrategy,
+    setAssignmentStrategy,
+    transitionAnalysis,
+    assignmentComparison,
+    optimization,
+    transitionBusy,
+    transitionError,
+    analyzeSelectedTransition,
+    optimizeSelectedTransition,
+    clearTransitionAnalysis,
+    applySuggestedDuration,
+    canAnalyzeSelectedClip,
+    transitionOverrides,
+    showPaths,
+    setShowPaths,
+    showConflicts,
+    setShowConflicts,
   } = useStudio();
   const clip = project.timeline.find((c) => c.id === selectedClipId);
+  const analysis =
+    transitionAnalysis && transitionAnalysis.clipId === selectedClipId
+      ? transitionAnalysis.analysis
+      : null;
+  const comparison =
+    assignmentComparison && assignmentComparison.clipId === selectedClipId
+      ? assignmentComparison.comparison
+      : null;
+  const optimizationResult =
+    optimization && optimization.clipId === selectedClipId ? optimization.result : null;
+  const isOptimized = !!selectedClipId && !!transitionOverrides[selectedClipId];
 
   return (
     <div className="flex h-full flex-col gap-5 overflow-y-auto p-4">
