@@ -438,10 +438,18 @@ export default function Inspector() {
         </ul>
       </section>
 
+      <FullShowPanel />
+
       <section className="panel-card">
         <h2 className="panel-title">
           <Download className="size-3.5" /> Export
         </h2>
+        {exportBlocked && (
+          <p className="rounded border border-destructive/60 bg-destructive/10 p-2 text-[10px] leading-relaxed text-destructive">
+            Full-show validation FAILED. Exporting is still possible, but the package is flagged as
+            not validated — resolve the blocking issues first.
+          </p>
+        )}
         <button
           onClick={() =>
             downloadText(
