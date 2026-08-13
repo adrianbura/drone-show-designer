@@ -226,6 +226,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [transitionError, setTransitionError] = useState<{ code: string; message: string } | null>(null);
   const [showPaths, setShowPaths] = useState(false);
   const [showConflicts, setShowConflicts] = useState(false);
+  const [fullShow, setFullShow] = useState<{
+    plan: FullShowPlan;
+    report: FullShowValidationReport;
+  } | null>(null);
+  const [fullShowBusy, setFullShowBusy] = useState(false);
+  const [fullShowProgress, setFullShowProgress] = useState<FullShowProgress | null>(null);
+  const [fullShowError, setFullShowError] = useState<{ code: string; message: string } | null>(null);
+  const [highlightedDrones, setHighlightedDrones] = useState<number[]>([]);
+  const cancelFullShow = useRef(false);
 
   // Pure engine pipeline: formations -> assignment -> planning -> sampling -> safety.
   const plan = useMemo(
@@ -238,6 +247,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [project, trajectorySet, plan.drones],
   );
   const beatGrid = useMemo(() => buildBeatGrid(project.audio), [project.audio]);
+
+  // Deterministic revision of everything the full-show analysis depends on.
+  const analysisRevision = useMemo(
+    () => computeAnalysisRevision(project, { sampleRate, assignmentStrategy, transitionOverrides }),
+    [project, sampleRate, assignmentStrategy, transitionOverrides],
+  );
+  const fullShowStale = !!fullShow && fullShow.report.analysisRevision !== analysisRevision;
 
   // Stale-result guard: any project edit invalidates analysis AND any applied
   // optimiser override, because both were computed for the previous geometry.
