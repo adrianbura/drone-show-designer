@@ -113,6 +113,30 @@ interface StudioContextValue {
   commitSvgDraft: (options?: { name?: string; addToTimeline?: boolean }) => Formation | null;
   patchClip: (id: string, patch: Partial<TimelineClip>) => void;
   removeClip: (id: string) => void;
+
+  // ---- Transition analysis / optimisation (Sprint 3) ----------------------
+  /** Assignment strategy used for SHOW clips and for analysis. */
+  assignmentStrategy: AssignmentStrategyId;
+  setAssignmentStrategy: (id: AssignmentStrategyId) => void;
+  /** Applied optimiser results, keyed by clip id. Not part of ShowProject. */
+  transitionOverrides: Record<string, ClipTransitionOverride>;
+  transitionAnalysis: { clipId: string; analysis: TransitionAnalysis } | null;
+  assignmentComparison: { clipId: string; comparison: AssignmentComparison } | null;
+  optimization: { clipId: string; result: TransitionOptimizationResult } | null;
+  transitionBusy: boolean;
+  transitionError: { code: string; message: string } | null;
+  /** Analyses the selected SHOW clip transition (assignment + conflicts). */
+  analyzeSelectedTransition: () => void;
+  /** Runs the bounded optimiser and applies the result to the preview. */
+  optimizeSelectedTransition: () => void;
+  clearTransitionAnalysis: () => void;
+  /** Applies the estimated minimum duration to the analysed clip. */
+  applySuggestedDuration: () => void;
+  canAnalyzeSelectedClip: boolean;
+  showPaths: boolean;
+  setShowPaths: (v: boolean) => void;
+  showConflicts: boolean;
+  setShowConflicts: (v: boolean) => void;
 }
 
 const StudioContext = createContext<StudioContextValue | null>(null);
