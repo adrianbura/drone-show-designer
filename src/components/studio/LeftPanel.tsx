@@ -131,7 +131,20 @@ export default function LeftPanel() {
           min={3}
           max={300}
         />
-        <div className="grid grid-cols-3 gap-2">
+        <div className="flex flex-wrap gap-1.5">
+          {FLEET_PRESETS.map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setDroneCount(n)}
+              className={project.droneCount === n ? "chip-btn chip-btn-active" : "chip-btn"}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-3">
+
           <Field
             label="Width"
             value={project.area.width}
