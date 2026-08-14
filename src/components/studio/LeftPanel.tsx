@@ -16,6 +16,11 @@ const KINDS: { kind: FormationKind; label: string }[] = [
   { kind: "heart", label: "Heart" },
 ];
 
+function clampStep(v: number, min: number, max: number, step: number) {
+  const snapped = Math.round(v / step) * step;
+  return Math.min(max, Math.max(min, Number(snapped.toFixed(3))));
+}
+
 function Field({
   label,
   value,
@@ -33,15 +38,57 @@ function Field({
   step?: number;
   unit?: string;
 }) {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const commit = (raw: string) => {
+    const n = Number(raw);
+    setDraft(null);
+    if (Number.isFinite(n)) onChange(clampStep(n, min, max, step));
+  };
+
   return (
-    <label className="block space-y-1.5">
-      <span className="flex justify-between text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-        {label}
-        <span className="font-mono text-accent">
-          {value}
-          {unit}
+    <div className="block space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+          {label}
         </span>
-      </span>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="mini-btn px-2"
+            aria-label={`Decrease ${label}`}
+            onClick={() => onChange(clampStep(value - step, min, max, step))}
+          >
+            −
+          </button>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={min}
+            max={max}
+            step={step}
+            value={draft ?? String(value)}
+            aria-label={label}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={(e) => commit(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+            className="studio-input w-16 py-1 text-center font-mono text-xs tabular-nums"
+          />
+          <button
+            type="button"
+            className="mini-btn px-2"
+            aria-label={`Increase ${label}`}
+            onClick={() => onChange(clampStep(value + step, min, max, step))}
+          >
+            +
+          </button>
+          {unit ? (
+            <span className="w-6 font-mono text-[10px] text-muted-foreground">{unit}</span>
+          ) : null}
+        </div>
+      </div>
       <input
         type="range"
         min={min}
@@ -49,11 +96,15 @@ function Field({
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
+        aria-label={`${label} slider`}
         className="studio-range"
       />
-    </label>
+    </div>
   );
 }
+
+const FLEET_PRESETS = [24, 48, 100, 200, 300];
+
 
 export default function LeftPanel() {
   const { project, patchProject, setDroneCount, addFormation, addClip, updateFormation } =
