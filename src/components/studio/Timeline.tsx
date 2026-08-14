@@ -205,16 +205,34 @@ export default function Timeline() {
             const formation = project.formations.find((f) => f.id === clip.formationId);
             const total = clip.transition + clip.hold;
             const selected = clip.id === selectedClipId;
+            const dragging = dragPreview?.id === clip.id;
+            const start = dragging ? dragPreview.start : clip.start;
             return (
               <button
                 key={clip.id}
                 onPointerDown={(e) => {
                   e.stopPropagation();
                   selectClip(clip.id);
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  dragRef.current = { id: clip.id, startX: e.clientX, origStart: clip.start, moved: false };
+                  setDragPreview({ id: clip.id, start: clip.start });
                 }}
-                className={`clip-block ${selected ? "clip-block-selected" : ""}`}
+                onPointerMove={(e) => {
+                  if (!dragRef.current) return;
+                  e.stopPropagation();
+                  dragTo(e.clientX, !e.altKey);
+                }}
+                onPointerUp={(e) => {
+                  e.stopPropagation();
+                  endDrag();
+                }}
+                onPointerCancel={() => endDrag()}
+                title={`${formation?.name ?? "Clip"} — drag to move (Alt = free, no snap)`}
+                className={`clip-block cursor-grab active:cursor-grabbing ${selected ? "clip-block-selected" : ""} ${
+                  dragging ? "z-20 ring-1 ring-accent" : ""
+                }`}
                 style={{
-                  left: pct(clip.start),
+                  left: pct(start),
                   width: widthPct(total),
                   top: `${8 + (row % 3) * 30}px`,
                   borderColor: rgbToHex(clip.color),
