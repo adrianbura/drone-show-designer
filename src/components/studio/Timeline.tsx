@@ -1,6 +1,7 @@
 import { Pause, Play, Plus, Repeat, SkipBack, Square, Trash2 } from "lucide-react";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 
+import { snapToBeat } from "@/lib/show/audio";
 import { rgbToHex } from "@/lib/show/lights";
 import { PLAYBACK_SPEEDS, type PlaybackSpeed } from "@/lib/studio/clock";
 import { useStudio } from "@/lib/studio/store";
@@ -36,8 +37,11 @@ export default function Timeline() {
     focusIssue,
     startTime,
     preShowPlan,
+    patchClip,
   } = useStudio();
   const trackRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ id: string; startX: number; origStart: number; moved: boolean } | null>(null);
+  const [dragPreview, setDragPreview] = useState<{ id: string; start: number } | null>(null);
 
   const scrub = useCallback(
     (clientX: number) => {
@@ -51,6 +55,33 @@ export default function Timeline() {
 
   // The track spans the WHOLE operation: pre-show (negative show time) + show.
   const span = Math.max(0.001, duration - startTime);
+
+  /** Drag a clip along the time axis. Snaps to the beat grid unless Alt is held. */
+  const dragTo = useCallback(
+    (clientX: number, snap: boolean) => {
+      const drag = dragRef.current;
+      const el = trackRef.current;
+      if (!drag || !el) return;
+      const rect = el.getBoundingClientRect();
+      const delta = ((clientX - drag.startX) / rect.width) * span;
+      if (Math.abs(clientX - drag.startX) > 2) drag.moved = true;
+      let next = Math.max(0, drag.origStart + delta);
+      if (snap) next = Math.max(0, snapToBeat(next, beatGrid));
+      setDragPreview({ id: drag.id, start: Number(next.toFixed(3)) });
+    },
+    [beatGrid, span],
+  );
+
+  const endDrag = useCallback(() => {
+    const drag = dragRef.current;
+    const preview = dragPreview;
+    dragRef.current = null;
+    setDragPreview(null);
+    if (drag?.moved && preview && preview.start !== drag.origStart) {
+      patchClip(preview.id, { start: preview.start });
+    }
+  }, [dragPreview, patchClip]);
+
   const pct = (v: number) => `${((v - startTime) / span) * 100}%`;
   const widthPct = (v: number) => `${(v / span) * 100}%`;
 
@@ -174,16 +205,34 @@ export default function Timeline() {
             const formation = project.formations.find((f) => f.id === clip.formationId);
             const total = clip.transition + clip.hold;
             const selected = clip.id === selectedClipId;
+            const dragging = dragPreview?.id === clip.id;
+            const start = dragging ? dragPreview.start : clip.start;
             return (
               <button
                 key={clip.id}
                 onPointerDown={(e) => {
                   e.stopPropagation();
                   selectClip(clip.id);
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  dragRef.current = { id: clip.id, startX: e.clientX, origStart: clip.start, moved: false };
+                  setDragPreview({ id: clip.id, start: clip.start });
                 }}
-                className={`clip-block ${selected ? "clip-block-selected" : ""}`}
+                onPointerMove={(e) => {
+                  if (!dragRef.current) return;
+                  e.stopPropagation();
+                  dragTo(e.clientX, !e.altKey);
+                }}
+                onPointerUp={(e) => {
+                  e.stopPropagation();
+                  endDrag();
+                }}
+                onPointerCancel={() => endDrag()}
+                title={`${formation?.name ?? "Clip"} — drag to move (Alt = free, no snap)`}
+                className={`clip-block cursor-grab active:cursor-grabbing ${selected ? "clip-block-selected" : ""} ${
+                  dragging ? "z-20 ring-1 ring-accent" : ""
+                }`}
                 style={{
-                  left: pct(clip.start),
+                  left: pct(start),
                   width: widthPct(total),
                   top: `${8 + (row % 3) * 30}px`,
                   borderColor: rgbToHex(clip.color),
