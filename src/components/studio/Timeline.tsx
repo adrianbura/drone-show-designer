@@ -55,6 +55,33 @@ export default function Timeline() {
 
   // The track spans the WHOLE operation: pre-show (negative show time) + show.
   const span = Math.max(0.001, duration - startTime);
+
+  /** Drag a clip along the time axis. Snaps to the beat grid unless Alt is held. */
+  const dragTo = useCallback(
+    (clientX: number, snap: boolean) => {
+      const drag = dragRef.current;
+      const el = trackRef.current;
+      if (!drag || !el) return;
+      const rect = el.getBoundingClientRect();
+      const delta = ((clientX - drag.startX) / rect.width) * span;
+      if (Math.abs(clientX - drag.startX) > 2) drag.moved = true;
+      let next = Math.max(0, drag.origStart + delta);
+      if (snap) next = Math.max(0, snapToBeat(next, beatGrid));
+      setDragPreview({ id: drag.id, start: Number(next.toFixed(3)) });
+    },
+    [beatGrid, span],
+  );
+
+  const endDrag = useCallback(() => {
+    const drag = dragRef.current;
+    const preview = dragPreview;
+    dragRef.current = null;
+    setDragPreview(null);
+    if (drag?.moved && preview && preview.start !== drag.origStart) {
+      patchClip(preview.id, { start: preview.start });
+    }
+  }, [dragPreview, patchClip]);
+
   const pct = (v: number) => `${((v - startTime) / span) * 100}%`;
   const widthPct = (v: number) => `${(v / span) * 100}%`;
 
