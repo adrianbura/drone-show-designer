@@ -1,6 +1,7 @@
 import { Pause, Play, Plus, Repeat, SkipBack, Square, Trash2 } from "lucide-react";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 
+import { snapToBeat } from "@/lib/show/audio";
 import { rgbToHex } from "@/lib/show/lights";
 import { PLAYBACK_SPEEDS, type PlaybackSpeed } from "@/lib/studio/clock";
 import { useStudio } from "@/lib/studio/store";
