@@ -37,8 +37,11 @@ export default function Timeline() {
     focusIssue,
     startTime,
     preShowPlan,
+    patchClip,
   } = useStudio();
   const trackRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ id: string; startX: number; origStart: number; moved: boolean } | null>(null);
+  const [dragPreview, setDragPreview] = useState<{ id: string; start: number } | null>(null);
 
   const scrub = useCallback(
     (clientX: number) => {
