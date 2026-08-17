@@ -12,6 +12,7 @@ import {
 import FullShowPanel from "./FullShowPanel";
 import LaunchPanel from "./LaunchPanel";
 import SimulationPanel from "./SimulationPanel";
+import DynamicPanel from "./DynamicPanel";
 import EsspPanel from "./EsspPanel";
 import ForensicsPanel from "./ForensicsPanel";
 
@@ -451,6 +452,8 @@ export default function Inspector() {
       </section>
 
       <LaunchPanel />
+
+      <DynamicPanel />
 
       <FullShowPanel />
 
