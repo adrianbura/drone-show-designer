@@ -141,12 +141,12 @@ describe("reference segment conversion — decomposition", () => {
 
   it("captures local deformation while the stable body stays near zero", () => {
     const seq = localDeformationFixture(4, 2);
-    const proposal = convert(seq, segment(0, 3));
+    const proposal = convert(seq, segment(0, 3), { rotationFit: "ROBUST" });
     const tracks = proposal.extractedDeformationTracks;
     const wing = tracks.slice(0, 12);
     const body = tracks.slice(20);
     expect(Math.min(...wing.map((t) => t.maxMagnitude))).toBeGreaterThan(1);
-    expect(Math.max(...body.map((t) => t.maxMagnitude))).toBeLessThan(2.5);
+    expect(Math.max(...body.map((t) => t.maxMagnitude))).toBeLessThan(0.05);
     expect(proposal.fidelityReport.maxErrorMeters).toBeLessThan(1e-6);
   });
 
@@ -309,13 +309,13 @@ describe("reference segment conversion — modes and fidelity", () => {
   });
 
   it("reports the loop candidate honestly for periodic and non-periodic motion", () => {
-    const periodic = localDeformationFixture(4, 2);
+    const periodic = localDeformationFixture(6, 2);
     // Exactly two full 2 s periods: start and end geometry match.
-    const loopProposal = convert(periodic, segment(0, 4));
+    const loopProposal = convert(periodic, segment(0, 4), { rotationFit: "ROBUST" });
     expect(loopProposal.loop.loopClosureRms).toBeLessThan(0.5);
     expect(loopProposal.loop.loopCandidate).toBe(true);
 
-    const nonLoop = convert(periodic, segment(0, 0.5));
+    const nonLoop = convert(periodic, segment(0, 0.5), { rotationFit: "ROBUST" });
     expect(nonLoop.loop.loopClosureRms).toBeGreaterThan(0.5);
     expect(nonLoop.loop.loopCandidate).toBe(false);
   });
@@ -329,6 +329,7 @@ describe("reference segment conversion — modes and fidelity", () => {
         clusters: [{ id: "c1", droneIds: wingIds, meanResidualMeters: 3 }],
         activeDroneIds: wingIds,
       }),
+      { rotationFit: "ROBUST" },
     );
     const cluster = proposal.suggestedMotionGroups.find((g) => g.kind === "CLUSTER");
     expect(cluster?.id).toBe("REFERENCE_CLUSTER_1");
