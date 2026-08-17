@@ -4,8 +4,8 @@ import type { ComparisonMode, ConversionMode } from "@/lib/import/essp/conversio
 import { useStudio } from "@/lib/studio/store";
 
 const STATUS_CLASS: Record<string, string> = {
-  EXCELLENT: "text-ok",
-  GOOD: "text-ok",
+  EXCELLENT: "text-safe",
+  GOOD: "text-safe",
   APPROXIMATE: "text-warning",
   POOR: "text-critical",
 };
