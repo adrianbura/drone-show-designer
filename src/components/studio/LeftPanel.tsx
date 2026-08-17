@@ -4,6 +4,7 @@ import { useState } from "react";
 import { probeAudioFile } from "@/lib/show/audio";
 import type { FormationKind } from "@/lib/show/types";
 import { useStudio } from "@/lib/studio/store";
+import AiPanel from "./AiPanel";
 import LibraryPanel from "./LibraryPanel";
 import SvgImportPanel from "./SvgImportPanel";
 
@@ -202,6 +203,8 @@ export default function LeftPanel() {
       </section>
 
       <SvgImportPanel />
+
+      <AiPanel />
 
       <section className="panel-card flex-1">
         <h2 className="panel-title">
