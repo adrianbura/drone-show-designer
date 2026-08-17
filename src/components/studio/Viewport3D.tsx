@@ -85,16 +85,19 @@ function Swarm({
       dummy.scale.setScalar(1);
       dummy.updateMatrix();
       bodyMesh.setMatrixAt(i, dummy.matrix);
-      dummy.scale.setScalar(highlightSet.has(i) ? 4.2 : 2.4);
+      dummy.scale.setScalar(highlightSet.has(i) || selectedSet.has(i) ? 4.2 : 2.4);
       dummy.updateMatrix();
       haloMesh.setMatrixAt(i, dummy.matrix);
 
       const c = lightColorAt(clip, i, project.droneCount, time);
       const group = groupRgbByDrone.get(i);
+      const motionGroup = dynamicGroupRgbByDrone.get(i);
       const dimmed = !!selectedGroupId && groupIdByDrone[i] !== selectedGroupId;
       if (highlightSet.has(i)) color.setRGB(1, 0.25, 0.25);
+      else if (selectedSet.has(i)) color.setRGB(1, 0.95, 0.55);
       else if (dimmed) color.setRGB(0.16, 0.21, 0.28);
       else if (showGroups && group) color.setRGB(group[0], group[1], group[2]);
+      else if (motionGroup) color.setRGB(motionGroup[0], motionGroup[1], motionGroup[2]);
       else if (states) {
         const s = PRE_SHOW_STATE_RGB[states[i] ?? "ON_PAD"];
         color.setRGB(s[0], s[1], s[2]);
@@ -115,10 +118,18 @@ function Swarm({
         ref={bodies}
         args={[undefined, undefined, project.droneCount]}
         frustumCulled={false}
+        onPointerDown={(e) => {
+          // Picking a drone selects the BASE POINT it flies, so the selection
+          // survives re-assignment. Shift adds to the current selection.
+          if (e.instanceId === undefined) return;
+          e.stopPropagation();
+          onSelectDrone(e.instanceId, e.shiftKey);
+        }}
       >
         <sphereGeometry args={[0.55, 12, 12]} />
         <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
+
       <instancedMesh
         key={`h-${project.droneCount}`}
         ref={halos}
