@@ -16,7 +16,10 @@ import { composePreShow, launchHomePositions } from "../preshow/plan";
 import { resolvePreShowConfig } from "../preshow/config";
 import type { PreShowConfig, PreShowPhaseName, PreShowPlan } from "../preshow/types";
 import type { ShowPhase, ShowProject, Vector3Tuple } from "../types";
-import { clipPhase, showDuration, TRAJECTORY_ALGORITHM_VERSION } from "../types";
+import { clipPhase, resolveDynamicFormation, showDuration, TRAJECTORY_ALGORITHM_VERSION } from "../types";
+import { createDynamicEvaluator } from "../dynamic/sampler";
+import { planDynamicPoint } from "../dynamic/plan";
+
 import { withStartOffset, withVerticalLane } from "./offsets";
 import { minJerkPlanner, planHold } from "./planner";
 import {
@@ -35,6 +38,9 @@ export interface ScheduleSegment {
   readonly planned: PlannedTrajectory;
   /** Set only on PRE_SHOW segments (see preshow/plan.ts). */
   readonly preShowPhase?: PreShowPhaseName;
+  /** Set on holds that play a dynamic (living) formation. */
+  readonly dynamicFormationId?: string;
+
 }
 
 export interface DroneSchedule {
@@ -190,8 +196,23 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
         ),
       );
     }
+    // A dynamic clip animates during its HOLD. The transition still morphs to
+    // the animation state the hold starts at, so continuity is exact.
+    const dynamicFormation = phase === "LANDING" ? undefined : resolveDynamicFormation(project, clip);
+    const dynamicEvaluator = dynamicFormation
+      ? createDynamicEvaluator(dynamicFormation, {
+          playbackRate: clip.playbackRate ?? 1,
+          startOffset: clip.dynamicStartOffset ?? 0,
+        })
+      : null;
     const rawTarget =
-      phase === "LANDING" ? home : padPoints(formation?.points ?? [], project.droneCount, home);
+      phase === "LANDING"
+        ? home
+        : dynamicEvaluator
+          ? padPoints(dynamicEvaluator.positionsAt(0), project.droneCount, home)
+          : padPoints(formation?.points ?? [], project.droneCount, home);
+
+
 
     // An optimiser override replaces both the assignment and the deconfliction
     // decorators for this clip; otherwise the configured strategy runs.
@@ -282,17 +303,36 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
         planned,
       });
       if (clip.hold > 0) {
+        const pointIndex = clipAssignments[i]?.targetPointIndex ?? i;
         segs.push({
           start: clip.start + transition,
           end: clip.start + transition + clip.hold,
           clipId: clip.id,
           phase,
           kind: "hold",
-          planned: planHold(to, clip.hold),
+          planned:
+            dynamicEvaluator && dynamicFormation
+              ? planDynamicPoint(dynamicEvaluator, pointIndex % dynamicFormation.points.length, clip.hold, {
+                  faceDirectionOfTravel: phase === "SHOW",
+                })
+              : planHold(to, clip.hold),
+          ...(dynamicFormation ? { dynamicFormationId: dynamicFormation.id } : {}),
         });
       }
+
     }
-    current = target;
+    // After a dynamic hold the swarm sits wherever the animation ended, so the
+    // NEXT clip's assignment starts from the true end state.
+    if (dynamicEvaluator && dynamicFormation && clip.hold > 0) {
+      const end = dynamicEvaluator.positionsAt(clip.hold);
+      current = drones.map((d, i) => {
+        const pointIndex = (clipAssignments[i]?.targetPointIndex ?? i) % dynamicFormation.points.length;
+        return end[pointIndex] ?? target[i] ?? d.homePosition;
+      });
+    } else {
+      current = target;
+    }
+
   }
 
   return {

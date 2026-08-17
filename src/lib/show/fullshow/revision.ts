@@ -43,6 +43,9 @@ export function computeAnalysisRevision(project: ShowProject, inputs: RevisionIn
         c.easing,
         c.effect,
         c.color.join(","),
+        c.dynamicFormationId ?? "",
+        round(c.playbackRate ?? 1),
+        round(c.dynamicStartOffset ?? 0),
       ].join("|"),
     );
   const formations = [...project.formations]
@@ -54,6 +57,24 @@ export function computeAnalysisRevision(project: ShowProject, inputs: RevisionIn
         f.points.length,
         // Point geometry digest keeps the revision small but sensitive.
         fnv1a(f.points.map((p) => p.map(round).join(",")).join(";")),
+      ].join("|"),
+    );
+  // Dynamic formations change geometry over time: base cloud, global track and
+  // every motion group must all invalidate the analysis.
+  const dynamics = [...(project.dynamicFormations ?? [])]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((d) =>
+      [
+        d.id,
+        d.points.length,
+        round(d.duration),
+        d.loop,
+        d.seed,
+        d.algorithmVersion,
+        d.pivot.map(round).join(","),
+        fnv1a(d.points.map((p) => `${p.id}:${p.base.map(round).join(",")}`).join(";")),
+        fnv1a(JSON.stringify(d.transform)),
+        fnv1a(JSON.stringify(d.groups)),
       ].join("|"),
     );
   const overrides = Object.entries(inputs.transitionOverrides ?? {})
@@ -81,6 +102,7 @@ export function computeAnalysisRevision(project: ShowProject, inputs: RevisionIn
     `as=${inputs.assignmentStrategy}`,
     clips.join("~"),
     formations.join("~"),
+    dynamics.join("~"),
     overrides.join("~"),
   ].join("#");
 

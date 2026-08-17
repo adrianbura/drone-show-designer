@@ -18,6 +18,8 @@ export type RGB = readonly [number, number, number];
 
 import type { SvgFormationSource } from "./svg/types";
 import type { PreShowConfig } from "./preshow/types";
+import type { DynamicFormation } from "./dynamic/types";
+
 
 export type FormationKind =
   | "grid"
@@ -71,7 +73,18 @@ export interface TimelineClip {
   effect: LightEffect;
   /** Defaults to "SHOW" when absent (backward compatible). */
   phase?: ShowPhase;
+  /**
+   * When set (and resolvable in `project.dynamicFormations`) the clip's HOLD
+   * plays a living formation instead of standing still. The transition into the
+   * clip still morphs to the animation state at `dynamicStartOffset`.
+   */
+  dynamicFormationId?: string;
+  /** Local animation time multiplier during the hold. Defaults to 1. */
+  playbackRate?: number;
+  /** Local animation time the hold starts at. Defaults to 0. */
+  dynamicStartOffset?: number;
 }
+
 
 export interface SafetyLimits {
   maxVelocity: number; // m/s
@@ -125,6 +138,8 @@ export interface ProjectVersions {
   schemaVersion: string;
   trajectoryAlgorithmVersion: string;
   formationAlgorithmVersion: string;
+  /** Absent in projects saved before the dynamic formation engine. */
+  dynamicFormationAlgorithmVersion?: string;
 }
 
 export interface ShowProject {
@@ -146,7 +161,13 @@ export interface ShowProject {
    * starts at t = 0 with no pre-show trajectories.
    */
   preShow?: PreShowConfig;
+  /**
+   * Living formations (global motion + internal deformation). Purely additive:
+   * a project without any behaves exactly as before.
+   */
+  dynamicFormations?: DynamicFormation[];
 }
+
 
 export interface DroneSample {
   position: Vec3;
@@ -166,6 +187,25 @@ export const SVG_FORMATION_ALGORITHM_VERSION = "0.1.0";
 export function showDuration(project: ShowProject): number {
   return project.timeline.reduce((end, c) => Math.max(end, c.start + c.transition + c.hold), 0);
 }
+
+/**
+ * Resolves the dynamic formation a clip animates, or undefined for an ordinary
+ * static clip. A clip referencing a missing dynamic formation degrades to a
+ * static hold instead of failing the plan.
+ */
+export function resolveDynamicFormation(
+  project: ShowProject,
+  clip: TimelineClip,
+): DynamicFormation | undefined {
+  if (!clip.dynamicFormationId) return undefined;
+  return project.dynamicFormations?.find((d) => d.id === clip.dynamicFormationId);
+}
+
+export function isDynamicClip(project: ShowProject, clip: TimelineClip): boolean {
+  return !!resolveDynamicFormation(project, clip);
+}
+
+
 
 export function clipPhase(clip: TimelineClip): ShowPhase {
   return clip.phase ?? "SHOW";

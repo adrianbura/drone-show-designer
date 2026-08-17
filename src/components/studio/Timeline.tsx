@@ -274,7 +274,15 @@ export default function Timeline() {
                   background: `linear-gradient(90deg, ${rgbToHex(clip.color)}33, ${rgbToHex(clip.color)}12)`,
                 }}
               >
-                <span className="truncate">{formation?.name ?? "Missing formation"}</span>
+                <span className="truncate">
+                  {/* A dynamic clip animates during its hold — flagged so the
+                      operator can tell a living formation from a static one. */}
+                  {clip.dynamicFormationId ? "◈ " : ""}
+                  {project.dynamicFormations?.find((d) => d.id === clip.dynamicFormationId)?.name ??
+                    formation?.name ??
+                    "Missing formation"}
+                </span>
+
                 <span
                   className="absolute inset-y-0 left-0 border-r border-dashed opacity-60"
                   style={{

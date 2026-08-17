@@ -13,6 +13,8 @@ interfaces already defined here.
 | 3D Visualization | `src/components/studio/Viewport3D.tsx` (R3F, instanced swarm) | implemented |
 | Show Core (domain model) | `src/lib/show/types.ts` | implemented |
 | Formation Engine | `src/lib/show/formations.ts` | implemented (grid/circle/sphere/helix/cube/wave/heart/text) |
+| Dynamic Formation Engine | `src/lib/show/dynamic/*` (global transform track + additive motion groups, presets, design-time report) | implemented |
+
 | Choreography Engine | `src/lib/show/timeline.ts` + `src/lib/studio/store.tsx` | implemented |
 | Canonical show clock | `src/lib/studio/clock.ts` (anchor-based, drift-free, speed + loop) | implemented |
 | Assignment Engine | `src/lib/show/assignment.ts` (strategy-based) | implemented |

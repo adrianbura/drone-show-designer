@@ -1,6 +1,6 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Grid, OrbitControls } from "@react-three/drei";
-import { useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { useStudio } from "@/lib/studio/store";
@@ -40,6 +40,9 @@ function Swarm({
   groupIdByDrone,
   groupRgbByDrone,
   selectedGroupId,
+  dynamicSelected,
+  dynamicGroupRgbByDrone,
+  onSelectDrone,
 }: {
   project: ShowProject;
   time: number;
@@ -50,12 +53,19 @@ function Swarm({
   groupIdByDrone: string[];
   groupRgbByDrone: Map<number, [number, number, number]>;
   selectedGroupId: string | null;
+  /** Drone indices whose dynamic base point is selected for group editing. */
+  dynamicSelected: number[];
+  /** Motion-group tint per drone while editing a dynamic formation. */
+  dynamicGroupRgbByDrone: Map<number, [number, number, number]>;
+  onSelectDrone: (index: number, additive: boolean) => void;
 }) {
   const bodies = useRef<THREE.InstancedMesh>(null);
   const halos = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
   const highlightSet = useMemo(() => new Set(highlighted), [highlighted]);
+  const selectedSet = useMemo(() => new Set(dynamicSelected), [dynamicSelected]);
+
 
   useFrame(() => {
     const bodyMesh = bodies.current;
@@ -75,16 +85,19 @@ function Swarm({
       dummy.scale.setScalar(1);
       dummy.updateMatrix();
       bodyMesh.setMatrixAt(i, dummy.matrix);
-      dummy.scale.setScalar(highlightSet.has(i) ? 4.2 : 2.4);
+      dummy.scale.setScalar(highlightSet.has(i) || selectedSet.has(i) ? 4.2 : 2.4);
       dummy.updateMatrix();
       haloMesh.setMatrixAt(i, dummy.matrix);
 
       const c = lightColorAt(clip, i, project.droneCount, time);
       const group = groupRgbByDrone.get(i);
+      const motionGroup = dynamicGroupRgbByDrone.get(i);
       const dimmed = !!selectedGroupId && groupIdByDrone[i] !== selectedGroupId;
       if (highlightSet.has(i)) color.setRGB(1, 0.25, 0.25);
+      else if (selectedSet.has(i)) color.setRGB(1, 0.95, 0.55);
       else if (dimmed) color.setRGB(0.16, 0.21, 0.28);
       else if (showGroups && group) color.setRGB(group[0], group[1], group[2]);
+      else if (motionGroup) color.setRGB(motionGroup[0], motionGroup[1], motionGroup[2]);
       else if (states) {
         const s = PRE_SHOW_STATE_RGB[states[i] ?? "ON_PAD"];
         color.setRGB(s[0], s[1], s[2]);
@@ -105,10 +118,18 @@ function Swarm({
         ref={bodies}
         args={[undefined, undefined, project.droneCount]}
         frustumCulled={false}
+        onPointerDown={(e) => {
+          // Picking a drone selects the BASE POINT it flies, so the selection
+          // survives re-assignment. Shift adds to the current selection.
+          if (e.instanceId === undefined) return;
+          e.stopPropagation();
+          onSelectDrone(e.instanceId, e.shiftKey);
+        }}
       >
         <sphereGeometry args={[0.55, 12, 12]} />
         <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
+
       <instancedMesh
         key={`h-${project.droneCount}`}
         ref={halos}
@@ -156,7 +177,22 @@ export default function Viewport3D() {
     showReferencePaths,
     forensicActiveDroneIds,
     selectedReferenceDroneId,
+    selectedDroneIndices,
+    dynamicGroupRgbByDrone,
+    pointIdForDrone,
+    togglePointSelection,
+    setSelectedPointIds,
   } = useStudio();
+  const handleSelectDrone = useCallback(
+    (index: number, additive: boolean) => {
+      const id = pointIdForDrone(index);
+      if (!id) return;
+      if (additive) togglePointSelection(id);
+      else setSelectedPointIds([id]);
+    },
+    [pointIdForDrone, setSelectedPointIds, togglePointSelection],
+  );
+
   // Reference playback replaces the designed swarm — the two are never mixed.
   const reference = referencePlayback && referenceShow ? referenceShow : null;
   const overlayAnalysis =
@@ -225,6 +261,10 @@ export default function Viewport3D() {
         groupIdByDrone={preShowOverlay?.groupIdByDrone ?? []}
         groupRgbByDrone={groupRgbByDrone}
         selectedGroupId={selectedLaunchGroupId}
+        dynamicSelected={selectedDroneIndices}
+        dynamicGroupRgbByDrone={dynamicGroupRgbByDrone}
+        onSelectDrone={handleSelectDrone}
+
       />
       )}
       {!reference && preShowOverlay && plan.preShow && (showLaunchPads || showStaging) ? (

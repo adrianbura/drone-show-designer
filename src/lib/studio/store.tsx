@@ -104,7 +104,33 @@ import {
   type ReferenceForensicsThresholds,
   type ReferenceSceneSegment,
 } from "../import/essp/forensics";
+import {
+  applyPreset,
+  addMotionGroup,
+  dynamicFromFormation,
+  mirrorGroupsX,
+  neutralGroupKeyframe,
+  neutralTransformKeyframe,
+  patchMotionGroup,
+  pointId as dynamicPointId,
+  rebasePoints,
+  removeGroupKeyframe,
+  removeMotionGroup,
+  removeTransformKeyframe,
+  sampleDynamicFormation,
+  splitLeftRight,
+  upsertGroupKeyframe,
+  upsertTransformKeyframe,
+  validateDynamicFormation,
+  type DynamicFormation,
+  type DynamicFormationReport,
+  type DynamicPresetId,
+  type GroupDeformationKeyframe,
+  type MotionGroup,
+  type TransformKeyframe,
+} from "../show/dynamic";
 import { useShowClock, type PlaybackSpeed } from "./clock";
+
 
 /** Draft state of an SVG import, before it is committed as a Formation. */
 export interface SvgDraft {
@@ -286,7 +312,64 @@ interface StudioContextValue {
   /** Renames a segment (metadata only — classification is unchanged). */
   labelForensicSegment: (id: string, label: string) => void;
   exportForensicsReport: () => void;
+
+  // ---- Dynamic formations (Sprint 6B) ------------------------------------
+  /** Living formations owned by the project. */
+  dynamicFormations: DynamicFormation[];
+  /** Dynamic formation being edited (explicit selection or via selected clip). */
+  selectedDynamicFormation: DynamicFormation | null;
+  selectDynamicFormation: (id: string | null) => void;
+  /** Design-time animation report for the selected formation (never a safety claim). */
+  dynamicReport: DynamicFormationReport | null;
+  /** Converts a static formation into an editable living formation. */
+  createDynamicFromFormation: (formationId: string) => DynamicFormation | null;
+  removeDynamicFormation: (id: string) => void;
+  patchDynamicFormation: (id: string, patch: Partial<DynamicFormation>) => void;
+  /** Appends a timeline clip whose hold plays the given dynamic formation. */
+  addDynamicClip: (dynamicFormationId: string) => void;
+  /** Attaches / detaches a dynamic formation on the selected clip. */
+  setClipDynamicFormation: (clipId: string, dynamicFormationId: string | null) => void;
+  applyDynamicPreset: (id: string, preset: DynamicPresetId, amount?: number) => void;
+  mirrorDynamicGroups: (id: string) => void;
+
+  // Motion groups + point selection
+  selectedPointIds: string[];
+  togglePointSelection: (pointId: string) => void;
+  setSelectedPointIds: (ids: string[]) => void;
+  clearPointSelection: () => void;
+  /** Selects one side of the formation (quick wing selection). */
+  selectPointSide: (side: "left" | "right" | "centre" | "all") => void;
+  /** Viewport click support: drone index -> base point id for the dynamic clip. */
+  pointIdForDrone: (droneIndex: number) => string | null;
+  /** Drone indices whose assigned point is currently selected. */
+  selectedDroneIndices: number[];
+  /** Group tint per drone index while a dynamic clip is being edited. */
+  dynamicGroupRgbByDrone: Map<number, [number, number, number]>;
+  selectedMotionGroupId: string | null;
+  selectMotionGroup: (id: string | null) => void;
+  createMotionGroupFromSelection: (name: string) => void;
+  deleteMotionGroup: (groupId: string) => void;
+  patchMotionGroupState: (groupId: string, patch: Partial<MotionGroup>) => void;
+  /** Replaces a group's membership with the current point selection. */
+  assignSelectionToGroup: (groupId: string) => void;
+
+  // Keyframes (local animation time)
+  upsertGlobalKeyframe: (key: TransformKeyframe) => void;
+  deleteGlobalKeyframe: (t: number) => void;
+  upsertDeformationKeyframe: (groupId: string, key: GroupDeformationKeyframe) => void;
+  deleteDeformationKeyframe: (groupId: string, t: number) => void;
+  /** Local animation time being edited (0 .. duration). */
+  dynamicEditTime: number;
+  setDynamicEditTime: (t: number) => void;
+  /** Sampled positions of the selected formation at `dynamicEditTime`. */
+  dynamicPreviewPoints: readonly (readonly [number, number, number])[] | null;
+  /** Undo / redo of dynamic formation edits only. */
+  undoDynamic: () => void;
+  redoDynamic: () => void;
+  canUndoDynamic: boolean;
+  canRedoDynamic: boolean;
 }
+
 
 /**
  * Single context instance per browser realm. During dev hot-reloads a second
@@ -637,6 +720,372 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setProject((p) => ({ ...p, timeline: p.timeline.filter((c) => c.id !== id) }));
     setSelectedClipId(null);
   }, []);
+
+  // ---- Dynamic formations (Sprint 6B) ------------------------------------
+  // All editing is delegation to the pure engine: every action maps a
+  // DynamicFormation to a NEW DynamicFormation, which makes undo trivial.
+  const dynamicHistory = useRef<{ past: DynamicFormation[][]; future: DynamicFormation[][] }>({
+    past: [],
+    future: [],
+  });
+  const [dynamicHistoryDepth, setDynamicHistoryDepth] = useState({ past: 0, future: 0 });
+  const [explicitDynamicId, setExplicitDynamicId] = useState<string | null>(null);
+  const [selectedPointIds, setSelectedPointIdsState] = useState<string[]>([]);
+  const [selectedMotionGroupId, setSelectedMotionGroupId] = useState<string | null>(null);
+  const [dynamicEditTime, setDynamicEditTime] = useState(0);
+
+  const dynamicFormations = useMemo(() => project.dynamicFormations ?? [], [project.dynamicFormations]);
+  const selectedClip = useMemo(
+    () => project.timeline.find((c) => c.id === selectedClipId) ?? null,
+    [project.timeline, selectedClipId],
+  );
+  const selectedDynamicFormation = useMemo(() => {
+    const byClip = selectedClip?.dynamicFormationId;
+    return (
+      dynamicFormations.find((d) => d.id === explicitDynamicId) ??
+      dynamicFormations.find((d) => d.id === byClip) ??
+      null
+    );
+  }, [dynamicFormations, explicitDynamicId, selectedClip]);
+
+  /** Commits a dynamic-formation edit and pushes the previous state on the undo stack. */
+  const commitDynamic = useCallback(
+    (updater: (list: DynamicFormation[]) => DynamicFormation[]) => {
+      setProject((p) => {
+        const before = p.dynamicFormations ?? [];
+        const next = updater(before);
+        dynamicHistory.current.past.push(before);
+        if (dynamicHistory.current.past.length > 50) dynamicHistory.current.past.shift();
+        dynamicHistory.current.future = [];
+        setDynamicHistoryDepth({ past: dynamicHistory.current.past.length, future: 0 });
+        return { ...p, dynamicFormations: next };
+      });
+    },
+    [],
+  );
+
+  const editDynamic = useCallback(
+    (id: string, fn: (formation: DynamicFormation) => DynamicFormation) => {
+      commitDynamic((list) => list.map((d) => (d.id === id ? fn(d) : d)));
+    },
+    [commitDynamic],
+  );
+
+  const undoDynamic = useCallback(() => {
+    const previous = dynamicHistory.current.past.pop();
+    if (!previous) return;
+    setProject((p) => {
+      dynamicHistory.current.future.push(p.dynamicFormations ?? []);
+      setDynamicHistoryDepth({
+        past: dynamicHistory.current.past.length,
+        future: dynamicHistory.current.future.length,
+      });
+      return { ...p, dynamicFormations: previous };
+    });
+  }, []);
+
+  const redoDynamic = useCallback(() => {
+    const next = dynamicHistory.current.future.pop();
+    if (!next) return;
+    setProject((p) => {
+      dynamicHistory.current.past.push(p.dynamicFormations ?? []);
+      setDynamicHistoryDepth({
+        past: dynamicHistory.current.past.length,
+        future: dynamicHistory.current.future.length,
+      });
+      return { ...p, dynamicFormations: next };
+    });
+  }, []);
+
+  const createDynamicFromFormation = useCallback(
+    (formationId: string) => {
+      const formation = project.formations.find((f) => f.id === formationId);
+      if (!formation) return null;
+      const created = dynamicFromFormation(formation, {
+        id: nextId("dyn"),
+        duration: 8,
+        seed: project.seed,
+      });
+      commitDynamic((list) => [...list, created]);
+      setExplicitDynamicId(created.id);
+      setSelectedPointIdsState([]);
+      setSelectedMotionGroupId(null);
+      setDynamicEditTime(0);
+      return created;
+    },
+    [commitDynamic, project.formations, project.seed],
+  );
+
+  const removeDynamicFormation = useCallback(
+    (id: string) => {
+      commitDynamic((list) => list.filter((d) => d.id !== id));
+      setProject((p) => ({
+        ...p,
+        timeline: p.timeline.map((c) => {
+          if (c.dynamicFormationId !== id) return c;
+          const { dynamicFormationId: _detached, ...rest } = c;
+          return rest;
+        }),
+      }));
+
+      setExplicitDynamicId((current) => (current === id ? null : current));
+    },
+    [commitDynamic],
+  );
+
+  const patchDynamicFormation = useCallback(
+    (id: string, patch: Partial<DynamicFormation>) => {
+      editDynamic(id, (d) => ({ ...d, ...patch }));
+    },
+    [editDynamic],
+  );
+
+  const setClipDynamicFormation = useCallback(
+    (clipId: string, dynamicFormationId: string | null) => {
+      setProject((p) => ({
+        ...p,
+        timeline: p.timeline.map((c) => {
+          if (c.id !== clipId) return c;
+          if (dynamicFormationId) return { ...c, dynamicFormationId };
+          const { dynamicFormationId: _detached, ...rest } = c;
+          return rest;
+        }),
+      }));
+
+    },
+    [],
+  );
+
+  const addDynamicClip = useCallback(
+    (dynamicFormationId: string) => {
+      const dynamic = (project.dynamicFormations ?? []).find((d) => d.id === dynamicFormationId);
+      if (!dynamic) return;
+      const id = nextId("c");
+      setProject((p) => {
+        const end = p.timeline.reduce((m, c) => Math.max(m, c.start + c.transition + c.hold), 0);
+        const clip: TimelineClip = {
+          id,
+          formationId: dynamic.sourceFormationId ?? p.formations[0]?.id ?? "",
+          start: end,
+          transition: 10,
+          // A dynamic clip holds for at least one full animation cycle.
+          hold: Math.max(dynamic.duration, 4),
+          easing: "minJerk",
+          color: [140, 210, 255],
+          effect: "solid",
+          phase: "SHOW",
+          dynamicFormationId: dynamic.id,
+          playbackRate: 1,
+          dynamicStartOffset: 0,
+        };
+        return { ...p, timeline: [...p.timeline, clip] };
+      });
+      setSelectedClipId(id);
+      setExplicitDynamicId(dynamic.id);
+    },
+    [project.dynamicFormations],
+  );
+
+  const applyDynamicPreset = useCallback(
+    (id: string, preset: DynamicPresetId, amount = 1) => {
+      editDynamic(id, (d) => applyPreset(d, preset, amount));
+      setSelectedMotionGroupId(null);
+    },
+    [editDynamic],
+  );
+
+  const mirrorDynamicGroups = useCallback(
+    (id: string) => editDynamic(id, mirrorGroupsX),
+    [editDynamic],
+  );
+
+  // ---- point selection ----------------------------------------------------
+  const setSelectedPointIds = useCallback((ids: string[]) => {
+    setSelectedPointIdsState([...new Set(ids)]);
+  }, []);
+
+  const togglePointSelection = useCallback((id: string) => {
+    setSelectedPointIdsState((current) =>
+      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+    );
+  }, []);
+
+  const clearPointSelection = useCallback(() => setSelectedPointIdsState([]), []);
+
+  const selectPointSide = useCallback(
+    (side: "left" | "right" | "centre" | "all") => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      if (side === "all") {
+        setSelectedPointIdsState(formation.points.map((p) => p.id));
+        return;
+      }
+      const split = splitLeftRight(formation);
+      setSelectedPointIdsState(split[side]);
+    },
+    [selectedDynamicFormation],
+  );
+
+  /**
+   * Viewport bridge: a drone in a dynamic clip is flying ONE base point, given by
+   * that clip's assignment. Selection is therefore stored per point id, not per
+   * drone, and survives re-assignment.
+   */
+  const dynamicClipForFormation = useMemo(() => {
+    const formation = selectedDynamicFormation;
+    if (!formation) return null;
+    if (selectedClip?.dynamicFormationId === formation.id) return selectedClip;
+    return project.timeline.find((c) => c.dynamicFormationId === formation.id) ?? null;
+  }, [project.timeline, selectedClip, selectedDynamicFormation]);
+
+  const pointIdByDrone = useMemo(() => {
+    const formation = selectedDynamicFormation;
+    if (!formation || formation.points.length === 0) return [] as string[];
+    const clipAssignment = dynamicClipForFormation
+      ? plan.assignments.find((a) => a.clipId === dynamicClipForFormation.id)
+      : undefined;
+    return Array.from({ length: project.droneCount }, (_, i) => {
+      const target = clipAssignment?.assignments[i]?.targetPointIndex ?? i;
+      return dynamicPointId(target % formation.points.length);
+    });
+  }, [dynamicClipForFormation, plan.assignments, project.droneCount, selectedDynamicFormation]);
+
+  const pointIdForDrone = useCallback(
+    (droneIndex: number) => pointIdByDrone[droneIndex] ?? null,
+    [pointIdByDrone],
+  );
+
+  const selectedDroneIndices = useMemo(() => {
+    if (selectedPointIds.length === 0) return [];
+    const wanted = new Set(selectedPointIds);
+    return pointIdByDrone.reduce<number[]>((acc, id, i) => {
+      if (wanted.has(id)) acc.push(i);
+      return acc;
+    }, []);
+  }, [pointIdByDrone, selectedPointIds]);
+
+  const dynamicGroupRgbByDrone = useMemo(() => {
+    const map = new Map<number, [number, number, number]>();
+    const formation = selectedDynamicFormation;
+    if (!formation) return map;
+    const colorByPoint = new Map<string, [number, number, number]>();
+    for (const group of formation.groups) {
+      const rgb: [number, number, number] = [
+        group.color[0] / 255,
+        group.color[1] / 255,
+        group.color[2] / 255,
+      ];
+      for (const id of group.pointIds) colorByPoint.set(id, rgb);
+    }
+    pointIdByDrone.forEach((id, i) => {
+      const rgb = colorByPoint.get(id);
+      if (rgb) map.set(i, rgb);
+    });
+    return map;
+  }, [pointIdByDrone, selectedDynamicFormation]);
+
+  // ---- motion groups -----------------------------------------------------
+  const createMotionGroupFromSelection = useCallback(
+    (name: string) => {
+      const formation = selectedDynamicFormation;
+      if (!formation || selectedPointIds.length === 0) return;
+      const groupId = nextId("mg");
+      editDynamic(formation.id, (d) => addMotionGroup(d, name, selectedPointIds, groupId));
+      setSelectedMotionGroupId(groupId);
+    },
+    [editDynamic, selectedDynamicFormation, selectedPointIds],
+  );
+
+  const deleteMotionGroup = useCallback(
+    (groupId: string) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => removeMotionGroup(d, groupId));
+      setSelectedMotionGroupId((current) => (current === groupId ? null : current));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const patchMotionGroupState = useCallback(
+    (groupId: string, patch: Partial<MotionGroup>) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => patchMotionGroup(d, groupId, patch));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const assignSelectionToGroup = useCallback(
+    (groupId: string) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => patchMotionGroup(d, groupId, { pointIds: selectedPointIds }));
+    },
+    [editDynamic, selectedDynamicFormation, selectedPointIds],
+  );
+
+  // ---- keyframes ---------------------------------------------------------
+  const upsertGlobalKeyframe = useCallback(
+    (key: TransformKeyframe) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => upsertTransformKeyframe(d, key));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const deleteGlobalKeyframe = useCallback(
+    (t: number) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => removeTransformKeyframe(d, t));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const upsertDeformationKeyframe = useCallback(
+    (groupId: string, key: GroupDeformationKeyframe) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => upsertGroupKeyframe(d, groupId, key));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const deleteDeformationKeyframe = useCallback(
+    (groupId: string, t: number) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => removeGroupKeyframe(d, groupId, t));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const dynamicPreviewPoints = useMemo(() => {
+    if (!selectedDynamicFormation) return null;
+    try {
+      return sampleDynamicFormation(selectedDynamicFormation, dynamicEditTime);
+    } catch {
+      return null;
+    }
+  }, [dynamicEditTime, selectedDynamicFormation]);
+
+  const dynamicReport = useMemo(() => {
+    if (!selectedDynamicFormation) return null;
+    return validateDynamicFormation(selectedDynamicFormation, {
+      limits: project.limits,
+      area: project.area,
+      expectedPointCount: project.droneCount,
+    });
+  }, [project.area, project.droneCount, project.limits, selectedDynamicFormation]);
+
+  const selectDynamicFormation = useCallback((id: string | null) => {
+    setExplicitDynamicId(id);
+    setSelectedPointIdsState([]);
+    setSelectedMotionGroupId(null);
+    setDynamicEditTime(0);
+  }, []);
+
 
   // ---- Transition analysis / optimisation --------------------------------
   const canAnalyzeSelectedClip = !!selectedClipId && isOptimizableClip(project, selectedClipId);
@@ -1158,7 +1607,44 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       forensicActiveDroneIds,
       labelForensicSegment,
       exportForensicsReport,
+      dynamicFormations,
+      selectedDynamicFormation,
+      selectDynamicFormation,
+      dynamicReport,
+      createDynamicFromFormation,
+      removeDynamicFormation,
+      patchDynamicFormation,
+      addDynamicClip,
+      setClipDynamicFormation,
+      applyDynamicPreset,
+      mirrorDynamicGroups,
+      selectedPointIds,
+      togglePointSelection,
+      setSelectedPointIds,
+      clearPointSelection,
+      selectPointSide,
+      pointIdForDrone,
+      selectedDroneIndices,
+      dynamicGroupRgbByDrone,
+      selectedMotionGroupId,
+      selectMotionGroup: setSelectedMotionGroupId,
+      createMotionGroupFromSelection,
+      deleteMotionGroup,
+      patchMotionGroupState,
+      assignSelectionToGroup,
+      upsertGlobalKeyframe,
+      deleteGlobalKeyframe,
+      upsertDeformationKeyframe,
+      deleteDeformationKeyframe,
+      dynamicEditTime,
+      setDynamicEditTime,
+      dynamicPreviewPoints,
+      undoDynamic,
+      redoDynamic,
+      canUndoDynamic: dynamicHistoryDepth.past > 0,
+      canRedoDynamic: dynamicHistoryDepth.future > 0,
     }),
+
     [
       project,
       plan,
@@ -1259,7 +1745,41 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       forensicActiveDroneIds,
       labelForensicSegment,
       exportForensicsReport,
+      dynamicFormations,
+      selectedDynamicFormation,
+      selectDynamicFormation,
+      dynamicReport,
+      createDynamicFromFormation,
+      removeDynamicFormation,
+      patchDynamicFormation,
+      addDynamicClip,
+      setClipDynamicFormation,
+      applyDynamicPreset,
+      mirrorDynamicGroups,
+      selectedPointIds,
+      togglePointSelection,
+      setSelectedPointIds,
+      clearPointSelection,
+      selectPointSide,
+      pointIdForDrone,
+      selectedDroneIndices,
+      dynamicGroupRgbByDrone,
+      selectedMotionGroupId,
+      createMotionGroupFromSelection,
+      deleteMotionGroup,
+      patchMotionGroupState,
+      assignSelectionToGroup,
+      upsertGlobalKeyframe,
+      deleteGlobalKeyframe,
+      upsertDeformationKeyframe,
+      deleteDeformationKeyframe,
+      dynamicEditTime,
+      dynamicPreviewPoints,
+      undoDynamic,
+      redoDynamic,
+      dynamicHistoryDepth,
     ],
+
   );
 
   return <StudioContext.Provider value={value}>{children}</StudioContext.Provider>;
