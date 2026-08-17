@@ -105,6 +105,8 @@ export default function SetupWizard({
   const { currentSetupDraft, createProjectFromDraft, applySetupDraft } = useStudio();
   const [draft, setDraft] = useState<ProjectSetupDraft>(DEFAULT_SETUP_DRAFT);
   const [step, setStep] = useState<SetupStep>("PROJECT");
+  /** Once the grid shape is edited by hand, fleet changes stop reshaping it. */
+  const [gridTouched, setGridTouched] = useState(false);
 
   // Opening the dialog seeds the draft: CREATE starts from the defaults, EDIT
   // from the project as it is right now.
@@ -112,6 +114,7 @@ export default function SetupWizard({
     if (!open) return;
     setDraft(mode === "EDIT" ? currentSetupDraft : DEFAULT_SETUP_DRAFT);
     setStep("PROJECT");
+    setGridTouched(mode === "EDIT");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mode]);
 
@@ -122,19 +125,32 @@ export default function SetupWizard({
   const warnings = evaluation.issues.filter((i) => i.severity === "warning");
 
   const patch = (p: Partial<ProjectSetupDraft>) => setDraft((d) => ({ ...d, ...p }));
-  const patchLaunch = (p: Partial<ProjectSetupDraft["launch"]>) =>
+
+  /** Near-square grid that fits the fleet — a convenience, not a constraint. */
+  const shapeFor = (count: number) => {
+    const columns = Math.max(1, Math.ceil(Math.sqrt(count)));
+    return { columns, rows: Math.max(1, Math.ceil(count / columns)) };
+  };
+
+  const setFleet = (raw: number) => {
+    const droneCount = Math.max(1, Math.round(raw));
+    setDraft((d) => ({
+      ...d,
+      droneCount,
+      launch: gridTouched ? d.launch : { ...d.launch, ...shapeFor(droneCount) },
+    }));
+  };
+  const patchLaunch = (p: Partial<ProjectSetupDraft["launch"]>) => {
+    if (p.rows !== undefined || p.columns !== undefined) setGridTouched(true);
     setDraft((d) => ({ ...d, launch: { ...d.launch, ...p } }));
+  };
   const patchStaging = (p: Partial<ProjectSetupDraft["staging"]>) =>
     setDraft((d) => ({ ...d, staging: { ...d.staging, ...p } }));
 
   const applyPreset = (id: Exclude<LaunchGridPresetId, "CUSTOM">) =>
     patchLaunch(LAUNCH_GRID_PRESETS[id]);
 
-  const autoShape = () => {
-    // Near-square grid that fits the fleet — a convenience, not a constraint.
-    const columns = Math.max(1, Math.ceil(Math.sqrt(draft.droneCount)));
-    patchLaunch({ columns, rows: Math.max(1, Math.ceil(draft.droneCount / columns)) });
-  };
+  const autoShape = () => patchLaunch(shapeFor(draft.droneCount));
 
   const submit = () => {
     if (!evaluation.canCreate) return;
@@ -208,7 +224,7 @@ export default function SetupWizard({
             <NumberField
               label={t("project.droneCount")}
               value={draft.droneCount}
-              onChange={(droneCount) => patch({ droneCount: Math.round(droneCount) })}
+              onChange={setFleet}
               min={SETUP_MIN_DRONES}
               max={SETUP_MAX_DRONES}
             />
@@ -220,7 +236,7 @@ export default function SetupWizard({
                   size="sm"
                   variant={draft.droneCount === n ? "default" : "outline"}
                   className="h-7 font-mono text-[10px]"
-                  onClick={() => patch({ droneCount: n })}
+                  onClick={() => setFleet(n)}
                 >
                   {n}
                 </Button>
