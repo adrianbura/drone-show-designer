@@ -182,9 +182,7 @@ export function convertSequenceSegment(
   const exactFormation = buildDynamicFormationFromDecomposition({
     decomposition,
     transformIndices: allIndices,
-    deformationIndices: allIndices.map(() => allIndices).slice(0, n).length === n
-      ? Array.from({ length: n }, () => allIndices)
-      : Array.from({ length: n }, () => allIndices),
+    deformationIndices: Array.from({ length: n }, () => allIndices),
     id,
     name,
     seed,
