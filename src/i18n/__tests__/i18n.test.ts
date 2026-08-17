@@ -59,7 +59,7 @@ describe("localization", () => {
   it("machine-readable data is language-neutral", () => {
     const project = createDefaultProject(12);
     const plan = buildShowPlan(project);
-    const set = sampleTrajectorySet(plan, 25);
+    const set = sampleTrajectorySet(plan, { sampleRate: 25 });
     const safety = validateShow(project, set);
     const json = toGenericShowJson({ project, plan, set, safety });
     // Translating the UI cannot change any exported payload: the export takes no
