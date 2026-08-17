@@ -73,7 +73,18 @@ export interface TimelineClip {
   effect: LightEffect;
   /** Defaults to "SHOW" when absent (backward compatible). */
   phase?: ShowPhase;
+  /**
+   * When set (and resolvable in `project.dynamicFormations`) the clip's HOLD
+   * plays a living formation instead of standing still. The transition into the
+   * clip still morphs to the animation state at `dynamicStartOffset`.
+   */
+  dynamicFormationId?: string;
+  /** Local animation time multiplier during the hold. Defaults to 1. */
+  playbackRate?: number;
+  /** Local animation time the hold starts at. Defaults to 0. */
+  dynamicStartOffset?: number;
 }
+
 
 export interface SafetyLimits {
   maxVelocity: number; // m/s
