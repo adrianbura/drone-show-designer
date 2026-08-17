@@ -1836,6 +1836,333 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [referenceShow],
   );
 
+  // ---- Project persistence (Sprint 7) --------------------------------------
+  // Saving is pure serialization of the editable project; autosave stores the
+  // SAME envelope locally so a crash recovery is just a reopened project.
+  const [projectFileName, setProjectFileNameState] = useState<string>(() =>
+    suggestedProjectFileName(project.name),
+  );
+  const [projectDirty, setProjectDirty] = useState(false);
+  const [projectSavedAt, setProjectSavedAt] = useState<string | null>(null);
+  const [projectAutosavedAt, setProjectAutosavedAt] = useState<string | null>(null);
+  const [projectFileError, setProjectFileError] = useState<{ code: string; message: string } | null>(
+    null,
+  );
+  const [autosaveRecovery, setAutosaveRecovery] = useState<ProjectAutosaveSnapshot | null>(null);
+  const savedSignature = useRef<string | null>(null);
+  const autosaveStore = useRef<KeyValueStore | null>(null);
+  const lastAutosaveAt = useRef(0);
+
+  const getAutosaveStore = useCallback((): KeyValueStore | null => {
+    if (typeof window === "undefined") return null;
+    autosaveStore.current ??= createBrowserKeyValueStore();
+    return autosaveStore.current;
+  }, []);
+
+  const setProjectFileName = useCallback((name: string) => {
+    setProjectFileNameState(ensureProjectExtension(name));
+  }, []);
+
+  const clearProjectFileError = useCallback(() => setProjectFileError(null), []);
+
+  // Any project change marks the file dirty; the signature makes a save -> edit
+  // -> undo cycle land back on "saved" instead of staying falsely dirty.
+  useEffect(() => {
+    const signature = JSON.stringify(project);
+    setProjectDirty(savedSignature.current !== null && savedSignature.current !== signature);
+  }, [project]);
+
+  const markSaved = useCallback((snapshotName?: string) => {
+    savedSignature.current = JSON.stringify(project);
+    setProjectDirty(false);
+    setProjectSavedAt(new Date().toISOString());
+    if (snapshotName) setProjectFileNameState(ensureProjectExtension(snapshotName));
+  }, [project]);
+
+  const saveProjectFile = useCallback(() => {
+    try {
+      const file = serializeProject(project, {
+        editor: { selectedClipId, sampleRate, assignmentStrategy },
+      });
+      const name = ensureProjectExtension(projectFileName || suggestedProjectFileName(project.name));
+      const blob = new Blob([projectFileToJson(file)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = name;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setProjectFileError(null);
+      markSaved(name);
+    } catch (err) {
+      const error = toProjectFileError(err);
+      setProjectFileError({ code: error.code, message: error.message });
+    }
+  }, [project, selectedClipId, sampleRate, assignmentStrategy, projectFileName, markSaved]);
+
+  /** Replaces every derived/analysis result after the project is replaced. */
+  const adoptProject = useCallback((next: ShowProject, fileName: string) => {
+    setProject(next);
+    setSelectedClipId(next.timeline[0]?.id ?? null);
+    setExplicitDynamicId(null);
+    setTransitionOverrides({});
+    setTransitionAnalysis(null);
+    setAssignmentComparison(null);
+    setOptimization(null);
+    setFullShow(null);
+    setPreShowPreview(null);
+    setHighlightedDrones([]);
+    setSelectedLaunchGroupId(null);
+    setSvgDraft(null);
+    setSvgError(null);
+    setSelectedPointIdsState([]);
+    setSelectedMotionGroupId(null);
+    setDynamicEditTime(0);
+    dynamicHistory.current = { past: [], future: [] };
+    setDynamicHistoryDepth({ past: 0, future: 0 });
+    savedSignature.current = JSON.stringify(next);
+    setProjectDirty(false);
+    setProjectFileNameState(ensureProjectExtension(fileName || suggestedProjectFileName(next.name)));
+  }, []);
+
+  const openProjectFile = useCallback(
+    async (file: File) => {
+      try {
+        const parsed = parseProjectFile(await file.text());
+        adoptProject(parsed.project, file.name);
+        if (typeof parsed.editor?.sampleRate === "number") setSampleRate(parsed.editor.sampleRate);
+        setProjectSavedAt(parsed.savedAt);
+        setProjectFileError(null);
+      } catch (err) {
+        // The open project is left completely untouched on any failure.
+        const error = toProjectFileError(err);
+        setProjectFileError({ code: error.code, message: error.message });
+      }
+    },
+    [adoptProject],
+  );
+
+  // Startup recovery offer — never applied automatically.
+  useEffect(() => {
+    const store = getAutosaveStore();
+    if (!store) return;
+    let active = true;
+    void readAutosave(store).then((snapshot) => {
+      if (active && snapshot) setAutosaveRecovery(snapshot);
+    });
+    return () => {
+      active = false;
+    };
+  }, [getAutosaveStore]);
+
+  // Debounced autosave. Never runs on an animation frame: it only reacts to
+  // project mutations, and at most once per debounce window.
+  useEffect(() => {
+    const store = getAutosaveStore();
+    if (!store) return;
+    const delay = Math.max(0, AUTOSAVE_DEBOUNCE_MS - (Date.now() - lastAutosaveAt.current));
+    const timer = setTimeout(() => {
+      lastAutosaveAt.current = Date.now();
+      const savedAt = new Date().toISOString();
+      void writeAutosave(store, {
+        savedAt,
+        fileName: projectFileName,
+        file: serializeProject(project, { savedAt }),
+      }).then(() => setProjectAutosavedAt(savedAt));
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [project, projectFileName, getAutosaveStore]);
+
+  const restoreAutosave = useCallback(() => {
+    const snapshot = autosaveRecovery;
+    if (!snapshot) return;
+    adoptProject(snapshot.file.project, snapshot.fileName || suggestedProjectFileName(snapshot.file.project.name));
+    setProjectSavedAt(null);
+    setProjectDirty(true);
+    setAutosaveRecovery(null);
+  }, [autosaveRecovery, adoptProject]);
+
+  const dismissAutosave = useCallback(() => {
+    setAutosaveRecovery(null);
+    const store = getAutosaveStore();
+    if (store) void clearAutosave(store);
+  }, [getAutosaveStore]);
+
+  // ---- AI choreography assistant (Sprint 7) -------------------------------
+  // The provider only ever returns STRUCTURED DESIGN INTENT. Geometry comes from
+  // the deterministic builder, and feasibility stays with the safety validator.
+  const aiProvider = useRef<ChoreographyAIProvider>(mockChoreographyProvider);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<{ code: string; message: string } | null>(null);
+  const [aiProposal, setAiProposal] = useState<AIChoreographyProposalV1 | null>(null);
+  const [aiProposalErrors, setAiProposalErrors] = useState<readonly string[]>([]);
+  const [aiHistory, setAiHistory] = useState<readonly AIChoreographyProposalV1[]>([]);
+  const [aiPreviewTime, setAiPreviewTime] = useState(0);
+
+  const aiBuilt = useMemo(() => {
+    if (!aiProposal || aiProposalErrors.length > 0) return null;
+    try {
+      return buildProposalContent(aiProposal, { area: project.area, seed: project.seed });
+    } catch {
+      return null;
+    }
+  }, [aiProposal, aiProposalErrors, project.area, project.seed]);
+
+  const aiPreviewPoints = useMemo(() => {
+    if (!aiBuilt) return null;
+    if (!aiBuilt.dynamicFormation) return aiBuilt.formation.points;
+    return sampleDynamicFormation(aiBuilt.dynamicFormation, aiPreviewTime);
+  }, [aiBuilt, aiPreviewTime]);
+
+  const acceptProposal = useCallback(
+    (proposal: AIChoreographyProposalV1) => {
+      const validation = validateProposal(proposal, project.droneCount);
+      setAiProposal(proposal);
+      setAiProposalErrors(validation.errors);
+      setAiPreviewTime(0);
+    },
+    [project.droneCount],
+  );
+
+  const generateAiProposal = useCallback(
+    async (prompt: string) => {
+      setAiBusy(true);
+      setAiError(null);
+      try {
+        const proposal = await aiProvider.current.generateProposal({
+          prompt,
+          fleetCount: project.droneCount,
+          area: project.area,
+          seed: project.seed,
+        });
+        setAiHistory([]);
+        acceptProposal(proposal);
+      } catch (err) {
+        setAiProposal(null);
+        setAiError({
+          code: (err as { code?: string }).code ?? "PROVIDER_UNAVAILABLE",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      } finally {
+        setAiBusy(false);
+      }
+    },
+    [project.droneCount, project.area, project.seed, acceptProposal],
+  );
+
+  const refineAiProposal = useCallback(
+    async (instruction: string) => {
+      const base = aiProposal;
+      if (!base) return;
+      setAiBusy(true);
+      setAiError(null);
+      try {
+        const next = await aiProvider.current.refineProposal({ proposal: base, instruction });
+        setAiHistory((h) => [...h, base].slice(-20));
+        acceptProposal(next);
+      } catch (err) {
+        setAiError({
+          code: (err as { code?: string }).code ?? "PROVIDER_UNAVAILABLE",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      } finally {
+        setAiBusy(false);
+      }
+    },
+    [aiProposal, acceptProposal],
+  );
+
+  const revertAiProposal = useCallback(() => {
+    setAiHistory((h) => {
+      const previous = h.at(-1);
+      if (previous) acceptProposal(previous);
+      return h.slice(0, -1);
+    });
+  }, [acceptProposal]);
+
+  const discardAiProposal = useCallback(() => {
+    setAiProposal(null);
+    setAiProposalErrors([]);
+    setAiHistory([]);
+    setAiError(null);
+  }, []);
+
+  const applyAiProposal = useCallback(
+    (options: { addToTimeline?: boolean } = {}) => {
+      const built = aiBuilt;
+      const proposal = aiProposal;
+      if (!built || !proposal) return null;
+      const formation: Formation = { ...built.formation, id: nextId("f") };
+      setProject((p) => ({ ...p, formations: [...p.formations, formation] }));
+
+      if (!built.dynamicFormation) {
+        if (options.addToTimeline) addClip(formation.id);
+        discardAiProposal();
+        return formation;
+      }
+      const dynamic: DynamicFormation = {
+        ...built.dynamicFormation,
+        id: nextId("dyn"),
+        sourceFormationId: formation.id,
+      };
+      commitDynamic((list) => [...list, dynamic]);
+      setExplicitDynamicId(dynamic.id);
+      setSelectedPointIdsState([]);
+      setSelectedMotionGroupId(null);
+      setDynamicEditTime(0);
+      if (options.addToTimeline) addDynamicClip(dynamic.id);
+      discardAiProposal();
+      return dynamic;
+    },
+    [aiBuilt, aiProposal, addClip, addDynamicClip, commitDynamic, discardAiProposal],
+  );
+
+  // ---- Playback / editing keyboard shortcuts (Sprint 7) -------------------
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      const action = resolveShortcut({
+        key: event.key,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+        repeat: event.repeat,
+        target: event.target as HTMLElement | null,
+      });
+      if (!action) return;
+      event.preventDefault();
+      switch (action.type) {
+        case "togglePlay":
+          clock.toggle();
+          break;
+        case "seek":
+          clock.seek(clock.time + action.delta);
+          break;
+        case "seekStart":
+          clock.seek(plan.startTime);
+          break;
+        case "seekEnd":
+          clock.seek(duration);
+          break;
+        case "undo":
+          undoDynamic();
+          break;
+        case "redo":
+          redoDynamic();
+          break;
+        case "clearSelection":
+          setSelectedPointIdsState([]);
+          setSelectedMotionGroupId(null);
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [clock, duration, plan.startTime, undoDynamic, redoDynamic]);
+
+
+
   const value = useMemo<StudioContextValue>(
     () => ({
       project,
