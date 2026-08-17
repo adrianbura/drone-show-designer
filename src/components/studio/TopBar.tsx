@@ -73,6 +73,39 @@ export default function TopBar() {
         >
           <Settings2 className="size-3" /> {t("topBar.showSetup")}
         </button>
+        <button
+          type="button"
+          onClick={saveProjectFile}
+          className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
+        >
+          <Save className="size-3" /> {t("project.save")}
+        </button>
+        <button
+          type="button"
+          onClick={() => fileInput.current?.click()}
+          className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
+        >
+          <FolderOpen className="size-3" /> {t("project.open")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setHelpOpen((v) => !v)}
+          aria-label={t("shortcuts.title")}
+          className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
+        >
+          <Keyboard className="size-3" />
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".json,application/json"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) void openProjectFile(file);
+          }}
+        />
       </div>
 
       <div className="ml-auto flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em]">
