@@ -85,6 +85,14 @@ import {
   type PreShowPlan,
   type PreShowValidationReport,
 } from "../show/preshow";
+import {
+  buildReferenceShow,
+  isZipName,
+  readZip,
+  sampleReferenceShow,
+  type ReferenceSample,
+  type ReferenceShow,
+} from "../import/essp";
 import { useShowClock, type PlaybackSpeed } from "./clock";
 
 /** Draft state of an SVG import, before it is committed as a Formation. */
@@ -220,6 +228,27 @@ interface StudioContextValue {
   /** Drone indices highlighted in the viewport (issue navigation). */
   highlightedDrones: number[];
   setHighlightedDrones: (indices: number[]) => void;
+
+  // ---- ESSP reference show (read-only import, Sprint 6A) -----------------
+  /**
+   * Imported reference show. READ-ONLY: it is never planned, optimised or
+   * validated against the Studio limits, and it never touches `project`.
+   */
+  referenceShow: ReferenceShow | null;
+  /** True while the viewport plays the imported reference instead of the design. */
+  referencePlayback: boolean;
+  setReferencePlayback: (v: boolean) => void;
+  referenceBusy: boolean;
+  referenceError: { code: string; message: string } | null;
+  /** Parses .essp files (or a .zip archive of them) into a reference show. */
+  importEsspFiles: (files: File[]) => Promise<void>;
+  clearReferenceShow: () => void;
+  /** Exact-playback sample of every reference drone at reference time t. */
+  referenceSamplesAt: (t: number) => ReferenceSample[];
+  selectedReferenceDroneId: string | null;
+  selectReferenceDrone: (id: string | null) => void;
+  showReferencePaths: boolean;
+  setShowReferencePaths: (v: boolean) => void;
 }
 
 const StudioContext = createContext<StudioContextValue | null>(null);
@@ -304,6 +333,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [groupOrderComparison, setGroupOrderComparison] = useState<GroupOrderComparison[] | null>(
     null,
   );
+  const [referenceShow, setReferenceShow] = useState<ReferenceShow | null>(null);
+  const [referencePlayback, setReferencePlayback] = useState(false);
+  const [referenceBusy, setReferenceBusy] = useState(false);
+  const [referenceError, setReferenceError] = useState<{ code: string; message: string } | null>(
+    null,
+  );
+  const [selectedReferenceDroneId, setSelectedReferenceDroneId] = useState<string | null>(null);
+  const [showReferencePaths, setShowReferencePaths] = useState(false);
   const cancelFullShow = useRef(false);
 
   // Pure engine pipeline: formations -> assignment -> planning -> sampling -> safety.
@@ -338,9 +375,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, [project.formations, project.droneCount, project.timeline, project.limits, project.area]);
 
   // Canonical duration — NEVER project.audio.duration.
-  const duration = useMemo(() => Math.max(showDuration(project), 1), [project]);
+  const duration = useMemo(() => {
+    if (referencePlayback && referenceShow) {
+      return Math.max(referenceShow.timing.playbackDurationSeconds, 1);
+    }
+    return Math.max(showDuration(project), 1);
+  }, [project, referencePlayback, referenceShow]);
   // PRE-SHOW extends playback into negative show time; SHOW TIME ZERO is fixed.
-  const clock = useShowClock(duration, plan.startTime);
+  const clock = useShowClock(duration, referencePlayback && referenceShow ? 0 : plan.startTime);
 
   const samplesAtTime = useCallback((t: number) => samplesAt(plan, t), [plan]);
 
@@ -774,6 +816,49 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
 
+  // ---- ESSP reference import (read-only) --------------------------------
+  const importEsspFiles = useCallback(async (files: File[]) => {
+    setReferenceBusy(true);
+    setReferenceError(null);
+    try {
+      const sources: { name: string; bytes: Uint8Array }[] = [];
+      for (const file of files) {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        if (isZipName(file.name)) {
+          const entries = await readZip(bytes.buffer as ArrayBuffer);
+          entries.forEach((e) => sources.push({ name: e.name, bytes: e.bytes }));
+        } else {
+          sources.push({ name: file.name, bytes });
+        }
+      }
+      const show = await buildReferenceShow(sources);
+      setReferenceShow(show);
+      setReferencePlayback(true);
+      setSelectedReferenceDroneId(show.drones[0]?.sourceId ?? null);
+    } catch (err) {
+      setReferenceShow(null);
+      setReferencePlayback(false);
+      setReferenceError({
+        code: "ESSP_IMPORT_FAILED",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setReferenceBusy(false);
+    }
+  }, []);
+
+  const clearReferenceShow = useCallback(() => {
+    setReferenceShow(null);
+    setReferencePlayback(false);
+    setReferenceError(null);
+    setSelectedReferenceDroneId(null);
+  }, []);
+
+  const referenceSamplesAt = useCallback(
+    (t: number) => (referenceShow ? sampleReferenceShow(referenceShow, t) : []),
+    [referenceShow],
+  );
+
   const value = useMemo<StudioContextValue>(
     () => ({
       project,
@@ -874,6 +959,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectLaunchGroup: setSelectedLaunchGroupId,
       highlightedDrones,
       setHighlightedDrones,
+      referenceShow,
+      referencePlayback,
+      setReferencePlayback,
+      referenceBusy,
+      referenceError,
+      importEsspFiles,
+      clearReferenceShow,
+      referenceSamplesAt,
+      selectedReferenceDroneId,
+      selectReferenceDrone: setSelectedReferenceDroneId,
+      showReferencePaths,
+      setShowReferencePaths,
     }),
     [
       project,
@@ -948,6 +1045,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       showLaunchGroups,
       selectedLaunchGroupId,
       highlightedDrones,
+      referenceShow,
+      referencePlayback,
+      referenceBusy,
+      referenceError,
+      importEsspFiles,
+      clearReferenceShow,
+      referenceSamplesAt,
+      selectedReferenceDroneId,
+      showReferencePaths,
     ],
   );
 

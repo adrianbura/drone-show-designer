@@ -12,6 +12,7 @@ import { preShowStatesAt, type PreShowDroneState, type PreShowPlan } from "@/lib
 import SvgDraftPreview from "./SvgDraftPreview";
 import PreShowOverlay from "./PreShowOverlay";
 import TransitionOverlay from "./TransitionOverlay";
+import ReferenceSwarm from "./ReferenceSwarm";
 
 /**
  * Instanced drone swarm. One InstancedMesh + per-instance colour keeps draw
@@ -150,7 +151,13 @@ export default function Viewport3D() {
     showPaths,
     showConflicts,
     highlightedDrones,
+    referenceShow,
+    referencePlayback,
+    showReferencePaths,
+    selectedReferenceDroneId,
   } = useStudio();
+  // Reference playback replaces the designed swarm — the two are never mixed.
+  const reference = referencePlayback && referenceShow ? referenceShow : null;
   const overlayAnalysis =
     transitionAnalysis && transitionAnalysis.clipId === selectedClipId
       ? transitionAnalysis.analysis
@@ -196,7 +203,16 @@ export default function Viewport3D() {
         fadeStrength={1.4}
         position={[0, 0, 0]}
       />
-      <ShowVolume {...project.area} />
+      {reference ? null : <ShowVolume {...project.area} />}
+      {reference ? (
+        <ReferenceSwarm
+          show={reference}
+          time={time}
+          showPaths={showReferencePaths}
+          selectedDroneId={selectedReferenceDroneId}
+        />
+      ) : null}
+      {reference ? null : (
       <Swarm
         project={project}
         time={time}
@@ -208,7 +224,8 @@ export default function Viewport3D() {
         groupRgbByDrone={groupRgbByDrone}
         selectedGroupId={selectedLaunchGroupId}
       />
-      {preShowOverlay && plan.preShow && (showLaunchPads || showStaging) ? (
+      )}
+      {!reference && preShowOverlay && plan.preShow && (showLaunchPads || showStaging) ? (
         <PreShowOverlay
           overlay={preShowOverlay}
           plan={plan.preShow}
@@ -219,8 +236,8 @@ export default function Viewport3D() {
           selectedGroupId={selectedLaunchGroupId}
         />
       ) : null}
-      {svgDraft ? <SvgDraftPreview draft={svgDraft} /> : null}
-      {overlayAnalysis && (showPaths || showConflicts) ? (
+      {!reference && svgDraft ? <SvgDraftPreview draft={svgDraft} /> : null}
+      {!reference && overlayAnalysis && (showPaths || showConflicts) ? (
         <TransitionOverlay
           analysis={overlayAnalysis}
           paths={showPaths}
