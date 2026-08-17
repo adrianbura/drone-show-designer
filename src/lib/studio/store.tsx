@@ -466,6 +466,47 @@ interface StudioContextValue {
   redoDynamic: () => void;
   canUndoDynamic: boolean;
   canRedoDynamic: boolean;
+
+  // ---- Project persistence (Sprint 7) ------------------------------------
+  /** Current file name of the editable project (`*.droneshow.json`). */
+  projectFileName: string;
+  setProjectFileName: (name: string) => void;
+  /** True when the open project differs from the last saved/opened state. */
+  projectDirty: boolean;
+  /** ISO timestamp of the last explicit save, or null. */
+  projectSavedAt: string | null;
+  /** ISO timestamp of the last local autosave, or null. */
+  projectAutosavedAt: string | null;
+  projectFileError: { code: string; message: string } | null;
+  clearProjectFileError: () => void;
+  /** Writes the project file to disk (browser download). */
+  saveProjectFile: () => void;
+  /** Loads a project file, replacing the open show only when it is valid. */
+  openProjectFile: (file: File) => Promise<void>;
+  /** Autosaved snapshot found at startup and not yet accepted or dismissed. */
+  autosaveRecovery: ProjectAutosaveSnapshot | null;
+  restoreAutosave: () => void;
+  dismissAutosave: () => void;
+
+  // ---- AI choreography assistant (Sprint 7) ------------------------------
+  aiProvider: { id: string; label: string; deterministic: boolean };
+  aiBusy: boolean;
+  aiError: { code: string; message: string } | null;
+  /** Draft proposal. NOT project content until it is applied by a human. */
+  aiProposal: AIChoreographyProposalV1 | null;
+  aiProposalErrors: readonly string[];
+  /** Proposal history so a refinement can always be rolled back. */
+  aiHistory: readonly AIChoreographyProposalV1[];
+  /** Preview geometry of the draft at the current preview time. */
+  aiPreviewPoints: readonly (readonly [number, number, number])[] | null;
+  aiPreviewTime: number;
+  setAiPreviewTime: (t: number) => void;
+  generateAiProposal: (prompt: string) => Promise<void>;
+  refineAiProposal: (instruction: string) => Promise<void>;
+  revertAiProposal: () => void;
+  discardAiProposal: () => void;
+  /** Applies the draft as ordinary project content (undoable). */
+  applyAiProposal: (options?: { addToTimeline?: boolean }) => DynamicFormation | Formation | null;
 }
 
 
