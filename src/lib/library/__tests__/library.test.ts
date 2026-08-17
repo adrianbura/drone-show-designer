@@ -40,7 +40,9 @@ describe("formation asset library — serialization", () => {
     expect(asset.thumbnail?.points.length).toBeGreaterThan(0);
     const copy = formationFromAsset(asset, "f-new");
     expect(copy.id).toBe("f-new");
-    expect(copy.points).toEqual(staticFormation.points);
+    // JSON persistence normalises -0 to 0; geometry is otherwise bit-identical.
+    const flat = (pts: readonly (readonly number[])[]) => pts.flat().map((v) => v + 0);
+    expect(flat(copy.points)).toEqual(flat(staticFormation.points));
   });
 
   it("preserves the FULL dynamic animation model", () => {
