@@ -13,6 +13,7 @@ import SvgDraftPreview from "./SvgDraftPreview";
 import PreShowOverlay from "./PreShowOverlay";
 import TransitionOverlay from "./TransitionOverlay";
 import ReferenceSwarm from "./ReferenceSwarm";
+import ConversionOverlay from "./ConversionOverlay";
 
 /**
  * Instanced drone swarm. One InstancedMesh + per-instance colour keeps draw
@@ -177,6 +178,9 @@ export default function Viewport3D() {
     showReferencePaths,
     forensicActiveDroneIds,
     selectedReferenceDroneId,
+    conversionComparisonFrame,
+    comparisonMode,
+    errorVectorScale,
     selectedDroneIndices,
     dynamicGroupRgbByDrone,
     pointIdForDrone,
@@ -240,6 +244,13 @@ export default function Viewport3D() {
         fadeStrength={1.4}
         position={[0, 0, 0]}
       />
+      {conversionComparisonFrame ? (
+        <ConversionOverlay
+          frame={conversionComparisonFrame}
+          mode={comparisonMode}
+          vectorScale={errorVectorScale}
+        />
+      ) : null}
       {reference ? null : <ShowVolume {...project.area} />}
       {reference ? (
         <ReferenceSwarm
