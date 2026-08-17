@@ -103,3 +103,24 @@ raster images, masks and filters are reported as warnings rather than silently
 approximated. Fleet-size changes regenerate through the stored `SvgAsset`, which
 keeps exact-N valid. Design-time reports are quality metrics, never a safety
 statement — the SafetyValidator remains the only authority on flight limits.
+
+## Project Setup, Formation Asset Library, Localization (Sprint 6B.6)
+
+- `src/lib/show/setup/` — authoring layer over the pre-show engine. `evaluateProjectSetup`
+  derives capacity, occupancy, footprint and minimum pad distance exclusively from
+  `buildLaunchLayout`, so the wizard preview can never disagree with the planner.
+  Pads are filled row-major (`PAD_POPULATION_ORDER`); `DRN-001` always takes `PAD-001`.
+  `createProjectFromSetup` builds a new project, `preShowConfigFromSetup` patches an
+  existing one, and `setupDraftFromProject` re-opens a project as a draft.
+- `src/lib/library/` — versioned, engine-agnostic formation assets. Static assets carry
+  exact geometry; dynamic assets carry the FULL animation model (groups, keyframes,
+  transform, loop, algorithm version), verified by sample-equality tests. Persistence sits
+  behind `FormationAssetRepository`; the browser implementation stores a single document
+  and skips malformed assets instead of failing the library. Fleet mismatches BLOCK
+  insertion — geometry is never silently resampled.
+- `src/i18n/` — EN/RO dictionaries with a type-safe `translate`. Localization touches
+  human-facing UI only: ids, diagnostic codes, ESSP/PX4 payloads and exported schemas stay
+  language-neutral, and language state lives outside the studio store so switching it never
+  invalidates project state or engine memoisation.
+- UI: `SetupWizard.tsx` (new show / show setup), `LaunchGridPreview.tsx` (top-down pad
+  preview), `LibraryPanel.tsx` (browse, save, import, export, reuse).
