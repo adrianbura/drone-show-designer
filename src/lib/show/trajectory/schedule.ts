@@ -16,7 +16,10 @@ import { composePreShow, launchHomePositions } from "../preshow/plan";
 import { resolvePreShowConfig } from "../preshow/config";
 import type { PreShowConfig, PreShowPhaseName, PreShowPlan } from "../preshow/types";
 import type { ShowPhase, ShowProject, Vector3Tuple } from "../types";
-import { clipPhase, showDuration, TRAJECTORY_ALGORITHM_VERSION } from "../types";
+import { clipPhase, resolveDynamicFormation, showDuration, TRAJECTORY_ALGORITHM_VERSION } from "../types";
+import { createDynamicEvaluator } from "../dynamic/sampler";
+import { planDynamicPoint } from "../dynamic/plan";
+
 import { withStartOffset, withVerticalLane } from "./offsets";
 import { minJerkPlanner, planHold } from "./planner";
 import {
