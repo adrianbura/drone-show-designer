@@ -110,6 +110,18 @@ export default function TopBar() {
 
       <div className="ml-auto flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em]">
         <span className="hidden text-muted-foreground md:inline">{project.name}</span>
+        <span
+          className={`metric-pill ${projectDirty ? "status-review" : ""}`}
+          title={
+            projectAutosavedAt
+              ? t("project.autosaved", { time: shortTime(projectAutosavedAt) })
+              : undefined
+          }
+        >
+          {projectDirty
+            ? t("project.unsaved")
+            : `${t("project.saved")}${projectSavedAt ? ` ${shortTime(projectSavedAt)}` : ""}`}
+        </span>
         <div className="flex overflow-hidden rounded border border-border" role="group" aria-label={t("common.language")}>
           {LANGUAGES.map((lng: Language) => (
             <button
