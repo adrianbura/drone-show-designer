@@ -269,6 +269,7 @@ export function convertSequenceSegment(
       duration: formation.duration,
     },
     sourceTimes: decomposition.localTimes,
+    sourceWorld: decomposition.world,
     formation,
     fidelityReport,
     keyframes: {
@@ -367,6 +368,22 @@ function analyzeLoopClosure(
     loopCandidate: frames >= 3 && rms <= toleranceMeters,
     periodicSeconds: segment.periodicity.estimatedPeriodSeconds,
     periodicityConfidence: segment.periodicity.confidence,
+  };
+}
+
+/** Immutable fidelity source view of a proposal (for re-comparison after edits). */
+export function fidelitySourceFromProposal(
+  proposal: DynamicFormationConversionProposal,
+): FidelitySource {
+  return {
+    segmentId: proposal.sourceSegmentId,
+    droneIds: proposal.provenance.sourceDroneIds,
+    droneCount: proposal.droneCount,
+    sampleCount: proposal.sourceTimes.length,
+    times: proposal.sourceTimes,
+    positions: proposal.sourceWorld,
+    duration: proposal.formation.duration,
+    rigidResidualRms: proposal.extractedGlobalTransformTrack.map((s) => s.rigidRmsMeters),
   };
 }
 

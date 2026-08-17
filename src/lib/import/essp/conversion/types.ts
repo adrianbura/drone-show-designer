@@ -239,6 +239,11 @@ export interface DynamicFormationConversionProposal {
   };
   /** Source sample times, segment-local. */
   readonly sourceTimes: readonly number[];
+  /**
+   * Read-only copy of the source world positions the proposal was measured
+   * against, flat [frame][drone][xyz]. Never written back to the reference show.
+   */
+  readonly sourceWorld: Float64Array;
   /** The proposed, not-yet-applied formation. */
   readonly formation: DynamicFormation;
   readonly fidelityReport: DynamicFormationFidelityReport;
