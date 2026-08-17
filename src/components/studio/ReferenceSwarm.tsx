@@ -13,16 +13,20 @@ export default function ReferenceSwarm({
   time,
   showPaths,
   selectedDroneId,
+  activeDroneIds = [],
 }: {
   show: ReferenceShow;
   time: number;
   showPaths: boolean;
   selectedDroneId: string | null;
+  /** Forensics: drones moving relative to the rigid formation body. */
+  activeDroneIds?: string[];
 }) {
   const mesh = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
   const count = show.drones.length;
+  const activeSet = useMemo(() => new Set(activeDroneIds), [activeDroneIds]);
 
   const pathGeometry = useMemo(() => {
     if (!showPaths) return null;
@@ -47,11 +51,15 @@ export default function ReferenceSwarm({
     const samples = sampleReferenceShow(show, time);
     samples.forEach((sample, i) => {
       dummy.position.set(sample.position[0], sample.position[1], sample.position[2]);
-      const selected = selectedDroneId === show.drones[i]?.sourceId;
-      dummy.scale.setScalar(selected ? 2.2 : 1);
+      const id = show.drones[i]?.sourceId;
+      const selected = selectedDroneId === id;
+      const active = activeSet.size > 0 && id !== undefined && activeSet.has(id);
+      dummy.scale.setScalar(selected ? 2.2 : active ? 1.8 : 1);
       dummy.updateMatrix();
       inst.setMatrixAt(i, dummy.matrix);
-      color.setRGB(sample.color[0] / 255, sample.color[1] / 255, sample.color[2] / 255);
+      // Highlighting only changes the RENDERED colour; RGB data is untouched.
+      if (active) color.setRGB(1, 0.75, 0.2);
+      else color.setRGB(sample.color[0] / 255, sample.color[1] / 255, sample.color[2] / 255);
       inst.setColorAt(i, color);
     });
     inst.instanceMatrix.needsUpdate = true;
