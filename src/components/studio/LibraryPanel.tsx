@@ -40,7 +40,7 @@ export default function LibraryPanel() {
   const library = useLibrary();
   const {
     project,
-    selectedClip,
+    selectedClipId,
     selectedDynamicFormation,
     addLibraryFormation,
     addLibraryDynamicFormation,
@@ -51,6 +51,7 @@ export default function LibraryPanel() {
   const [saveName, setSaveName] = useState("");
   const [saveTags, setSaveTags] = useState("");
 
+  const selectedClip = project.timeline.find((c) => c.id === selectedClipId) ?? null;
   const selectedFormation = project.formations.find((f) => f.id === selectedClip?.formationId);
 
   const use = (asset: FormationAsset) => {
