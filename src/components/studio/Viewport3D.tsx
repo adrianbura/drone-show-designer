@@ -40,6 +40,9 @@ function Swarm({
   groupIdByDrone,
   groupRgbByDrone,
   selectedGroupId,
+  dynamicSelected,
+  dynamicGroupRgbByDrone,
+  onSelectDrone,
 }: {
   project: ShowProject;
   time: number;
@@ -50,12 +53,19 @@ function Swarm({
   groupIdByDrone: string[];
   groupRgbByDrone: Map<number, [number, number, number]>;
   selectedGroupId: string | null;
+  /** Drone indices whose dynamic base point is selected for group editing. */
+  dynamicSelected: number[];
+  /** Motion-group tint per drone while editing a dynamic formation. */
+  dynamicGroupRgbByDrone: Map<number, [number, number, number]>;
+  onSelectDrone: (index: number, additive: boolean) => void;
 }) {
   const bodies = useRef<THREE.InstancedMesh>(null);
   const halos = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
   const highlightSet = useMemo(() => new Set(highlighted), [highlighted]);
+  const selectedSet = useMemo(() => new Set(dynamicSelected), [dynamicSelected]);
+
 
   useFrame(() => {
     const bodyMesh = bodies.current;
