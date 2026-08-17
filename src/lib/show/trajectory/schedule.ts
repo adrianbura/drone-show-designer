@@ -321,7 +321,18 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
       }
 
     }
-    current = target;
+    // After a dynamic hold the swarm sits wherever the animation ended, so the
+    // NEXT clip's assignment starts from the true end state.
+    if (dynamicEvaluator && dynamicFormation && clip.hold > 0) {
+      const end = dynamicEvaluator.positionsAt(clip.hold);
+      current = drones.map((d, i) => {
+        const pointIndex = (clipAssignments[i]?.targetPointIndex ?? i) % dynamicFormation.points.length;
+        return end[pointIndex] ?? target[i] ?? d.homePosition;
+      });
+    } else {
+      current = target;
+    }
+
   }
 
   return {
