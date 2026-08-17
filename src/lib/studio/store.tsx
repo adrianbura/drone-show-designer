@@ -1529,6 +1529,154 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     URL.revokeObjectURL(url);
   }, [forensicsReport]);
 
+  // ---- Reference segment -> dynamic conversion (Sprint 6B.5) -------------
+  // The reference show is READ ONLY here: conversion produces a proposal made of
+  // brand-new project objects and only `applyConversionProposal` touches the
+  // project (through the normal undoable dynamic-formation history).
+  const [conversionMode, setConversionMode] = useState<ConversionMode>("EXACT_SAMPLED");
+  const [conversionTolerance, setConversionTolerance] = useState<number>(
+    CONVERSION_TOLERANCE_PRESETS.BALANCED,
+  );
+  const [conversionRotationFit, setConversionRotationFit] = useState<RotationFitMode>("KABSCH");
+  const [conversionSuggestGroups, setConversionSuggestGroups] = useState(true);
+  const [conversionBusy, setConversionBusy] = useState(false);
+  const [conversionError, setConversionError] = useState<string | null>(null);
+  const [conversionProposal, setConversionProposal] =
+    useState<DynamicFormationConversionProposal | null>(null);
+  const [comparisonMode, setComparisonMode] = useState<ComparisonMode>("OVERLAY");
+  const [errorVectorScale, setErrorVectorScale] = useState(1);
+  const [appliedConversion, setAppliedConversion] = useState<{
+    formationId: string;
+    proposal: DynamicFormationConversionProposal;
+    signature: string;
+    fidelity: DynamicFormationFidelityReport;
+  } | null>(null);
+
+  const canConvertSelectedSegment =
+    !!referenceShow &&
+    !!selectedForensicSegment &&
+    segmentEligibility(selectedForensicSegment.classification) !== "UNSUPPORTED";
+
+  const analyzeSegmentConversion = useCallback(() => {
+    const segment = selectedForensicSegment;
+    if (!referenceShow || !segment) return;
+    setConversionBusy(true);
+    setConversionError(null);
+    try {
+      const proposal = convertReferenceSegmentToDynamicFormation(referenceShow, segment, {
+        mode: conversionMode,
+        toleranceMeters: conversionTolerance,
+        rotationFit: conversionRotationFit,
+        suggestMotionGroups: conversionSuggestGroups,
+        formationId: nextId("dyn"),
+      });
+      setConversionProposal(proposal);
+    } catch (err) {
+      setConversionProposal(null);
+      setConversionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setConversionBusy(false);
+    }
+  }, [
+    referenceShow,
+    selectedForensicSegment,
+    conversionMode,
+    conversionTolerance,
+    conversionRotationFit,
+    conversionSuggestGroups,
+  ]);
+
+  const discardConversionProposal = useCallback(() => {
+    setConversionProposal(null);
+    setConversionError(null);
+  }, []);
+
+  const applyConversionProposal = useCallback(
+    (options: { addToTimeline?: boolean } = {}) => {
+      const proposal = conversionProposal;
+      if (!proposal) return null;
+      const created = proposal.formation;
+      commitDynamic((list) => [...list, created]);
+      setAppliedConversion({
+        formationId: created.id,
+        proposal,
+        signature: dynamicFormationSignature(created),
+        fidelity: proposal.fidelityReport,
+      });
+      setExplicitDynamicId(created.id);
+      setSelectedPointIdsState([]);
+      setSelectedMotionGroupId(null);
+      setDynamicEditTime(0);
+      setConversionProposal(null);
+      if (options.addToTimeline) setComparisonMode("RECONSTRUCTED");
+      return created;
+    },
+    [commitDynamic, conversionProposal],
+  );
+
+  const conversionComparisonFrame = useMemo(() => {
+    const proposal = conversionProposal;
+    if (!proposal || comparisonMode === "ORIGINAL") return null;
+    const local = Math.min(
+      proposal.formation.duration,
+      Math.max(0, clock.time - proposal.sourceStartTime),
+    );
+    try {
+      return comparisonFrameAt(proposal, proposal.sourceWorld, local);
+    } catch {
+      return null;
+    }
+  }, [conversionProposal, comparisonMode, clock.time]);
+
+  const seekToConversionWorstFrame = useCallback(() => {
+    const proposal = conversionProposal ?? appliedConversion?.proposal ?? null;
+    const fidelity = conversionProposal
+      ? conversionProposal.fidelityReport
+      : (appliedConversion?.fidelity ?? null);
+    if (!proposal || !fidelity) return;
+    clock.seek(proposal.sourceStartTime + fidelity.maxErrorTime);
+    const index = proposal.provenance.sourceDroneIds.indexOf(fidelity.maxErrorDroneId);
+    setHighlightedDrones(index >= 0 ? [index] : []);
+  }, [conversionProposal, appliedConversion, clock]);
+
+  const currentReferenceHash = useMemo(
+    () => (referenceShow ? referenceShowHash(referenceShow) : null),
+    [referenceShow],
+  );
+
+  const conversionSourceAvailable = useMemo(() => {
+    const proposal = conversionProposal ?? appliedConversion?.proposal ?? null;
+    if (!proposal) return false;
+    return currentReferenceHash === proposal.sourceReferenceShowHash;
+  }, [conversionProposal, appliedConversion, currentReferenceHash]);
+
+  const appliedConversionFormation = useMemo(
+    () =>
+      appliedConversion
+        ? (dynamicFormations.find((d) => d.id === appliedConversion.formationId) ?? null)
+        : null,
+    [appliedConversion, dynamicFormations],
+  );
+
+  const conversionFidelityStale = useMemo(() => {
+    if (!appliedConversion || !appliedConversionFormation) return false;
+    return dynamicFormationSignature(appliedConversionFormation) !== appliedConversion.signature;
+  }, [appliedConversion, appliedConversionFormation]);
+
+  const recompareConversionToSource = useCallback(() => {
+    if (!appliedConversion || !appliedConversionFormation) return;
+    const fidelity = evaluateDynamicFormationFidelity(
+      fidelitySourceFromProposal(appliedConversion.proposal),
+      appliedConversionFormation,
+    );
+    setAppliedConversion({
+      ...appliedConversion,
+      fidelity,
+      signature: dynamicFormationSignature(appliedConversionFormation),
+    });
+  }, [appliedConversion, appliedConversionFormation]);
+
+
   const referenceSamplesAt = useCallback(
     (t: number) => (referenceShow ? sampleReferenceShow(referenceShow, t) : []),
     [referenceShow],
@@ -1665,6 +1813,34 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       forensicActiveDroneIds,
       labelForensicSegment,
       exportForensicsReport,
+      conversionMode,
+      setConversionMode,
+      conversionTolerance,
+      setConversionTolerance,
+      conversionRotationFit,
+      setConversionRotationFit,
+      conversionSuggestGroups,
+      setConversionSuggestGroups,
+      conversionBusy,
+      conversionError,
+      conversionProposal,
+      canConvertSelectedSegment,
+      analyzeSegmentConversion,
+      discardConversionProposal,
+      applyConversionProposal,
+      comparisonMode,
+      setComparisonMode,
+      errorVectorScale,
+      setErrorVectorScale,
+      conversionComparisonFrame,
+      seekToConversionWorstFrame,
+      appliedConversionFidelity: appliedConversion?.fidelity ?? null,
+      appliedConversionFormationId: appliedConversion?.formationId ?? null,
+      conversionFidelityStale,
+      conversionSourceAvailable,
+      recompareConversionToSource,
+      conversionTolerancePresets: CONVERSION_TOLERANCE_PRESETS,
+      conversionAlgorithmVersion: REFERENCE_DYNAMIC_CONVERTER_VERSION,
       dynamicFormations,
       selectedDynamicFormation,
       selectDynamicFormation,
@@ -1803,6 +1979,25 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       forensicActiveDroneIds,
       labelForensicSegment,
       exportForensicsReport,
+      conversionMode,
+      conversionTolerance,
+      conversionRotationFit,
+      conversionSuggestGroups,
+      conversionBusy,
+      conversionError,
+      conversionProposal,
+      canConvertSelectedSegment,
+      analyzeSegmentConversion,
+      discardConversionProposal,
+      applyConversionProposal,
+      comparisonMode,
+      errorVectorScale,
+      conversionComparisonFrame,
+      seekToConversionWorstFrame,
+      appliedConversion,
+      conversionFidelityStale,
+      conversionSourceAvailable,
+      recompareConversionToSource,
       dynamicFormations,
       selectedDynamicFormation,
       selectDynamicFormation,
