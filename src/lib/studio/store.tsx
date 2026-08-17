@@ -844,12 +844,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     (clipId: string, dynamicFormationId: string | null) => {
       setProject((p) => ({
         ...p,
-        timeline: p.timeline.map((c) =>
-          c.id === clipId
-            ? { ...c, ...(dynamicFormationId ? { dynamicFormationId } : { dynamicFormationId: undefined }) }
-            : c,
-        ),
+        timeline: p.timeline.map((c) => {
+          if (c.id !== clipId) return c;
+          if (dynamicFormationId) return { ...c, dynamicFormationId };
+          const { dynamicFormationId: _detached, ...rest } = c;
+          return rest;
+        }),
       }));
+
     },
     [],
   );
