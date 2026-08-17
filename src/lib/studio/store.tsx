@@ -93,6 +93,17 @@ import {
   type ReferenceSample,
   type ReferenceShow,
 } from "../import/essp";
+import {
+  analyzeReferenceShow,
+  forensicsReportToJson,
+  referenceShowHash,
+  FORENSICS_PRESETS,
+  ESSP_FORENSICS_ALGORITHM_VERSION,
+  type ForensicsPresetName,
+  type ReferenceForensicsReport,
+  type ReferenceForensicsThresholds,
+  type ReferenceSceneSegment,
+} from "../import/essp/forensics";
 import { useShowClock, type PlaybackSpeed } from "./clock";
 
 /** Draft state of an SVG import, before it is committed as a Formation. */
@@ -249,6 +260,32 @@ interface StudioContextValue {
   selectReferenceDrone: (id: string | null) => void;
   showReferencePaths: boolean;
   setShowReferencePaths: (v: boolean) => void;
+
+  // ---- Reference forensics (Sprint 6A.5, analysis only) ------------------
+  /** Derived motion analysis of the imported reference show. Never mutates it. */
+  forensicsReport: ReferenceForensicsReport | null;
+  forensicsBusy: boolean;
+  forensicsError: string | null;
+  forensicsPreset: ForensicsPresetName;
+  setForensicsPreset: (preset: ForensicsPresetName) => void;
+  forensicsThresholds: ReferenceForensicsThresholds;
+  patchForensicsThresholds: (patch: Partial<ReferenceForensicsThresholds>) => void;
+  /** True when the report no longer matches the show / version / thresholds. */
+  forensicsStale: boolean;
+  analyzeReferenceMotion: () => void;
+  cancelReferenceAnalysis: () => void;
+  clearForensics: () => void;
+  selectedForensicSegmentId: string | null;
+  /** Selects a segment and seeks playback to its start. */
+  selectForensicSegment: (id: string | null) => void;
+  selectedForensicSegment: ReferenceSceneSegment | null;
+  showForensicActiveDrones: boolean;
+  setShowForensicActiveDrones: (v: boolean) => void;
+  /** Source IDs highlighted for the selected dynamic segment. */
+  forensicActiveDroneIds: string[];
+  /** Renames a segment (metadata only — classification is unchanged). */
+  labelForensicSegment: (id: string, label: string) => void;
+  exportForensicsReport: () => void;
 }
 
 const StudioContext = createContext<StudioContextValue | null>(null);
@@ -341,6 +378,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
   const [selectedReferenceDroneId, setSelectedReferenceDroneId] = useState<string | null>(null);
   const [showReferencePaths, setShowReferencePaths] = useState(false);
+  const [forensicsReport, setForensicsReport] = useState<ReferenceForensicsReport | null>(null);
+  const [forensicsBusy, setForensicsBusy] = useState(false);
+  const [forensicsError, setForensicsError] = useState<string | null>(null);
+  const [forensicsPreset, setForensicsPresetState] = useState<ForensicsPresetName>("BALANCED");
+  const [forensicsThresholds, setForensicsThresholds] = useState<ReferenceForensicsThresholds>(
+    FORENSICS_PRESETS.BALANCED,
+  );
+  const [selectedForensicSegmentId, setSelectedForensicSegmentId] = useState<string | null>(null);
+  const [showForensicActiveDrones, setShowForensicActiveDrones] = useState(true);
+  const forensicsRunRef = useRef(0);
   const cancelFullShow = useRef(false);
 
   // Pure engine pipeline: formations -> assignment -> planning -> sampling -> safety.
@@ -832,6 +879,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         }
       }
       const show = await buildReferenceShow(sources);
+      forensicsRunRef.current += 1;
+      setForensicsReport(null);
+      setForensicsError(null);
+      setSelectedForensicSegmentId(null);
       setReferenceShow(show);
       setReferencePlayback(true);
       setSelectedReferenceDroneId(show.drones[0]?.sourceId ?? null);
@@ -852,7 +903,112 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setReferencePlayback(false);
     setReferenceError(null);
     setSelectedReferenceDroneId(null);
+    forensicsRunRef.current += 1;
+    setForensicsReport(null);
+    setForensicsError(null);
+    setSelectedForensicSegmentId(null);
   }, []);
+
+  // ---- Reference forensics (derived, read-only) --------------------------
+  const clearForensics = useCallback(() => {
+    forensicsRunRef.current += 1;
+    setForensicsReport(null);
+    setForensicsError(null);
+    setForensicsBusy(false);
+    setSelectedForensicSegmentId(null);
+  }, []);
+
+  const setForensicsPreset = useCallback((preset: ForensicsPresetName) => {
+    setForensicsPresetState(preset);
+    setForensicsThresholds(FORENSICS_PRESETS[preset]);
+  }, []);
+
+  const patchForensicsThresholds = useCallback(
+    (patch: Partial<ReferenceForensicsThresholds>) =>
+      setForensicsThresholds((prev) => ({ ...prev, ...patch })),
+    [],
+  );
+
+  const cancelReferenceAnalysis = useCallback(() => {
+    forensicsRunRef.current += 1;
+    setForensicsBusy(false);
+  }, []);
+
+  const analyzeReferenceMotion = useCallback(() => {
+    const show = referenceShow;
+    if (!show) return;
+    const run = ++forensicsRunRef.current;
+    setForensicsBusy(true);
+    setForensicsError(null);
+    // Deferred so the busy state paints before the (pure, synchronous) analysis.
+    setTimeout(() => {
+      try {
+        const report = analyzeReferenceShow(show, {
+          preset: forensicsPreset,
+          thresholds: forensicsThresholds,
+          shouldCancel: () => forensicsRunRef.current !== run,
+        });
+        if (forensicsRunRef.current !== run) return;
+        setForensicsReport(report);
+        setSelectedForensicSegmentId(report.segments[0]?.id ?? null);
+      } catch (err) {
+        if (forensicsRunRef.current !== run) return;
+        setForensicsError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (forensicsRunRef.current === run) setForensicsBusy(false);
+      }
+    }, 30);
+  }, [referenceShow, forensicsPreset, forensicsThresholds]);
+
+  const forensicsStale = useMemo(() => {
+    if (!forensicsReport || !referenceShow) return false;
+    return (
+      forensicsReport.source.showHash !== referenceShowHash(referenceShow) ||
+      forensicsReport.algorithmVersion !== ESSP_FORENSICS_ALGORITHM_VERSION ||
+      JSON.stringify(forensicsReport.thresholds) !== JSON.stringify(forensicsThresholds)
+    );
+  }, [forensicsReport, referenceShow, forensicsThresholds]);
+
+  const selectedForensicSegment = useMemo(
+    () => forensicsReport?.segments.find((s) => s.id === selectedForensicSegmentId) ?? null,
+    [forensicsReport, selectedForensicSegmentId],
+  );
+
+  const selectForensicSegment = useCallback(
+    (id: string | null) => {
+      setSelectedForensicSegmentId(id);
+      const seg = forensicsReport?.segments.find((s) => s.id === id);
+      if (seg) clock.seek(seg.startTime);
+    },
+    [forensicsReport, clock],
+  );
+
+  const forensicActiveDroneIds = useMemo(() => {
+    if (!showForensicActiveDrones || !selectedForensicSegment) return [];
+    return selectedForensicSegment.activeDroneIds;
+  }, [showForensicActiveDrones, selectedForensicSegment]);
+
+  const labelForensicSegment = useCallback((id: string, label: string) => {
+    setForensicsReport((prev) =>
+      prev
+        ? {
+            ...prev,
+            segments: prev.segments.map((s) => (s.id === id ? { ...s, label } : s)),
+          }
+        : prev,
+    );
+  }, []);
+
+  const exportForensicsReport = useCallback(() => {
+    if (!forensicsReport) return;
+    const blob = new Blob([forensicsReportToJson(forensicsReport)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ESSPReferenceForensicsReport.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [forensicsReport]);
 
   const referenceSamplesAt = useCallback(
     (t: number) => (referenceShow ? sampleReferenceShow(referenceShow, t) : []),
@@ -971,6 +1127,25 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectReferenceDrone: setSelectedReferenceDroneId,
       showReferencePaths,
       setShowReferencePaths,
+      forensicsReport,
+      forensicsBusy,
+      forensicsError,
+      forensicsPreset,
+      setForensicsPreset,
+      forensicsThresholds,
+      patchForensicsThresholds,
+      forensicsStale,
+      analyzeReferenceMotion,
+      cancelReferenceAnalysis,
+      clearForensics,
+      selectedForensicSegmentId,
+      selectForensicSegment,
+      selectedForensicSegment,
+      showForensicActiveDrones,
+      setShowForensicActiveDrones,
+      forensicActiveDroneIds,
+      labelForensicSegment,
+      exportForensicsReport,
     }),
     [
       project,
@@ -1054,6 +1229,24 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       referenceSamplesAt,
       selectedReferenceDroneId,
       showReferencePaths,
+      forensicsReport,
+      forensicsBusy,
+      forensicsError,
+      forensicsPreset,
+      setForensicsPreset,
+      forensicsThresholds,
+      patchForensicsThresholds,
+      forensicsStale,
+      analyzeReferenceMotion,
+      cancelReferenceAnalysis,
+      clearForensics,
+      selectedForensicSegmentId,
+      selectForensicSegment,
+      selectedForensicSegment,
+      showForensicActiveDrones,
+      forensicActiveDroneIds,
+      labelForensicSegment,
+      exportForensicsReport,
     ],
   );
 
