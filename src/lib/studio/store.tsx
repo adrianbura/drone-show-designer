@@ -821,10 +821,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       commitDynamic((list) => list.filter((d) => d.id !== id));
       setProject((p) => ({
         ...p,
-        timeline: p.timeline.map((c) =>
-          c.dynamicFormationId === id ? { ...c, dynamicFormationId: undefined } : c,
-        ),
+        timeline: p.timeline.map((c) => {
+          if (c.dynamicFormationId !== id) return c;
+          const { dynamicFormationId: _detached, ...rest } = c;
+          return rest;
+        }),
       }));
+
       setExplicitDynamicId((current) => (current === id ? null : current));
     },
     [commitDynamic],
