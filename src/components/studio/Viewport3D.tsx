@@ -1,6 +1,6 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Grid, OrbitControls } from "@react-three/drei";
-import { useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { useStudio } from "@/lib/studio/store";
