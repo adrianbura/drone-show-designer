@@ -312,7 +312,64 @@ interface StudioContextValue {
   /** Renames a segment (metadata only — classification is unchanged). */
   labelForensicSegment: (id: string, label: string) => void;
   exportForensicsReport: () => void;
+
+  // ---- Dynamic formations (Sprint 6B) ------------------------------------
+  /** Living formations owned by the project. */
+  dynamicFormations: DynamicFormation[];
+  /** Dynamic formation being edited (explicit selection or via selected clip). */
+  selectedDynamicFormation: DynamicFormation | null;
+  selectDynamicFormation: (id: string | null) => void;
+  /** Design-time animation report for the selected formation (never a safety claim). */
+  dynamicReport: DynamicFormationReport | null;
+  /** Converts a static formation into an editable living formation. */
+  createDynamicFromFormation: (formationId: string) => DynamicFormation | null;
+  removeDynamicFormation: (id: string) => void;
+  patchDynamicFormation: (id: string, patch: Partial<DynamicFormation>) => void;
+  /** Appends a timeline clip whose hold plays the given dynamic formation. */
+  addDynamicClip: (dynamicFormationId: string) => void;
+  /** Attaches / detaches a dynamic formation on the selected clip. */
+  setClipDynamicFormation: (clipId: string, dynamicFormationId: string | null) => void;
+  applyDynamicPreset: (id: string, preset: DynamicPresetId, amount?: number) => void;
+  mirrorDynamicGroups: (id: string) => void;
+
+  // Motion groups + point selection
+  selectedPointIds: string[];
+  togglePointSelection: (pointId: string) => void;
+  setSelectedPointIds: (ids: string[]) => void;
+  clearPointSelection: () => void;
+  /** Selects one side of the formation (quick wing selection). */
+  selectPointSide: (side: "left" | "right" | "centre" | "all") => void;
+  /** Viewport click support: drone index -> base point id for the dynamic clip. */
+  pointIdForDrone: (droneIndex: number) => string | null;
+  /** Drone indices whose assigned point is currently selected. */
+  selectedDroneIndices: number[];
+  /** Group tint per drone index while a dynamic clip is being edited. */
+  dynamicGroupRgbByDrone: Map<number, [number, number, number]>;
+  selectedMotionGroupId: string | null;
+  selectMotionGroup: (id: string | null) => void;
+  createMotionGroupFromSelection: (name: string) => void;
+  deleteMotionGroup: (groupId: string) => void;
+  patchMotionGroupState: (groupId: string, patch: Partial<MotionGroup>) => void;
+  /** Replaces a group's membership with the current point selection. */
+  assignSelectionToGroup: (groupId: string) => void;
+
+  // Keyframes (local animation time)
+  upsertGlobalKeyframe: (key: TransformKeyframe) => void;
+  deleteGlobalKeyframe: (t: number) => void;
+  upsertDeformationKeyframe: (groupId: string, key: GroupDeformationKeyframe) => void;
+  deleteDeformationKeyframe: (groupId: string, t: number) => void;
+  /** Local animation time being edited (0 .. duration). */
+  dynamicEditTime: number;
+  setDynamicEditTime: (t: number) => void;
+  /** Sampled positions of the selected formation at `dynamicEditTime`. */
+  dynamicPreviewPoints: readonly (readonly [number, number, number])[] | null;
+  /** Undo / redo of dynamic formation edits only. */
+  undoDynamic: () => void;
+  redoDynamic: () => void;
+  canUndoDynamic: boolean;
+  canRedoDynamic: boolean;
 }
+
 
 /**
  * Single context instance per browser realm. During dev hot-reloads a second
