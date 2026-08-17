@@ -18,6 +18,8 @@ export type RGB = readonly [number, number, number];
 
 import type { SvgFormationSource } from "./svg/types";
 import type { PreShowConfig } from "./preshow/types";
+import type { DynamicFormation } from "./dynamic/types";
+
 
 export type FormationKind =
   | "grid"
