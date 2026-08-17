@@ -88,8 +88,8 @@ export class EsspParseError extends Error {
 export interface EsspFileDiagnostic {
   fileName: string;
   ok: boolean;
-  code?: EsspErrorCode;
-  message?: string;
+  code?: EsspErrorCode | undefined;
+  message?: string | undefined;
 }
 
 /** Immutable per-drone reference track. */
@@ -108,7 +108,7 @@ export interface ReferenceDrone {
   /** First decoded XYZ sample, converted to studio metres. */
   launchPosition: readonly [number, number, number];
   header: EsspHeader;
-  sha256?: string;
+  sha256?: string | undefined;
 }
 
 export interface ReferenceTiming {
