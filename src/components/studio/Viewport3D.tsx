@@ -154,6 +154,7 @@ export default function Viewport3D() {
     referenceShow,
     referencePlayback,
     showReferencePaths,
+    forensicActiveDroneIds,
     selectedReferenceDroneId,
   } = useStudio();
   // Reference playback replaces the designed swarm — the two are never mixed.
@@ -210,6 +211,7 @@ export default function Viewport3D() {
           time={time}
           showPaths={showReferencePaths}
           selectedDroneId={selectedReferenceDroneId}
+          activeDroneIds={forensicActiveDroneIds}
         />
       ) : null}
       {reference ? null : (
