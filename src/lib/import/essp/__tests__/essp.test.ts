@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { ESSP_HEADER, EsspParseError } from "../types";
 import {
-  ESSP_HEADER,
-  EsspParseError,
   bytesEqual,
   buildSyntheticEssp,
   encodeEssp,
