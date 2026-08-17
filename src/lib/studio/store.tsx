@@ -985,14 +985,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const addDynamicClip = useCallback(
     (dynamicFormationId: string) => {
-      const dynamic = (project.dynamicFormations ?? []).find((d) => d.id === dynamicFormationId);
-      if (!dynamic) return;
       const id = nextId("c");
+      // Resolve the dynamic formation INSIDE the updater: a library insert adds
+      // the formation and the clip in the same tick, so the closure snapshot of
+      // project.dynamicFormations would still be empty here.
       setProject((p) => {
+        const dynamic = (p.dynamicFormations ?? []).find((d) => d.id === dynamicFormationId);
+        if (!dynamic) return p;
         const end = p.timeline.reduce((m, c) => Math.max(m, c.start + c.transition + c.hold), 0);
+        const sourceId =
+          dynamic.sourceFormationId && p.formations.some((f) => f.id === dynamic.sourceFormationId)
+            ? dynamic.sourceFormationId
+            : (p.formations[0]?.id ?? "");
         const clip: TimelineClip = {
           id,
-          formationId: dynamic.sourceFormationId ?? p.formations[0]?.id ?? "",
+          formationId: sourceId,
           start: end,
           transition: 10,
           // A dynamic clip holds for at least one full animation cycle.
@@ -1008,10 +1015,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         return { ...p, timeline: [...p.timeline, clip] };
       });
       setSelectedClipId(id);
-      setExplicitDynamicId(dynamic.id);
+      setExplicitDynamicId(dynamicFormationId);
     },
-    [project.dynamicFormations],
+    [],
   );
+
 
   const applyDynamicPreset = useCallback(
     (id: string, preset: DynamicPresetId, amount = 1) => {
