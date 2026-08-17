@@ -13,6 +13,7 @@ import FullShowPanel from "./FullShowPanel";
 import LaunchPanel from "./LaunchPanel";
 import SimulationPanel from "./SimulationPanel";
 import EsspPanel from "./EsspPanel";
+import ForensicsPanel from "./ForensicsPanel";
 
 
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
@@ -454,6 +455,7 @@ export default function Inspector() {
       <FullShowPanel />
 
       <EsspPanel />
+      <ForensicsPanel />
       <SimulationPanel />
 
 

@@ -15,6 +15,21 @@ function fmt(t: number) {
   return `${sign}${m}:${s.toString().padStart(2, "0")}.${f.toString().padStart(2, "0")}`;
 }
 
+/** Subtle tint per inferred forensic category (semantic tokens only). */
+const FORENSIC_TINT: Record<string, string> = {
+  GROUND_STATIC: "bg-muted",
+  TAKEOFF_ASCENT: "bg-accent/70",
+  STATIC_FORMATION: "bg-muted-foreground/60",
+  POSSIBLE_STAGING: "bg-accent/40",
+  GLOBAL_TRANSLATION: "bg-primary/60",
+  GLOBAL_ROTATION: "bg-primary/80",
+  RIGID_MOTION: "bg-primary",
+  DYNAMIC_DEFORMATION: "bg-warning",
+  FORMATION_TRANSITION: "bg-secondary",
+  LANDING_DESCENT: "bg-accent/50",
+  UNKNOWN: "bg-border",
+};
+
 export default function Timeline() {
   const {
     project,
@@ -38,6 +53,9 @@ export default function Timeline() {
     startTime,
     preShowPlan,
     patchClip,
+    forensicsReport,
+    selectedForensicSegmentId,
+    selectForensicSegment,
   } = useStudio();
   const trackRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ id: string; startX: number; origStart: number; moved: boolean } | null>(null);
@@ -199,6 +217,23 @@ export default function Timeline() {
                 style={{ left: pct(issue.time ?? 0) }}
               />
             ))}
+
+          {/* Reference forensics segments (inferred, read-only overlay) */}
+          {forensicsReport?.segments.map((s) => (
+            <button
+              key={`fx-${s.id}`}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                selectForensicSegment(s.id);
+              }}
+              title={`${s.label} — ${s.classification} (inferred)`}
+              aria-label={`${s.label}, ${s.classification}`}
+              className={`absolute bottom-3 h-1.5 rounded-sm opacity-70 hover:opacity-100 ${
+                FORENSIC_TINT[s.classification]
+              } ${s.id === selectedForensicSegmentId ? "ring-1 ring-accent opacity-100" : ""}`}
+              style={{ left: pct(s.startTime), width: widthPct(Math.max(0.2, s.duration)) }}
+            />
+          ))}
 
           {/* Clips */}
           {project.timeline.map((clip, row) => {
