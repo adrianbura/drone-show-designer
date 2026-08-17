@@ -802,7 +802,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const addClip = useCallback((formationId: string) => {
     const id = nextId("c");
     setProject((p) => {
-      const end = p.timeline.reduce((m, c) => Math.max(m, c.start + c.transition + c.hold), 0);
+      const landing = p.timeline.filter((c) => c.phase === "LANDING");
+      const body = p.timeline.filter((c) => c.phase !== "LANDING");
+      const end = body.reduce((m, c) => Math.max(m, c.start + c.transition + c.hold), 0);
       const clip: TimelineClip = {
         id,
         formationId,
@@ -814,10 +816,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         effect: "solid",
         phase: "SHOW",
       };
-      return { ...p, timeline: [...p.timeline, clip] };
+      const shift = clip.transition + clip.hold;
+      return {
+        ...p,
+        timeline: [...body, clip, ...landing.map((c) => ({ ...c, start: c.start + shift }))],
+      };
     });
     setSelectedClipId(id);
   }, []);
+
 
   const patchClip = useCallback((id: string, patch: Partial<TimelineClip>) => {
     setProject((p) => ({
