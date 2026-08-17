@@ -38,6 +38,9 @@ export interface ScheduleSegment {
   readonly planned: PlannedTrajectory;
   /** Set only on PRE_SHOW segments (see preshow/plan.ts). */
   readonly preShowPhase?: PreShowPhaseName;
+  /** Set on holds that play a dynamic (living) formation. */
+  readonly dynamicFormationId?: string;
+
 }
 
 export interface DroneSchedule {
