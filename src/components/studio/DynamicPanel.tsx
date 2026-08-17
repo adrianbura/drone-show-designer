@@ -109,7 +109,7 @@ export default function DynamicPanel() {
           onClick={undoDynamic}
           disabled={!canUndoDynamic}
           title="Undo dynamic edit"
-          className="chip disabled:opacity-40"
+          className="chip-btn disabled:opacity-40"
         >
           <Undo2 className="size-3" />
         </button>
@@ -117,7 +117,7 @@ export default function DynamicPanel() {
           onClick={redoDynamic}
           disabled={!canRedoDynamic}
           title="Redo dynamic edit"
-          className="chip disabled:opacity-40"
+          className="chip-btn disabled:opacity-40"
         >
           <Redo2 className="size-3" />
         </button>
@@ -128,7 +128,7 @@ export default function DynamicPanel() {
           <button
             key={f.id}
             onClick={() => createDynamicFromFormation(f.id)}
-            className="chip"
+            className="chip-btn"
             title={`Create a living formation from ${f.name}`}
           >
             + {f.name}
@@ -183,21 +183,21 @@ export default function DynamicPanel() {
               <button
                 key={p.id}
                 onClick={() => applyDynamicPreset(formation.id, p.id)}
-                className="chip"
+                className="chip-btn"
                 title={p.description}
               >
                 {p.label}
               </button>
             ))}
-            <button onClick={() => mirrorDynamicGroups(formation.id)} className="chip">
+            <button onClick={() => mirrorDynamicGroups(formation.id)} className="chip-btn">
               Mirror X
             </button>
-            <button onClick={() => addDynamicClip(formation.id)} className="chip">
+            <button onClick={() => addDynamicClip(formation.id)} className="chip-btn">
               Add clip
             </button>
             <button
               onClick={() => removeDynamicFormation(formation.id)}
-              className="chip text-destructive"
+              className="chip-btn text-destructive"
             >
               <Trash2 className="size-3" /> Delete
             </button>
@@ -209,19 +209,19 @@ export default function DynamicPanel() {
               <Layers2 className="size-3" /> selection ({selectedPointIds.length} points)
             </p>
             <div className="flex flex-wrap gap-1">
-              <button onClick={() => selectPointSide("left")} className="chip">
+              <button onClick={() => selectPointSide("left")} className="chip-btn">
                 Left
               </button>
-              <button onClick={() => selectPointSide("right")} className="chip">
+              <button onClick={() => selectPointSide("right")} className="chip-btn">
                 Right
               </button>
-              <button onClick={() => selectPointSide("centre")} className="chip">
+              <button onClick={() => selectPointSide("centre")} className="chip-btn">
                 Centre
               </button>
-              <button onClick={() => selectPointSide("all")} className="chip">
+              <button onClick={() => selectPointSide("all")} className="chip-btn">
                 All
               </button>
-              <button onClick={clearPointSelection} className="chip">
+              <button onClick={clearPointSelection} className="chip-btn">
                 Clear
               </button>
             </div>
@@ -232,7 +232,7 @@ export default function DynamicPanel() {
               <button
                 onClick={() => createMotionGroupFromSelection(`Group ${formation.groups.length + 1}`)}
                 disabled={selectedPointIds.length === 0}
-                className="chip disabled:opacity-40"
+                className="chip-btn disabled:opacity-40"
               >
                 New group from selection
               </button>
@@ -240,7 +240,7 @@ export default function DynamicPanel() {
                 <button
                   onClick={() => assignSelectionToGroup(group.id)}
                   disabled={selectedPointIds.length === 0}
-                  className="chip disabled:opacity-40"
+                  className="chip-btn disabled:opacity-40"
                 >
                   Assign to {group.name}
                 </button>
@@ -270,13 +270,13 @@ export default function DynamicPanel() {
                     </span>
                     <button
                       onClick={() => patchMotionGroupState(g.id, { enabled: !g.enabled })}
-                      className="chip"
+                      className="chip-btn"
                     >
                       {g.enabled ? "on" : "off"}
                     </button>
                     <button
                       onClick={() => deleteMotionGroup(g.id)}
-                      className="chip text-destructive"
+                      className="chip-btn text-destructive"
                     >
                       <Trash2 className="size-3" />
                     </button>
@@ -361,13 +361,13 @@ export default function DynamicPanel() {
             <div className="flex gap-1">
               <button
                 onClick={() => upsertGlobalKeyframe({ ...globalKey, t: dynamicEditTime })}
-                className="chip"
+                className="chip-btn"
               >
                 Set key
               </button>
               <button
                 onClick={() => deleteGlobalKeyframe(dynamicEditTime)}
-                className="chip text-destructive"
+                className="chip-btn text-destructive"
               >
                 Remove key
               </button>
@@ -414,13 +414,13 @@ export default function DynamicPanel() {
                     onClick={() =>
                       upsertDeformationKeyframe(group.id, { ...groupKey, t: dynamicEditTime })
                     }
-                    className="chip"
+                    className="chip-btn"
                   >
                     Set key
                   </button>
                   <button
                     onClick={() => deleteDeformationKeyframe(group.id, dynamicEditTime)}
-                    className="chip text-destructive"
+                    className="chip-btn text-destructive"
                   >
                     Remove key
                   </button>
