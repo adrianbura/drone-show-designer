@@ -10,6 +10,7 @@
 import { ASSIGNMENT_ALGORITHM_VERSION } from "../show/assignment";
 import { CONFLICT_DETECTION_VERSION } from "../show/conflicts";
 import { COORDINATE_SYSTEM } from "../show/coordinates";
+import { DYNAMIC_FORMATION_ALGORITHM_VERSION } from "../show/dynamic";
 import { TRANSITION_OPTIMIZER_VERSION } from "../show/transition";
 import { lightColorAt } from "../show/lights";
 import { activeClipAt } from "../show/timeline";
@@ -102,6 +103,26 @@ export function toGenericShowJson({
         // Reproducibility metadata for logo/vector formations (kind "svg").
         ...(f.svg ? { svg: f.svg } : {}),
       })),
+      // Living formations: base cloud + animation description. A reader can
+      // reproduce every sampled position from this block alone.
+      ...(project.dynamicFormations && project.dynamicFormations.length > 0
+        ? {
+            dynamicFormations: project.dynamicFormations.map((d) => ({
+              id: d.id,
+              name: d.name,
+              sourceFormationId: d.sourceFormationId ?? null,
+              duration: round(d.duration),
+              loop: d.loop,
+              pivot: d.pivot.map((v) => round(v)),
+              seed: d.seed,
+              algorithmVersion: d.algorithmVersion,
+              points: d.points.map((p) => ({ id: p.id, base: p.base.map((v) => round(v)) })),
+              transform: d.transform,
+              groups: d.groups,
+            })),
+            dynamicFormationAlgorithmVersion: DYNAMIC_FORMATION_ALGORITHM_VERSION,
+          }
+        : {}),
       timeline: project.timeline.map((c) => ({ ...c, phase: c.phase ?? "SHOW" })),
       // Assignment + deconfliction provenance (Sprint 3).
       planning: {
