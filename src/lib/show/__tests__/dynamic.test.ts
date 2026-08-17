@@ -9,20 +9,21 @@ import {
   validateDynamicFormation,
   DYNAMIC_PRESETS,
 } from "../dynamic";
-import { buildFormation } from "../formations";
+import { generatePoints } from "../formations";
 import { createDefaultProject } from "../defaultProject";
 import { buildShowPlan } from "../trajectory/schedule";
 import { sampleTrajectorySet } from "../trajectory/sampler";
 import { validateTrajectorySet } from "../safety";
 
 function base(count = 24) {
-  return buildFormation({
+  const area = { width: 120, depth: 120, height: 100 };
+  return {
     id: "f1",
     name: "Grid",
-    kind: "grid",
-    count,
-    params: { width: 40, height: 20, altitude: 40, seed: 1 },
-  });
+    kind: "grid" as const,
+    points: generatePoints("grid", count, area, { altitude: 40 }),
+    params: { altitude: 40, seed: 1 },
+  };
 }
 
 describe("dynamic formation engine", () => {
@@ -98,7 +99,7 @@ describe("dynamic formation engine", () => {
     const plan = buildShowPlan(withDynamic);
     const set = sampleTrajectorySet(plan, { sampleRate: 10 });
     expect(set.droneCount).toBe(project.droneCount);
-    const report = validateTrajectorySet(set, withDynamic.limits, withDynamic.area);
+    const report = validateTrajectorySet(set, { limits: withDynamic.limits, area: withDynamic.area });
     expect(report.frames).toBeGreaterThan(0);
   });
 });
