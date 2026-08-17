@@ -152,6 +152,28 @@ import {
   type RotationFitMode,
 } from "../import/essp/conversion";
 import { useShowClock, type PlaybackSpeed } from "./clock";
+import { resolveShortcut } from "./shortcuts";
+import { createBrowserKeyValueStore, type KeyValueStore } from "../library/repository";
+import {
+  AUTOSAVE_DEBOUNCE_MS,
+  clearAutosave,
+  ensureProjectExtension,
+  parseProjectFile,
+  projectFileToJson,
+  readAutosave,
+  serializeProject,
+  suggestedProjectFileName,
+  toProjectFileError,
+  writeAutosave,
+  type ProjectAutosaveSnapshot,
+} from "../project";
+import {
+  buildProposalContent,
+  mockChoreographyProvider,
+  validateProposal,
+  type AIChoreographyProposalV1,
+  type ChoreographyAIProvider,
+} from "../ai";
 
 
 /** Draft state of an SVG import, before it is committed as a Formation. */
