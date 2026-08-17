@@ -104,7 +104,33 @@ import {
   type ReferenceForensicsThresholds,
   type ReferenceSceneSegment,
 } from "../import/essp/forensics";
+import {
+  applyPreset,
+  addMotionGroup,
+  dynamicFromFormation,
+  mirrorGroupsX,
+  neutralGroupKeyframe,
+  neutralTransformKeyframe,
+  patchMotionGroup,
+  pointId as dynamicPointId,
+  rebasePoints,
+  removeGroupKeyframe,
+  removeMotionGroup,
+  removeTransformKeyframe,
+  sampleDynamicFormation,
+  splitLeftRight,
+  upsertGroupKeyframe,
+  upsertTransformKeyframe,
+  validateDynamicFormation,
+  type DynamicFormation,
+  type DynamicFormationReport,
+  type DynamicPresetId,
+  type GroupDeformationKeyframe,
+  type MotionGroup,
+  type TransformKeyframe,
+} from "../show/dynamic";
 import { useShowClock, type PlaybackSpeed } from "./clock";
+
 
 /** Draft state of an SVG import, before it is committed as a Formation. */
 export interface SvgDraft {
