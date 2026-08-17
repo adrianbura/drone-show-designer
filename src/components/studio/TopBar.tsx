@@ -1,15 +1,41 @@
-import { Activity, Radio, Settings2, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { Activity, FolderOpen, Keyboard, Radio, Save, Settings2, Sparkles } from "lucide-react";
+import { useRef, useState } from "react";
 
 import { useI18n } from "@/i18n";
 import { LANGUAGES, type Language } from "@/i18n/translate";
+import { SHORTCUT_HELP } from "@/lib/studio/shortcuts";
 import { useStudio } from "@/lib/studio/store";
 import SetupWizard from "./SetupWizard";
 
+function shortTime(iso: string | null): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleTimeString();
+}
+
 export default function TopBar() {
-  const { project, safety, duration, fullShowReport, fullShowStale, fullShowBusy } = useStudio();
+  const {
+    project,
+    safety,
+    duration,
+    fullShowReport,
+    fullShowStale,
+    fullShowBusy,
+    projectDirty,
+    projectSavedAt,
+    projectAutosavedAt,
+    projectFileError,
+    clearProjectFileError,
+    saveProjectFile,
+    openProjectFile,
+    autosaveRecovery,
+    restoreAutosave,
+    dismissAutosave,
+  } = useStudio();
   const { t, language, setLanguage } = useI18n();
   const [wizard, setWizard] = useState<"CREATE" | "EDIT" | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const fileInput = useRef<HTMLInputElement | null>(null);
   const status =
     safety.status === "ok" ? "nominal" : safety.status === "warning" ? "review" : "unsafe";
   const statusLabel = t(
