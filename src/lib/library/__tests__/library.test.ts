@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { createDefaultProject } from "@/lib/show/defaultProject";
-import { createDynamicFromFormation, applyDynamicPreset } from "@/lib/show/dynamic";
+import { applyPreset, dynamicFromFormation } from "@/lib/show/dynamic";
 import { sampleDynamicFormation } from "@/lib/show/dynamic/sampler";
 import {
   assetFleetCompatibility,
@@ -27,8 +27,8 @@ const project = createDefaultProject(48);
 const staticFormation = project.formations[1]!;
 
 function dynamic() {
-  const base = createDynamicFromFormation(staticFormation, { id: "dyn-1", seed: 7 });
-  return applyDynamicPreset(base, "WAVE");
+  const base = dynamicFromFormation(staticFormation, { id: "dyn-1", seed: 7 });
+  return applyPreset(base, "WAVE");
 }
 
 describe("formation asset library — serialization", () => {
@@ -47,7 +47,7 @@ describe("formation asset library — serialization", () => {
     const source = dynamic();
     const asset = assetFromDynamicFormation(source, { name: "Wave" });
     const restored = dynamicFormationFromAsset(asset, "dyn-copy");
-    expect(restored.points.map((p) => p.id)).toEqual(source.points.map((p) => p.id));
+    expect(restored.points.map((p: { id: string }) => p.id)).toEqual(source.points.map((p: { id: string }) => p.id));
     expect(restored.groups).toEqual(source.groups);
     expect(restored.transform).toEqual(source.transform);
     expect(restored.pivot).toEqual(source.pivot);

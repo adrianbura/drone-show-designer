@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { createDefaultProject } from "@/lib/show/defaultProject";
 import { toGenericShowJson } from "@/lib/adapters/export";
-import { buildShowPlan } from "@/lib/show/trajectory";
+import { buildShowPlan, sampleTrajectorySet } from "@/lib/show/trajectory";
+import { validateShow } from "@/lib/show/safety";
 import { en } from "../en";
 import { ro } from "../ro";
 import {
@@ -58,12 +59,14 @@ describe("localization", () => {
   it("machine-readable data is language-neutral", () => {
     const project = createDefaultProject(12);
     const plan = buildShowPlan(project);
-    const json = toGenericShowJson(project, plan);
+    const set = sampleTrajectorySet(plan, 25);
+    const safety = validateShow(project, set);
+    const json = toGenericShowJson({ project, plan, set, safety });
     // Translating the UI cannot change any exported payload: the export takes no
     // language input at all, and the diagnostic codes stay canonical.
-    expect(JSON.stringify(json)).toBe(JSON.stringify(toGenericShowJson(project, plan)));
+    expect(json).toBe(toGenericShowJson({ project, plan, set, safety }));
     expect(Object.keys(en)).toContain("diagnostic.LOOP_DISCONTINUITY");
-    expect(JSON.stringify(json)).not.toContain("Rânduri");
+    expect(json).not.toContain("Rânduri");
   });
 
   it("validates persisted language values", () => {

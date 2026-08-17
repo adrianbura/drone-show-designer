@@ -16,6 +16,8 @@ import {
 } from "../setup";
 import { computeAnalysisRevision } from "../fullshow";
 
+const REV = { sampleRate: 25, assignmentStrategy: "optimalDistance" } as const;
+
 function draft(patch: Partial<ProjectSetupDraft> = {}): ProjectSetupDraft {
   return { ...DEFAULT_SETUP_DRAFT, ...patch };
 }
@@ -162,7 +164,7 @@ describe("project setup — project creation", () => {
 
   it("changing launch geometry changes the analysis revision (stale reports)", () => {
     const project = createProjectFromSetup(draft({ name: "Stale", droneCount: 24 }));
-    const before = computeAnalysisRevision(project, 25);
+    const before = computeAnalysisRevision(project, REV);
     const changed = {
       ...project,
       preShow: preShowConfigFromSetup(
@@ -170,6 +172,6 @@ describe("project setup — project creation", () => {
         project.preShow,
       ),
     };
-    expect(computeAnalysisRevision(changed, 25)).not.toBe(before);
+    expect(computeAnalysisRevision(changed, REV)).not.toBe(before);
   });
 });
