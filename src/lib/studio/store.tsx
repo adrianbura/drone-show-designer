@@ -288,7 +288,19 @@ interface StudioContextValue {
   exportForensicsReport: () => void;
 }
 
-const StudioContext = createContext<StudioContextValue | null>(null);
+/**
+ * Single context instance per browser realm. During dev hot-reloads a second
+ * copy of this module can briefly coexist with the first; keying the context on
+ * globalThis keeps provider and consumers on the same instance instead of
+ * throwing "useStudio must be used inside <StudioProvider>".
+ */
+const CONTEXT_KEY = "__droneShowStudioContext__";
+const globalScope = globalThis as typeof globalThis & {
+  [CONTEXT_KEY]?: React.Context<StudioContextValue | null>;
+};
+const StudioContext: React.Context<StudioContextValue | null> =
+  globalScope[CONTEXT_KEY] ?? createContext<StudioContextValue | null>(null);
+globalScope[CONTEXT_KEY] = StudioContext;
 
 /** Maps a loose param record (UI inputs) onto typed SVG generation params. */
 function svgPatchFromRecord(record: Record<string, number | string>): Partial<SvgFormationParams> {
