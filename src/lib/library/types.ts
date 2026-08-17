@@ -39,7 +39,7 @@ export interface AssetThumbnail {
 export interface FormationAssetMetadata {
   /** Point count of the stored geometry — the asset's native fleet size. */
   readonly droneCount: number;
-  readonly formationKind?: string;
+  readonly formationKind?: string | undefined;
   readonly motionGroupCount?: number;
   readonly keyframeCount?: number;
   readonly duration?: number;
@@ -53,7 +53,7 @@ export interface FormationAsset {
   readonly version: number;
   readonly schemaVersion: number;
   readonly name: string;
-  readonly description?: string;
+  readonly description?: string | undefined;
   readonly assetType: FormationAssetType;
   readonly tags: readonly string[];
   readonly favorite: boolean;
@@ -62,7 +62,7 @@ export interface FormationAsset {
   readonly updatedAt: string;
   readonly source: FormationAssetSource;
   readonly droneCount: number;
-  readonly thumbnail?: AssetThumbnail;
+  readonly thumbnail?: AssetThumbnail | undefined;
   /** Exact engine payload. Dynamic assets keep the FULL animation model. */
   readonly formationData:
     | { readonly kind: "STATIC"; readonly formation: Formation }
@@ -111,7 +111,7 @@ export type FleetCompatibility = "EXACT" | "MISMATCH";
 
 export interface AssetSaveInput {
   readonly name: string;
-  readonly description?: string;
+  readonly description?: string | undefined;
   readonly tags?: readonly string[];
   readonly favorite?: boolean;
   readonly source?: FormationAssetSource;
