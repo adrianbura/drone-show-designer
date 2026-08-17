@@ -1,3 +1,4 @@
+import { DYNAMIC_FORMATION_ALGORITHM_VERSION } from "./dynamic/types";
 import { makeFormation } from "./formations";
 import type { PhaseAltitudes, SafetyLimits, ShowArea, ShowProject } from "./types";
 import {
@@ -54,8 +55,10 @@ export function createDefaultProject(droneCount = 48): ShowProject {
       schemaVersion: SCHEMA_VERSION,
       trajectoryAlgorithmVersion: TRAJECTORY_ALGORITHM_VERSION,
       formationAlgorithmVersion: FORMATION_ALGORITHM_VERSION,
+      dynamicFormationAlgorithmVersion: DYNAMIC_FORMATION_ALGORITHM_VERSION,
     },
     formations,
+    dynamicFormations: [],
     timeline: [
       {
         id: "c-1",
@@ -166,7 +169,9 @@ export function migrateProject(input: unknown): ShowProject {
       schemaVersion: SCHEMA_VERSION,
       trajectoryAlgorithmVersion: TRAJECTORY_ALGORITHM_VERSION,
       formationAlgorithmVersion: FORMATION_ALGORITHM_VERSION,
+      dynamicFormationAlgorithmVersion: DYNAMIC_FORMATION_ALGORITHM_VERSION,
     },
+    dynamicFormations: Array.isArray(raw.dynamicFormations) ? raw.dynamicFormations : [],
     timeline:
       timeline.length > 0
         ? timeline.map((clip, i) => ({
