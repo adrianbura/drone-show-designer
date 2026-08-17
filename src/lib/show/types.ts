@@ -188,6 +188,25 @@ export function showDuration(project: ShowProject): number {
   return project.timeline.reduce((end, c) => Math.max(end, c.start + c.transition + c.hold), 0);
 }
 
+/**
+ * Resolves the dynamic formation a clip animates, or undefined for an ordinary
+ * static clip. A clip referencing a missing dynamic formation degrades to a
+ * static hold instead of failing the plan.
+ */
+export function resolveDynamicFormation(
+  project: ShowProject,
+  clip: TimelineClip,
+): DynamicFormation | undefined {
+  if (!clip.dynamicFormationId) return undefined;
+  return project.dynamicFormations?.find((d) => d.id === clip.dynamicFormationId);
+}
+
+export function isDynamicClip(project: ShowProject, clip: TimelineClip): boolean {
+  return !!resolveDynamicFormation(project, clip);
+}
+
+
+
 export function clipPhase(clip: TimelineClip): ShowPhase {
   return clip.phase ?? "SHOW";
 }
