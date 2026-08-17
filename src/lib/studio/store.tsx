@@ -999,7 +999,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setProject((p) => {
         const dynamic = (p.dynamicFormations ?? []).find((d) => d.id === dynamicFormationId);
         if (!dynamic) return p;
-        const end = p.timeline.reduce((m, c) => Math.max(m, c.start + c.transition + c.hold), 0);
+        const landing = p.timeline.filter((c) => c.phase === "LANDING");
+        const body = p.timeline.filter((c) => c.phase !== "LANDING");
+        const end = body.reduce((m, c) => Math.max(m, c.start + c.transition + c.hold), 0);
         const sourceId =
           dynamic.sourceFormationId && p.formations.some((f) => f.id === dynamic.sourceFormationId)
             ? dynamic.sourceFormationId
@@ -1019,8 +1021,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           playbackRate: 1,
           dynamicStartOffset: 0,
         };
-        return { ...p, timeline: [...p.timeline, clip] };
+        const shift = clip.transition + clip.hold;
+        return {
+          ...p,
+          timeline: [...body, clip, ...landing.map((c) => ({ ...c, start: c.start + shift }))],
+        };
       });
+
       setSelectedClipId(id);
       setExplicitDynamicId(dynamicFormationId);
     },
