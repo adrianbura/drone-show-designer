@@ -129,6 +129,22 @@ import {
   type MotionGroup,
   type TransformKeyframe,
 } from "../show/dynamic";
+import {
+  comparisonFrameAt,
+  convertReferenceSegmentToDynamicFormation,
+  dynamicFormationSignature,
+  evaluateDynamicFormationFidelity,
+  fidelitySourceFromProposal,
+  segmentEligibility,
+  CONVERSION_TOLERANCE_PRESETS,
+  REFERENCE_DYNAMIC_CONVERTER_VERSION,
+  type ComparisonFrame,
+  type ComparisonMode,
+  type ConversionMode,
+  type DynamicFormationConversionProposal,
+  type DynamicFormationFidelityReport,
+  type RotationFitMode,
+} from "../import/essp/conversion";
 import { useShowClock, type PlaybackSpeed } from "./clock";
 
 
@@ -312,6 +328,48 @@ interface StudioContextValue {
   /** Renames a segment (metadata only — classification is unchanged). */
   labelForensicSegment: (id: string, label: string) => void;
   exportForensicsReport: () => void;
+
+  // ---- Reference segment -> dynamic conversion (Sprint 6B.5) -------------
+  /**
+   * Controlled conversion of a forensic segment into a NEW editable
+   * DynamicFormation. The reference show is only read, never modified.
+   */
+  conversionMode: ConversionMode;
+  setConversionMode: (mode: ConversionMode) => void;
+  conversionTolerance: number;
+  setConversionTolerance: (metres: number) => void;
+  conversionRotationFit: RotationFitMode;
+  setConversionRotationFit: (fit: RotationFitMode) => void;
+  conversionSuggestGroups: boolean;
+  setConversionSuggestGroups: (v: boolean) => void;
+  conversionBusy: boolean;
+  conversionError: string | null;
+  /** Not-yet-applied proposal with its measured fidelity report. */
+  conversionProposal: DynamicFormationConversionProposal | null;
+  /** True when the selected forensic segment can be offered for conversion. */
+  canConvertSelectedSegment: boolean;
+  analyzeSegmentConversion: () => void;
+  discardConversionProposal: () => void;
+  /** Applies the proposal as an independent editable asset (undoable). */
+  applyConversionProposal: (options?: { addToTimeline?: boolean }) => DynamicFormation | null;
+  comparisonMode: ComparisonMode;
+  setComparisonMode: (mode: ComparisonMode) => void;
+  /** Diagnostic exaggeration factor for drawn error vectors. */
+  errorVectorScale: number;
+  setErrorVectorScale: (scale: number) => void;
+  /** Original vs reconstructed cloud at the current playhead (diagnostic only). */
+  conversionComparisonFrame: ComparisonFrame | null;
+  /** Seeks to the worst reconstruction frame and highlights the worst drone. */
+  seekToConversionWorstFrame: () => void;
+  /** Fidelity report of the APPLIED conversion, and whether it is stale. */
+  appliedConversionFidelity: DynamicFormationFidelityReport | null;
+  appliedConversionFormationId: string | null;
+  conversionFidelityStale: boolean;
+  /** True while the source reference show still matches the conversion hash. */
+  conversionSourceAvailable: boolean;
+  recompareConversionToSource: () => void;
+  conversionTolerancePresets: typeof CONVERSION_TOLERANCE_PRESETS;
+  conversionAlgorithmVersion: string;
 
   // ---- Dynamic formations (Sprint 6B) ------------------------------------
   /** Living formations owned by the project. */
@@ -946,7 +1004,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       : undefined;
     return Array.from({ length: project.droneCount }, (_, i) => {
       const target = clipAssignment?.assignments[i]?.targetPointIndex ?? i;
-      return dynamicPointId(target % formation.points.length);
+      return formation.points[target % formation.points.length]?.id ?? dynamicPointId(target % formation.points.length);
     });
   }, [dynamicClipForFormation, plan.assignments, project.droneCount, selectedDynamicFormation]);
 
