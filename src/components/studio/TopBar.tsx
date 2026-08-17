@@ -47,7 +47,7 @@ export default function TopBar() {
   );
 
   return (
-    <header className="flex items-center gap-4 border-b border-border bg-panel px-4 py-2.5">
+    <header className="relative flex items-center gap-4 border-b border-border bg-panel px-4 py-2.5">
       <div className="flex items-baseline gap-2">
         <span className="font-display text-sm font-semibold tracking-[0.22em] text-foreground">
           DRONE SHOW
