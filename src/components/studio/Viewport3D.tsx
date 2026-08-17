@@ -246,6 +246,10 @@ export default function Viewport3D() {
         groupIdByDrone={preShowOverlay?.groupIdByDrone ?? []}
         groupRgbByDrone={groupRgbByDrone}
         selectedGroupId={selectedLaunchGroupId}
+        dynamicSelected={selectedDroneIndices}
+        dynamicGroupRgbByDrone={dynamicGroupRgbByDrone}
+        onSelectDrone={handleSelectDrone}
+
       />
       )}
       {!reference && preShowOverlay && plan.preShow && (showLaunchPads || showStaging) ? (
