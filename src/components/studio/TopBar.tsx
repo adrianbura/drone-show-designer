@@ -162,6 +162,48 @@ export default function TopBar() {
         ) : null}
       </div>
 
+      {helpOpen && (
+        <div className="absolute right-4 top-12 z-50 w-64 space-y-1 rounded border border-border bg-panel p-3 shadow-lg">
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            {t("shortcuts.title")}
+          </p>
+          {SHORTCUT_HELP.map((row) => (
+            <div key={row.keys} className="flex justify-between gap-2 text-[11px]">
+              <span className="text-muted-foreground">{t(row.labelKey)}</span>
+              <span className="font-mono text-foreground">{row.keys}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {projectFileError && (
+        <div className="absolute left-1/2 top-12 z-50 w-80 -translate-x-1/2 space-y-2 rounded border border-destructive bg-panel p-3 shadow-lg">
+          <p className="text-[11px] text-destructive">
+            {projectFileError.code}: {projectFileError.message}
+          </p>
+          <button type="button" className="chip-btn" onClick={clearProjectFileError}>
+            {t("common.close")}
+          </button>
+        </div>
+      )}
+
+      {autosaveRecovery && (
+        <div className="absolute left-1/2 top-12 z-50 w-80 -translate-x-1/2 space-y-2 rounded border border-border bg-panel p-3 shadow-lg">
+          <p className="text-xs font-semibold text-foreground">{t("project.recoveryTitle")}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {t("project.recoveryBody", { time: shortTime(autosaveRecovery.savedAt) })}
+          </p>
+          <div className="flex gap-1.5">
+            <button type="button" className="chip-btn" onClick={restoreAutosave}>
+              {t("project.restore")}
+            </button>
+            <button type="button" className="chip-btn" onClick={dismissAutosave}>
+              {t("project.discard")}
+            </button>
+          </div>
+        </div>
+      )}
+
       <SetupWizard
         open={wizard !== null}
         mode={wizard ?? "CREATE"}
