@@ -177,7 +177,22 @@ export default function Viewport3D() {
     showReferencePaths,
     forensicActiveDroneIds,
     selectedReferenceDroneId,
+    selectedDroneIndices,
+    dynamicGroupRgbByDrone,
+    pointIdForDrone,
+    togglePointSelection,
+    setSelectedPointIds,
   } = useStudio();
+  const handleSelectDrone = useCallback(
+    (index: number, additive: boolean) => {
+      const id = pointIdForDrone(index);
+      if (!id) return;
+      if (additive) togglePointSelection(id);
+      else setSelectedPointIds([id]);
+    },
+    [pointIdForDrone, setSelectedPointIds, togglePointSelection],
+  );
+
   // Reference playback replaces the designed swarm — the two are never mixed.
   const reference = referencePlayback && referenceShow ? referenceShow : null;
   const overlayAnalysis =
