@@ -219,27 +219,36 @@ function decomposeAbout(
     const quat = continuousQuat(quatFromMatrix(rotation), previousQuat);
     previousQuat = quat;
 
+    // Robust mode anchors the frame on the INLIER centroids so a locally moving
+    // subset (a flapping wing) cannot drag the global translation or rotation.
+    // KABSCH mode uses the plain fleet centroid (fc = tc = 0).
+    const fc: [number, number, number] =
+      "fromCentroid" in fit ? (fit.fromCentroid as [number, number, number]) : [0, 0, 0];
+    const tc: [number, number, number] =
+      "toCentroid" in fit ? (fit.toCentroid as [number, number, number]) : [0, 0, 0];
+    const rfc = applyRowMajor(rotation, fc);
+
     // Rigid residual measured in the SAME frame as the reconstruction.
     let sq = 0;
     for (let i = 0; i < n; i++) {
       const rq = applyRowMajor(rotation, [
-        referenceLocal[i * 3]!,
-        referenceLocal[i * 3 + 1]!,
-        referenceLocal[i * 3 + 2]!,
+        referenceLocal[i * 3]! - fc[0],
+        referenceLocal[i * 3 + 1]! - fc[1],
+        referenceLocal[i * 3 + 2]! - fc[2],
       ]);
-      const dx = current[i * 3]! - rq[0];
-      const dy = current[i * 3 + 1]! - rq[1];
-      const dz = current[i * 3 + 2]! - rq[2];
+      const dx = current[i * 3]! - tc[0] - rq[0];
+      const dy = current[i * 3 + 1]! - tc[1] - rq[1];
+      const dz = current[i * 3 + 2]! - tc[2] - rq[2];
       sq += dx * dx + dy * dy + dz * dz;
-      // D_i(t) = R^T (P_i - C(t)) - Q_i  (LOCAL space)
+      // D_i(t) = R^T (P_i - pivot - T(t)) - Q_i   (LOCAL space)
       const local = applyRowMajorTranspose(rotation, [
-        current[i * 3]!,
-        current[i * 3 + 1]!,
-        current[i * 3 + 2]!,
+        current[i * 3]! - tc[0],
+        current[i * 3 + 1]! - tc[1],
+        current[i * 3 + 2]! - tc[2],
       ]);
-      const ox = local[0] - referenceLocal[i * 3]!;
-      const oy = local[1] - referenceLocal[i * 3 + 1]!;
-      const oz = local[2] - referenceLocal[i * 3 + 2]!;
+      const ox = local[0] + fc[0] - referenceLocal[i * 3]!;
+      const oy = local[1] + fc[1] - referenceLocal[i * 3 + 1]!;
+      const oz = local[2] + fc[2] - referenceLocal[i * 3 + 2]!;
       const off = k * n * 3 + i * 3;
       deformation[off] = ox;
       deformation[off + 1] = oy;
@@ -250,7 +259,11 @@ function decomposeAbout(
 
     transform.push({
       t: localTimes[k]!,
-      translation: [centroid[0] - pivot[0], centroid[1] - pivot[1], centroid[2] - pivot[2]],
+      translation: [
+        centroid[0] - pivot[0] + tc[0] - rfc[0],
+        centroid[1] - pivot[1] + tc[1] - rfc[1],
+        centroid[2] - pivot[2] + tc[2] - rfc[2],
+      ],
       quaternion: quat,
       rotationEulerDeg: eulerDegFromQuat(quat),
       rigidRmsMeters: rigidResidualRms[k]!,
