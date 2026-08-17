@@ -303,15 +303,23 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
         planned,
       });
       if (clip.hold > 0) {
+        const pointIndex = clipAssignments[i]?.targetPointIndex ?? i;
         segs.push({
           start: clip.start + transition,
           end: clip.start + transition + clip.hold,
           clipId: clip.id,
           phase,
           kind: "hold",
-          planned: planHold(to, clip.hold),
+          planned:
+            dynamicEvaluator && dynamicFormation
+              ? planDynamicPoint(dynamicEvaluator, pointIndex % dynamicFormation.points.length, clip.hold, {
+                  faceDirectionOfTravel: phase === "SHOW",
+                })
+              : planHold(to, clip.hold),
+          ...(dynamicFormation ? { dynamicFormationId: dynamicFormation.id } : {}),
         });
       }
+
     }
     current = target;
   }
