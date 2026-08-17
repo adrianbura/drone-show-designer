@@ -173,7 +173,7 @@ function numberBefore(t: string, unitPattern: string): number | undefined {
 function metresNear(t: string, keywords: readonly string[]): number | undefined {
   for (const key of keywords) {
     const near = new RegExp(
-      `(?:${key})[^.;]{0,24}?(\\d+(?:[.,]\\d+)?)\\s*(?:m\\b|metri|metrii|metre|metres|meters)|(\\d+(?:[.,]\\d+)?)\\s*(?:m\\b|metri|metrii|metre|metres|meters)[^.;]{0,24}?(?:${key})`,
+      `(?:${key})[^.;]{0,24}?(\\d+(?:[.,]\\d+)?)\\s*(?:de\\s+)?(?:m\\b|metri|metrii|metre|metres|meters)|(\\d+(?:[.,]\\d+)?)\\s*(?:de\\s+)?(?:m\\b|metri|metrii|metre|metres|meters)[^.;]{0,24}?(?:${key})`,
     ).exec(t);
     if (near) {
       const raw = near[1] ?? near[2];
