@@ -1,11 +1,24 @@
-import { Activity, Radio } from "lucide-react";
+import { Activity, Radio, Settings2, Sparkles } from "lucide-react";
+import { useState } from "react";
 
+import { useI18n } from "@/i18n";
+import { LANGUAGES, type Language } from "@/i18n/translate";
 import { useStudio } from "@/lib/studio/store";
+import SetupWizard from "./SetupWizard";
 
 export default function TopBar() {
   const { project, safety, duration, fullShowReport, fullShowStale, fullShowBusy } = useStudio();
+  const { t, language, setLanguage } = useI18n();
+  const [wizard, setWizard] = useState<"CREATE" | "EDIT" | null>(null);
   const status =
     safety.status === "ok" ? "nominal" : safety.status === "warning" ? "review" : "unsafe";
+  const statusLabel = t(
+    status === "nominal"
+      ? "topBar.statusNominal"
+      : status === "review"
+        ? "topBar.statusReview"
+        : "topBar.statusUnsafe",
+  );
 
   return (
     <header className="flex items-center gap-4 border-b border-border bg-panel px-4 py-2.5">
@@ -16,19 +29,51 @@ export default function TopBar() {
         <span className="font-display text-sm tracking-[0.22em] text-accent">STUDIO</span>
       </div>
       <span className="hidden font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:inline">
-        internal build · virtual fleet
+        {t("topBar.build")}
       </span>
+
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => setWizard("CREATE")}
+          className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
+        >
+          <Sparkles className="size-3" /> {t("topBar.newShow")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setWizard("EDIT")}
+          className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
+        >
+          <Settings2 className="size-3" /> {t("topBar.showSetup")}
+        </button>
+      </div>
+
       <div className="ml-auto flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em]">
         <span className="hidden text-muted-foreground md:inline">{project.name}</span>
+        <div className="flex overflow-hidden rounded border border-border" role="group" aria-label={t("common.language")}>
+          {LANGUAGES.map((lng: Language) => (
+            <button
+              key={lng}
+              type="button"
+              onClick={() => setLanguage(lng)}
+              className={`px-1.5 py-0.5 uppercase transition-colors ${
+                language === lng ? "bg-accent/15 text-accent" : "text-muted-foreground"
+              }`}
+            >
+              {lng}
+            </button>
+          ))}
+        </div>
         <span className="metric-pill">
-          <Radio className="size-3" /> {project.droneCount} drones
+          <Radio className="size-3" /> {t("topBar.drones", { count: project.droneCount })}
         </span>
         <span className="metric-pill">{duration.toFixed(0)}s</span>
         <span className={`metric-pill status-${status}`}>
-          <Activity className="size-3" /> {status}
+          <Activity className="size-3" /> {statusLabel}
         </span>
         {fullShowBusy ? (
-          <span className="metric-pill">validating…</span>
+          <span className="metric-pill">{t("topBar.validating")}</span>
         ) : fullShowReport ? (
           <span
             className={`metric-pill status-${
@@ -40,11 +85,17 @@ export default function TopBar() {
             }`}
             title={fullShowReport.statement}
           >
-            full show {fullShowReport.status === "FAIL" ? "fail" : "pass"}
-            {fullShowStale ? " · stale" : ""}
+            {t(fullShowReport.status === "FAIL" ? "topBar.fullShowFail" : "topBar.fullShowPass")}
+            {fullShowStale ? ` · ${t("topBar.stale")}` : ""}
           </span>
         ) : null}
       </div>
+
+      <SetupWizard
+        open={wizard !== null}
+        mode={wizard ?? "CREATE"}
+        onOpenChange={(open) => setWizard(open ? wizard : null)}
+      />
     </header>
   );
 }

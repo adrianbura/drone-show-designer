@@ -4,6 +4,7 @@ import { useState } from "react";
 import { probeAudioFile } from "@/lib/show/audio";
 import type { FormationKind } from "@/lib/show/types";
 import { useStudio } from "@/lib/studio/store";
+import LibraryPanel from "./LibraryPanel";
 import SvgImportPanel from "./SvgImportPanel";
 
 const KINDS: { kind: FormationKind; label: string }[] = [
@@ -230,6 +231,10 @@ export default function LeftPanel() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="panel-card">
+        <LibraryPanel />
       </section>
 
       <section className="panel-card">

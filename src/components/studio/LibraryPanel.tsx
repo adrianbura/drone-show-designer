@@ -1,0 +1,289 @@
+/**
+ * FORMATION LIBRARY PANEL — browse, save and reuse formation assets.
+ *
+ * Inserting an asset always creates a project-owned copy with a fresh id, and a
+ * fleet-size mismatch BLOCKS insertion: no silent resampling, no dropped drones.
+ */
+import { Download, Heart, Search, Star, Trash2, Upload } from "lucide-react";
+import { useRef, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useI18n } from "@/i18n";
+import { useLibrary } from "@/lib/library/provider";
+import {
+  assetFleetCompatibility,
+  dynamicFormationFromAsset,
+  formationFromAsset,
+  normalizeTagInput,
+  ASSET_FILE_EXTENSION,
+  type FormationAsset,
+  type LibraryView,
+} from "@/lib/library";
+import { useStudio } from "@/lib/studio/store";
+
+const VIEWS: LibraryView[] = ["ALL", "STATIC", "DYNAMIC", "FAVORITES", "RECENT"];
+
+function Thumbnail({ asset }: { asset: FormationAsset }) {
+  const points = asset.thumbnail?.points ?? [];
+  return (
+    <svg viewBox="0 0 1 1" className="size-12 shrink-0 rounded border border-border bg-surface-sunken">
+      {points.map((p, i) => (
+        <circle key={i} cx={p[0]} cy={1 - p[1]} r={0.016} className="fill-accent/80" />
+      ))}
+    </svg>
+  );
+}
+
+export default function LibraryPanel() {
+  const { t } = useI18n();
+  const library = useLibrary();
+  const {
+    project,
+    selectedClipId,
+    selectedDynamicFormation,
+    addLibraryFormation,
+    addLibraryDynamicFormation,
+    addClip,
+    addDynamicClip,
+  } = useStudio();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [saveName, setSaveName] = useState("");
+  const [saveTags, setSaveTags] = useState("");
+
+  const selectedClip = project.timeline.find((c) => c.id === selectedClipId) ?? null;
+  const selectedFormation = project.formations.find((f) => f.id === selectedClip?.formationId);
+
+  const use = (asset: FormationAsset) => {
+    if (assetFleetCompatibility(asset, project.droneCount) !== "EXACT") return;
+    if (asset.formationData.kind === "DYNAMIC") {
+      const created = addLibraryDynamicFormation(
+        dynamicFormationFromAsset(asset, "pending"),
+      );
+      addDynamicClip(created.id);
+    } else {
+      const created = addLibraryFormation(formationFromAsset(asset, "pending"));
+      addClip(created.id);
+    }
+  };
+
+  const download = (asset: FormationAsset) => {
+    const blob = new Blob([library.exportAssetFile(asset)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${asset.name.replace(/[^\w-]+/g, "_")}${ASSET_FILE_EXTENSION}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <section className="space-y-3">
+      <header className="flex items-center justify-between">
+        <h2 className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          {t("formationLibrary.title")}
+        </h2>
+        <div className="flex gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-6 px-1.5"
+            title={t("formationLibrary.importAsset")}
+            onClick={() => fileRef.current?.click()}
+          >
+            <Upload className="size-3" />
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) await library.importAssetFile(file);
+            }}
+          />
+        </div>
+      </header>
+
+      {/* Save the current selection as a reusable asset. */}
+      <div className="space-y-1.5 rounded-md border border-border p-2">
+        <Input
+          className="h-7 text-xs"
+          placeholder={t("common.name")}
+          value={saveName}
+          onChange={(e) => setSaveName(e.target.value)}
+        />
+        <Input
+          className="h-7 text-xs"
+          placeholder={t("formationLibrary.tagsPlaceholder")}
+          value={saveTags}
+          onChange={(e) => setSaveTags(e.target.value)}
+        />
+        <div className="flex gap-1.5">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 flex-1 font-mono text-[9px] uppercase tracking-[0.14em]"
+            disabled={!selectedFormation}
+            title={t("formationLibrary.saveStatic")}
+            onClick={async () => {
+              if (!selectedFormation) return;
+              await library.saveFormation(selectedFormation, {
+                name: saveName || selectedFormation.name,
+                tags: normalizeTagInput(saveTags),
+              });
+              setSaveName("");
+              setSaveTags("");
+            }}
+          >
+            {t("formationLibrary.static")}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 flex-1 font-mono text-[9px] uppercase tracking-[0.14em]"
+            disabled={!selectedDynamicFormation}
+            title={t("formationLibrary.saveDynamic")}
+            onClick={async () => {
+              if (!selectedDynamicFormation) return;
+              await library.saveDynamicFormation(selectedDynamicFormation, {
+                name: saveName || selectedDynamicFormation.name,
+                tags: normalizeTagInput(saveTags),
+              });
+              setSaveName("");
+              setSaveTags("");
+            }}
+          >
+            {t("formationLibrary.dynamic")}
+          </Button>
+        </div>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="h-7 pl-7 text-xs"
+          placeholder={t("formationLibrary.searchPlaceholder")}
+          value={library.query.search}
+          onChange={(e) => library.setQuery({ search: e.target.value })}
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-1">
+        {VIEWS.map((view) => (
+          <button
+            key={view}
+            type="button"
+            onClick={() => library.setQuery({ view })}
+            className={`rounded border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.14em] transition-colors ${
+              library.query.view === view
+                ? "border-accent bg-accent/10 text-accent"
+                : "border-border text-muted-foreground"
+            }`}
+          >
+            {t(`formationLibrary.view.${view}` as "formationLibrary.view.ALL")}
+          </button>
+        ))}
+      </div>
+
+      {library.error ? (
+        <p className="font-mono text-[10px] text-destructive">
+          {t("formationLibrary.importFailed", { code: library.error.code })}
+        </p>
+      ) : null}
+
+      {library.visible.length === 0 ? (
+        <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+          {library.assets.length === 0
+            ? t("formationLibrary.empty")
+            : t("formationLibrary.noResults")}
+        </p>
+      ) : (
+        <ul className="space-y-1.5">
+          {library.visible.map((asset) => {
+            const exact = assetFleetCompatibility(asset, project.droneCount) === "EXACT";
+            return (
+              <li key={asset.id} className="rounded-md border border-border p-2">
+                <div className="flex gap-2">
+                  <Thumbnail asset={asset} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-xs text-foreground">{asset.name}</div>
+                    <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                      {asset.assetType === "DYNAMIC_FORMATION"
+                        ? t("formationLibrary.dynamic")
+                        : t("formationLibrary.static")}{" "}
+                      · {t("formationLibrary.points", { count: asset.droneCount })}
+                    </div>
+                    {asset.tags.length > 0 ? (
+                      <div className="truncate font-mono text-[9px] text-muted-foreground/80">
+                        {asset.tags.join(" · ")}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      title={asset.favorite ? t("formationLibrary.unfavorite") : t("formationLibrary.favorite")}
+                      onClick={() => void library.setFavorite(asset.id, !asset.favorite)}
+                      className={asset.favorite ? "text-accent" : "text-muted-foreground"}
+                    >
+                      {asset.favorite ? <Star className="size-3" /> : <Heart className="size-3" />}
+                    </button>
+                    <button
+                      type="button"
+                      title={t("formationLibrary.exportAsset")}
+                      onClick={() => download(asset)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Download className="size-3" />
+                    </button>
+                    <button
+                      type="button"
+                      title={t("common.delete")}
+                      onClick={() => {
+                        if (window.confirm(t("formationLibrary.deleteConfirm"))) {
+                          void library.remove(asset.id);
+                        }
+                      }}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-6 flex-1 font-mono text-[9px] uppercase tracking-[0.14em]"
+                    disabled={!exact}
+                    onClick={() => use(asset)}
+                  >
+                    {t("formationLibrary.useInShow")}
+                  </Button>
+                </div>
+                <p
+                  className={`mt-1 font-mono text-[9px] leading-relaxed ${
+                    exact ? "text-muted-foreground" : "text-warning"
+                  }`}
+                >
+                  {exact
+                    ? t("formationLibrary.exact")
+                    : `${t("formationLibrary.mismatch", {
+                        assetCount: asset.droneCount,
+                        projectCount: project.droneCount,
+                      })} ${t("formationLibrary.mismatchBlocked")}`}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}

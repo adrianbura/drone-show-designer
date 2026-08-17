@@ -6,6 +6,8 @@ import Inspector from "@/components/studio/Inspector";
 import LeftPanel from "@/components/studio/LeftPanel";
 import Timeline from "@/components/studio/Timeline";
 import TopBar from "@/components/studio/TopBar";
+import { I18nProvider } from "@/i18n";
+import { LibraryProvider } from "@/lib/library/provider";
 import { StudioProvider } from "@/lib/studio/store";
 
 // three.js touches browser APIs at import time — keep it out of the SSR graph.
@@ -39,6 +41,8 @@ function ViewportFallback() {
 
 function StudioPage() {
   return (
+    <I18nProvider>
+    <LibraryProvider>
     <StudioProvider>
       <main className="flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">
         <h1 className="sr-only">Drone Show Studio — drone light show design and simulation</h1>
@@ -70,5 +74,7 @@ function StudioPage() {
         </div>
       </main>
     </StudioProvider>
+    </LibraryProvider>
+    </I18nProvider>
   );
 }
