@@ -91,9 +91,9 @@ function Swarm({
       haloMesh.setMatrixAt(i, dummy.matrix);
 
       const c = lightColorAt(clip, i, project.droneCount, time);
-      const group = groupRgbByDrone.get(i);
-      const motionGroup = dynamicGroupRgbByDrone.get(i);
-      const dimmed = !!selectedGroupId && groupIdByDrone[i] !== selectedGroupId;
+      const group = groupRgbByDrone?.get(i);
+      const motionGroup = dynamicGroupRgbByDrone?.get(i);
+      const dimmed = !!selectedGroupId && groupIdByDrone?.[i] !== selectedGroupId;
       if (highlightSet.has(i)) color.setRGB(1, 0.25, 0.25);
       else if (selectedSet.has(i)) color.setRGB(1, 0.95, 0.55);
       else if (dimmed) color.setRGB(0.16, 0.21, 0.28);
