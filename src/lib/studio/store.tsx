@@ -198,10 +198,7 @@ interface StudioContextValue {
   /** Current project expressed as an editable wizard draft. */
   currentSetupDraft: ProjectSetupDraft;
   /** Inserts a library formation as a NEW project formation (fresh id). */
-  addLibraryFormation: (
-    formation: Formation,
-    options?: { addToTimeline?: boolean },
-  ) => Formation;
+  addLibraryFormation: (formation: Formation) => Formation;
   /** Inserts a library dynamic formation as a NEW dynamic formation (fresh id). */
   addLibraryDynamicFormation: (formation: DynamicFormation) => DynamicFormation;
   setDroneCount: (n: number) => void;
@@ -662,16 +659,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [project.droneCount, setDroneCount],
   );
 
-  const addLibraryFormation = useCallback(
-    (formation: Formation, options: { addToTimeline?: boolean } = {}) => {
-      const created: Formation = { ...formation, id: nextId("f") };
-      setProject((p) => ({ ...p, formations: [...p.formations, created] }));
-      if (options.addToTimeline) addClipRef.current?.(created.id);
-      return created;
-    },
-    [],
-  );
-
   const setLimits = useCallback((patch: Partial<SafetyLimits>) => {
     setProject((p) => ({ ...p, limits: { ...p.limits, ...patch } }));
   }, []);
@@ -885,6 +872,23 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       });
     },
     [],
+  );
+
+  const addLibraryFormation = useCallback((formation: Formation) => {
+    // A library asset is a template: the project always gets a fresh id so the
+    // stored asset and the project copy can diverge independently.
+    const created: Formation = { ...formation, id: nextId("f") };
+    setProject((p) => ({ ...p, formations: [...p.formations, created] }));
+    return created;
+  }, []);
+
+  const addLibraryDynamicFormation = useCallback(
+    (formation: DynamicFormation) => {
+      const created: DynamicFormation = { ...formation, id: nextId("dyn") };
+      commitDynamic((list) => [...list, created]);
+      return created;
+    },
+    [commitDynamic],
   );
 
   const editDynamic = useCallback(
