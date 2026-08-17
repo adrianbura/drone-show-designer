@@ -203,6 +203,8 @@ export default function LeftPanel() {
 
       <SvgImportPanel />
 
+      <AiPanel />
+
       <section className="panel-card flex-1">
         <h2 className="panel-title">
           <Layers className="size-3.5" /> Formations ({project.formations.length})
