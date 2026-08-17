@@ -200,7 +200,7 @@ export function parsePrompt(text: string): PromptIntent {
   const rotationDeg = numberBefore(t, "degrees?|deg\\b|grade|°");
   const amplitudeDeg = metresNear(t, []) === undefined ? undefined : undefined;
 
-  const forward = metresNear(t, ["forward", "inainte", "across", "traverse", "traverseaz", "depth", "adancime"]);
+  const forward = metresNear(t, ["forward", "inainte", "across", "traverse", "traverseaz", "avanseaz", "avans", "zboar", "fly", "flies", "travels?", "moves?", "deplaseaz", "depth", "adancime"]);
   const right = metresNear(t, ["right", "dreapta", "left", "stanga", "lateral", "sideways"]);
   const climb = metresNear(t, ["climb", "rise", "ascend", "urca", "urce", "inalt", "higher", "sus"]);
   const leftwards = /\b(left|stanga)\b/.test(t);
