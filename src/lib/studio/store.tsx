@@ -105,6 +105,12 @@ import {
   type ReferenceSceneSegment,
 } from "../import/essp/forensics";
 import {
+  createProjectFromSetup,
+  preShowConfigFromSetup,
+  setupDraftFromProject,
+  type ProjectSetupDraft,
+} from "../show/setup";
+import {
   applyPreset,
   addMotionGroup,
   dynamicFromFormation,
@@ -183,6 +189,21 @@ interface StudioContextValue {
   setLoop: (loop: boolean) => void;
   selectClip: (id: string | null) => void;
   patchProject: (patch: Partial<ShowProject>) => void;
+
+  // ---- Project setup wizard + asset library (Sprint 6B.6) -----------------
+  /** Replaces the whole project with a new one built from the wizard draft. */
+  createProjectFromDraft: (draft: ProjectSetupDraft) => void;
+  /** Applies wizard edits (name / fleet / launch geometry) to the open project. */
+  applySetupDraft: (draft: ProjectSetupDraft) => void;
+  /** Current project expressed as an editable wizard draft. */
+  currentSetupDraft: ProjectSetupDraft;
+  /** Inserts a library formation as a NEW project formation (fresh id). */
+  addLibraryFormation: (
+    formation: Formation,
+    options?: { addToTimeline?: boolean },
+  ) => Formation;
+  /** Inserts a library dynamic formation as a NEW dynamic formation (fresh id). */
+  addLibraryDynamicFormation: (formation: DynamicFormation) => DynamicFormation;
   setDroneCount: (n: number) => void;
   setLimits: (patch: Partial<SafetyLimits>) => void;
   addFormation: (kind: FormationKind, params?: Record<string, number | string>) => Formation;
@@ -606,6 +627,50 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       }),
     }));
   }, []);
+
+  const currentSetupDraft = useMemo(() => setupDraftFromProject(project), [project]);
+
+  const createProjectFromDraft = useCallback((draft: ProjectSetupDraft) => {
+    const created = createProjectFromSetup(draft);
+    setProject(created);
+    setSelectedClipId(created.timeline[0]?.id ?? null);
+    setExplicitDynamicId(null);
+    setTransitionOverrides({});
+    setTransitionAnalysis(null);
+    setAssignmentComparison(null);
+    setOptimization(null);
+    setFullShow(null);
+    setPreShowPreview(null);
+    setHighlightedDrones([]);
+    setSelectedLaunchGroupId(null);
+    setSvgDraft(null);
+    setSvgError(null);
+  }, []);
+
+  const applySetupDraft = useCallback(
+    (draft: ProjectSetupDraft) => {
+      const count = Math.round(draft.droneCount);
+      setProject((p) => ({
+        ...p,
+        name: draft.name.trim() || p.name,
+        preShow: preShowConfigFromSetup(draft, p.preShow),
+      }));
+      // Fleet size flows through the canonical resampling path so SVG and
+      // procedural formations stay exact-N.
+      if (count !== project.droneCount) setDroneCount(count);
+    },
+    [project.droneCount, setDroneCount],
+  );
+
+  const addLibraryFormation = useCallback(
+    (formation: Formation, options: { addToTimeline?: boolean } = {}) => {
+      const created: Formation = { ...formation, id: nextId("f") };
+      setProject((p) => ({ ...p, formations: [...p.formations, created] }));
+      if (options.addToTimeline) addClipRef.current?.(created.id);
+      return created;
+    },
+    [],
+  );
 
   const setLimits = useCallback((patch: Partial<SafetyLimits>) => {
     setProject((p) => ({ ...p, limits: { ...p.limits, ...patch } }));
@@ -1707,6 +1772,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setLoop: clock.setLoop,
       selectClip: setSelectedClipId,
       patchProject,
+      createProjectFromDraft,
+      applySetupDraft,
+      currentSetupDraft,
+      addLibraryFormation,
+      addLibraryDynamicFormation,
       setDroneCount,
       setLimits,
       addFormation,
