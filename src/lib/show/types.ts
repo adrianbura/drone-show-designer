@@ -138,6 +138,8 @@ export interface ProjectVersions {
   schemaVersion: string;
   trajectoryAlgorithmVersion: string;
   formationAlgorithmVersion: string;
+  /** Absent in projects saved before the dynamic formation engine. */
+  dynamicFormationAlgorithmVersion?: string;
 }
 
 export interface ShowProject {
@@ -159,7 +161,13 @@ export interface ShowProject {
    * starts at t = 0 with no pre-show trajectories.
    */
   preShow?: PreShowConfig;
+  /**
+   * Living formations (global motion + internal deformation). Purely additive:
+   * a project without any behaves exactly as before.
+   */
+  dynamicFormations?: DynamicFormation[];
 }
+
 
 export interface DroneSample {
   position: Vec3;
