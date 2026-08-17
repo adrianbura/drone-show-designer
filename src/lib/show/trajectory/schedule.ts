@@ -196,8 +196,23 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
         ),
       );
     }
+    // A dynamic clip animates during its HOLD. The transition still morphs to
+    // the animation state the hold starts at, so continuity is exact.
+    const dynamicFormation = phase === "LANDING" ? undefined : resolveDynamicFormation(project, clip);
+    const dynamicEvaluator = dynamicFormation
+      ? createDynamicEvaluator(dynamicFormation, {
+          playbackRate: clip.playbackRate ?? 1,
+          startOffset: clip.dynamicStartOffset ?? 0,
+        })
+      : null;
     const rawTarget =
-      phase === "LANDING" ? home : padPoints(formation?.points ?? [], project.droneCount, home);
+      phase === "LANDING"
+        ? home
+        : dynamicEvaluator
+          ? padPoints(dynamicEvaluator.positionsAt(0), project.droneCount, home)
+          : padPoints(formation?.points ?? [], project.droneCount, home);
+
+
 
     // An optimiser override replaces both the assignment and the deconfliction
     // decorators for this clip; otherwise the configured strategy runs.
