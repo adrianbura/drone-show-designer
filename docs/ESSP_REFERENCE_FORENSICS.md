@@ -43,3 +43,22 @@ the current state; the UI flags this and requires a re-run.
 - **Timeline**: a read-only inferred-segment strip; clicking a segment seeks to it.
 - **Viewport**: drones classified as active within the selected segment are
   highlighted (render-only tint), leaving imported colour data untouched.
+
+## Segment → editable dynamic formation (conversion)
+
+`src/lib/import/essp/conversion/` converts one forensic segment into a **new**
+`DynamicFormation`. The reference show stays immutable; conversion output is an
+independent project asset.
+
+1. **Decompose** (`decompose.ts`) — exact sampled geometry, global translation
+   (centroid), global rotation (Kabsch/robust fit, continuity-unwrapped in
+   `rotation.ts`) and per-point internal deformation residuals.
+2. **Simplify** (`simplify.ts`) — optional error-bounded keyframe reduction.
+3. **Build** (`build.ts`) — native formation, points `DP-xxx`, suggested motion
+   groups, loop-closure analysis.
+4. **Fidelity** (`fidelity.ts`) — re-samples through the public dynamic sampler
+   and reports mean/rms/p95/p99/max error, worst drone and worst time.
+
+The Inspector panel (`ConversionPanel.tsx`) shows measured accuracy before Apply;
+`ConversionOverlay.tsx` draws original vs reconstructed clouds and error vectors
+(exaggeration is labelled). Accuracy is measured, never asserted.

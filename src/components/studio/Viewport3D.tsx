@@ -13,6 +13,7 @@ import SvgDraftPreview from "./SvgDraftPreview";
 import PreShowOverlay from "./PreShowOverlay";
 import TransitionOverlay from "./TransitionOverlay";
 import ReferenceSwarm from "./ReferenceSwarm";
+import ConversionOverlay from "./ConversionOverlay";
 
 /**
  * Instanced drone swarm. One InstancedMesh + per-instance colour keeps draw
@@ -90,9 +91,9 @@ function Swarm({
       haloMesh.setMatrixAt(i, dummy.matrix);
 
       const c = lightColorAt(clip, i, project.droneCount, time);
-      const group = groupRgbByDrone.get(i);
-      const motionGroup = dynamicGroupRgbByDrone.get(i);
-      const dimmed = !!selectedGroupId && groupIdByDrone[i] !== selectedGroupId;
+      const group = groupRgbByDrone?.get(i);
+      const motionGroup = dynamicGroupRgbByDrone?.get(i);
+      const dimmed = !!selectedGroupId && groupIdByDrone?.[i] !== selectedGroupId;
       if (highlightSet.has(i)) color.setRGB(1, 0.25, 0.25);
       else if (selectedSet.has(i)) color.setRGB(1, 0.95, 0.55);
       else if (dimmed) color.setRGB(0.16, 0.21, 0.28);
@@ -177,6 +178,9 @@ export default function Viewport3D() {
     showReferencePaths,
     forensicActiveDroneIds,
     selectedReferenceDroneId,
+    conversionComparisonFrame,
+    comparisonMode,
+    errorVectorScale,
     selectedDroneIndices,
     dynamicGroupRgbByDrone,
     pointIdForDrone,
@@ -240,6 +244,13 @@ export default function Viewport3D() {
         fadeStrength={1.4}
         position={[0, 0, 0]}
       />
+      {conversionComparisonFrame ? (
+        <ConversionOverlay
+          frame={conversionComparisonFrame}
+          mode={comparisonMode}
+          vectorScale={errorVectorScale}
+        />
+      ) : null}
       {reference ? null : <ShowVolume {...project.area} />}
       {reference ? (
         <ReferenceSwarm
