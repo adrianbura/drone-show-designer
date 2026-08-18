@@ -39,6 +39,7 @@ import {
   type StructureEditorState,
   type VisualFormationDesign,
 } from "@/lib/visual";
+import AiReferencePanel, { type AiReferenceMeta } from "./AiReferencePanel";
 import StructureEditorToolbar from "./StructureEditorToolbar";
 import StructureInspector from "./StructureInspector";
 import StructureList from "./StructureList";
@@ -269,6 +270,7 @@ export default function ImageDesignPanel() {
   const [count, setCount] = useState(project.droneCount);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [aiMeta, setAiMeta] = useState<AiReferenceMeta | null>(null);
 
   // Revoke the object URL when the reference image changes or the panel unmounts.
   useEffect(() => {
@@ -383,11 +385,25 @@ export default function ImageDesignPanel() {
           edited,
           editOps: editor?.editOps ?? 0,
           designVersion: design.version,
+          // AI PROVENANCE: prompt identity only, never pixels.
+          ...(aiMeta
+            ? {
+                aiPrompt: aiMeta.prompt,
+                aiStyle: aiMeta.style,
+                aiModel: aiMeta.model,
+                aiProvider: aiMeta.providerId,
+                aiRefined: aiMeta.instruction ?? "",
+              }
+            : {}),
         },
       },
-      tags: edited
-        ? ["image", `detail:${detail}`, `structure:${structure}`, "edited"]
-        : ["image", `detail:${detail}`, `structure:${structure}`],
+      tags: [
+        "image",
+        `detail:${detail}`,
+        `structure:${structure}`,
+        ...(edited ? ["edited"] : []),
+        ...(aiMeta ? ["ai-reference", `ai-style:${aiMeta.style}`] : []),
+      ],
     });
     setSaved(asset ? asset.name : null);
   };
@@ -401,12 +417,22 @@ export default function ImageDesignPanel() {
       </h2>
       <p className="text-[11px] text-muted-foreground">{t("image.intro")}</p>
 
+      {/* AI is a REFERENCE IMAGE creator: it feeds the same local pipeline. */}
+      <AiReferencePanel
+        droneCount={count}
+        onReference={async (file, meta) => {
+          setAiMeta(meta);
+          await pick(file);
+        }}
+      />
+
       <input
         ref={fileRef}
         type="file"
         accept="image/png,image/jpeg,image/webp"
         className="hidden"
         onChange={(e) => {
+          setAiMeta(null);
           void pick(e.target.files?.[0]);
           e.currentTarget.value = "";
         }}
@@ -422,6 +448,7 @@ export default function ImageDesignPanel() {
             className="chip-btn"
             onClick={() => {
               setSource(null);
+              setAiMeta(null);
               setStage("REFERENCE");
               setSaved(null);
               setError(null);
@@ -431,6 +458,7 @@ export default function ImageDesignPanel() {
           </button>
         )}
       </div>
+
 
       {(error ?? analysisError) && (
         <p className="text-[11px] text-destructive">{error ?? analysisError}</p>
