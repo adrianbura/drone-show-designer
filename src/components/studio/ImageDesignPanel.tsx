@@ -270,6 +270,7 @@ export default function ImageDesignPanel() {
   const [count, setCount] = useState(project.droneCount);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [aiMeta, setAiMeta] = useState<AiReferenceMeta | null>(null);
 
   // Revoke the object URL when the reference image changes or the panel unmounts.
   useEffect(() => {
