@@ -111,9 +111,11 @@ describe("project lighting evaluation", () => {
     expect(emittedColor({ r: 255, g: 255, b: 255, intensity: 0 })).toEqual([0, 0, 0]);
   });
 
-  it("never affects geometry: no effects means no states", () => {
+  it("with no effects every drone keeps its base clip colour at full intensity", () => {
     const p = createDemoProject(12);
-    expect(projectLightingAt({ project: p }, 5)).toEqual([]);
+    const states = projectLightingAt({ project: p }, 5);
+    expect(states.length).toBe(p.droneCount);
+    expect(states.every((s) => s.intensity === 1)).toBe(true);
   });
 });
 
