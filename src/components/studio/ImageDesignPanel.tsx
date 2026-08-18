@@ -385,11 +385,25 @@ export default function ImageDesignPanel() {
           edited,
           editOps: editor?.editOps ?? 0,
           designVersion: design.version,
+          // AI PROVENANCE: prompt identity only, never pixels.
+          ...(aiMeta
+            ? {
+                aiPrompt: aiMeta.prompt,
+                aiStyle: aiMeta.style,
+                aiModel: aiMeta.model,
+                aiProvider: aiMeta.providerId,
+                aiRefined: aiMeta.instruction ?? "",
+              }
+            : {}),
         },
       },
-      tags: edited
-        ? ["image", `detail:${detail}`, `structure:${structure}`, "edited"]
-        : ["image", `detail:${detail}`, `structure:${structure}`],
+      tags: [
+        "image",
+        `detail:${detail}`,
+        `structure:${structure}`,
+        ...(edited ? ["edited"] : []),
+        ...(aiMeta ? ["ai-reference", `ai-style:${aiMeta.style}`] : []),
+      ],
     });
     setSaved(asset ? asset.name : null);
   };
