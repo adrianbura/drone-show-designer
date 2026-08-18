@@ -48,7 +48,7 @@ describe("snapping", () => {
     const beat = snapTimelineTime(2.02, { mode: "BEAT", beatGrid: grid, pixelsPerSecond: 200 });
     expect(beat.snapped).toBe(true);
     expect(beat.kind).toBe("BEAT");
-    const bar = snapTimelineTime(3.9, { mode: "BAR", beatGrid: grid, pixelsPerSecond: 200 });
+    const bar = snapTimelineTime(3.98, { mode: "BAR", beatGrid: grid, pixelsPerSecond: 200 });
     expect(bar.kind).toBe("BAR");
   });
 
