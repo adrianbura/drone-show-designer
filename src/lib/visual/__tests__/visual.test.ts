@@ -5,6 +5,7 @@ import { sampleDynamicFormation } from "@/lib/show/dynamic/sampler";
 import {
   BUILT_IN_DESIGNS,
   BUTTERFLY_DESIGN,
+  CAR_DESIGN,
   compileVisualFormation,
   DRONE_ART_COMPILER_VERSION,
   animatableParts,
@@ -302,5 +303,27 @@ describe("AI product role", () => {
     const v1 = await provider.generateProposal({ prompt: "a heart", fleetCount: 80 });
     expect(v1.schemaVersion).toBe(1);
     expect(v1.fleetCount).toBe(80);
+  });
+});
+
+describe("car design with rolling wheels", () => {
+  it("compiles exactly N points and spins both wheels about their own centre", () => {
+    const compiled = compileVisualFormation(CAR_DESIGN, 180, { width: 120, altitude: 60 });
+    expect(compiled.points).toHaveLength(180);
+    expect(compiled.partIndices["FRONT_WHEEL"]!.length).toBeGreaterThan(10);
+
+    const formation = formationFromCompiled(compiled, { id: "f-car", name: "Car" });
+    const dynamic = dynamicFromCompiled(formation, CAR_DESIGN, compiled, { id: "d-car" });
+    expect(dynamic.loop).toBe("REPEAT");
+    const wheels = dynamic.groups.filter((g) => g.name.endsWith("WHEEL"));
+    expect(wheels).toHaveLength(2);
+
+    const index = compiled.partIndices["FRONT_WHEEL"]![0]!;
+    const at0 = sampleDynamicFormation(dynamic, 0)[index]!;
+    const atHalf = sampleDynamicFormation(dynamic, dynamic.duration / 2)[index]!;
+    const atFull = sampleDynamicFormation(dynamic, dynamic.duration)[index]!;
+    // Half a cycle = 180 deg away, a full cycle returns to the start.
+    expect(Math.hypot(atHalf[0] - at0[0], atHalf[1] - at0[1])).toBeGreaterThan(10);
+    expect(Math.hypot(atFull[0] - at0[0], atFull[1] - at0[1])).toBeLessThan(1e-6);
   });
 });
