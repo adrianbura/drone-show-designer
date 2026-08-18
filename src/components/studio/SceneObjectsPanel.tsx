@@ -121,7 +121,7 @@ export default function SceneObjectsPanel() {
 
       <ul className="mt-2 space-y-1">
         {selectedScene.objects.map((object) => {
-          const count = budget?.objects.find((o) => o.instanceId === object.id)?.droneCount ?? 0;
+          const count = budget?.objects.find((o) => o.instanceId === object.id)?.count ?? 0;
           const active = object.id === selected?.id;
           return (
             <li key={object.id}>
