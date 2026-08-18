@@ -81,7 +81,9 @@ describe("formation asset library — serialization", () => {
   it("reports fleet compatibility without adapting geometry", () => {
     const asset = assetFromFormation(staticFormation, { name: "Fleet" });
     expect(assetFleetCompatibility(asset, staticFormation.points.length)).toBe("EXACT");
-    expect(assetFleetCompatibility(asset, 300)).toBe("MISMATCH");
+    // A smaller asset is usable: its points are the PARTICIPATING drone count.
+    expect(assetFleetCompatibility(asset, 300)).toBe("PARTIAL");
+    expect(assetFleetCompatibility(asset, 1)).toBe("TOO_LARGE");
   });
 });
 

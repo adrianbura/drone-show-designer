@@ -19,6 +19,14 @@ import type { ShowPhase, ShowProject, Vector3Tuple } from "../types";
 import { clipPhase, resolveDynamicFormation, showDuration, TRAJECTORY_ALGORITHM_VERSION } from "../types";
 import { createDynamicEvaluator } from "../dynamic/sampler";
 import { planDynamicPoint } from "../dynamic/plan";
+import {
+  planFleetParticipation,
+  participationTargets,
+  resolveParticipationSettings,
+  type FleetParticipationPlan,
+  type ParticipationScene,
+  type ParticipationWarningCode,
+} from "../participation";
 
 import { withStartOffset, withVerticalLane } from "./offsets";
 import { minJerkPlanner, planHold } from "./planner";
@@ -79,6 +87,19 @@ export interface ShowPlan {
   readonly optimizedClipIds: string[];
   /** Structured planning failures. Never thrown away silently. */
   readonly errors: TrajectoryPlanningError[];
+  /**
+   * PARTIAL FLEET PARTICIPATION. One plan per SHOW clip whose formation uses
+   * fewer points than the fleet has drones. Every drone appears in every plan:
+   * a partial formation never leaves a drone unplanned.
+   */
+  readonly participation: FleetParticipationPlan[];
+  readonly participationWarnings: SchedulingParticipationWarning[];
+}
+
+export interface SchedulingParticipationWarning {
+  readonly clipId: string;
+  readonly code: ParticipationWarningCode;
+  readonly message: string;
 }
 
 /**
@@ -102,6 +123,8 @@ export interface BuildShowPlanOptions {
   readonly transitionOverrides?: Readonly<Record<string, ClipTransitionOverride>>;
   /** Overrides `project.preShow`. Pass `null` to plan the show without pre-show. */
   readonly preShow?: PreShowConfig | null;
+  /** Overrides `project.participation` (fleet participation settings). */
+  readonly participation?: import("../participation").ParticipationSettings;
 }
 
 function padPoints(points: readonly Vector3Tuple[], count: number, fallback: Vector3Tuple[]): Vector3Tuple[] {
@@ -150,6 +173,11 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
   const errors: TrajectoryPlanningError[] = [];
   const assignments: ClipAssignment[] = [];
   const showStrategy: AssignmentStrategyId = options.assignmentStrategy ?? "nearestNeighbor";
+  const participationSettings = resolveParticipationSettings(
+    options.participation ?? project.participation,
+  );
+  const participation: FleetParticipationPlan[] = [];
+  const participationWarnings: SchedulingParticipationWarning[] = [];
   const overrides = options.transitionOverrides ?? {};
   const optimizedClipIds: string[] = [];
   const schedules: DroneSchedule[] = drones.map((d) => ({
@@ -184,7 +212,32 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
   // exists, otherwise from the home pads.
   let current: Vector3Tuple[] = usePreShow && preShow ? preShow.targetByDrone.slice() : home.slice();
 
-  for (const clip of clips) {
+  // Bounded look-ahead scene list for the participation planner. Only artistic
+  // SHOW clips with resolvable geometry can absorb pre-positioning drones.
+  const sceneFor = (clip: (typeof clips)[number]): ParticipationScene | null => {
+    if (clipPhase(clip) !== "SHOW") return null;
+    const dynamic = resolveDynamicFormation(project, clip);
+    if (dynamic) {
+      const evaluator = createDynamicEvaluator(dynamic, {
+        playbackRate: clip.playbackRate ?? 1,
+        startOffset: clip.dynamicStartOffset ?? 0,
+      });
+      return {
+        clipId: clip.id,
+        formationId: clip.formationId,
+        dynamicFormationId: dynamic.id,
+        points: evaluator.positionsAt(0),
+        pointIds: dynamic.points.map((p) => p.id),
+      };
+    }
+    const formation = project.formations.find((f) => f.id === clip.formationId);
+    if (!formation || formation.points.length === 0) return null;
+    return { clipId: clip.id, formationId: formation.id, points: formation.points };
+  };
+
+  let previousParticipation: FleetParticipationPlan | null = null;
+
+  for (const [clipIndex, clip] of clips.entries()) {
     const phase = clipPhase(clip);
     const formation = project.formations.find((f) => f.id === clip.formationId);
     if (!formation && phase !== "LANDING") {
@@ -205,14 +258,77 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
           startOffset: clip.dynamicStartOffset ?? 0,
         })
       : null;
-    const rawTarget =
+    const scenePoints: readonly Vector3Tuple[] =
       phase === "LANDING"
         ? home
         : dynamicEvaluator
-          ? padPoints(dynamicEvaluator.positionsAt(0), project.droneCount, home)
-          : padPoints(formation?.points ?? [], project.droneCount, home);
+          ? dynamicEvaluator.positionsAt(0)
+          : (formation?.points ?? []);
 
+    /**
+     * PARTIAL FLEET PARTICIPATION. When a formation supplies FEWER points than
+     * the fleet has drones, the participation planner decides which drones fly
+     * the image and gives every remaining drone an explicit role and target.
+     * Full-fleet formations keep the historical assignment path unchanged.
+     */
+    const partial =
+      phase === "SHOW" && scenePoints.length > 0 && scenePoints.length < project.droneCount;
+    let participationPlan: FleetParticipationPlan | null = null;
+    if (partial) {
+      const lookAhead: ParticipationScene[] = [];
+      for (let k = clipIndex + 1; k < clips.length && lookAhead.length < participationSettings.lookAheadScenes; k++) {
+        const scene = sceneFor(clips[k]!);
+        if (scene) lookAhead.push(scene);
+      }
+      try {
+        participationPlan = planFleetParticipation({
+          drones,
+          current,
+          scene: {
+            clipId: clip.id,
+            formationId: formation?.id ?? null,
+            ...(dynamicFormation ? { dynamicFormationId: dynamicFormation.id } : {}),
+            points: scenePoints,
+            ...(dynamicFormation ? { pointIds: dynamicFormation.points.map((p) => p.id) } : {}),
+          },
+          lookAhead,
+          settings: participationSettings,
+          limits: project.limits,
+          area: project.area,
+          previous: previousParticipation,
+        });
+      } catch (err) {
+        // A rejected MANUAL selection must never silently drop drones: the
+        // deterministic SMART_PREPARE default takes over and says so.
+        participationPlan = planFleetParticipation({
+          drones,
+          current,
+          scene: {
+            clipId: clip.id,
+            formationId: formation?.id ?? null,
+            ...(dynamicFormation ? { dynamicFormationId: dynamicFormation.id } : {}),
+            points: scenePoints,
+            ...(dynamicFormation ? { pointIds: dynamicFormation.points.map((p) => p.id) } : {}),
+          },
+          lookAhead,
+          settings: { ...participationSettings, defaultPolicy: "SMART_PREPARE", clips: {} },
+          limits: project.limits,
+          area: project.area,
+          previous: previousParticipation,
+        });
+        participationWarnings.push({
+          clipId: clip.id,
+          code: "MANUAL_FALLBACK",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      participation.push(participationPlan);
+      previousParticipation = participationPlan;
+    }
 
+    const rawTarget = participationPlan
+      ? participationTargets(participationPlan)
+      : padPoints(scenePoints, project.droneCount, home);
 
     // An optimiser override replaces both the assignment and the deconfliction
     // decorators for this clip; otherwise the configured strategy runs.
@@ -222,7 +338,16 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
         : undefined;
     let clipAssignments: DroneAssignment[];
     let strategyId: string;
-    if (override) {
+    if (participationPlan && !override) {
+      // The participation planner already solved drone -> target; the scheduler
+      // must not reshuffle it, so the mapping is applied as-is.
+      clipAssignments = drones.map((d, i) => ({
+        droneId: d.id,
+        sourcePointIndex: i,
+        targetPointIndex: i,
+      }));
+      strategyId = "fleetParticipation";
+    } else if (override) {
       const points = formation?.points ?? [];
       clipAssignments = drones.map((d, i) => ({
         droneId: d.id,
@@ -244,6 +369,7 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
     }
     assignments.push({ clipId: clip.id, phase, strategy: strategyId, assignments: clipAssignments });
     const target = applyAssignment(clipAssignments, rawTarget);
+
 
     const transition = Math.max(0.01, clip.transition);
     for (const drone of drones) {
@@ -303,7 +429,13 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
         planned,
       });
       if (clip.hold > 0) {
-        const pointIndex = clipAssignments[i]?.targetPointIndex ?? i;
+        // With partial participation the animated point index comes from the
+        // participation plan; a non-participating drone holds its reserve or
+        // pre-position target instead of animating the living formation.
+        const participationEntry = participationPlan?.drones[i];
+        const pointIndex = participationPlan
+          ? (participationEntry?.formationPointIndex ?? -1)
+          : (clipAssignments[i]?.targetPointIndex ?? i);
         segs.push({
           start: clip.start + transition,
           end: clip.start + transition + clip.hold,
@@ -311,7 +443,7 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
           phase,
           kind: "hold",
           planned:
-            dynamicEvaluator && dynamicFormation
+            dynamicEvaluator && dynamicFormation && pointIndex >= 0
               ? planDynamicPoint(dynamicEvaluator, pointIndex % dynamicFormation.points.length, clip.hold, {
                   faceDirectionOfTravel: phase === "SHOW",
                 })
@@ -326,8 +458,12 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
     if (dynamicEvaluator && dynamicFormation && clip.hold > 0) {
       const end = dynamicEvaluator.positionsAt(clip.hold);
       current = drones.map((d, i) => {
-        const pointIndex = (clipAssignments[i]?.targetPointIndex ?? i) % dynamicFormation.points.length;
-        return end[pointIndex] ?? target[i] ?? d.homePosition;
+        const active = participationPlan
+          ? (participationPlan.drones[i]?.formationPointIndex ?? -1)
+          : (clipAssignments[i]?.targetPointIndex ?? i);
+        // Non-participating drones stay where the participation plan put them.
+        if (active < 0) return target[i] ?? d.homePosition;
+        return end[active % dynamicFormation.points.length] ?? target[i] ?? d.homePosition;
       });
     } else {
       current = target;
@@ -348,6 +484,8 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
     assignmentStrategy: showStrategy,
     optimizedClipIds,
     errors,
+    participation,
+    participationWarnings,
   };
 }
 
