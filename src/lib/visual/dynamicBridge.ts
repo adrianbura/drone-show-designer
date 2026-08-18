@@ -6,7 +6,13 @@
  * Static creation stays the default: a dynamic version is only produced when the
  * user explicitly asks for it.
  */
-import { addMotionGroup, dynamicFromFormation, pointId } from "../show/dynamic/create";
+import {
+  addMotionGroup,
+  dynamicFromFormation,
+  neutralGroupKeyframe,
+  patchMotionGroup,
+  pointId,
+} from "../show/dynamic/create";
 import type { DynamicFormation } from "../show/dynamic/types";
 import type { Formation } from "../show/types";
 import type { CompiledVisualFormation, SemanticPart, VisualFormationDesign } from "./types";
