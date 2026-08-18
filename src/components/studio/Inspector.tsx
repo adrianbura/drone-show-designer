@@ -36,7 +36,11 @@ import {
 } from "@/lib/show/assignment";
 import { hexToRgb, rgbToHex } from "@/lib/show/lights";
 import { snapToBeat } from "@/lib/show/audio";
-import type { Easing, LightEffect } from "@/lib/show/types";
+import { clipPhase, type Easing, type LightEffect } from "@/lib/show/types";
+import {
+  AUTHORABLE_CLIP_PHASES,
+  type AuthorableClipPhase,
+} from "@/lib/studio/timelineEdit";
 import { useStudio } from "@/lib/studio/store";
 
 const EFFECTS: LightEffect[] = ["solid", "pulse", "rainbow", "chase", "twinkle"];
@@ -142,6 +146,44 @@ export default function Inspector() {
                 </option>
               ))}
             </select>
+            <label className="space-y-1.5">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                Phase
+              </span>
+              <select
+                value={clipPhase(clip)}
+                onChange={(e) =>
+                  patchClip(clip.id, { phase: e.target.value as AuthorableClipPhase })
+                }
+                className="studio-input"
+                aria-label="Clip phase"
+                data-testid="clip-phase-select"
+              >
+                {AUTHORABLE_CLIP_PHASES.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {clipPhase(clip) === "TAKEOFF" && (
+              <p
+                data-testid="clip-phase-note-takeoff"
+                className="rounded border border-border bg-muted/30 p-2 text-[10px] leading-relaxed text-muted-foreground"
+              >
+                Explicit fleet departure phase: the fleet leaves the ground here and climbs to the
+                first airborne formation.
+              </p>
+            )}
+            {clipPhase(clip) === "LANDING" && (
+              <p
+                data-testid="clip-phase-note-landing"
+                className="rounded border border-border bg-muted/30 p-2 text-[10px] leading-relaxed text-muted-foreground"
+              >
+                The formation geometry is not the landing destination: the landing planner returns
+                every drone to its assigned home pad at ground level.
+              </p>
+            )}
             <NumberRow
               label="Start"
               value={clip.start}

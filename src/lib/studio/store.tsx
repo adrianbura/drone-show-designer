@@ -86,6 +86,7 @@ import {
 } from "../show/markers";
 import {
   clampZoom,
+  defaultPhaseForNewClip,
   computeTimelineView,
   scrollToCenter,
   zoomAtTime,
@@ -1221,7 +1222,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         easing: "minJerk",
         color: [120, 220, 255],
         effect: "solid",
-        phase: "SHOW",
+        phase: defaultPhaseForNewClip(p.timeline),
       };
       const shift = clip.transition + clip.hold;
       return {
