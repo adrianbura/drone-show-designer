@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { defaultPhaseForNewClip } from "@/lib/show/timeline";
 import { suggestedProjectFileName } from "@/lib/project";
-import type { TimelineClip } from "@/lib/show/types";
+import type { ShowPhase, TimelineClip } from "@/lib/show/types";
 
-function clip(id: string, phase: TimelineClip["phase"], start: number): TimelineClip {
+function clip(id: string, phase: ShowPhase, start: number): TimelineClip {
   return {
     id,
     formationId: "f1",
