@@ -123,15 +123,15 @@ export function useStructureEditor(
   }, []);
 
   const commitDrawing = useCallback((): boolean => {
-    if (!draft || !isDrawablePath(drawing)) {
+    if (!isDrawablePath(drawing)) {
       setDrawing([]);
       return false;
     }
-    commit(addPolyline(draft, drawing));
+    apply((design) => addPolyline(design, drawing));
     setDrawing([]);
     setToolState("SELECT");
     return true;
-  }, [commit, draft, drawing]);
+  }, [apply, drawing]);
 
   const cancelDrawing = useCallback(() => {
     setDrawing([]);
@@ -147,8 +147,8 @@ export function useStructureEditor(
     if (!seed) return;
     setDrawing([]);
     setSelectedId(null);
-    commit(seed);
-  }, [commit, seed]);
+    apply(() => seed);
+  }, [apply, seed]);
 
   const undo = useCallback(() => {
     setPast((p) => {
