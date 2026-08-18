@@ -22,6 +22,7 @@ import type { DynamicFormation } from "./dynamic/types";
 import type { MusicSection, TimelineMarker } from "./markers";
 import type { ParticipationSettings } from "./participation/types";
 import type { FormationScene } from "./scene/types";
+import type { LightingProgram } from "./lighting/types";
 
 
 
@@ -196,6 +197,12 @@ export interface ShowProject {
    * always recomputed from these inputs and are never persisted as truth.
    */
   participation?: ParticipationSettings;
+  /**
+   * LIGHTING, REVEAL & COLOR EFFECTS (Sprint 7.4). Project-owned artistic LED
+   * choreography. Purely additive: a project without a lighting program behaves
+   * exactly as before, and lighting never influences flight computation.
+   */
+  lighting?: LightingProgram;
 }
 
 

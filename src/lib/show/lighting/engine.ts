@@ -222,8 +222,9 @@ export function lightingContextAt(input: ProjectLightingInput, t: number): Light
   // Motion group membership per stable point id, for GROUP_SEQUENCE effects.
   const motionGroupByPoint = new Map<string, string>();
   for (const object of scene.objects) {
-    if (object.source.kind !== "DYNAMIC") continue;
-    const dynamic = project.dynamicFormations?.find((d) => d.id === object.source.dynamicFormationId);
+    const source = object.source;
+    if (source.kind !== "DYNAMIC") continue;
+    const dynamic = project.dynamicFormations?.find((d) => d.id === source.dynamicFormationId);
     for (const group of dynamic?.groups ?? []) {
       for (const id of group.pointIds) motionGroupByPoint.set(id, group.id);
     }
