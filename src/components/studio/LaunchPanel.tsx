@@ -97,6 +97,8 @@ export default function LaunchPanel() {
     selectedLaunchGroupId,
     selectLaunchGroup,
   } = useStudio();
+  const { t } = useI18n();
+
 
   const status = preShowReport?.status ?? null;
   const StatusIcon = status === "VALID" ? CheckCircle2 : status === "WARNING" ? TriangleAlert : XCircle;
