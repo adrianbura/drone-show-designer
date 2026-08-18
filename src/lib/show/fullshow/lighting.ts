@@ -7,11 +7,21 @@
  * in-gamut, defined for every instant) — it does not judge artistic intent.
  */
 import { lightColorAt } from "../lights";
+import {
+  participationOf,
+  reserveLightingScale,
+  resolveParticipationSettings,
+} from "../participation";
 import { activeClipAt } from "../timeline";
 import type { RGB, ShowProject } from "../types";
 import type { DroneLightSample, FullShowIssue, FullShowPlan, LightingReport } from "./types";
 
 const clampByte = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+
+const scaleColor = (color: RGB, scale: number): RGB =>
+  scale === 1
+    ? color
+    : ([clampByte(color[0] * scale), clampByte(color[1] * scale), clampByte(color[2] * scale)] as RGB);
 
 export function lightSamplesAt(
   project: ShowProject,
@@ -19,8 +29,16 @@ export function lightSamplesAt(
   t: number,
 ): DroneLightSample[] {
   const clip = activeClipAt(project, t);
+  // Non-participating drones are lit by policy, never by the artistic clip: the
+  // default is OFF so a reserve swarm stays invisible in the image.
+  const policy = resolveParticipationSettings(project.participation).reserveLighting;
+  const participation = clip
+    ? (plan.showPlan.participation.find((p) => p.clipId === clip.id) ?? null)
+    : null;
   return plan.drones.map((d) => {
-    const color = lightColorAt(clip, d.index, project.droneCount, t);
+    const base = lightColorAt(clip, d.index, project.droneCount, t);
+    const role = participation ? participationOf(participation, d.id)?.role : undefined;
+    const color = role ? scaleColor(base, reserveLightingScale(role, policy)) : base;
     return {
       t,
       droneId: d.id,
@@ -29,6 +47,7 @@ export function lightSamplesAt(
     };
   });
 }
+
 
 export interface LightingValidationOptions {
   /** Instants per second evaluated for the validation pass. Default 2. */
