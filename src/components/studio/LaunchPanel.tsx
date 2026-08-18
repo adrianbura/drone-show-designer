@@ -101,7 +101,15 @@ export default function LaunchPanel() {
   const statusClass =
     status === "VALID" ? "text-success" : status === "WARNING" ? "text-warning" : "text-destructive";
 
-  const capacity = preShowConfig.launch.rows * preShowConfig.launch.columns;
+  const configuredCapacity = preShowConfig.launch.rows * preShowConfig.launch.columns;
+  const resolvedGrid = useMemo(
+    () => resolveGridShape(project.droneCount, preShowConfig.launch),
+    [project.droneCount, preShowConfig.launch],
+  );
+  const effectiveCapacity = resolvedGrid.rows * resolvedGrid.columns;
+  const occupiedPads = project.droneCount;
+  const autoGrownRows = Math.max(0, resolvedGrid.rows - preShowConfig.launch.rows);
+  const unusedCells = Math.max(0, effectiveCapacity - occupiedPads);
   const groups = preShowPlan?.groups ?? [];
   const overlayGroups = preShowOverlay?.groups ?? [];
   const issues = useMemo(() => preShowReport?.issues.slice(0, 40) ?? [], [preShowReport]);
