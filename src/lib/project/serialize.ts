@@ -44,7 +44,7 @@ export function serializeProject(
     schemaVersion: PROJECT_SCHEMA_VERSION,
     savedAt: options.savedAt ?? new Date().toISOString(),
     app: { name: PROJECT_ENGINE_NAME, schemaVersion: SCHEMA_VERSION },
-    project: plainClone(project),
+    project: withDetachedAudio(plainClone(project)),
     ...(options.editor ? { editor: options.editor } : {}),
   };
 }
@@ -209,7 +209,7 @@ export function migrateProjectFile(raw: unknown): ProjectFile {
   if (!candidate.project || typeof candidate.project !== "object") {
     throw new ProjectFileError("MALFORMED_PROJECT", "The project payload is missing.");
   }
-  const project = migrateProject(candidate.project);
+  const project = withDetachedAudio(migrateProject(candidate.project));
   assertIntegrity(project);
   return {
     kind: PROJECT_FILE_KIND,
