@@ -5,6 +5,7 @@ import { sampleDynamicFormation } from "@/lib/show/dynamic/sampler";
 import {
   BUILT_IN_DESIGNS,
   BUTTERFLY_DESIGN,
+  CAR_DESIGN,
   compileVisualFormation,
   DRONE_ART_COMPILER_VERSION,
   animatableParts,
