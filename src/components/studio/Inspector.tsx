@@ -37,7 +37,7 @@ import {
 } from "@/lib/show/assignment";
 import { hexToRgb, rgbToHex } from "@/lib/show/lights";
 import { snapToBeat } from "@/lib/show/audio";
-import type { Easing, LightEffect } from "@/lib/show/types";
+import type { Easing, LightEffect, ShowPhase } from "@/lib/show/types";
 import { useStudio } from "@/lib/studio/store";
 
 const EFFECTS: LightEffect[] = ["solid", "pulse", "rainbow", "chase", "twinkle"];
