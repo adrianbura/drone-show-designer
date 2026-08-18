@@ -33,8 +33,6 @@ import {
   MAX_ZOOM,
   MIN_ZOOM,
   SNAP_MODES,
-  clipEndTime,
-  clipReadyTime,
   formatSeconds,
   formatShowTime,
   moveClip,
