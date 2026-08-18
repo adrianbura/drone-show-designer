@@ -9,13 +9,14 @@ import { describe, expect, it } from "vitest";
 
 import { compileVisualFormation } from "../../compiler";
 import { assetSourceForDesign, assetSourceFromDesignSourceType } from "../../provenance";
-import { deserializeVisualDesign, serializeVisualDesign } from "../../serialize";
+import { parseDesign, serializeDesign, validateDesign } from "../../serialize";
 import { analyzeImage } from "../analyze";
 import { designFromAnalysis } from "../design";
 import { otsuThreshold } from "../mask";
 import { downscale, toLuminance } from "../luminance";
 import { simplifyRing, simplifyRingBounded } from "../simplify2d";
-import { ImageAnalysisError, type VisualFormationDesignLike } from "./helpers";
+import { ImageAnalysisError } from "../types";
+import type { VisualFormationDesign } from "../../types";
 import {
   butterflyShape,
   lightOnDark,
@@ -25,7 +26,7 @@ import {
   transparentSubject,
 } from "./fixtures";
 
-function ringOf(design: VisualFormationDesignLike, index = 0) {
+function ringOf(design: VisualFormationDesign, index = 0) {
   const primitive = design.primitives[index];
   if (!primitive) throw new Error("no primitive");
   return primitive;
@@ -162,7 +163,8 @@ describe("image design — serialization and exact-N compilation", () => {
     const design = designFromAnalysis(analyzeImage(portraitWithHoles(), { detail: "MEDIUM" }), {
       sourceName: "portrait.png",
     });
-    const restored = deserializeVisualDesign(JSON.parse(serializeVisualDesign(design)));
+    expect(validateDesign(design)).toEqual([]);
+    const restored = parseDesign(serializeDesign(design));
     expect(restored.metadata.sourceType).toBe("IMAGE_ANALYSIS");
     expect(restored.primitives.length).toBe(design.primitives.length);
     expect(ringOf(restored).id).toBe(ringOf(design).id);
