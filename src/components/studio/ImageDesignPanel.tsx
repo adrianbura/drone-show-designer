@@ -39,6 +39,7 @@ import {
   type StructureEditorState,
   type VisualFormationDesign,
 } from "@/lib/visual";
+import AiReferencePanel, { type AiReferenceMeta } from "./AiReferencePanel";
 import StructureEditorToolbar from "./StructureEditorToolbar";
 import StructureInspector from "./StructureInspector";
 import StructureList from "./StructureList";
