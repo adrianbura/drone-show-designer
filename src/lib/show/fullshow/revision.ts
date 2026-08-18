@@ -2,9 +2,10 @@
  * Deterministic analysis revision id.
  *
  * Two analyses of the same project + settings produce the same revision, and
- * ANY change that can alter geometry, timing, limits or deconfliction changes
- * it. The UI compares the live revision to the report revision to decide
- * whether a report is stale — nothing is ever guessed from timestamps.
+ * ANY change that can alter geometry, timing, limits, deconfliction or validated
+ * machine-facing output changes it. The UI compares the live revision to the
+ * report revision to decide whether a report is stale — nothing is ever guessed
+ * from timestamps.
  */
 import type { ClipTransitionOverride } from "../trajectory/schedule";
 import type { ShowProject } from "../types";
@@ -77,6 +78,15 @@ export function computeAnalysisRevision(project: ShowProject, inputs: RevisionIn
         fnv1a(JSON.stringify(d.groups)),
       ].join("|"),
     );
+  // Scene transforms, object budgets and source assignments directly alter the
+  // composed fleet geometry. Sort by id so container order alone is irrelevant.
+  const scenes = [...(project.scenes ?? [])]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((scene) => `${scene.id}:${fnv1a(JSON.stringify(scene))}`);
+  // Lighting does not move drones, but it is validated by the full-show pass and
+  // is part of machine-facing show output. A lighting edit must therefore make
+  // the previous validation report stale before computed export is allowed.
+  const lighting = fnv1a(JSON.stringify(project.lighting ?? null));
   const overrides = Object.entries(inputs.transitionOverrides ?? {})
     .sort(([a], [b]) => a.localeCompare(b))
     .map(
@@ -101,11 +111,13 @@ export function computeAnalysisRevision(project: ShowProject, inputs: RevisionIn
     // Participation settings change WHICH drones fly the image and where the
     // remaining fleet goes, so they invalidate the whole analysis.
     `pa=${JSON.stringify(project.participation ?? null)}`,
+    `li=${lighting}`,
     `sr=${inputs.sampleRate}`,
     `as=${inputs.assignmentStrategy}`,
     clips.join("~"),
     formations.join("~"),
     dynamics.join("~"),
+    scenes.join("~"),
     overrides.join("~"),
   ].join("#");
 
