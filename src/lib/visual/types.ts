@@ -146,7 +146,15 @@ export interface SemanticPart {
   readonly depth?: number | undefined;
   /** True when the part is a sensible DynamicFormation motion group. */
   readonly animatable?: boolean | undefined;
+  /**
+   * Default motion intent for the part, applied by the dynamic bridge.
+   * SPIN_Z: continuous rotation about the part centre (wheels, rotors).
+   */
+  readonly motion?: SemanticPartMotion | undefined;
 }
+
+/** Language-neutral default motion intents a design may declare on a part. */
+export type SemanticPartMotion = "NONE" | "SPIN_Z";
 
 export interface VisualDesignBounds {
   /** Design-space extents. Width is the reference for metre scaling. */
