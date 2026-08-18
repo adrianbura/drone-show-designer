@@ -106,8 +106,16 @@ export class LibraryError extends Error {
   }
 }
 
-/** Fleet compatibility of an asset with the current project. */
-export type FleetCompatibility = "EXACT" | "MISMATCH";
+/**
+ * Fleet compatibility of an asset with the current project.
+ *
+ * PARTIAL FLEET PARTICIPATION (Sprint 7.3): an asset with FEWER points than the
+ * fleet is fully usable — its points define the PARTICIPATING drone count, and
+ * the fleet participation planner gives every remaining drone a role. Only an
+ * asset that needs MORE drones than the fleet has is blocked, and it is blocked
+ * loudly: no silent point deletion and no silent resampling.
+ */
+export type FleetCompatibility = "EXACT" | "PARTIAL" | "TOO_LARGE";
 
 export interface AssetSaveInput {
   readonly name: string;

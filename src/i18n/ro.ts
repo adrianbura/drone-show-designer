@@ -147,6 +147,10 @@ export const ro: Dictionary = {
   "formationLibrary.mismatchBlocked":
     "Inserarea este blocată deoarece nu există o metodă deterministă aprobată de adaptare — dronele nu sunt niciodată adăugate sau eliminate în mod tacit.",
   "formationLibrary.exact": "Corespondență exactă cu flota actuală.",
+  "formationLibrary.partial":
+    "Formație parțială: {assetCount} din {projectCount} drone zboară imaginea; restul sunt planificate ca rezervă sau pre-poziționare.",
+  "formationLibrary.tooLarge":
+    "Asset-ul are nevoie de {assetCount} drone, dar proiectul are doar {projectCount}. Inserarea este blocată — nicio dronă nu este eliminată în mod tacit.",
   "formationLibrary.static": "Formație statică",
   "formationLibrary.dynamic": "Formație dinamică",
   "formationLibrary.points": "{count} puncte",

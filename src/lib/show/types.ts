@@ -20,6 +20,7 @@ import type { SvgFormationSource } from "./svg/types";
 import type { PreShowConfig } from "./preshow/types";
 import type { DynamicFormation } from "./dynamic/types";
 import type { MusicSection, TimelineMarker } from "./markers";
+import type { ParticipationSettings } from "./participation/types";
 
 
 export type FormationKind =
@@ -180,6 +181,12 @@ export interface ShowProject {
    */
   markers?: TimelineMarker[];
   musicSections?: MusicSection[];
+  /**
+   * FLEET PARTICIPATION (Sprint 7.3). USER-OWNED settings that decide what the
+   * drones a formation does not use should do. Derived participation plans are
+   * always recomputed from these inputs and are never persisted as truth.
+   */
+  participation?: ParticipationSettings;
 }
 
 

@@ -141,6 +141,10 @@ export const en = {
   "formationLibrary.mismatchBlocked":
     "Insertion is blocked because no approved deterministic adaptation exists — drones are never silently added or dropped.",
   "formationLibrary.exact": "Exact match with the current fleet.",
+  "formationLibrary.partial":
+    "Partial formation: {assetCount} of {projectCount} drones fly the image; the rest are planned as reserve or pre-positioning.",
+  "formationLibrary.tooLarge":
+    "The asset needs {assetCount} drones but the project has only {projectCount}. Insertion is blocked — drones are never silently dropped.",
   "formationLibrary.static": "Static formation",
   "formationLibrary.dynamic": "Dynamic formation",
   "formationLibrary.points": "{count} points",

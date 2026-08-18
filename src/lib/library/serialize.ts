@@ -142,7 +142,18 @@ export function assetFleetCompatibility(
   asset: FormationAsset,
   projectDroneCount: number,
 ): FleetCompatibility {
-  return asset.droneCount === projectDroneCount ? "EXACT" : "MISMATCH";
+  if (asset.droneCount === projectDroneCount) return "EXACT";
+  return asset.droneCount < projectDroneCount ? "PARTIAL" : "TOO_LARGE";
+}
+
+/** An asset is usable when the fleet has at least as many drones as it needs. */
+export function isAssetUsableWithFleet(asset: FormationAsset, projectDroneCount: number): boolean {
+  return assetFleetCompatibility(asset, projectDroneCount) !== "TOO_LARGE";
+}
+
+/** Drones the fleet participation planner has to give another role to. */
+export function assetReserveCount(asset: FormationAsset, projectDroneCount: number): number {
+  return Math.max(0, projectDroneCount - asset.droneCount);
 }
 
 /** Structural validation of an untrusted asset (storage or imported file). */

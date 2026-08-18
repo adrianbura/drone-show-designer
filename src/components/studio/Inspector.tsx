@@ -11,6 +11,7 @@ import {
 
 import FullShowPanel from "./FullShowPanel";
 import LaunchPanel from "./LaunchPanel";
+import ParticipationPanel from "./ParticipationPanel";
 import SimulationPanel from "./SimulationPanel";
 import DynamicPanel from "./DynamicPanel";
 import EsspPanel from "./EsspPanel";
@@ -453,6 +454,8 @@ export default function Inspector() {
       </section>
 
       <LaunchPanel />
+
+      <ParticipationPanel />
 
       <DynamicPanel />
 

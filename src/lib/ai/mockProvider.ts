@@ -108,13 +108,26 @@ function buildProposal(
         : "The concept was not recognised, so an abstract cloud was used. Mention bird, butterfly, heart, circle, ring, star, spiral or wave.",
     );
   }
-  if (intent.fleetCount !== undefined && intent.fleetCount !== fleetCount) {
-    warnings.push(
-      l === "ro"
-        ? `Promptul cere ${intent.fleetCount} drone, dar proiectul are ${fleetCount}. Am folosit flota proiectului.`
-        : `The prompt asks for ${intent.fleetCount} drones but the project has ${fleetCount}. The project fleet was used.`,
-    );
+  // Partial participation is supported, so a requested count SMALLER than the
+  // fleet is honoured exactly; only an oversized request is clamped.
+  let requestedCount = fleetCount;
+  if (intent.fleetCount !== undefined && intent.fleetCount >= 1) {
+    if (intent.fleetCount > fleetCount) {
+      warnings.push(
+        l === "ro"
+          ? `Promptul cere ${intent.fleetCount} drone, dar proiectul are ${fleetCount}. Am folosit flota proiectului.`
+          : `The prompt asks for ${intent.fleetCount} drones but the project has ${fleetCount}. The project fleet was used.`,
+      );
+    } else if (intent.fleetCount < fleetCount) {
+      requestedCount = intent.fleetCount;
+      assumptions.push(
+        l === "ro"
+          ? `Formația folosește ${requestedCount} din ${fleetCount} drone; restul rămân planificate ca rezervă sau pre-poziționare.`
+          : `The formation uses ${requestedCount} of ${fleetCount} drones; the rest stay planned as reserve or pre-positioning.`,
+      );
+    }
   }
+
 
   const sizeScale = intent.sizeScale ?? 1;
   const baseWidth = base ? base.formationSpec.width : Math.min(area.width, area.depth) * 0.65;
@@ -146,7 +159,7 @@ function buildProposal(
       : ["BODY", "LEFT_WING", "RIGHT_WING"]
     : [];
 
-  if (winged && fleetCount < 40) {
+  if (winged && requestedCount < 40) {
     warnings.push(
       l === "ro"
         ? "Sub 40 de drone silueta aripilor devine grosieră."
@@ -165,7 +178,7 @@ function buildProposal(
   );
 
   const color = intent.color ?? base?.lightingIntent.color ?? ([255, 255, 255] as const);
-  const idSeed = `${prompt}|${fleetCount}|${concept}|${cycles}|${cycle}|${translation.join(",")}|${rotationDeg}|${width}`;
+  const idSeed = `${prompt}|${requestedCount}|${concept}|${cycles}|${cycle}|${translation.join(",")}|${rotationDeg}|${width}`;
 
   return {
     schemaVersion: AI_PROPOSAL_SCHEMA_VERSION,
@@ -173,7 +186,7 @@ function buildProposal(
     title: TITLES[concept][l],
     description: describe(concept, intent, cycles, cycle, translation, rotationDeg),
     concept,
-    fleetCount,
+    fleetCount: requestedCount,
     formationSpec: {
       width: round(width, 2),
       height: round(winged ? width * 0.45 : width, 2),

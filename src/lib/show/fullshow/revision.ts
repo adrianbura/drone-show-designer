@@ -98,6 +98,9 @@ export function computeAnalysisRevision(project: ShowProject, inputs: RevisionIn
     JSON.stringify(project.versions),
     // Any launch/staging/grouping change invalidates the analysis.
     `ps=${JSON.stringify(project.preShow ?? null)}`,
+    // Participation settings change WHICH drones fly the image and where the
+    // remaining fleet goes, so they invalidate the whole analysis.
+    `pa=${JSON.stringify(project.participation ?? null)}`,
     `sr=${inputs.sampleRate}`,
     `as=${inputs.assignmentStrategy}`,
     clips.join("~"),
