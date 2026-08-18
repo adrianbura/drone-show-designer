@@ -95,6 +95,29 @@ function assertIntegrity(project: ShowProject): void {
       }
     }
   }
+  // SCENE INTEGRITY: a composed scene must reference real objects with a real
+  // transform, otherwise the file is rejected before it replaces the open show.
+  for (const scene of project.scenes ?? []) {
+    if (!scene || typeof scene.id !== "string" || !Array.isArray(scene.objects)) {
+      throw new ProjectFileError("MALFORMED_PROJECT", "A formation scene is malformed.");
+    }
+    for (const object of scene.objects) {
+      const source = object?.source as { kind?: string } | undefined;
+      if (!object || typeof object.id !== "string" || !source?.kind) {
+        throw new ProjectFileError("MALFORMED_PROJECT", `Scene ${scene.id} has an invalid object.`, {
+          sceneId: scene.id,
+        });
+      }
+      const t = object.transform;
+      if (!t || !isVec3(t.position) || !isVec3(t.rotationDeg) || typeof t.scale !== "number") {
+        throw new ProjectFileError(
+          "MALFORMED_PROJECT",
+          `Scene object ${object.id} has an invalid transform.`,
+          { sceneId: scene.id, objectId: object.id },
+        );
+      }
+    }
+  }
   for (const dynamic of project.dynamicFormations ?? []) {
     if (!dynamic || typeof dynamic.id !== "string" || !Array.isArray(dynamic.points)) {
       throw new ProjectFileError("DYNAMIC_INTEGRITY", "A dynamic formation is malformed.");

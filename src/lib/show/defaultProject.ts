@@ -73,6 +73,8 @@ export function createDefaultProject(droneCount = 48): ShowProject {
     timeline: [],
     markers: [],
     musicSections: [],
+    // Multi-formation scenes: one entry per composed clip, empty at startup.
+    scenes: [],
   };
 }
 
