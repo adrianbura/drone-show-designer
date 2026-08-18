@@ -987,22 +987,39 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const setDroneCount = useCallback((n: number) => {
-    const count = Math.max(3, Math.min(500, Math.round(n)));
-    setProject((p) => ({
-      ...p,
-      droneCount: count,
-      formations: p.formations.map((f) => {
-        if (f.kind === "svg") {
-          const asset = f.svg ? svgAssets[f.svg.assetId] : undefined;
-          // Without the source asset the stored point set is kept untouched:
-          // silently resampling would break exact-N reproducibility.
-          return asset ? regenerateSvgFormation(f, asset, count) : f;
-        }
-        return { ...f, points: generatePoints(f.kind, count, p.area, f.params) };
-      }),
-    }));
-  }, []);
+  /**
+   * SINGLE fleet-size resize path. Every caller (fleet field, setup wizard)
+   * goes through this so `project.droneCount` and the derived geometry can
+   * never disagree. Grid capacity (rows * columns) is NEVER the fleet size.
+   */
+  const projectWithDroneCount = useCallback(
+    (p: ShowProject, n: number): ShowProject => {
+      const count = Math.max(3, Math.min(500, Math.round(n)));
+      return {
+        ...p,
+        droneCount: count,
+        formations: p.formations.map((f) => {
+          if (f.kind === "svg") {
+            const asset = f.svg ? svgAssets[f.svg.assetId] : undefined;
+            // Without the source asset the stored point set is kept untouched:
+            // silently resampling would break exact-N reproducibility.
+            return asset ? regenerateSvgFormation(f, asset, count) : f;
+          }
+          return { ...f, points: generatePoints(f.kind, count, p.area, f.params) };
+        }),
+      };
+    },
+    [svgAssets],
+  );
+
+  const setDroneCount = useCallback(
+    (n: number) => {
+      setProject((p) => projectWithDroneCount(p, n));
+    },
+    [projectWithDroneCount],
+  );
+
+
 
   const currentSetupDraft = useMemo(() => setupDraftFromProject(project), [project]);
 
@@ -1027,18 +1044,27 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const applySetupDraft = useCallback(
     (draft: ProjectSetupDraft) => {
-      const count = Math.round(draft.droneCount);
-      setProject((p) => ({
-        ...p,
-        name: draft.name.trim() || p.name,
-        preShow: preShowConfigFromSetup(draft, p.preShow),
-      }));
-      // Fleet size flows through the canonical resampling path so SVG and
-      // procedural formations stay exact-N.
-      if (count !== project.droneCount) setDroneCount(count);
+      // ATOMIC: fleet size, launch grid and staging are committed in ONE state
+      // update, so no render can ever pair a new grid with the previous fleet
+      // size (or the reverse). Fleet size still flows through the canonical
+      // resampling path so SVG and procedural formations stay exact-N.
+      setProject((p) => {
+        const resized = projectWithDroneCount(p, draft.droneCount);
+        return {
+          ...resized,
+          name: draft.name.trim() || p.name,
+          preShow: preShowConfigFromSetup(draft, p.preShow),
+        };
+      });
+      // Any cached analysis was computed for the previous fleet size.
+      setPreShowPreview(null);
+      setFullShow(null);
+      setSelectedLaunchGroupId(null);
+      setHighlightedDrones([]);
     },
-    [project.droneCount, setDroneCount],
+    [projectWithDroneCount],
   );
+
 
   const setLimits = useCallback((patch: Partial<SafetyLimits>) => {
     setProject((p) => ({ ...p, limits: { ...p.limits, ...patch } }));
