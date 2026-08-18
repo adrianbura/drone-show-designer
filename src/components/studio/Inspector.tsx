@@ -13,6 +13,7 @@ import FullShowPanel from "./FullShowPanel";
 import LaunchPanel from "./LaunchPanel";
 import ParticipationPanel from "./ParticipationPanel";
 import SceneObjectsPanel from "./SceneObjectsPanel";
+import LightingEffectsPanel from "./LightingEffectsPanel";
 import SimulationPanel from "./SimulationPanel";
 import DynamicPanel from "./DynamicPanel";
 import EsspPanel from "./EsspPanel";
@@ -457,6 +458,8 @@ export default function Inspector() {
       <LaunchPanel />
 
       <SceneObjectsPanel />
+
+      <LightingEffectsPanel />
 
       <ParticipationPanel />
 
