@@ -21,6 +21,11 @@ import { generatePoints, makeFormation } from "../show/formations";
 import { buildShowPlan, samplesAt, sampleTrajectorySet, DEFAULT_SAMPLE_RATE } from "../show/trajectory";
 import type { ClipTransitionOverride, ShowPlan, TrajectorySample, TrajectorySet } from "../show/trajectory";
 import { validateShow, type SafetyReport } from "../show/safety";
+import {
+  resolveParticipationSettings,
+  type ClipParticipationOverride,
+  type ParticipationSettings,
+} from "../show/participation";
 import { buildBeatGrid, decodeAudioFile, type BeatGrid, type WaveformPeaks } from "../show/audio";
 import {
   compareAssignmentStrategies,
