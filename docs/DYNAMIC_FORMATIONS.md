@@ -27,3 +27,11 @@ into motion groups of this engine — it does not add a second animation engine.
 
 Static creation remains the default; a dynamic version is produced only when the
 user explicitly asks for it ("Create dynamic version").
+
+## Declared part motion (built-in car)
+
+A `SemanticPart` may declare `motion: "SPIN_Z"`. `dynamicFromCompiled` then writes
+ordinary linear rotation keyframes (0 -> -360 deg over one cycle) for that part's
+motion group and sets the formation loop to `REPEAT`. The group pivot defaults to
+the part centroid, so `builtin-car` wheels roll about their own centre and remain
+fully editable in the dynamic panel afterwards.
