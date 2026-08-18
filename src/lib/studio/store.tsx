@@ -180,6 +180,27 @@ import { useAudioPlayback } from "./audioPlayback";
 import { resolveShortcut } from "./shortcuts";
 import { createBrowserKeyValueStore, type KeyValueStore } from "../library/repository";
 import {
+  addObject,
+  alignObjects,
+  duplicateObject,
+  mirrorObjectX,
+  objectProximityWarnings,
+  patchObject,
+  patchObjectTransform,
+  removeObject,
+  resolveSceneAt,
+  sceneBudget,
+  sceneForClip,
+  upsertScene,
+  type FormationScene,
+  type InstanceTransform,
+  type ObjectProximityWarning,
+  type SceneAlignment,
+  type SceneBudget,
+  type SceneFormationInstance,
+  type SceneObjectSource,
+} from "../show/scene";
+import {
   AUTOSAVE_DEBOUNCE_MS,
   clearAutosave,
   ensureProjectExtension,
@@ -1301,6 +1322,25 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [dynamicEditTime, setDynamicEditTime] = useState(0);
 
   const dynamicFormations = useMemo(() => project.dynamicFormations ?? [], [project.dynamicFormations]);
+  const selectedScene = useMemo<FormationScene | null>(() => {
+    const clip = project.timeline.find((c) => c.id === selectedClipId);
+    return clip ? sceneForClip(project, clip) : null;
+  }, [project, selectedClipId]);
+
+  const selectedSceneBudget = useMemo<SceneBudget | null>(
+    () => (selectedScene ? sceneBudget(project, selectedScene, project.droneCount) : null),
+    [project, selectedScene],
+  );
+
+  const selectedSceneWarnings = useMemo<ObjectProximityWarning[]>(() => {
+    if (!selectedScene || selectedScene.objects.length < 2) return [];
+    try {
+      return objectProximityWarnings(resolveSceneAt(project, selectedScene, 0), project.limits);
+    } catch {
+      return [];
+    }
+  }, [project, selectedScene]);
+
   const selectedClip = useMemo(
     () => project.timeline.find((c) => c.id === selectedClipId) ?? null,
     [project.timeline, selectedClipId],
