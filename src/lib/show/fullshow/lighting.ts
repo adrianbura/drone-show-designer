@@ -37,7 +37,7 @@ export function lightSamplesAt(
     : null;
   return plan.drones.map((d) => {
     const base = lightColorAt(clip, d.index, project.droneCount, t);
-    const role = participation ? participationOf(participation, d.id)?.role : undefined;
+    const role = participation ? participationOf(participation, d.index)?.role : undefined;
     const color = role ? scaleColor(base, reserveLightingScale(role, policy)) : base;
     return {
       t,
