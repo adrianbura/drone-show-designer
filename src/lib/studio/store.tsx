@@ -349,6 +349,31 @@ interface StudioContextValue {
   alignSceneObjects: (clipId: string, alignment: SceneAlignment) => void;
   patchSceneTransform: (clipId: string, patch: Partial<InstanceTransform>) => void;
 
+  // ---- Lighting, reveal & colour effects (Sprint 7.4) ---------------------
+  /** Lighting effects of the selected clip, in evaluation order. */
+  lightingEffects: LightingEffectInstance[];
+  /** Structural validation of the whole lighting program (never blocking). */
+  lightingReport: LightingValidationReport;
+  selectedLightingEffectId: string | null;
+  selectedLightingEffect: LightingEffectInstance | null;
+  selectLightingEffect: (id: string | null) => void;
+  /** Creates one effect instance of a built-in preset on a clip. */
+  addLightingEffectFromPreset: (
+    clipId: string,
+    presetId: string,
+    target?: LightingTarget,
+  ) => string | null;
+  patchLightingEffect: (id: string, patch: Partial<Omit<LightingEffectInstance, "id">>) => void;
+  patchLightingParameters: (id: string, patch: Partial<LightingEffectParameters>) => void;
+  removeLightingEffect: (id: string) => void;
+  /** One undoable commit of a timeline gesture on a lighting effect. */
+  commitLightingTiming: (id: string, timing: { start?: number; duration?: number }) => void;
+  /** Deterministic per-drone LED state at show time `t` (empty = no lighting). */
+  lightingStatesAt: (t: number) => DroneLightState[];
+  /** Viewport LED preview toggle. Off = legacy clip colours. */
+  lightingPreview: boolean;
+  setLightingPreview: (v: boolean) => void;
+
   // ---- Project setup wizard + asset library (Sprint 6B.6) -----------------
   /** Replaces the whole project with a new one built from the wizard draft. */
   createProjectFromDraft: (draft: ProjectSetupDraft) => void;
