@@ -58,8 +58,9 @@ describe("snapping", () => {
     expect(snapTimelineTime(29.98, { ...ctx, disabled: true }).snapped).toBe(false);
   });
 
-  it("never captures a target further away than the pixel threshold", () => {
-    const r = snapTimelineTime(12.44, { mode: "S100", pixelsPerSecond: 1 });
+  it("never captures a beat further away than the pixel threshold", () => {
+    // 0.06 s away from the nearest beat, but only ~0.06 px at this scale.
+    const r = snapTimelineTime(1.94, { mode: "BEAT", beatGrid: grid, pixelsPerSecond: 1 });
     expect(r.snapped).toBe(false);
   });
 });
@@ -75,7 +76,7 @@ describe("timing edits", () => {
   });
 
   it("resizes against the beat grid when snapping is on", () => {
-    const { transition } = resizeTransition(clip, 13.9, { mode: "BEAT", beatGrid: grid, pixelsPerSecond: 200 });
+    const { transition } = resizeTransition(clip, 13.98, { mode: "BEAT", beatGrid: grid, pixelsPerSecond: 200 });
     expect(transition).toBe(4);
   });
 });
