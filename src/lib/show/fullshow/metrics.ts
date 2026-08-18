@@ -35,8 +35,11 @@ export function windowStats(
   area?: ShowArea,
 ): WindowStats {
   const rate = set.sampleRate;
-  const from = Math.max(0, Math.floor(start * rate));
-  const to = Math.min((set.drones[0]?.samples.length ?? 1) - 1, Math.ceil(end * rate));
+  // The canonical set may begin at NEGATIVE show time (PRE_SHOW). Absolute show
+  // time must therefore be mapped through the set's own origin, never assumed 0.
+  const origin = set.startTime ?? 0;
+  const from = Math.max(0, Math.floor((start - origin) * rate));
+  const to = Math.min((set.drones[0]?.samples.length ?? 1) - 1, Math.ceil((end - origin) * rate));
   let maxVelocity = 0;
   let maxAcceleration = 0;
   let maxJerk = 0;
