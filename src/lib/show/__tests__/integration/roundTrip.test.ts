@@ -78,15 +78,14 @@ describe("rich project round trip", () => {
     expect(reopened.lighting).toEqual(original.lighting);
   });
 
-  it("persists audio metadata (attachment flag survives — see BUG-A1)", () => {
+  it("persists audio metadata but never the session-only attachment claim", () => {
     expect(reopened.audio.name).toBe("audit.mp3");
     expect(reopened.audio.bpm).toBe(128);
     expect(reopened.audio.offset).toBeCloseTo(0.25, 6);
     expect(reopened.audio.duration).toBe(180);
-    // AUDIT FINDING (BUG-A1, LOW): `attached` is persisted verbatim, so a
-    // reopened project claims an attached track although audio bytes are never
-    // stored. Pinned to CURRENT behaviour on purpose — reported, not fixed.
-    expect(reopened.audio.attached).toBe(true);
+    // BUG-A1 FIXED: audio bytes are never stored, so a reopened project must
+    // ask the operator to re-attach the file.
+    expect(reopened.audio.attached).toBe(false);
   });
 
   it("replans identically after reopening", () => {
