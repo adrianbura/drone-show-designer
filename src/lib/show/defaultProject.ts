@@ -208,7 +208,7 @@ export function migrateProject(input: unknown): ShowProject {
     scenes: sanitizeScenes(raw.scenes),
     // LIGHTING PROGRAM: absent in pre-7.4 projects. Sanitisation is defensive
     // and lossless for valid data; lighting never affects flight computation.
-    lighting: sanitizeLightingProgram(raw.lighting),
+    ...(sanitizeLightingProgram(raw.lighting) ? { lighting: sanitizeLightingProgram(raw.lighting)! } : {}),
     // Editor annotations are restored defensively; they are never required.
     markers: sanitizeMarkers(raw.markers),
     musicSections: sanitizeSections(raw.musicSections),

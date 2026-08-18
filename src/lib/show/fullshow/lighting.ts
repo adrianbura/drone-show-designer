@@ -131,7 +131,7 @@ export function validateLightProgram(
       code: issue.code,
       message: issue.message,
       time: issue.time ?? 0,
-      clipId: issue.clipId,
+      ...(issue.clipId ? { clipId: issue.clipId } : {}),
     });
   }
 
