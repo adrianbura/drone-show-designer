@@ -11,7 +11,7 @@
  * are never placed on the music timeline automatically. The user directs the
  * show; the deterministic compiler and the flight engines do the maths.
  */
-import type { LightingEffectKind } from "../show/lighting/types";
+import type { LightingEffectType } from "../show/lighting/types";
 import type { RGB } from "../show/types";
 import type {
   SemanticPartId,
@@ -44,7 +44,7 @@ export interface ProposalBaseColorIntent {
 
 /** Optional lighting SUGGESTION. Never auto-placed on the music timeline. */
 export interface AISuggestedLightingEffect {
-  readonly kind: LightingEffectKind;
+  readonly kind: LightingEffectType;
   readonly color?: RGB;
   readonly description: string;
 }
