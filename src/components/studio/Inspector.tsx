@@ -539,7 +539,8 @@ export default function Inspector() {
               "application/json",
             )
           }
-          className="chip-btn w-full justify-center"
+          disabled={!canExportComputedShow}
+          className="chip-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-40"
         >
           Generic show JSON (documented schema)
         </button>
@@ -551,7 +552,8 @@ export default function Inspector() {
               "text/csv",
             )
           }
-          className="chip-btn w-full justify-center"
+          disabled={!canExportComputedShow}
+          className="chip-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-40"
         >
           Trajectory + light CSV
         </button>
