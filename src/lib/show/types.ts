@@ -21,6 +21,8 @@ import type { PreShowConfig } from "./preshow/types";
 import type { DynamicFormation } from "./dynamic/types";
 import type { MusicSection, TimelineMarker } from "./markers";
 import type { ParticipationSettings } from "./participation/types";
+import type { FormationScene } from "./scene/types";
+
 
 
 export type FormationKind =
@@ -174,6 +176,13 @@ export interface ShowProject {
    * a project without any behaves exactly as before.
    */
   dynamicFormations?: DynamicFormation[];
+  /**
+   * SIMULTANEOUS MULTI-FORMATION SCENES (Sprint 7.3.5). One entry per timeline
+   * clip that composes SEVERAL visual objects (`scene.id === clip.id`). Clips
+   * without an entry keep the legacy single-formation behaviour exactly.
+   */
+  scenes?: FormationScene[];
+
   /**
    * AUTHORING ANNOTATIONS (Sprint 7.2). Project-owned editor metadata: markers
    * and music sections are persisted with the show but never influence flight

@@ -135,16 +135,24 @@ export interface ActivePointAssignment {
 }
 
 /**
- * One active formation inside a scene. A scene MAY contain several groups in a
- * future build; this build always emits exactly one (`groupId: "primary"`).
+ * One active formation inside a scene. A scene may contain SEVERAL groups
+ * simultaneously (Sprint 7.3.5): one group per visual scene object. Legacy
+ * single-formation clips still emit exactly one group (`groupId: "primary"`).
  */
 export interface FormationTargetGroup {
   readonly groupId: string;
   readonly formationId: string | null;
   readonly dynamicFormationId?: string;
+  /** Scene object instance this group renders, when the scene is composed. */
+  readonly instanceId?: string;
+  /** Author-facing object name. Presentation only; never machine identity. */
+  readonly name?: string;
+  /** Offset of the group's first point in the scene's combined point list. */
+  readonly offset?: number;
   readonly pointCount: number;
   readonly assignments: readonly ActivePointAssignment[];
 }
+
 
 export interface DroneParticipation {
   readonly droneId: string;
