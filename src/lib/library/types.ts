@@ -36,6 +36,18 @@ export interface AssetThumbnail {
   readonly points: readonly (readonly [number, number])[];
 }
 
+/**
+ * Non-pixel provenance record. NEVER stores raw image data, base64 or ImageData —
+ * only identity of the origin (filename, deterministic analysis fingerprint and
+ * the analysis parameters that produced the geometry).
+ */
+export interface AssetSourceRef {
+  readonly kind: "IMAGE" | "SVG" | "PROMPT" | "FILE";
+  readonly name?: string | undefined;
+  readonly fingerprint?: string | undefined;
+  readonly params?: Readonly<Record<string, string | number | boolean>> | undefined;
+}
+
 export interface FormationAssetMetadata {
   /** Point count of the stored geometry — the asset's native fleet size. */
   readonly droneCount: number;
@@ -61,6 +73,7 @@ export interface FormationAsset {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly source: FormationAssetSource;
+  readonly sourceRef?: AssetSourceRef | undefined;
   readonly droneCount: number;
   readonly thumbnail?: AssetThumbnail | undefined;
   /** Exact engine payload. Dynamic assets keep the FULL animation model. */
@@ -123,6 +136,7 @@ export interface AssetSaveInput {
   readonly tags?: readonly string[];
   readonly favorite?: boolean;
   readonly source?: FormationAssetSource;
+  readonly sourceRef?: AssetSourceRef | undefined;
 }
 
 /**
