@@ -83,6 +83,7 @@ export default function AiReferencePanel({
         fileFromBase64(result.imageBase64, result.mimeType, `ai-reference-${Date.now()}.png`),
         {
           prompt: text,
+          droneCount,
           ...(mode === "REFINE" && instruction.trim().length > 0
             ? { instruction: instruction.trim() }
             : {}),
