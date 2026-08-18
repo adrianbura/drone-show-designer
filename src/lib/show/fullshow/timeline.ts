@@ -4,7 +4,7 @@
  * Pure and independent of trajectories: these checks answer "is this show
  * describable at all?" before any planning cost is paid.
  */
-import { buildDroneDefinitions } from "../drones";
+import { buildDroneDefinitions, type DroneDefinition } from "../drones";
 import { clipPhase, showDuration, type ShowProject } from "../types";
 import type { FullShowIssue, HomePadReport, TimelineValidationReport } from "./types";
 
@@ -181,9 +181,17 @@ export function validateTimelineStructure(project: ShowProject): TimelineValidat
  * Home pads are the physical launch/landing footprint. Overlapping pads are a
  * REAL problem: a valid airborne show that lands two drones on the same pad is
  * not flyable.
+ *
+ * `drones` MUST be passed by full-show analysis so that the pads validated are
+ * exactly the homes the composed plan flies from (launch-grid pads when
+ * PRE_SHOW is enabled). Standalone callers keep the project-only default, which
+ * derives pads from the first formation footprint.
  */
-export function validateHomePads(project: ShowProject): HomePadReport {
-  const drones = buildDroneDefinitions(project);
+export function validateHomePads(
+  project: ShowProject,
+  droneDefinitions?: readonly DroneDefinition[],
+): HomePadReport {
+  const drones = droneDefinitions ?? buildDroneDefinitions(project);
   const issues: FullShowIssue[] = [];
   const halfW = project.area.width / 2;
   const halfD = project.area.depth / 2;

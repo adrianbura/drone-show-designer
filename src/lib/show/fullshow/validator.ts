@@ -89,11 +89,13 @@ export function analyzeFullShow(
 
   advance("preparing");
   const timeline = validateTimelineStructure(project);
-  const homePads = validateHomePads(project);
 
   advance("planningTransitions");
   advance("composingShow");
   const plan = composeFullShow(project, options);
+  // Authoritative homes come from the composed plan (launch-grid pads under
+  // PRE_SHOW), never from a second, independent home resolution.
+  const homePads = validateHomePads(project, plan.drones);
 
   advance("checkingConflicts");
   const conflicts: ConflictReport = detectConflicts(plan.trajectorySet, {
