@@ -1,7 +1,9 @@
 import { CheckCircle2, Loader2, Rocket, TriangleAlert, XCircle } from "lucide-react";
 import { useMemo } from "react";
 
+import { useI18n } from "@/i18n";
 import type { LaunchGroupingStrategy, StagingFormationKind } from "@/lib/show/preshow";
+import { resolveGridShape } from "@/lib/show/preshow/launchGrid";
 import { useStudio } from "@/lib/studio/store";
 
 const GROUPING: LaunchGroupingStrategy[] = ["ROWS", "COLUMNS", "BLOCKS", "MANUAL"];
@@ -95,13 +97,23 @@ export default function LaunchPanel() {
     selectedLaunchGroupId,
     selectLaunchGroup,
   } = useStudio();
+  const { t } = useI18n();
+
 
   const status = preShowReport?.status ?? null;
   const StatusIcon = status === "VALID" ? CheckCircle2 : status === "WARNING" ? TriangleAlert : XCircle;
   const statusClass =
     status === "VALID" ? "text-success" : status === "WARNING" ? "text-warning" : "text-destructive";
 
-  const capacity = preShowConfig.launch.rows * preShowConfig.launch.columns;
+  const configuredCapacity = preShowConfig.launch.rows * preShowConfig.launch.columns;
+  const resolvedGrid = useMemo(
+    () => resolveGridShape(project.droneCount, preShowConfig.launch),
+    [project.droneCount, preShowConfig.launch],
+  );
+  const effectiveCapacity = resolvedGrid.rows * resolvedGrid.columns;
+  const occupiedPads = project.droneCount;
+  const autoGrownRows = Math.max(0, resolvedGrid.rows - preShowConfig.launch.rows);
+  const unusedCells = Math.max(0, effectiveCapacity - occupiedPads);
   const groups = preShowPlan?.groups ?? [];
   const overlayGroups = preShowOverlay?.groups ?? [];
   const issues = useMemo(() => preShowReport?.issues.slice(0, 40) ?? [], [preShowReport]);
@@ -181,14 +193,26 @@ export default function LaunchPanel() {
                 onChange={(v) => patchPreShow({ launch: { rotationDeg: v } })}
               />
             </div>
-            <p className="text-[10px] text-muted-foreground">
-              {project.droneCount} pads generated · grid capacity {capacity}
-              {capacity < project.droneCount
-                ? " — too small: increase rows or columns."
-                : capacity > project.droneCount
-                  ? " — the last row is partially populated."
-                  : ""}
-            </p>
+            <div className="space-y-1 rounded-md border border-border/60 bg-muted/20 p-2">
+              <Row label={t("launchGrid.fleet")} value={String(project.droneCount)} />
+              <Row
+                label={t("launchGrid.configuredGrid")}
+                value={`${preShowConfig.launch.rows} × ${preShowConfig.launch.columns}`}
+              />
+              <Row label={t("launchGrid.configuredCapacity")} value={String(configuredCapacity)} />
+              <Row
+                label={t("launchGrid.effectiveGrid")}
+                value={`${resolvedGrid.rows} × ${resolvedGrid.columns}`}
+              />
+              <Row label={t("launchGrid.effectiveCapacity")} value={String(effectiveCapacity)} />
+              <Row label={t("launchGrid.occupied")} value={String(occupiedPads)} />
+              {autoGrownRows > 0 ? (
+                <Row label={t("launchGrid.autoGrownRows")} value={`+${autoGrownRows}`} />
+              ) : unusedCells > 0 ? (
+                <Row label={t("launchGrid.unusedCells")} value={String(unusedCells)} />
+              ) : null}
+            </div>
+
           </div>
 
           {/* ------------------------------------------------------ staging */}
