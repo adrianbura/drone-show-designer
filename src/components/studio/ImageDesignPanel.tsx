@@ -174,28 +174,36 @@ export default function ImageDesignPanel() {
     };
   }, [source?.previewUrl]);
 
-  const analysis = useMemo(() => {
-    if (!source) return null;
+  // Analysis is pure library work and never sets state during render: failures
+  // are returned as data so the panel can show them next to the STRUCTURE stage.
+  const analysed = useMemo((): {
+    result: ImageAnalysisResult | null;
+    errorCode: string | null;
+  } => {
+    if (!source) return { result: null, errorCode: null };
     try {
-      const result = analyzeImage(source.image, {
-        detail,
-        structure,
-        background,
-        simplify,
-        sourceName: source.name,
-      });
-      setError(null);
-      return result;
+      return {
+        result: analyzeImage(source.image, {
+          detail,
+          structure,
+          background,
+          simplify,
+          sourceName: source.name,
+        }),
+        errorCode: null,
+      };
     } catch (err) {
-      setError(
-        err instanceof ImageAnalysisError
-          ? t(`image.error.${err.code}` as "image.error.DECODE_FAILED")
-          : String(err),
-      );
-      return null;
+      return {
+        result: null,
+        errorCode: err instanceof ImageAnalysisError ? err.code : "DECODE_FAILED",
+      };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [background, detail, simplify, source, structure]);
+
+  const analysis = analysed.result;
+  const analysisError = analysed.errorCode
+    ? t(`image.error.${analysed.errorCode}` as "image.error.DECODE_FAILED")
+    : null;
 
   const design = useMemo(
     () => (analysis ? designFromAnalysis(analysis, { sourceName: source?.name }) : null),
