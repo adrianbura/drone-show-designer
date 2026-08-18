@@ -22,6 +22,7 @@ import ConversionPanel from "./ConversionPanel";
 
 
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
+import { evaluateExportEligibility } from "@/lib/adapters/exportEligibility";
 import {
   downloadText,
   toGenericShowJson,
@@ -106,7 +107,8 @@ export default function Inspector() {
     preShowReport,
     preShowStale,
   } = useStudio();
-  const exportBlocked = fullShowReport?.exportReadiness.status === "BLOCKED";
+  const exportEligibility = evaluateExportEligibility(fullShowReport, fullShowStale);
+  const canExportComputedShow = exportEligibility.canExportComputedShow;
   const clip = project.timeline.find((c) => c.id === selectedClipId);
   const analysis =
     transitionAnalysis && transitionAnalysis.clipId === selectedClipId
@@ -477,11 +479,48 @@ export default function Inspector() {
         <h2 className="panel-title">
           <Download className="size-3.5" /> Export
         </h2>
-        {exportBlocked && (
-          <p className="rounded border border-destructive/60 bg-destructive/10 p-2 text-[10px] leading-relaxed text-destructive">
-            Full-show validation FAILED. Exporting is still possible, but the package is flagged as
-            not validated — resolve the blocking issues first.
+        {exportEligibility.reason === "NO_REPORT" && (
+          <p
+            data-testid="export-gate-no-report"
+            className="rounded border border-border bg-muted/30 p-2 text-[10px] leading-relaxed text-muted-foreground"
+          >
+            Run full-show analysis before exporting computed show data.
           </p>
+        )}
+        {exportEligibility.reason === "STALE" && (
+          <p
+            data-testid="export-gate-stale"
+            className="rounded border border-warning/60 bg-warning/10 p-2 text-[10px] leading-relaxed text-warning"
+          >
+            Project changed after validation; run full-show analysis again.
+          </p>
+        )}
+        {exportEligibility.reason === "BLOCKED" && (
+          <div
+            data-testid="export-gate-blocked"
+            className="rounded border border-destructive/60 bg-destructive/10 p-2 text-[10px] leading-relaxed text-destructive"
+          >
+            <p>Full-show validation BLOCKED — computed show exports are disabled.</p>
+            <ul className="list-disc space-y-0.5 pl-4 pt-1">
+              {exportEligibility.blockers.slice(0, 8).map((b) => (
+                <li key={b}>{b}</li>
+              ))}
+              {exportEligibility.blockers.length === 0 && <li>See full-show report for details.</li>}
+            </ul>
+          </div>
+        )}
+        {exportEligibility.reason === "OK_WITH_WARNINGS" && (
+          <div
+            data-testid="export-gate-warnings"
+            className="rounded border border-warning/60 bg-warning/10 p-2 text-[10px] leading-relaxed text-warning"
+          >
+            <p>Export allowed with non-blocking warnings.</p>
+            <ul className="list-disc space-y-0.5 pl-4 pt-1">
+              {exportEligibility.warnings.slice(0, 8).map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          </div>
         )}
         <button
           onClick={() =>
@@ -500,7 +539,8 @@ export default function Inspector() {
               "application/json",
             )
           }
-          className="chip-btn w-full justify-center"
+          disabled={!canExportComputedShow}
+          className="chip-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-40"
         >
           Generic show JSON (documented schema)
         </button>
@@ -512,7 +552,8 @@ export default function Inspector() {
               "text/csv",
             )
           }
-          className="chip-btn w-full justify-center"
+          disabled={!canExportComputedShow}
+          className="chip-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-40"
         >
           Trajectory + light CSV
         </button>
