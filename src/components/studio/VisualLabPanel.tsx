@@ -10,7 +10,7 @@
  * synchronises it with the music manually.
  */
 import { Bug, Download, Palette, RefreshCw, Save, Wand2 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useI18n } from "@/i18n";
 import { useLibrary } from "@/lib/library/provider";
