@@ -309,10 +309,14 @@ export default function ImageDesignPanel() {
     ? t(`image.error.${analysed.errorCode}` as "image.error.DECODE_FAILED")
     : null;
 
-  const design = useMemo(
+  const extracted = useMemo(
     () => (analysis ? designFromAnalysis(analysis, { sourceName: source?.name }) : null),
     [analysis, source?.name],
   );
+
+  // The structure editor owns the editable draft; the extraction stays intact.
+  const editor = useStructureEditor(extracted);
+  const design = editor?.draft ?? null;
 
   const compiled = useMemo(() => {
     if (!design) return null;
@@ -327,6 +331,7 @@ export default function ImageDesignPanel() {
       return null;
     }
   }, [count, design]);
+
 
   const pick = async (file: File | undefined) => {
     if (!file) return;
@@ -359,18 +364,30 @@ export default function ImageDesignPanel() {
       id: `vf-img-${design.id}-${Date.now().toString(36)}`,
       name,
     });
+    const edited = editor?.edited ?? false;
     const asset = await library.saveFormation(formation, {
       name,
-      // Provenance follows the DESIGN, never the button that saved it.
+      // Provenance follows the DESIGN, never the button that saved it. Manual
+      // structure edits do NOT downgrade an imported asset to USER.
       source: assetSourceForDesign(design),
       // Identity of the origin only — no pixels, no base64, no ImageData.
       sourceRef: {
         kind: "IMAGE",
         name: source?.name,
         fingerprint: analysis?.fingerprint,
-        params: { detail, structure, background, simplify },
+        params: {
+          detail,
+          structure,
+          background,
+          simplify,
+          edited,
+          editOps: editor?.editOps ?? 0,
+          designVersion: design.version,
+        },
       },
-      tags: ["image", `detail:${detail}`, `structure:${structure}`],
+      tags: edited
+        ? ["image", `detail:${detail}`, `structure:${structure}`, "edited"]
+        : ["image", `detail:${detail}`, `structure:${structure}`],
     });
     setSaved(asset ? asset.name : null);
   };
