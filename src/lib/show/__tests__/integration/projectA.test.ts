@@ -11,13 +11,14 @@ import { buildComplexProject, pigeonAssets } from "./fixtures";
 import { expectFinite, expectFleetAccounting, expectProjectStructurallySound, participationForClip } from "./invariants";
 import { composePreShow, launchHomePositions, resolvePreShowConfig } from "../../preshow";
 import { buildDroneDefinitions } from "../../drones";
-import { composeFullShow } from "../../fullshow";
+import { composeFullShow, computeAnalysisRevision } from "../../fullshow";
 import { sampleDynamicFormation } from "../../dynamic/sampler";
 import { createSceneEvaluator, patchObjectTransform, sceneForClip, upsertScene } from "../../scene";
 import { buildShowPlan } from "../../trajectory/schedule";
 import type { Vector3Tuple } from "../../types";
 
 const { project, pigeonPointCount } = buildComplexProject(200, 150);
+const revisionSettings = { sampleRate: 10, assignmentStrategy: "nearestNeighbor" as const };
 
 describe("complex 200-drone project", () => {
   it("is structurally sound end to end", () => {
@@ -69,6 +70,29 @@ describe("complex 200-drone project", () => {
     expect(after.slice(0, 80)).not.toEqual(before.slice(0, 80));
     expect(project.formations.find((f) => f.id === "f-heart")!.points).toEqual(heartPointsBefore);
     expectFinite(after, "moved scene");
+  });
+
+  it("invalidates full-show analysis when scene geometry or lighting changes", () => {
+    const baseRevision = computeAnalysisRevision(project, revisionSettings);
+
+    const scene = sceneForClip(project, project.timeline[1]!);
+    const movedScene = patchObjectTransform(scene, scene.objects[0]!.id, {
+      position: [-70, 4, 2] as Vector3Tuple,
+    });
+    expect(computeAnalysisRevision(upsertScene(project, movedScene), revisionSettings)).not.toBe(baseRevision);
+
+    const lighting = project.lighting!;
+    const firstEffect = lighting.effects[0]!;
+    const lightingChanged = {
+      ...project,
+      lighting: {
+        ...lighting,
+        effects: lighting.effects.map((effect, i) =>
+          i === 0 ? { ...effect, start: firstEffect.start + 0.25 } : effect,
+        ),
+      },
+    };
+    expect(computeAnalysisRevision(lightingChanged, revisionSettings)).not.toBe(baseRevision);
   });
 
   it("dynamic wing animation keeps stable ids, groups and exact point count", () => {
