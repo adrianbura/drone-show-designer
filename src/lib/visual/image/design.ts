@@ -127,8 +127,13 @@ export function designFromAnalysis(
       structure === "FILLED" ? "FILLED" : structure === "OUTLINE" ? "OUTLINE" : "STRUCTURAL",
     fillBias: structure === "FILLED" ? "FILL_HEAVY" : "CONTOUR_HEAVY",
     metadata: {
-      sourceType: "IMAGE_ANALYSIS",
-      tags: ["image", `detail:${analysis.options.detail}`, `structure:${structure}`],
+      sourceType,
+      tags: [
+        "image",
+        `detail:${analysis.options.detail}`,
+        `structure:${structure}`,
+        ...(sourceType === "AI_GENERATED" ? ["ai-reference"] : []),
+      ],
       notes: "Deterministic local image analysis. No semantic part recognition.",
       sourceRef,
       ...(input.createdAt ? { createdAt: input.createdAt } : {}),
