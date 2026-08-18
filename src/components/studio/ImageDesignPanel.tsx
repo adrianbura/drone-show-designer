@@ -461,7 +461,33 @@ export default function ImageDesignPanel() {
               style={{ height: H }}
             />
           )}
-          {stage === "STRUCTURE" && analysis && <StructureCanvas analysis={analysis} />}
+          {stage === "STRUCTURE" && analysis && design && editor && (
+            <div className="space-y-1.5">
+              <StructureEditorToolbar editor={editor} />
+              <StructureCanvas
+                design={design}
+                analysisWidth={analysis.diagnostics.analysisWidth}
+                analysisHeight={analysis.diagnostics.analysisHeight}
+                editor={editor}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                {editor.tool === "DRAW" ? t("image.editor.drawHint") : t("image.editor.intro")}
+              </p>
+              {editor.edited && (
+                <p className="font-mono text-[10px] text-muted-foreground">
+                  {t("image.editor.editedBadge", { ops: editor.editOps })}
+                </p>
+              )}
+              <StructureInspector editor={editor} />
+              <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                {t("image.editor.list")}
+              </div>
+              <StructureList editor={editor} />
+              <p className="text-[10px] text-muted-foreground">
+                {t("image.editor.resetOnControls")}
+              </p>
+            </div>
+          )}
           {stage === "DRONES" && compiled && <PointsCanvas points={compiled.result.points} />}
 
           <div className="grid grid-cols-2 gap-1.5">
