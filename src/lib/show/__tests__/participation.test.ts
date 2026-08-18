@@ -24,6 +24,7 @@ import {
 import { buildDroneDefinitions, droneIdForIndex, type DroneDefinition } from "../drones";
 import { DEFAULT_AREA, DEFAULT_LIMITS, createDefaultProject } from "../defaultProject";
 import { makeFormation } from "../formations";
+import { dynamicFromFormation } from "../dynamic/create";
 import { buildShowPlan } from "../trajectory/schedule";
 import type { Formation, ShowProject, Vector3Tuple } from "../types";
 
@@ -381,22 +382,11 @@ describe("full-fleet continuity through the scheduler", () => {
   it("keeps stable formation point ids for a partial DYNAMIC formation", () => {
     const project = createDefaultProject(120);
     const base = makeFormation("f-bird", "Bird", "circle", 40, DEFAULT_AREA, { size: 40, altitude: 40 });
-    const dynamic = {
-      id: "dyn-bird",
-      name: "Bird",
-      duration: 4,
-      loop: "loop" as const,
-      seed: 7,
-      algorithmVersion: "0.1.0",
-      pivot: [0, 40, 0] as Vector3Tuple,
-      points: base.points.map((p, i) => ({ id: `pt-${i}`, base: p })),
-      transform: {},
-      groups: [],
-    };
+    const dynamic = dynamicFromFormation(base, { id: "dyn-bird", name: "Bird", duration: 4 });
     const withClip: ShowProject = {
       ...project,
       formations: [...project.formations, base],
-      dynamicFormations: [dynamic as never],
+      dynamicFormations: [dynamic],
       timeline: [
         {
           id: "c-takeoff",
@@ -441,7 +431,8 @@ describe("full-fleet continuity through the scheduler", () => {
       .filter((d) => d.role === "ACTIVE_FORMATION")
       .map((d) => d.formationPointId);
     expect(new Set(ids).size).toBe(40);
-    expect(ids.every((id) => typeof id === "string" && id!.startsWith("pt-"))).toBe(true);
+    expect(ids.every((id) => typeof id === "string" && id!.length > 0)).toBe(true);
+    expect(new Set(dynamic.points.map((p) => p.id)).size).toBe(40);
     // Non-participating drones do not animate the living formation.
     expect(participation.counts.active + participation.counts.reserve + participation.counts.preposition).toBe(120);
   });
