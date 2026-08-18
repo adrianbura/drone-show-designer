@@ -54,6 +54,11 @@ export function validatePrimitive(primitive: VisualPrimitive): string[] {
 
 export function validateDesign(design: VisualFormationDesign): string[] {
   const issues: string[] = [];
+  if (!design || typeof design !== "object") return ["DESIGN_MALFORMED"];
+  if (!Array.isArray(design.primitives)) issues.push("DESIGN_PRIMITIVES");
+  if (!Array.isArray(design.semanticParts)) issues.push("DESIGN_PARTS");
+  if (!design.bounds || typeof design.bounds !== "object") issues.push("DESIGN_BOUNDS");
+  if (issues.length > 0) return issues;
   if (design.schemaVersion !== VISUAL_DESIGN_SCHEMA_VERSION) issues.push("SCHEMA_VERSION");
   if (!design.id) issues.push("DESIGN_ID");
   if (!design.name) issues.push("DESIGN_NAME");
