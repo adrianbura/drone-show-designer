@@ -18,6 +18,7 @@ import { useStudio } from "@/lib/studio/store";
 import {
   BUILT_IN_DESIGNS,
   animatableParts,
+  assetSourceForDesign,
   compileVisualFormation,
   dynamicFromCompiled,
   formationFromCompiled,
@@ -151,11 +152,16 @@ export default function VisualLabPanel() {
             id: `vd-${design.id}-${Date.now().toString(36)}`,
             name: `${name} (dynamic)`,
           }),
-          { name: `${name} (dynamic)`, source: "AI_GENERATED", tags: ["visual-design", design.id] },
+          {
+            name: `${name} (dynamic)`,
+            // Provenance follows the DESIGN, never the button that saved it.
+            source: assetSourceForDesign(design),
+            tags: ["visual-design", design.id],
+          },
         )
       : await library.saveFormation(formation, {
           name,
-          source: "AI_GENERATED",
+          source: assetSourceForDesign(design),
           tags: ["visual-design", design.id],
         });
     // The asset is only stored in the library — never added to the timeline.
