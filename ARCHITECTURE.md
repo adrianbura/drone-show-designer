@@ -140,3 +140,44 @@ trajectories, safety or export.
 A new project starts with an EMPTY TIMELINE (`createDefaultProject`). Demo
 choreography exists only behind the explicit `createDemoProject` factory used by
 tests and documentation.
+
+## Visual formation design + drone art compiler (Sprint 8A)
+
+`src/lib/visual/` is a pure, deterministic package that separates ARTISTIC
+STRUCTURE from DRONE GEOMETRY:
+
+- `types.ts` — `VisualFormationDesign` v1: design modes (`CONTOUR_2D`,
+  `SEMANTIC_2D`, `ARTICULATED_2_5D`, `PARAMETRIC_3D`), primitives
+  (`CLOSED_CONTOUR`, `POLYLINE`, `REGION`, `POINT_FEATURE`, plus prepared
+  `PARAMETRIC_CURVE` / `PARAMETRIC_SURFACE`), semantic parts, per-primitive
+  visual priority, symmetry, base colour intent and 2.5D depth hints.
+- `allocate.ts` — point budget allocation by priority, measure, semantic
+  importance, style and minimum representation; exact-sum largest remainder,
+  deterministic degradation of the lowest-priority details, balanced mirrored
+  allocation.
+- `sample.ts` — arc-length curve sampling with corner preservation, deterministic
+  boundary-aware region fill (Halton + bounded relaxation), point features and
+  parametric samplers.
+- `compiler.ts` — `compileVisualFormation(design, targetPointCount, options)`
+  emits EXACTLY `targetPointCount` show-local points, base colours, a
+  `point -> primitive -> semantic part` mapping and a visual-design report.
+  Provenance (`designId`, compiler version, target count, style, seed) is stored
+  in `Formation.params`, so an asset can be recompiled at a different count.
+- `dynamicBridge.ts` — semantic parts become motion groups of the EXISTING
+  Sprint 6B dynamic engine. No second animation engine exists.
+- `designs/` — built-in pigeon, butterfly and generic synthetic portrait.
+
+**Product decision.** AI is an ASSET CREATOR: it proposes artwork, the compiler
+produces geometry, the Formation Library stores the asset, and the USER places it
+on the timeline, chooses transition / hold, synchronises it with the music and
+edits lighting. There is no automatic beat/section detection, no automatic
+timeline placement and no automatic show sequencing. `src/lib/ai/visualIntent.ts`
+adds the additive v2 proposal schema (formation drone count, design mode/ref,
+style, animation intent, base colour intent, optional `lightingEffects[]`
+suggestions) without mutating `AIChoreographyProposalV1`.
+
+FORMATION DRONE COUNT is independent of PROJECT FLEET SIZE. Assets are never
+padded to the fleet; fleet participation assigns the remaining drones later.
+Compiler diagnostics are visual only — full-show validation stays authoritative.
+UI: `VisualLabPanel.tsx` (Visual formation lab) compiles, previews, reports and
+saves to the library; it never inserts a clip.
