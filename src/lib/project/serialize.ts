@@ -23,6 +23,17 @@ function plainClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+/**
+ * SESSION-ONLY AUDIO AVAILABILITY (BUG-A1). Audio bytes are never stored in a
+ * project file, so `audio.attached` — which means "a local file is attached in
+ * THIS session" — must never cross the project-file boundary as true. Metadata
+ * (name, bpm, offset, duration) is preserved untouched; only the availability
+ * claim is normalised, on both write and read.
+ */
+function withDetachedAudio(project: ShowProject): ShowProject {
+  return { ...project, audio: { ...project.audio, attached: false } };
+}
+
 /** Builds the versioned envelope around the current editable project. */
 export function serializeProject(
   project: ShowProject,
