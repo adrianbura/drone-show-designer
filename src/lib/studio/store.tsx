@@ -23,7 +23,7 @@ import type { ClipTransitionOverride, ShowPlan, TrajectorySample, TrajectorySet 
 import { validateShow, type SafetyReport } from "../show/safety";
 import {
   resolveParticipationSettings,
-  type ClipParticipationOverride,
+  type ClipParticipationSettings,
   type ParticipationSettings,
 } from "../show/participation";
 import { buildBeatGrid, decodeAudioFile, type BeatGrid, type WaveformPeaks } from "../show/audio";
@@ -291,7 +291,7 @@ interface StudioContextValue {
   /** Merges a partial patch onto the project participation settings. */
   patchParticipation: (patch: Partial<ParticipationSettings>) => void;
   /** Sets (or clears with null) the participation override of one clip. */
-  setClipParticipation: (clipId: string, override: ClipParticipationOverride | null) => void;
+  setClipParticipation: (clipId: string, override: ClipParticipationSettings | null) => void;
 
   // ---- Project setup wizard + asset library (Sprint 6B.6) -----------------
   /** Replaces the whole project with a new one built from the wizard draft. */
@@ -879,7 +879,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
   const setClipParticipation = useCallback(
-    (clipId: string, override: ClipParticipationOverride | null) => {
+    (clipId: string, override: ClipParticipationSettings | null) => {
       setProject((p) => {
         const current = resolveParticipationSettings(p.participation);
         const clips = { ...(current.clips ?? {}) };
