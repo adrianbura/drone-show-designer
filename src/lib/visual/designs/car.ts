@@ -81,7 +81,7 @@ const RIM_R = 0.055;
 function spokes(center: DesignPoint, part: string, idPrefix: string): VisualPrimitive[] {
   const inner = 0.024;
   const outer = RIM_R * 0.78;
-  return [0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => {
+  return [0, 60, 120, 180, 240, 300].map((deg, i) => {
     const a = (deg * Math.PI) / 180;
     const cos = Math.cos(a);
     const sin = Math.sin(a);
@@ -91,6 +91,7 @@ function spokes(center: DesignPoint, part: string, idPrefix: string): VisualPrim
       part,
       priority: 0.85 - (i % 2) * 0.1,
       minPoints: 2,
+      maxPoints: 3,
       path: [
         [center[0] + cos * inner, center[1] + sin * inner],
         [center[0] + cos * outer, center[1] + sin * outer],
@@ -108,6 +109,7 @@ function wheel(center: DesignPoint, part: string, idPrefix: string): VisualPrimi
       priority: 1,
       essential: true,
       minPoints: 14,
+      maxPoints: 20,
       path: circlePath(center, TIRE_R, 28),
     },
     {
@@ -116,7 +118,8 @@ function wheel(center: DesignPoint, part: string, idPrefix: string): VisualPrimi
       part,
       priority: 0.9,
       essential: true,
-      minPoints: 10,
+      minPoints: 8,
+      maxPoints: 12,
       path: circlePath(center, RIM_R, 18),
     },
     ...spokes(center, part, idPrefix),
@@ -140,7 +143,8 @@ function primitives(): VisualPrimitive[] {
       part: "BODY",
       priority: 1,
       essential: true,
-      minPoints: 26,
+      minPoints: 46,
+      maxPoints: 70,
       path: BODY_OUTLINE,
     },
     {
@@ -149,7 +153,8 @@ function primitives(): VisualPrimitive[] {
       part: "CABIN",
       priority: 0.95,
       essential: true,
-      minPoints: 12,
+      minPoints: 20,
+      maxPoints: 32,
       path: CABIN,
     },
     ...wheel(REAR_WHEEL, "REAR_WHEEL", "rear-wheel"),
