@@ -75,11 +75,17 @@ export function useStructureEditor(
     setEditOps(0);
   }
 
-  /** One user gesture = one undo entry. */
-  const commit = useCallback(
-    (next: VisualFormationDesign | null) => {
+  /**
+   * One user gesture = one undo entry. The mutation is applied to the CURRENT
+   * draft inside the updater, so rapid gestures can never drop an edit.
+   */
+  const apply = useCallback(
+    (mutate: (design: VisualFormationDesign) => VisualFormationDesign) => {
       setDraft((current) => {
-        if (!current || !next || next === current) return current;
+        if (!current) return current;
+        const next = mutate(current);
+        // A design the compiler cannot use is never committed.
+        if (next === current || enabledPrimitiveCount(next) === 0) return current;
         setPast((p) => [...p, current].slice(-HISTORY_LIMIT));
         setFuture([]);
         opsRef.current += 1;
@@ -92,40 +98,24 @@ export function useStructureEditor(
 
   const setEnabled = useCallback(
     (id: string, enabled: boolean) => {
-      setDraft((current) => {
-        if (!current) return current;
-        const next = setPrimitiveEnabled(current, id, enabled);
-        // Never let the compiler end up with an empty design.
-        if (!enabled && enabledPrimitiveCount(next) === 0) return current;
-        if (next === current) return current;
-        setPast((p) => [...p, current].slice(-HISTORY_LIMIT));
-        setFuture([]);
-        opsRef.current += 1;
-        setEditOps(opsRef.current);
-        return next;
-      });
+      apply((design) => setPrimitiveEnabled(design, id, enabled));
     },
-    [],
+    [apply],
   );
 
   const setImportance = useCallback(
     (id: string, level: StructureImportance) => {
-      setDraft((current) => (current ? current : current));
-      commit(draft ? setPrimitiveImportance(draft, id, level) : null);
+      apply((design) => setPrimitiveImportance(design, id, level));
     },
-    [commit, draft],
+    [apply],
   );
 
   const remove = useCallback(
     (id: string) => {
-      if (!draft) return;
-      const next = deletePrimitive(draft, id);
-      if (next === draft) return;
-      if (enabledPrimitiveCount(next) === 0) return;
-      commit(next);
+      apply((design) => deletePrimitive(design, id));
       setSelectedId((current) => (current === id ? null : current));
     },
-    [commit, draft],
+    [apply],
   );
 
   const addDrawPoint = useCallback((point: DesignPoint) => {
