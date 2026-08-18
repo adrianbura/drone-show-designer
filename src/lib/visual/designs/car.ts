@@ -42,8 +42,8 @@ const CABIN: DesignPoint[] = [
 ];
 
 const B_PILLAR: DesignPoint[] = [
-  [-0.03, 0.05],
-  [-0.02, 0.18],
+  [-0.03, 0.07],
+  [-0.025, 0.145],
 ];
 
 const DOOR_LINE: DesignPoint[] = [
@@ -79,7 +79,8 @@ const RIM_R = 0.055;
 
 /** Radial spokes make the rotation of a wheel unmistakable in the sky. */
 function spokes(center: DesignPoint, part: string, idPrefix: string): VisualPrimitive[] {
-  const inner = 0.022;
+  const inner = 0.024;
+  const outer = RIM_R * 0.78;
   return [0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => {
     const a = (deg * Math.PI) / 180;
     const cos = Math.cos(a);
@@ -92,7 +93,7 @@ function spokes(center: DesignPoint, part: string, idPrefix: string): VisualPrim
       minPoints: 2,
       path: [
         [center[0] + cos * inner, center[1] + sin * inner],
-        [center[0] + cos * RIM_R, center[1] + sin * RIM_R],
+        [center[0] + cos * outer, center[1] + sin * outer],
       ] as DesignPoint[],
     } satisfies VisualPrimitive;
   });
