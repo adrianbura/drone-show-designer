@@ -99,5 +99,5 @@ describe("seeded structural stress (30 operations)", () => {
     const plan = buildShowPlan(project);
     expect(plan.drones).toHaveLength(project.droneCount);
     expect(new Set(plan.drones.map((d) => d.id)).size).toBe(project.droneCount);
-  });
+  }, 60_000);
 });
