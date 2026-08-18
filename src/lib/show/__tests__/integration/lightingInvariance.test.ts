@@ -22,7 +22,7 @@ import type { ShowProject } from "../../types";
 const PRESETS = ["FADE_IN", "LEFT_TO_RIGHT", "CENTER_TO_OUTSIDE", "PULSE_2", "COLOR_TRANSITION"];
 
 const base = buildComplexProject(200, 150).project;
-const SAMPLE_TIMES = [1, 9, 20, 30, 40, 48];
+const SAMPLE_TIMES = [0.1, 1, 9, 18.1, 20, 30, 36.1, 40, 48];
 
 function withLighting(project: ShowProject, presetId: string, clipId: string): ShowProject {
   const preset = findLightingPreset(presetId)!;
