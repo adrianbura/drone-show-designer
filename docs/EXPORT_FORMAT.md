@@ -42,7 +42,11 @@ Each entry of `drones[].samples`:
 { t, p:[x,y,z], v:[..], a:[..], j:[..], yaw, yawRate, c:[r,g,b] }
 ```
 
-`c` is sRGB 0-255 evaluated from the active clip's light effect at time `t`.
+`c` is the final emitted sRGB 0-255 value from the **canonical lighting engine**
+at time `t`. The export uses the same evaluation order as preview/full-show
+validation: clip or scene-object base colour → authored lighting effect stack →
+participation/reserve lighting policy. WORLD_SPACE lighting effects receive the
+actual sampled trajectory positions for that frame.
 
 ## Validation semantics
 
