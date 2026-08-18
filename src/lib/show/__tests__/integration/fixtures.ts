@@ -102,7 +102,7 @@ export function composeScene(
 }
 
 function lightingEffects(sceneIds: readonly string[]): LightingEffectInstance[] {
-  const presets = ["FADE_IN", "SWEEP_LEFT_RIGHT", "REVEAL_CENTER_OUT", "PULSE_2", "COLOR_SHIFT"];
+  const presets = ["FADE_IN", "LEFT_TO_RIGHT", "CENTER_TO_OUTSIDE", "PULSE_2", "COLOR_TRANSITION"];
   const effects: LightingEffectInstance[] = [];
   presets.forEach((presetId, i) => {
     const preset = findLightingPreset(presetId);
@@ -135,6 +135,8 @@ export function buildComplexProject(fleet = 200, pigeonPoints = 150): ComplexPro
     clip({ id: "scene-1", formationId: pigeon.id, start: 0, dynamicFormationId: dynamic.id }),
     clip({ id: "scene-2", formationId: heart.id, start: 18 }),
     clip({ id: "scene-3", formationId: logo.id, start: 36 }),
+    // Explicit LANDING clip: geometry is ignored, every drone returns to its pad.
+    clip({ id: "scene-land", formationId: logo.id, start: 54, transition: 12, hold: 2, phase: "LANDING" }),
   ];
 
   let project: ShowProject = {
