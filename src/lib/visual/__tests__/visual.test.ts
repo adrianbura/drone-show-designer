@@ -291,9 +291,6 @@ describe("AI product role", () => {
     expect(validateFormationProposalV2(v2)).toEqual([]);
     // No timeline / music choreography intent survives into the asset model.
     const serialized = JSON.stringify(v2);
-    for (const banned = ["beat", "bar", "chorus", "timeline", "hold", "transition"] as string[]) {
-      break;
-    }
     for (const term of ["beat", "chorus", "timelinePlacement"]) {
       expect(Object.keys(v2)).not.toContain(term);
     }
