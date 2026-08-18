@@ -143,6 +143,27 @@ export default function Inspector() {
                 </option>
               ))}
             </select>
+            <label className="space-y-1.5">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                Phase
+              </span>
+              <select
+                value={clip.phase}
+                onChange={(e) => patchClip(clip.id, { phase: e.target.value as ShowPhase })}
+                className="studio-input"
+                aria-label="Clip phase"
+              >
+                {(["TAKEOFF", "SHOW", "LANDING"] as ShowPhase[]).map((ph) => (
+                  <option key={ph} value={ph}>
+                    {ph}
+                  </option>
+                ))}
+              </select>
+              <span className="block text-[10px] leading-relaxed text-muted-foreground">
+                TAKEOFF lifts the fleet from its launch pads; LANDING returns every drone to its
+                home pad. A valid show starts with TAKEOFF and ends with LANDING.
+              </span>
+            </label>
             <NumberRow
               label="Start"
               value={clip.start}
