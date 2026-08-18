@@ -98,8 +98,9 @@ export function designFromAnalysis(
     }
   });
 
+  const sourceType = input.sourceType ?? "IMAGE_ANALYSIS";
   const sourceRef = JSON.stringify({
-    kind: "IMAGE_ANALYSIS",
+    kind: sourceType,
     file: input.sourceName ?? analysis.options.detail,
     fingerprint: analysis.fingerprint,
     detail: analysis.options.detail,
@@ -107,6 +108,7 @@ export function designFromAnalysis(
     background: analysis.options.background,
     simplify: analysis.options.simplify,
     polarity: analysis.diagnostics.polarity,
+    ...(input.provenance ?? {}),
   });
 
   return {
