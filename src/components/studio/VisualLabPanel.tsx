@@ -10,7 +10,7 @@
  * synchronises it with the music manually.
  */
 import { Bug, Download, Palette, RefreshCw, Save, Wand2 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useI18n } from "@/i18n";
 import { useLibrary } from "@/lib/library/provider";
@@ -100,7 +100,10 @@ export default function VisualLabPanel() {
   const library = useLibrary();
 
   const [designId, setDesignId] = useState(BUILT_IN_DESIGNS[0]!.id);
-  const [count, setCount] = useState(150);
+  // Default to the project fleet: a bigger asset than the fleet cannot be used
+  // in the show at all, which made "Use in show" silently unavailable.
+  const [count, setCount] = useState(project.droneCount);
+  const [countTouched, setCountTouched] = useState(false);
   const [style, setStyle] = useState<VisualStyle>("STRUCTURAL");
   const [width, setWidth] = useState(120);
   const [altitude, setAltitude] = useState(60);
@@ -108,6 +111,11 @@ export default function VisualLabPanel() {
   const [advanced, setAdvanced] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
+
+  // Follow the fleet until the user overrides the count themselves.
+  useEffect(() => {
+    if (!countTouched) setCount(project.droneCount);
+  }, [countTouched, project.droneCount]);
 
   const design = useMemo(
     () => BUILT_IN_DESIGNS.find((d) => d.id === designId) ?? BUILT_IN_DESIGNS[0]!,
@@ -191,6 +199,7 @@ export default function VisualLabPanel() {
             value={count}
             onChange={(e) => {
               const n = Number(e.target.value);
+              setCountTouched(true);
               if (Number.isFinite(n)) setCount(Math.min(2000, Math.max(1, Math.round(n))));
             }}
             className="studio-input w-full font-mono text-[11px]"
