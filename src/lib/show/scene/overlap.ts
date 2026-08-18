@@ -86,7 +86,9 @@ export function objectProximityWarnings(
           aName: a.name,
           bName: b.name,
           gap: Number(gap.toFixed(3)),
-          overlapping: gap < 0,
+          // Footprints intersect (or exactly touch) on every axis. A flat object
+          // has a zero-span axis, so `<= 0` is the correct intersection test.
+          overlapping: gap <= 0,
         });
       }
     }

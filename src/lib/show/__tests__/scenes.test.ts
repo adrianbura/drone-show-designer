@@ -370,7 +370,7 @@ describe("dynamic objects in a scene", () => {
     scene = {
       ...scene,
       objects: scene.objects.map((o, i) =>
-        i === 1 ? { ...o, animation: { phaseCycles: 0.5 } } : o,
+        i === 1 ? { ...o, animation: { phaseCycles: 0.25 } } : o,
       ),
     };
     project = upsertScene(project, scene);
