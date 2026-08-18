@@ -1,7 +1,9 @@
 import { CheckCircle2, Loader2, Rocket, TriangleAlert, XCircle } from "lucide-react";
 import { useMemo } from "react";
 
+import { useI18n } from "@/i18n";
 import type { LaunchGroupingStrategy, StagingFormationKind } from "@/lib/show/preshow";
+import { resolveGridShape } from "@/lib/show/preshow/launchGrid";
 import { useStudio } from "@/lib/studio/store";
 
 const GROUPING: LaunchGroupingStrategy[] = ["ROWS", "COLUMNS", "BLOCKS", "MANUAL"];
