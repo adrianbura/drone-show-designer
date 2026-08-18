@@ -280,6 +280,14 @@ interface StudioContextValue {
   selectClip: (id: string | null) => void;
   patchProject: (patch: Partial<ShowProject>) => void;
 
+  // ---- Fleet participation (Sprint 7.3) -----------------------------------
+  /** Project-wide participation settings, always fully resolved. */
+  participationSettings: ParticipationSettings;
+  /** Merges a partial patch onto the project participation settings. */
+  patchParticipation: (patch: Partial<ParticipationSettings>) => void;
+  /** Sets (or clears with null) the participation override of one clip. */
+  setClipParticipation: (clipId: string, override: ClipParticipationOverride | null) => void;
+
   // ---- Project setup wizard + asset library (Sprint 6B.6) -----------------
   /** Replaces the whole project with a new one built from the wizard draft. */
   createProjectFromDraft: (draft: ProjectSetupDraft) => void;
@@ -853,6 +861,30 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const patchProject = useCallback((patch: Partial<ShowProject>) => {
     setProject((p) => ({ ...p, ...patch }));
   }, []);
+
+  // ---- Fleet participation (Sprint 7.3) -----------------------------------
+  const participationSettings = useMemo(
+    () => resolveParticipationSettings(project.participation),
+    [project.participation],
+  );
+  const patchParticipation = useCallback((patch: Partial<ParticipationSettings>) => {
+    setProject((p) => ({
+      ...p,
+      participation: resolveParticipationSettings({ ...resolveParticipationSettings(p.participation), ...patch }),
+    }));
+  }, []);
+  const setClipParticipation = useCallback(
+    (clipId: string, override: ClipParticipationOverride | null) => {
+      setProject((p) => {
+        const current = resolveParticipationSettings(p.participation);
+        const clips = { ...(current.clips ?? {}) };
+        if (override) clips[clipId] = override;
+        else delete clips[clipId];
+        return { ...p, participation: resolveParticipationSettings({ ...current, clips }) };
+      });
+    },
+    [],
+  );
 
   const setDroneCount = useCallback((n: number) => {
     const count = Math.max(3, Math.min(500, Math.round(n)));
@@ -2614,6 +2646,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setLoop: clock.setLoop,
       selectClip: setSelectedClipId,
       patchProject,
+      participationSettings,
+      patchParticipation,
+      setClipParticipation,
       createProjectFromDraft,
       applySetupDraft,
       currentSetupDraft,
@@ -2860,6 +2895,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectedClipId,
       samplesAtTime,
       patchProject,
+      participationSettings,
+      patchParticipation,
+      setClipParticipation,
       setDroneCount,
       setLimits,
       addFormation,
