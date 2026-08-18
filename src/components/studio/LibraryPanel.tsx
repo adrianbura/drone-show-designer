@@ -1,8 +1,10 @@
 /**
  * FORMATION LIBRARY PANEL — browse, save and reuse formation assets.
  *
- * Inserting an asset always creates a project-owned copy with a fresh id, and a
- * fleet-size mismatch BLOCKS insertion: no silent resampling, no dropped drones.
+ * Inserting an asset always creates a project-owned copy with a fresh id. An
+ * asset that uses only PART of the fleet is fully supported (the reserve planner
+ * keeps every remaining drone planned); an asset that needs MORE drones than the
+ * project has is blocked — no silent resampling, no dropped drones.
  */
 import { Download, Heart, Search, Star, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
@@ -55,7 +57,7 @@ export default function LibraryPanel() {
   const selectedFormation = project.formations.find((f) => f.id === selectedClip?.formationId);
 
   const use = (asset: FormationAsset) => {
-    if (assetFleetCompatibility(asset, project.droneCount) !== "EXACT") return;
+    if (assetFleetCompatibility(asset, project.droneCount) === "TOO_LARGE") return;
     if (asset.formationData.kind === "DYNAMIC") {
       const created = addLibraryDynamicFormation(
         dynamicFormationFromAsset(asset, "pending"),
@@ -206,7 +208,8 @@ export default function LibraryPanel() {
       ) : (
         <ul className="space-y-1.5">
           {library.visible.map((asset) => {
-            const exact = assetFleetCompatibility(asset, project.droneCount) === "EXACT";
+            const compatibility = assetFleetCompatibility(asset, project.droneCount);
+            const usable = compatibility !== "TOO_LARGE";
             return (
               <li key={asset.id} className="rounded-md border border-border p-2">
                 <div className="flex gap-2">
@@ -261,7 +264,7 @@ export default function LibraryPanel() {
                     type="button"
                     size="sm"
                     className="h-6 flex-1 font-mono text-[9px] uppercase tracking-[0.14em]"
-                    disabled={!exact}
+                    disabled={!usable}
                     onClick={() => use(asset)}
                   >
                     {t("formationLibrary.useInShow")}
@@ -269,15 +272,24 @@ export default function LibraryPanel() {
                 </div>
                 <p
                   className={`mt-1 font-mono text-[9px] leading-relaxed ${
-                    exact ? "text-muted-foreground" : "text-warning"
+                    compatibility === "EXACT"
+                      ? "text-muted-foreground"
+                      : compatibility === "PARTIAL"
+                        ? "text-accent"
+                        : "text-warning"
                   }`}
                 >
-                  {exact
+                  {compatibility === "EXACT"
                     ? t("formationLibrary.exact")
-                    : `${t("formationLibrary.mismatch", {
-                        assetCount: asset.droneCount,
-                        projectCount: project.droneCount,
-                      })} ${t("formationLibrary.mismatchBlocked")}`}
+                    : compatibility === "PARTIAL"
+                      ? t("formationLibrary.partial", {
+                          assetCount: asset.droneCount,
+                          projectCount: project.droneCount,
+                        })
+                      : t("formationLibrary.tooLarge", {
+                          assetCount: asset.droneCount,
+                          projectCount: project.droneCount,
+                        })}
                 </p>
               </li>
             );
