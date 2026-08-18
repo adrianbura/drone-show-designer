@@ -47,3 +47,81 @@ export async function probeAudioFile(file: File): Promise<{ name: string; durati
     URL.revokeObjectURL(url);
   }
 }
+
+/**
+ * VISUAL PEAK ENVELOPE (pure).
+ *
+ * Reduces raw PCM samples to `buckets` min/max pairs for drawing. It is display
+ * data only: no beat detection, no onset analysis and no influence on flight
+ * computation. Deterministic for identical input.
+ */
+export interface WaveformPeaks {
+  /** Number of buckets, i.e. horizontal resolution of the envelope. */
+  readonly buckets: number;
+  /** Per-bucket minimum sample value, -1..0. */
+  readonly min: Float32Array;
+  /** Per-bucket maximum sample value, 0..1. */
+  readonly max: Float32Array;
+}
+
+export function extractPeaks(samples: ArrayLike<number>, buckets = 1200): WaveformPeaks {
+  const count = Math.max(1, Math.floor(buckets));
+  const min = new Float32Array(count);
+  const max = new Float32Array(count);
+  const total = samples.length;
+  if (total === 0) return { buckets: count, min, max };
+  for (let b = 0; b < count; b++) {
+    const from = Math.floor((b * total) / count);
+    const to = Math.max(from + 1, Math.floor(((b + 1) * total) / count));
+    let lo = 0;
+    let hi = 0;
+    for (let i = from; i < to && i < total; i++) {
+      const v = samples[i] ?? 0;
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+    min[b] = lo;
+    max[b] = hi;
+  }
+  return { buckets: count, min, max };
+}
+
+/** Mono mixdown of a decoded buffer — input for the visual envelope. */
+export function mixdownToMono(buffer: AudioBuffer): Float32Array {
+  const channels = buffer.numberOfChannels;
+  const length = buffer.length;
+  const out = new Float32Array(length);
+  for (let c = 0; c < channels; c++) {
+    const data = buffer.getChannelData(c);
+    for (let i = 0; i < length; i++) out[i]! += data[i]! / channels;
+  }
+  return out;
+}
+
+/**
+ * Decodes a LOCAL audio file in the browser. The file never leaves the machine
+ * and is never embedded in the project file: only its name, duration and tempo
+ * metadata are persisted.
+ */
+export async function decodeAudioFile(
+  file: File,
+): Promise<{ name: string; duration: number; buffer: AudioBuffer; peaks: WaveformPeaks }> {
+  const Ctx =
+    (globalThis as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext })
+      .AudioContext ??
+    (globalThis as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctx) throw new Error("Web Audio is unavailable in this browser");
+  const ctx = new Ctx();
+  try {
+    const bytes = await file.arrayBuffer();
+    const buffer = await ctx.decodeAudioData(bytes);
+    return {
+      name: file.name,
+      duration: Math.round(buffer.duration * 1000) / 1000,
+      buffer,
+      peaks: extractPeaks(mixdownToMono(buffer)),
+    };
+  } finally {
+    void ctx.close();
+  }
+}

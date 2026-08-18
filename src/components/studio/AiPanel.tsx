@@ -11,6 +11,44 @@ import { useState } from "react";
 import { useI18n } from "@/i18n";
 import { useStudio } from "@/lib/studio/store";
 
+
+/** Numeric proposal parameter. Editing a draft never touches the project. */
+function ProposalField({
+  label,
+  value,
+  step,
+  min,
+  max,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  step: number;
+  min: number;
+  max: number;
+  onCommit: (v: number) => void;
+}) {
+  return (
+    <label className="space-y-1">
+      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </span>
+      <input
+        type="number"
+        value={Number(value.toFixed(2))}
+        step={step}
+        min={min}
+        max={max}
+        onChange={(e) => {
+          const n = Number(e.target.value);
+          if (Number.isFinite(n)) onCommit(Math.min(max, Math.max(min, n)));
+        }}
+        className="studio-input w-full py-0.5 font-mono text-[11px]"
+      />
+    </label>
+  );
+}
+
 export default function AiPanel() {
   const {
     aiProvider,
@@ -27,6 +65,7 @@ export default function AiPanel() {
     revertAiProposal,
     discardAiProposal,
     applyAiProposal,
+    patchAiProposal,
   } = useStudio();
   const { t } = useI18n();
   const [prompt, setPrompt] = useState("");
@@ -111,6 +150,62 @@ export default function AiPanel() {
               <dd className="text-foreground">{aiProposal.timing.hold.toFixed(1)} s</dd>
             </div>
           </dl>
+
+          {/* Draft parameter editing — re-validated on every change. */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <ProposalField
+              label={t("ai.width")}
+              value={aiProposal.formationSpec.width}
+              step={1}
+              min={5}
+              max={400}
+              onCommit={(v) => patchAiProposal({ width: v })}
+            />
+            <ProposalField
+              label={t("ai.altitude")}
+              value={aiProposal.formationSpec.altitude}
+              step={1}
+              min={2}
+              max={400}
+              onCommit={(v) => patchAiProposal({ altitude: v })}
+            />
+            <ProposalField
+              label={t("ai.transition")}
+              value={aiProposal.timing.recommendedTransition}
+              step={0.5}
+              min={1}
+              max={120}
+              onCommit={(v) => patchAiProposal({ transition: v })}
+            />
+            <ProposalField
+              label={t("ai.hold")}
+              value={aiProposal.timing.hold}
+              step={0.5}
+              min={0}
+              max={300}
+              onCommit={(v) => patchAiProposal({ hold: v })}
+            />
+            {aiProposal.animationSpec.dynamic && (
+              <>
+                <ProposalField
+                  label={t("ai.cycles")}
+                  value={aiProposal.animationSpec.cycles}
+                  step={1}
+                  min={1}
+                  max={40}
+                  onCommit={(v) => patchAiProposal({ cycles: Math.round(v) })}
+                />
+                <ProposalField
+                  label={t("ai.cycleDuration")}
+                  value={aiProposal.animationSpec.cycleDuration}
+                  step={0.1}
+                  min={0.4}
+                  max={30}
+                  onCommit={(v) => patchAiProposal({ cycleDuration: v })}
+                />
+              </>
+            )}
+          </div>
 
           {aiProposal.animationSpec.dynamic && cycle > 0 && (
             <label className="block space-y-1">

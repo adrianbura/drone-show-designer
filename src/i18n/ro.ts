@@ -213,6 +213,17 @@ export const ro: Dictionary = {
   "ai.previewTime": "Timp de previzualizare",
   "ai.empty": "Descrie o formație pentru a primi o propunere.",
 
+  "ai.width": "Lățime (m)",
+  "ai.altitude": "Altitudine (m)",
+  "ai.transition": "Tranziție (s)",
+  "ai.hold": "Menținere (s)",
+  "ai.cycles": "Cicluri",
+  "ai.cycleDuration": "Ciclu (s)",
+  "timeline.empty": "Cronologie goală — adaugă o formație sau aplică o propunere AI pentru a începe show-ul.",
+  "audio.track": "Pistă audio",
+  "audio.mute": "Oprește sunetul",
+  "audio.volume": "Volum audio",
+
   "diagnostic.LOOP_DISCONTINUITY": "Animația are o discontinuitate la reluarea buclei.",
   "diagnostic.SPACING":
     "Punctele se apropie mai mult decât separarea minimă configurată.",

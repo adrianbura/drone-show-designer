@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createDefaultProject } from "../defaultProject";
+import { createDemoProject } from "../defaultProject";
 import { makeFormation } from "../formations";
 import {
   analyzeFullShow,
@@ -20,7 +20,7 @@ import { showDuration } from "../types";
 const settings = { sampleRate: 10, assignmentStrategy: "nearestNeighbor" as const };
 
 function smallProject(droneCount = 12): ShowProject {
-  const base = createDefaultProject();
+  const base = createDemoProject();
   const project: ShowProject = { ...base, droneCount };
   return {
     ...project,

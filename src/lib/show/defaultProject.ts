@@ -24,7 +24,15 @@ export const DEFAULT_ALTITUDES: PhaseAltitudes = { takeoff: 15, show: 40, landin
 
 export const DEFAULT_SEED = 20260814;
 
-/** Deterministic demo show — no randomness (module scope must stay pure). */
+/**
+ * CLEAN STARTUP project factory.
+ *
+ * A new project opens with an EMPTY TIMELINE: no demo choreography is ever
+ * injected, so the operator never has to delete content they did not author.
+ * The formation palette is still pre-generated (authoring material only — a
+ * formation is not show content until a clip references it), and no audio track
+ * is attached. Deterministic: no randomness at module scope or call time.
+ */
 export function createDefaultProject(droneCount = 48): ShowProject {
   const area = DEFAULT_AREA;
   const alt = DEFAULT_ALTITUDES;
@@ -48,7 +56,7 @@ export function createDefaultProject(droneCount = 48): ShowProject {
     droneCount,
     area,
     limits: { ...DEFAULT_LIMITS },
-    audio: { name: "No track loaded", bpm: 120, offset: 0, duration: 128 },
+    audio: { name: "", bpm: 120, offset: 0, duration: 0, attached: false },
     altitudes: { ...alt },
     seed: DEFAULT_SEED,
     versions: {
@@ -59,6 +67,21 @@ export function createDefaultProject(droneCount = 48): ShowProject {
     },
     formations,
     dynamicFormations: [],
+    // Clean startup: authoring begins from an empty timeline.
+    timeline: [],
+  };
+}
+
+/**
+ * DEMO show factory — explicit opt-in only.
+ *
+ * Never used at startup (see createDefaultProject): it exists so tests, docs and
+ * manual exploration can obtain a fully authored deterministic timeline.
+ */
+export function createDemoProject(droneCount = 48): ShowProject {
+  const base = createDefaultProject(droneCount);
+  return {
+    ...base,
     timeline: [
       {
         id: "c-1",
@@ -172,15 +195,14 @@ export function migrateProject(input: unknown): ShowProject {
       dynamicFormationAlgorithmVersion: DYNAMIC_FORMATION_ALGORITHM_VERSION,
     },
     dynamicFormations: Array.isArray(raw.dynamicFormations) ? raw.dynamicFormations : [],
-    timeline:
-      timeline.length > 0
-        ? timeline.map((clip, i) => ({
-            ...clip,
-            // Pre-1.0 projects had no phases: first clip is the take-off, the
-            // last one is the landing, everything between is show content.
-            phase: clip.phase ?? (i === 0 ? "TAKEOFF" : i === lastIndex ? "LANDING" : "SHOW"),
-          }))
-        : base.timeline,
+    // An empty timeline is a VALID authored state and is preserved as-is: no
+    // demo choreography is ever re-injected into a reopened project.
+    timeline: timeline.map((clip, i) => ({
+      ...clip,
+      // Pre-1.0 projects had no phases: first clip is the take-off, the
+      // last one is the landing, everything between is show content.
+      phase: clip.phase ?? (i === 0 ? "TAKEOFF" : i === lastIndex ? "LANDING" : "SHOW"),
+    })),
   };
 }
 

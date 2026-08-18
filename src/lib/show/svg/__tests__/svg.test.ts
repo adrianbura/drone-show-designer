@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { createDefaultProject } from "../../defaultProject";
+import { createDemoProject } from "../../defaultProject";
 import { buildShowPlan, sampleTrajectorySet } from "../../trajectory";
 import { validateShow } from "../../safety";
 import { showDuration, type ShowProject, type TimelineClip } from "../../types";
@@ -235,7 +235,7 @@ describe("transforms and placement", () => {
   });
 
   it("flags formations that leave the show area or altitude envelope", () => {
-    const project = createDefaultProject(50);
+    const project = createDemoProject(50);
     const big = generateSvgFormationPoints(
       parse("circle.svg"),
       resolveSvgParams(50, { width: project.area.width * 3, altitude: 400 }),
@@ -326,7 +326,7 @@ describe("holes", () => {
 
 describe("project integration", () => {
   it("runs the full pipeline: svg -> formation -> plan -> sampling -> safety", () => {
-    const project = createDefaultProject(50);
+    const project = createDemoProject(50);
     const svgAsset = asset("circle.svg");
     const params = resolveSvgParams(project.droneCount, {
       mode: "outline",

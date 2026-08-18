@@ -1,10 +1,12 @@
-import { Pause, Play, Plus, Repeat, SkipBack, Square, Trash2 } from "lucide-react";
+import { Pause, Play, Plus, Repeat, SkipBack, Square, Trash2, Volume2, VolumeX } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 import { snapToBeat } from "@/lib/show/audio";
+import { useI18n } from "@/i18n";
 import { rgbToHex } from "@/lib/show/lights";
 import { PLAYBACK_SPEEDS, type PlaybackSpeed } from "@/lib/studio/clock";
 import { useStudio } from "@/lib/studio/store";
+import AudioWaveformTrack from "./AudioWaveformTrack";
 
 function fmt(t: number) {
   const sign = t < 0 ? "-" : "";
@@ -56,7 +58,15 @@ export default function Timeline() {
     forensicsReport,
     selectedForensicSegmentId,
     selectForensicSegment,
+    viewEnd,
+    audioPeaks,
+    audioAttached,
+    audioMuted,
+    setAudioMuted,
+    audioVolume,
+    setAudioVolume,
   } = useStudio();
+  const { t } = useI18n();
   const trackRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ id: string; startX: number; origStart: number; moved: boolean } | null>(null);
   const [dragPreview, setDragPreview] = useState<{ id: string; start: number } | null>(null);
@@ -66,13 +76,13 @@ export default function Timeline() {
       const el = trackRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      setTime(startTime + ((clientX - rect.left) / rect.width) * (duration - startTime));
+      setTime(startTime + ((clientX - rect.left) / rect.width) * (viewEnd - startTime));
     },
-    [duration, startTime, setTime],
+    [viewEnd, startTime, setTime],
   );
 
   // The track spans the WHOLE operation: pre-show (negative show time) + show.
-  const span = Math.max(0.001, duration - startTime);
+  const span = Math.max(0.001, viewEnd - startTime);
 
   /** Drag a clip along the time axis. Snaps to the beat grid unless Alt is held. */
   const dragTo = useCallback(
@@ -143,6 +153,28 @@ export default function Timeline() {
             <Repeat className="size-4" />
           </button>
           <span>{project.audio.bpm} BPM</span>
+          {audioAttached && (
+            <>
+              <button
+                onClick={() => setAudioMuted(!audioMuted)}
+                className={`control-btn ${audioMuted ? "text-destructive" : "text-accent"}`}
+                aria-label={t("audio.mute")}
+                aria-pressed={audioMuted}
+              >
+                {audioMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.02}
+                value={audioVolume}
+                onChange={(e) => setAudioVolume(Number(e.target.value))}
+                className="w-16"
+                aria-label={t("audio.volume")}
+              />
+            </>
+          )}
           <span>{project.timeline.length} clips</span>
           <button
             onClick={() => addClip(project.formations[0]?.id ?? "")}
@@ -154,7 +186,7 @@ export default function Timeline() {
         </div>
       </header>
 
-      <div className="relative flex-1 overflow-hidden px-4 pb-3 pt-2">
+      <div className="relative flex flex-1 flex-col overflow-hidden px-4 pb-3 pt-2">
         <div
           ref={trackRef}
           onPointerDown={(e) => {
@@ -164,7 +196,7 @@ export default function Timeline() {
           onPointerMove={(e) => {
             if (e.currentTarget.hasPointerCapture(e.pointerId)) scrub(e.clientX);
           }}
-          className="relative h-full min-h-24 cursor-ew-resize rounded-md border border-border bg-surface-sunken"
+          className="relative min-h-16 flex-1 cursor-ew-resize rounded-md border border-border bg-surface-sunken"
         >
           {/* PRE-SHOW region: negative show time, launch + staging */}
           {preShowPlan ? (
@@ -294,14 +326,34 @@ export default function Timeline() {
             );
           })}
 
+          {/* Clean startup: an empty timeline says what to do next. */}
+          {project.timeline.length === 0 && (
+            <p className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[11px] text-muted-foreground">
+              {t("timeline.empty")}
+            </p>
+          )}
+
           {/* Playhead */}
           <div
             className="pointer-events-none absolute top-0 h-full w-[2px] bg-accent shadow-[0_0_12px_var(--accent)]"
-            style={{ left: pct(Math.max(startTime, Math.min(time, duration))) }}
+            style={{ left: pct(Math.max(startTime, Math.min(time, viewEnd))) }}
           >
             <div className="absolute -left-[5px] top-0 size-3 rotate-45 bg-accent" />
           </div>
         </div>
+
+        {audioAttached && (
+          <AudioWaveformTrack
+            peaks={audioPeaks}
+            startTime={startTime}
+            endTime={viewEnd}
+            offset={project.audio.offset}
+            audioDuration={project.audio.duration}
+            time={time}
+            label={project.audio.name || t("audio.track")}
+            onSeek={setTime}
+          />
+        )}
 
         {selectedClipId && (
           <button
