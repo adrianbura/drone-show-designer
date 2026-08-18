@@ -199,6 +199,7 @@ export default function VisualLabPanel() {
             value={count}
             onChange={(e) => {
               const n = Number(e.target.value);
+              setCountTouched(true);
               if (Number.isFinite(n)) setCount(Math.min(2000, Math.max(1, Math.round(n))));
             }}
             className="studio-input w-full font-mono text-[11px]"
