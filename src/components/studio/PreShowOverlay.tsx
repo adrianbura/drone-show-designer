@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { resolveGridShape, rotateXZ } from "@/lib/show/preshow/launchGrid";
 import {
   preShowStatesAt,
   type PreShowDroneState,
@@ -15,6 +16,12 @@ import type { Vector3Tuple } from "@/lib/show/types";
  * generates pads, staging targets or trajectories, and never affects planning.
  * Pads and staging targets are drawn with instanced meshes so 200+ drones cost a
  * constant number of draw calls.
+ *
+ * COUNT INVARIANT: the number of rendered pads / staging markers is ALWAYS
+ * `overlay.launch.pads.length` / `overlay.staging.targets.length`, i.e. exactly
+ * `project.droneCount`. Unoccupied grid cells (grid capacity above the fleet
+ * size) are drawn separately as dim, flat guides that can never be mistaken for
+ * a drone or a pad.
  */
 
 const STATE_COLOR: Record<PreShowDroneState, THREE.ColorRepresentation> = {
@@ -37,6 +44,7 @@ function Instances({
   opacity?: number;
 }) {
   const count = positions.length;
+  const meshRef = useRef<THREE.InstancedMesh | null>(null);
   const { matrices, colorArray } = useMemo(() => {
     const dummy = new THREE.Object3D();
     const m: THREE.Matrix4[] = [];
@@ -55,19 +63,25 @@ function Instances({
     return { matrices: m, colorArray: c };
   }, [positions, colors, count]);
 
+  // Explicitly re-write EVERY instance and pin `mesh.count`, so a fleet-size
+  // change can never leave instances from the previous size on screen.
+  useEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    mesh.count = count;
+    matrices.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.geometry.setAttribute("color", new THREE.InstancedBufferAttribute(colorArray, 3));
+  }, [matrices, colorArray, count]);
+
   if (count === 0) return null;
 
   return (
     <instancedMesh
       key={`inst-${count}`}
+      ref={meshRef}
       args={[undefined, undefined, count]}
       frustumCulled={false}
-      ref={(mesh) => {
-        if (!mesh) return;
-        matrices.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
-        mesh.instanceMatrix.needsUpdate = true;
-        mesh.geometry.setAttribute("color", new THREE.InstancedBufferAttribute(colorArray, 3));
-      }}
     >
       <sphereGeometry args={[radius, 8, 8]} />
       <meshBasicMaterial
@@ -79,6 +93,69 @@ function Instances({
     </instancedMesh>
   );
 }
+
+/**
+ * UNOCCUPIED grid cells — capacity guides only. Flat, dim, wireframe rings laid
+ * on the ground: deliberately unlike the solid pad spheres and drone bodies.
+ */
+function GridGuides({ overlay }: { overlay: PreShowOverlayModel }) {
+  const meshRef = useRef<THREE.InstancedMesh | null>(null);
+  const positions = useMemo(() => {
+    const config = overlay.launch.config;
+    const occupied = overlay.launch.pads.length;
+    const { rows, columns } = resolveGridShape(Math.max(1, occupied), config);
+    const capacity = rows * columns;
+    const out: Vector3Tuple[] = [];
+    for (let i = occupied; i < capacity; i++) {
+      const row = Math.floor(i / columns);
+      const column = i % columns;
+      const localX = (column - (columns - 1) / 2) * config.spacingX;
+      const localZ = (row - (rows - 1) / 2) * config.spacingZ;
+      const [rx, rz] = rotateXZ(localX, localZ, config.rotationDeg);
+      out.push([rx + config.originX, config.groundAltitude + 0.02, rz + config.originZ]);
+    }
+    return out;
+  }, [overlay]);
+
+  const count = positions.length;
+
+  useEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const dummy = new THREE.Object3D();
+    mesh.count = count;
+    positions.forEach((p, i) => {
+      dummy.position.set(p[0], p[1], p[2]);
+      dummy.rotation.set(-Math.PI / 2, 0, 0);
+      dummy.scale.setScalar(1);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+  }, [positions, count]);
+
+  if (count === 0) return null;
+
+  return (
+    <instancedMesh
+      key={`guide-${count}`}
+      ref={meshRef}
+      args={[undefined, undefined, count]}
+      frustumCulled={false}
+    >
+      <ringGeometry args={[0.55, 0.7, 12]} />
+      <meshBasicMaterial
+        color="#33445c"
+        transparent
+        opacity={0.35}
+        side={THREE.DoubleSide}
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </instancedMesh>
+  );
+}
+
 
 function Footprint({
   corners,
