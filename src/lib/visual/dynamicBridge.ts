@@ -45,23 +45,40 @@ export function dynamicFromCompiled(
   compiled: CompiledVisualFormation,
   options: DynamicBridgeOptions,
 ): DynamicFormation {
+  const wanted = options.parts ?? animatableParts(design, compiled).map((p) => p.id);
+  const partsById = new Map(design.semanticParts.map((p) => [p.id, p]));
+  const spins = wanted.some((id) => partsById.get(id)?.motion === "SPIN_Z");
+  const duration = options.duration ?? 4;
   const base = dynamicFromFormation(formation, {
     id: options.id,
     name: options.name ?? `${formation.name} (dynamic)`,
-    duration: options.duration ?? 4,
-    loop: "PING_PONG",
+    duration,
+    // A spinning part must loop continuously; ping-pong would un-spin it.
+    loop: spins ? "REPEAT" : "PING_PONG",
   });
-  const wanted = options.parts ?? animatableParts(design, compiled).map((p) => p.id);
   let next = base;
   for (const partId of wanted) {
     const indices = compiled.partIndices[partId] ?? [];
     if (indices.length === 0) continue;
+    const groupId = `mg-${partId.toLowerCase()}`;
     next = addMotionGroup(
       next,
       partId,
       indices.map((i) => pointId(i)),
-      `mg-${partId.toLowerCase()}`,
+      groupId,
     );
+    // Declared part motion is written as ordinary keyframe data — fully editable.
+    if (partsById.get(partId)?.motion === "SPIN_Z") {
+      next = patchMotionGroup(next, groupId, {
+        loop: "REPEAT",
+        loopDuration: duration,
+        keyframes: [
+          { ...neutralGroupKeyframe(0), rotation: [0, 0, 0], interpolation: "linear" },
+          { ...neutralGroupKeyframe(duration / 2), rotation: [0, 0, -180], interpolation: "linear" },
+          { ...neutralGroupKeyframe(duration), rotation: [0, 0, -360], interpolation: "linear" },
+        ],
+      });
+    }
   }
   return next;
 }
