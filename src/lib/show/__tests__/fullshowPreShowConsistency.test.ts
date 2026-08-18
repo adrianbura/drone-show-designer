@@ -53,7 +53,7 @@ function syntheticSet(startTime: number, end: number, rate: number): TrajectoryS
     sampleRate: rate,
     startTime,
     duration: end - startTime,
-    drones: [{ droneId: "DRN-001", index: 0, samples }],
+    drones: [{ droneId: "DRN-001", samples }],
   };
 }
 
