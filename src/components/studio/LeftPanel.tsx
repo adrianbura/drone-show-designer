@@ -105,7 +105,7 @@ function Field({
   );
 }
 
-const FLEET_PRESETS = [24, 48, 100, 200, 300];
+const FLEET_PRESETS = [24, 48, 100, 200, 300, 500];
 
 
 export default function LeftPanel() {
@@ -142,7 +142,7 @@ export default function LeftPanel() {
           value={project.droneCount}
           onChange={setDroneCount}
           min={3}
-          max={300}
+          max={500}
         />
         <div className="flex flex-wrap gap-1.5">
           {FLEET_PRESETS.map((n) => (
