@@ -1,6 +1,7 @@
 import { DYNAMIC_FORMATION_ALGORITHM_VERSION } from "./dynamic/types";
 import { makeFormation } from "./formations";
 import { sanitizeMarkers, sanitizeSections } from "./markers";
+import { sanitizeScenes } from "./scene/migrate";
 import type { PhaseAltitudes, SafetyLimits, ShowArea, ShowProject } from "./types";
 import {
   FORMATION_ALGORITHM_VERSION,
