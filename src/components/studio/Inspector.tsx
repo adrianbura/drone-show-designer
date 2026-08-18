@@ -22,6 +22,7 @@ import ConversionPanel from "./ConversionPanel";
 
 
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
+import { suggestedProjectFileName } from "@/lib/project";
 import { evaluateExportEligibility } from "@/lib/adapters/exportEligibility";
 import {
   downloadText,
@@ -560,7 +561,7 @@ export default function Inspector() {
         <button
           onClick={() =>
             downloadText(
-              `${project.name.replace(/\s+/g, "-").toLowerCase()}.dss.json`,
+              suggestedProjectFileName(project.name),
               toStudioProject(project),
               "application/json",
             )
