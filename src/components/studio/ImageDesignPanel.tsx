@@ -304,7 +304,9 @@ export default function ImageDesignPanel() {
         )}
       </div>
 
-      {error && <p className="text-[11px] text-destructive">{error}</p>}
+      {(error ?? analysisError) && (
+        <p className="text-[11px] text-destructive">{error ?? analysisError}</p>
+      )}
 
       {source && (
         <>
