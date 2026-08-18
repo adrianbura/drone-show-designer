@@ -147,8 +147,9 @@ describe("structure editor coordinates", () => {
     const rect = { left: 40, top: 10, width: 268, height: 200 };
     const point = screenToDesign(rect, t, 40 + 134, 10 + 100);
     const [ax, ay] = designToAnalysis(384, 288, point);
-    expect(ax).toBeCloseTo(192 - 0.5, 5);
-    expect(ay).toBeCloseTo(144 - 0.5, 5);
+    // The canvas centre maps to the analysis centre, and back exactly.
+    expect(ax).toBeCloseTo(192, 5);
+    expect(ay).toBeCloseTo(144, 5);
   });
 
   it("keeps geometry stable when the preview is CSS-scaled", () => {
