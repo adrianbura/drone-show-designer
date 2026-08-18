@@ -888,6 +888,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setSelectedLaunchGroupId(null);
     setSvgDraft(null);
     setSvgError(null);
+    timelineHistory.current = { past: [], future: [] };
+    setTimelineHistoryDepth({ past: 0, future: 0 });
   }, []);
 
   const applySetupDraft = useCallback(
@@ -2231,6 +2233,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setDynamicEditTime(0);
     dynamicHistory.current = { past: [], future: [] };
     setDynamicHistoryDepth({ past: 0, future: 0 });
+    timelineHistory.current = { past: [], future: [] };
+    setTimelineHistoryDepth({ past: 0, future: 0 });
     savedSignature.current = JSON.stringify(next);
     setProjectDirty(false);
     setProjectFileNameState(ensureProjectExtension(fileName || suggestedProjectFileName(next.name)));
@@ -2507,10 +2511,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           clock.seek(duration);
           break;
         case "undo":
-          undoDynamic();
+          // Timeline gestures are the most recent kind of edit in practice, so
+          // they are unwound first; dynamic-formation history is the fallback.
+          if (timelineHistory.current.past.length > 0) undoTimeline();
+          else undoDynamic();
           break;
         case "redo":
-          redoDynamic();
+          if (timelineHistory.current.future.length > 0) redoTimeline();
+          else redoDynamic();
           break;
         case "clearSelection":
           setSelectedPointIdsState([]);
@@ -2520,7 +2528,31 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [clock, duration, plan.startTime, undoDynamic, redoDynamic]);
+  }, [clock, duration, plan.startTime, undoDynamic, redoDynamic, undoTimeline, redoTimeline]);
+
+  // FOLLOW PLAYHEAD — pure editor navigation: keeps the playhead visible during
+  // playback without ever touching project state.
+  useEffect(() => {
+    if (!followPlayhead || !clock.playing || timelineZoom <= 1) return;
+    if (clock.time >= timelineView.start && clock.time <= timelineView.end) return;
+    setTimelineScrollState(
+      scrollToCenter(clock.time, {
+        start: timelineFullStart,
+        end: viewEnd,
+        zoom: timelineZoom,
+        scroll: timelineScroll,
+      }),
+    );
+  }, [
+    followPlayhead,
+    clock.playing,
+    clock.time,
+    timelineView,
+    timelineZoom,
+    timelineScroll,
+    timelineFullStart,
+    viewEnd,
+  ]);
 
 
 
@@ -2536,6 +2568,27 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       duration,
       viewEnd,
       audioPeaks,
+      timelineView,
+      timelineZoom,
+      timelineScroll,
+      snapMode,
+      followPlayhead,
+      setSnapMode,
+      setFollowPlayhead,
+      setTimelineZoom,
+      setTimelineScroll,
+      commitClipTiming,
+      undoTimeline,
+      redoTimeline,
+      timelineHistoryDepth,
+      markers: project.markers ?? [],
+      musicSections: project.musicSections ?? [],
+      addMarker,
+      patchMarker,
+      removeMarker,
+      addMusicSection,
+      patchMusicSection,
+      removeMusicSection,
       audioAttached: project.audio.attached === true,
       audioBusy,
       audioError,
@@ -2779,6 +2832,23 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       duration,
       viewEnd,
       audioPeaks,
+      timelineView,
+      timelineZoom,
+      timelineScroll,
+      snapMode,
+      followPlayhead,
+      setTimelineZoom,
+      setTimelineScroll,
+      commitClipTiming,
+      undoTimeline,
+      redoTimeline,
+      timelineHistoryDepth,
+      addMarker,
+      patchMarker,
+      removeMarker,
+      addMusicSection,
+      patchMusicSection,
+      removeMusicSection,
       audioBusy,
       audioError,
       audioVolume,
