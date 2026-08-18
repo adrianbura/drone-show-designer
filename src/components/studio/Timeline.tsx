@@ -45,6 +45,7 @@ import {
 } from "@/lib/studio/timelineEdit";
 import { useStudio } from "@/lib/studio/store";
 import AudioWaveformTrack from "./AudioWaveformTrack";
+import LightingTrack from "./LightingTrack";
 import TimelineAnnotations from "./TimelineAnnotations";
 
 /** Subtle tint per inferred forensic category (semantic tokens only). */
@@ -728,6 +729,9 @@ export default function Timeline() {
             onSeek={setTime}
           />
         )}
+
+        {/* LIGHTING TRACK — effects of the selected scene, in show time. */}
+        <LightingTrack viewStart={viewStart} viewEnd={viewEndTime} />
 
         {selectedClipId && (
           <button

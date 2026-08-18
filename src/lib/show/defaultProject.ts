@@ -2,6 +2,7 @@ import { DYNAMIC_FORMATION_ALGORITHM_VERSION } from "./dynamic/types";
 import { makeFormation } from "./formations";
 import { sanitizeMarkers, sanitizeSections } from "./markers";
 import { sanitizeScenes } from "./scene/migrate";
+import { sanitizeLightingProgram } from "./lighting/validate";
 import type { PhaseAltitudes, SafetyLimits, ShowArea, ShowProject } from "./types";
 import {
   FORMATION_ALGORITHM_VERSION,
@@ -205,6 +206,9 @@ export function migrateProject(input: unknown): ShowProject {
     // scene entry is synthesised as a single-object scene on read, so migration
     // never changes geometry or timing (see show/scene/migrate.ts).
     scenes: sanitizeScenes(raw.scenes),
+    // LIGHTING PROGRAM: absent in pre-7.4 projects. Sanitisation is defensive
+    // and lossless for valid data; lighting never affects flight computation.
+    ...(sanitizeLightingProgram(raw.lighting) ? { lighting: sanitizeLightingProgram(raw.lighting)! } : {}),
     // Editor annotations are restored defensively; they are never required.
     markers: sanitizeMarkers(raw.markers),
     musicSections: sanitizeSections(raw.musicSections),
