@@ -311,9 +311,18 @@ export default function ImageDesignPanel() {
     ? t(`image.error.${analysed.errorCode}` as "image.error.DECODE_FAILED")
     : null;
 
+  // Provenance is decided at the DESIGN boundary: an AI raster yields an
+  // AI_GENERATED design, a local import stays IMAGE_ANALYSIS.
   const extracted = useMemo(
-    () => (analysis ? designFromAnalysis(analysis, { sourceName: source?.name }) : null),
-    [analysis, source?.name],
+    () =>
+      analysis
+        ? designFromAnalysis(analysis, {
+            sourceName: source?.name,
+            sourceType: aiMeta ? "AI_GENERATED" : "IMAGE_ANALYSIS",
+            ...(aiMeta ? { provenance: { aiDroneCount: aiMeta.droneCount } } : {}),
+          })
+        : null,
+    [aiMeta, analysis, source?.name],
   );
 
   // The structure editor owns the editable draft; the extraction stays intact.
