@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { createDefaultProject } from "../../defaultProject";
+import { createDemoProject } from "../../defaultProject";
 import { migrateProject } from "../../defaultProject";
 import {
   LIGHTING_PRESETS,
@@ -21,7 +21,7 @@ import {
 import type { ShowProject } from "../../types";
 
 function projectWithEffects(effects: LightingEffectInstance[]): ShowProject {
-  const base = createDefaultProject(24);
+  const base = createDemoProject(24);
   const lighting: LightingProgram = { schemaVersion: 1, effects };
   return { ...base, lighting };
 }
@@ -66,7 +66,7 @@ describe("anchors", () => {
 
 describe("project lighting evaluation", () => {
   const project = () => {
-    const base = createDefaultProject(24);
+    const base = createDemoProject(24);
     const clip = base.timeline[1]!;
     return projectWithEffects([
       effectOn(clip.id, "FADE_IN", { anchor: "FORMATION_READY", start: 0, duration: 2 }),
@@ -112,7 +112,7 @@ describe("project lighting evaluation", () => {
   });
 
   it("never affects geometry: no effects means no states", () => {
-    const p = createDefaultProject(12);
+    const p = createDemoProject(12);
     expect(projectLightingAt({ project: p }, 5)).toEqual([]);
   });
 });
@@ -133,7 +133,7 @@ describe("validation and persistence", () => {
   });
 
   it("accepts a consistent program", () => {
-    const base = createDefaultProject(24);
+    const base = createDemoProject(24);
     const p = projectWithEffects([
       effectOn(base.timeline[1]!.id, "FADE_IN", { anchor: "SCENE_START", start: 0, duration: 1 }),
     ]);
@@ -150,7 +150,7 @@ describe("validation and persistence", () => {
   });
 
   it("migration keeps a valid lighting program and tolerates its absence", () => {
-    const base = createDefaultProject(24);
+    const base = createDemoProject(24);
     const withLighting = migrateProject({
       ...base,
       lighting: { schemaVersion: 1, effects: [effectOn(base.timeline[1]!.id, "PULSE_2")] },
