@@ -1,5 +1,6 @@
 import { DYNAMIC_FORMATION_ALGORITHM_VERSION } from "./dynamic/types";
 import { makeFormation } from "./formations";
+import { sanitizeMarkers, sanitizeSections } from "./markers";
 import type { PhaseAltitudes, SafetyLimits, ShowArea, ShowProject } from "./types";
 import {
   FORMATION_ALGORITHM_VERSION,
@@ -69,6 +70,8 @@ export function createDefaultProject(droneCount = 48): ShowProject {
     dynamicFormations: [],
     // Clean startup: authoring begins from an empty timeline.
     timeline: [],
+    markers: [],
+    musicSections: [],
   };
 }
 
@@ -195,6 +198,9 @@ export function migrateProject(input: unknown): ShowProject {
       dynamicFormationAlgorithmVersion: DYNAMIC_FORMATION_ALGORITHM_VERSION,
     },
     dynamicFormations: Array.isArray(raw.dynamicFormations) ? raw.dynamicFormations : [],
+    // Editor annotations are restored defensively; they are never required.
+    markers: sanitizeMarkers(raw.markers),
+    musicSections: sanitizeSections(raw.musicSections),
     // An empty timeline is a VALID authored state and is preserved as-is: no
     // demo choreography is ever re-injected into a reopened project.
     timeline: timeline.map((clip, i) => ({

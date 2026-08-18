@@ -19,6 +19,7 @@ export type RGB = readonly [number, number, number];
 import type { SvgFormationSource } from "./svg/types";
 import type { PreShowConfig } from "./preshow/types";
 import type { DynamicFormation } from "./dynamic/types";
+import type { MusicSection, TimelineMarker } from "./markers";
 
 
 export type FormationKind =
@@ -172,6 +173,13 @@ export interface ShowProject {
    * a project without any behaves exactly as before.
    */
   dynamicFormations?: DynamicFormation[];
+  /**
+   * AUTHORING ANNOTATIONS (Sprint 7.2). Project-owned editor metadata: markers
+   * and music sections are persisted with the show but never influence flight
+   * computation, validation or any machine-facing export.
+   */
+  markers?: TimelineMarker[];
+  musicSections?: MusicSection[];
 }
 
 
