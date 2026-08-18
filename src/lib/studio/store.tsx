@@ -293,6 +293,41 @@ interface StudioContextValue {
   /** Sets (or clears with null) the participation override of one clip. */
   setClipParticipation: (clipId: string, override: ClipParticipationSettings | null) => void;
 
+  // ---- Simultaneous multi-formation scenes (Sprint 7.3.5) -----------------
+  /** Scene of the selected clip (synthesised for legacy single-formation clips). */
+  selectedScene: FormationScene | null;
+  /** Live drone budget of the selected scene against the fleet. */
+  selectedSceneBudget: SceneBudget | null;
+  /** Advisory footprint proximity warnings of the selected scene. */
+  selectedSceneWarnings: ObjectProximityWarning[];
+  selectedSceneObjectId: string | null;
+  selectSceneObject: (objectId: string | null) => void;
+  /** Adds one formation instance to a clip's scene and selects it. */
+  addSceneObject: (
+    clipId: string,
+    input: {
+      source: SceneObjectSource;
+      name: string;
+      assetId?: string;
+      requestedDroneCount?: number | null;
+    },
+  ) => string | null;
+  patchSceneObject: (
+    clipId: string,
+    objectId: string,
+    patch: Partial<SceneFormationInstance>,
+  ) => void;
+  patchSceneObjectTransform: (
+    clipId: string,
+    objectId: string,
+    patch: Partial<InstanceTransform>,
+  ) => void;
+  duplicateSceneObject: (clipId: string, objectId: string) => void;
+  removeSceneObject: (clipId: string, objectId: string) => void;
+  mirrorSceneObject: (clipId: string, objectId: string) => void;
+  alignSceneObjects: (clipId: string, alignment: SceneAlignment) => void;
+  patchSceneTransform: (clipId: string, patch: Partial<InstanceTransform>) => void;
+
   // ---- Project setup wizard + asset library (Sprint 6B.6) -----------------
   /** Replaces the whole project with a new one built from the wizard draft. */
   createProjectFromDraft: (draft: ProjectSetupDraft) => void;
@@ -653,6 +688,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [project, setProject] = useState<ShowProject>(() => createDefaultProject());
   // Clean startup: nothing is selected because nothing is authored yet.
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [selectedSceneObjectId, setSelectedSceneObjectId] = useState<string | null>(null);
   const [sampleRate, setSampleRate] = useState<number>(DEFAULT_SAMPLE_RATE);
   const [svgAssets, setSvgAssets] = useState<Record<string, SvgAsset>>({});
   const [svgDraft, setSvgDraft] = useState<SvgDraft | null>(null);
@@ -1292,6 +1328,103 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       });
     },
     [],
+  );
+
+  // ---- multi-formation scenes ---------------------------------------------
+  /**
+   * Every scene edit resolves the clip's scene INSIDE the updater, so a library
+   * insert that adds a formation and composes it in the same tick still sees it.
+   */
+  const editScene = useCallback(
+    (clipId: string, fn: (scene: FormationScene, p: ShowProject) => FormationScene) => {
+      setProject((p) => {
+        const clip = p.timeline.find((c) => c.id === clipId);
+        if (!clip) return p;
+        return upsertScene(p, fn(sceneForClip(p, clip), p));
+      });
+    },
+    [],
+  );
+
+  const addSceneObject = useCallback(
+    (
+      clipId: string,
+      input: {
+        source: SceneObjectSource;
+        name: string;
+        assetId?: string;
+        requestedDroneCount?: number | null;
+      },
+    ) => {
+      let createdId: string | null = null;
+      editScene(clipId, (scene, p) => {
+        const result = addObject(p, scene, input);
+        createdId = result.objectId;
+        return result.scene;
+      });
+      if (createdId) setSelectedSceneObjectId(createdId);
+      return createdId;
+    },
+    [editScene],
+  );
+
+  const patchSceneObject = useCallback(
+    (clipId: string, objectId: string, patch: Partial<SceneFormationInstance>) => {
+      editScene(clipId, (scene) => patchObject(scene, objectId, patch));
+    },
+    [editScene],
+  );
+
+  const patchSceneObjectTransform = useCallback(
+    (clipId: string, objectId: string, patch: Partial<InstanceTransform>) => {
+      editScene(clipId, (scene) => patchObjectTransform(scene, objectId, patch));
+    },
+    [editScene],
+  );
+
+  const duplicateSceneObject = useCallback(
+    (clipId: string, objectId: string) => {
+      let createdId: string | null = null;
+      editScene(clipId, (scene) => {
+        const result = duplicateObject(scene, objectId);
+        createdId = result.objectId;
+        return result.scene;
+      });
+      if (createdId) setSelectedSceneObjectId(createdId);
+    },
+    [editScene],
+  );
+
+  const removeSceneObject = useCallback(
+    (clipId: string, objectId: string) => {
+      editScene(clipId, (scene) => removeObject(scene, objectId));
+      setSelectedSceneObjectId((current) => (current === objectId ? null : current));
+    },
+    [editScene],
+  );
+
+  const mirrorSceneObject = useCallback(
+    (clipId: string, objectId: string) => {
+      editScene(clipId, (scene) => mirrorObjectX(scene, objectId));
+    },
+    [editScene],
+  );
+
+  const alignSceneObjects = useCallback(
+    (clipId: string, alignment: SceneAlignment) => {
+      editScene(clipId, (scene, p) => alignObjects(p, scene, alignment));
+    },
+    [editScene],
+  );
+
+  const patchSceneTransform = useCallback(
+    (clipId: string, patch: Partial<InstanceTransform>) => {
+      editScene(clipId, (scene) => ({
+        ...scene,
+        transform: { ...scene.transform, ...patch },
+      }));
+    },
+    [editScene],
   );
 
   const addLibraryFormation = useCallback((formation: Formation) => {
