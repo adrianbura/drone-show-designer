@@ -259,6 +259,13 @@ export default function ImageDesignPanel() {
       name,
       // Provenance follows the DESIGN, never the button that saved it.
       source: assetSourceForDesign(design),
+      // Identity of the origin only — no pixels, no base64, no ImageData.
+      sourceRef: {
+        kind: "IMAGE",
+        name: source?.name,
+        fingerprint: analysis?.fingerprint,
+        params: { detail, structure, background, simplify },
+      },
       tags: ["image", `detail:${detail}`, `structure:${structure}`],
     });
     setSaved(asset ? asset.name : null);
