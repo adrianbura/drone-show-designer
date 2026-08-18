@@ -108,13 +108,26 @@ function buildProposal(
         : "The concept was not recognised, so an abstract cloud was used. Mention bird, butterfly, heart, circle, ring, star, spiral or wave.",
     );
   }
-  if (intent.fleetCount !== undefined && intent.fleetCount !== fleetCount) {
-    warnings.push(
-      l === "ro"
-        ? `Promptul cere ${intent.fleetCount} drone, dar proiectul are ${fleetCount}. Am folosit flota proiectului.`
-        : `The prompt asks for ${intent.fleetCount} drones but the project has ${fleetCount}. The project fleet was used.`,
-    );
+  // Partial participation is supported, so a requested count SMALLER than the
+  // fleet is honoured exactly; only an oversized request is clamped.
+  let requestedCount = fleetCount;
+  if (intent.fleetCount !== undefined && intent.fleetCount >= 1) {
+    if (intent.fleetCount > fleetCount) {
+      warnings.push(
+        l === "ro"
+          ? `Promptul cere ${intent.fleetCount} drone, dar proiectul are ${fleetCount}. Am folosit flota proiectului.`
+          : `The prompt asks for ${intent.fleetCount} drones but the project has ${fleetCount}. The project fleet was used.`,
+      );
+    } else if (intent.fleetCount < fleetCount) {
+      requestedCount = intent.fleetCount;
+      assumptions.push(
+        l === "ro"
+          ? `Formația folosește ${requestedCount} din ${fleetCount} drone; restul rămân planificate ca rezervă sau pre-poziționare.`
+          : `The formation uses ${requestedCount} of ${fleetCount} drones; the rest stay planned as reserve or pre-positioning.`,
+      );
+    }
   }
+
 
   const sizeScale = intent.sizeScale ?? 1;
   const baseWidth = base ? base.formationSpec.width : Math.min(area.width, area.depth) * 0.65;
