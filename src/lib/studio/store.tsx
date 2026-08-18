@@ -73,6 +73,7 @@ import type {
   TimelineClip,
 } from "../show/types";
 import { showDuration } from "../show/types";
+import { defaultPhaseForNewClip } from "../show/timeline";
 import {
   createMarker,
   createSection,
@@ -1191,7 +1192,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           easing: "minJerk",
           color: [140, 220, 255],
           effect: "solid",
-          phase: "SHOW",
+          phase: defaultPhaseForNewClip(p.timeline),
         };
         const shift = clip.transition + clip.hold;
         return {
@@ -1221,7 +1222,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         easing: "minJerk",
         color: [120, 220, 255],
         effect: "solid",
-        phase: "SHOW",
+        phase: defaultPhaseForNewClip(p.timeline),
       };
       const shift = clip.transition + clip.hold;
       return {
@@ -1667,7 +1668,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           easing: "minJerk",
           color: [140, 210, 255],
           effect: "solid",
-          phase: "SHOW",
+          phase: defaultPhaseForNewClip(p.timeline),
           dynamicFormationId: dynamic.id,
           playbackRate: 1,
           dynamicStartOffset: 0,
