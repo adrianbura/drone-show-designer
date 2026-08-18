@@ -5,6 +5,7 @@ import type { FormationKind } from "@/lib/show/types";
 import { useStudio } from "@/lib/studio/store";
 import AiPanel from "./AiPanel";
 import LibraryPanel from "./LibraryPanel";
+import VisualLabPanel from "./VisualLabPanel";
 import SvgImportPanel from "./SvgImportPanel";
 
 const KINDS: { kind: FormationKind; label: string }[] = [
@@ -213,6 +214,8 @@ export default function LeftPanel() {
       </section>
 
       <SvgImportPanel />
+
+      <VisualLabPanel />
 
       <AiPanel />
 
