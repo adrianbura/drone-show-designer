@@ -417,12 +417,22 @@ export default function ImageDesignPanel() {
       </h2>
       <p className="text-[11px] text-muted-foreground">{t("image.intro")}</p>
 
+      {/* AI is a REFERENCE IMAGE creator: it feeds the same local pipeline. */}
+      <AiReferencePanel
+        droneCount={count}
+        onReference={async (file, meta) => {
+          setAiMeta(meta);
+          await pick(file);
+        }}
+      />
+
       <input
         ref={fileRef}
         type="file"
         accept="image/png,image/jpeg,image/webp"
         className="hidden"
         onChange={(e) => {
+          setAiMeta(null);
           void pick(e.target.files?.[0]);
           e.currentTarget.value = "";
         }}
@@ -438,6 +448,7 @@ export default function ImageDesignPanel() {
             className="chip-btn"
             onClick={() => {
               setSource(null);
+              setAiMeta(null);
               setStage("REFERENCE");
               setSaved(null);
               setError(null);
@@ -447,6 +458,7 @@ export default function ImageDesignPanel() {
           </button>
         )}
       </div>
+
 
       {(error ?? analysisError) && (
         <p className="text-[11px] text-destructive">{error ?? analysisError}</p>
