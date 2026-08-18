@@ -108,3 +108,42 @@ Designs are plain JSON (`serializeDesign` / `parseDesign` with strict
 validation), so a future `Image -> VisualFormationDesign` module can populate
 one. `metadata.sourceType` and `metadata.sourceRef` carry provenance; image bytes
 are never stored in a design or a project file.
+
+## Structure editor (Sprint 8B2)
+
+The operator can repair an imperfect extraction BEFORE it becomes drones. The
+editor lives in `src/lib/visual/editor/` and edits the design only — never drone
+positions, trajectories, participation, launch/staging, lighting or export.
+
+```text
+IMAGE -> extracted design -> MANUAL STRUCTURE CORRECTION -> compiler -> exact N
+```
+
+Four pure commands (`commands.ts`), which are also the surface a future AI agent
+can drive:
+
+| Command | Effect |
+| --- | --- |
+| `setPrimitiveEnabled` | reversible disable; the compiler ignores it |
+| `setPrimitiveImportance` | LOW/MEDIUM/HIGH/ESSENTIAL -> existing `priority` + `essential` |
+| `deletePrimitive` | destructive removal, clears `mirrorOf` references |
+| `addPolyline` | adds a manually drawn POLYLINE (`edit-poly-N`) |
+
+Importance mapping: LOW 0.35, MEDIUM 0.6, HIGH 0.85, ESSENTIAL 1.0 + `essential`.
+There is no second priority system.
+
+`useStructureEditor` keeps the extracted design intact next to an edited draft,
+with a LOCAL snapshot undo/redo history (one gesture = one entry) and Reset that
+restores the extraction with no image re-decode. Selection, hover, drawing state
+and history are editor-only and are never serialized. Changing detail, structure,
+background or simplify re-extracts (primitive ids belong to an extraction) and
+clears manual edits, which the UI states explicitly.
+
+Coordinates go through `viewTransform.ts` (screen -> canvas -> analysis -> design)
+so preview scaling can never alter stored geometry. A REGION is one logical
+primitive; hole-level node editing is deferred, but holes extracted as separate
+`img-hole-*` contours remain individually selectable and deletable.
+
+Provenance after manual editing: the asset stays `IMPORTED` with the same
+filename and analysis fingerprint, plus flat markers `edited`, `editOps`,
+`designVersion` and an `edited` tag. Saving still never touches the timeline.
