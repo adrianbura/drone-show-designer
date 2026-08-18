@@ -20,6 +20,7 @@ import type { ShowProject } from "../show/types";
 import { showDuration } from "../show/types";
 import type { SafetyReport } from "../show/safety";
 import type { PreShowValidationReport } from "../show/preshow";
+import { projectFileToJson, serializeProject } from "../project";
 import { toPreShowExportSection } from "./preshowExport";
 import type { FullShowValidationReport } from "../show/fullshow/types";
 
@@ -222,17 +223,13 @@ export function toTrajectoryCsv(project: ShowProject, set: TrajectorySet): strin
   return rows.join("\n");
 }
 
+/**
+ * Serialises the editable Studio project through the canonical project-file
+ * envelope. This deliberately delegates to src/lib/project so Save/Open and the
+ * Inspector export can never drift to different `kind` or schema semantics.
+ */
 export function toStudioProject(project: ShowProject): string {
-  return JSON.stringify(
-    {
-      version: 1,
-      kind: "drone-show-studio/project",
-      schemaVersion: project.versions.schemaVersion,
-      project,
-    },
-    null,
-    2,
-  );
+  return projectFileToJson(serializeProject(project));
 }
 
 export function downloadText(filename: string, contents: string, mime: string) {
