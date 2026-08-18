@@ -78,14 +78,14 @@ describe("complex 200-drone project", () => {
     expect(dynamic.groups.length).toBeGreaterThan(0);
     const memberships = dynamic.groups.map((g) => g.pointIds.join("|"));
     for (const t of [0, 0.5, 1.7, 3.9, 4, 8.25]) {
-      const sample = sampleDynamicFormation(dynamic, t);
-      expect(sample.positions).toHaveLength(pigeonPointCount);
-      expectFinite(sample.positions, `dynamic@${t}`);
+      const positions = sampleDynamicFormation(dynamic, t);
+      expect(positions).toHaveLength(pigeonPointCount);
+      expectFinite(positions, `dynamic@${t}`);
     }
     expect(dynamic.groups.map((g) => g.pointIds.join("|"))).toEqual(memberships);
     // Loop behaviour: the cycle repeats exactly one duration later.
-    const a = sampleDynamicFormation(dynamic, 1.25).positions;
-    const b = sampleDynamicFormation(dynamic, 1.25 + dynamic.duration).positions;
+    const a = sampleDynamicFormation(dynamic, 1.25);
+    const b = sampleDynamicFormation(dynamic, 1.25 + dynamic.duration);
     expect(b).toEqual(a);
   });
 
