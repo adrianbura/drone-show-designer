@@ -22,7 +22,11 @@ export function otsuThreshold(field: LuminanceField): number {
   for (let b = 0; b < HISTOGRAM_BINS; b++) sumAll += b * (hist[b] ?? 0);
   let wB = 0;
   let sumB = 0;
-  let best = 0;
+  // A perfectly bimodal image produces a PLATEAU of equally good thresholds
+  // (every empty bin between the two modes). Returning the first index would
+  // collapse the mask, so the plateau midpoint is used instead.
+  let bestLow = 0;
+  let bestHigh = 0;
   let bestVar = -1;
   for (let b = 0; b < HISTOGRAM_BINS; b++) {
     wB += hist[b] ?? 0;
@@ -33,12 +37,15 @@ export function otsuThreshold(field: LuminanceField): number {
     const mB = sumB / wB;
     const mF = (sumAll - sumB) / wF;
     const between = wB * wF * (mB - mF) * (mB - mF);
-    if (between > bestVar) {
+    if (between > bestVar * (1 + 1e-12) && between > bestVar) {
       bestVar = between;
-      best = b;
+      bestLow = b;
+      bestHigh = b;
+    } else if (bestVar > 0 && Math.abs(between - bestVar) <= bestVar * 1e-12) {
+      bestHigh = b;
     }
   }
-  return best / 255;
+  return (bestLow + bestHigh) / 2 / 255;
 }
 
 export interface BinaryMask {
