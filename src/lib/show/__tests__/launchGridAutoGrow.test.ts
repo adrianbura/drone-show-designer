@@ -40,7 +40,9 @@ describe("launch grid auto-growth diagnostic (fleet 300, 10x20)", () => {
   it("has 300 unique physical X/Z positions", () => {
     const layout = buildLaunchLayout(fleet, config);
     const keys = new Set(
-      layout.pads.map((p) => `${p.x.toFixed(4)}|${p.z.toFixed(4)}`),
+      layout.pads.map(
+        (p) => `${p.position[0].toFixed(4)}|${p.position[2].toFixed(4)}`,
+      ),
     );
     expect(keys.size).toBe(300);
   });
