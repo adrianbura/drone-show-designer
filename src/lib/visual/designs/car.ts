@@ -77,22 +77,22 @@ const FRONT_WHEEL: DesignPoint = [0.26, -0.19];
 const TIRE_R = 0.11;
 const RIM_R = 0.055;
 
-/** Four spokes make the rotation of a wheel unmistakable in the sky. */
+/** Radial spokes make the rotation of a wheel unmistakable in the sky. */
 function spokes(center: DesignPoint, part: string, idPrefix: string): VisualPrimitive[] {
-  return [0, 45, 90, 135].map((deg, i) => {
+  const inner = 0.022;
+  return [0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => {
     const a = (deg * Math.PI) / 180;
-    const dx = Math.cos(a) * RIM_R;
-    const dy = Math.sin(a) * RIM_R;
+    const cos = Math.cos(a);
+    const sin = Math.sin(a);
     return {
       id: `${idPrefix}-spoke-${i + 1}`,
       type: "POLYLINE",
       part,
-      priority: 0.85,
-      minPoints: 3,
+      priority: 0.85 - (i % 2) * 0.1,
+      minPoints: 2,
       path: [
-        [center[0] - dx, center[1] - dy],
-        [center[0], center[1]],
-        [center[0] + dx, center[1] + dy],
+        [center[0] + cos * inner, center[1] + sin * inner],
+        [center[0] + cos * RIM_R, center[1] + sin * RIM_R],
       ] as DesignPoint[],
     } satisfies VisualPrimitive;
   });
