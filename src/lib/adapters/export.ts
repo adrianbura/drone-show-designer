@@ -11,12 +11,10 @@ import { ASSIGNMENT_ALGORITHM_VERSION } from "../show/assignment";
 import { CONFLICT_DETECTION_VERSION } from "../show/conflicts";
 import { COORDINATE_SYSTEM } from "../show/coordinates";
 import { DYNAMIC_FORMATION_ALGORITHM_VERSION } from "../show/dynamic";
+import { emittedColor, projectLightingAt } from "../show/lighting";
 import { TRANSITION_OPTIMIZER_VERSION } from "../show/transition";
-import { lightColorAt } from "../show/lights";
-import { activeClipAt } from "../show/timeline";
-import type { ShowPlan } from "../show/trajectory";
-import type { TrajectorySet } from "../show/trajectory";
-import type { ShowProject } from "../show/types";
+import type { ShowPlan, TrajectorySet } from "../show/trajectory";
+import type { RGB, ShowProject, Vector3Tuple } from "../show/types";
 import { showDuration } from "../show/types";
 import type { SafetyReport } from "../show/safety";
 import type { PreShowValidationReport } from "../show/preshow";
@@ -45,6 +43,30 @@ export interface GenericExportInput {
 }
 
 /**
+ * Canonical emitted RGB for every sampled fleet frame.
+ *
+ * Export must use the SAME lighting path as preview/full-show validation:
+ * clip/instance base colour -> authored lighting stack -> participation reserve
+ * policy. WORLD_SPACE effects receive the actual sampled trajectory positions.
+ */
+function lightingFrames(
+  project: ShowProject,
+  set: TrajectorySet,
+  participation: ShowPlan["participation"] = [],
+): RGB[][] {
+  const frameCount = set.drones[0]?.samples.length ?? 0;
+  const frames: RGB[][] = new Array(frameCount);
+  for (let k = 0; k < frameCount; k++) {
+    const t = set.drones[0]?.samples[k]?.t ?? (set.startTime ?? 0) + k / set.sampleRate;
+    const positions: Vector3Tuple[] = set.drones.map(
+      (drone) => drone.samples[k]?.position ?? ([0, 0, 0] as const),
+    );
+    frames[k] = projectLightingAt({ project, participation, positions }, t).map(emittedColor);
+  }
+  return frames;
+}
+
+/**
  * Documented internal interchange schema, version 1. Self-describing: a reader
  * only needs this file and docs/EXPORT_FORMAT.md.
  */
@@ -58,13 +80,14 @@ export function toGenericShowJson({
   preShowReport,
   preShowStale,
 }: GenericExportInput): string {
+  const colors = lightingFrames(project, set, plan.participation);
   const drones = plan.drones.map((drone, i) => {
     const trajectory = set.drones[i];
     return {
       id: drone.id,
       index: drone.index,
       homePosition: drone.homePosition.map((v) => round(v)),
-      samples: (trajectory?.samples ?? []).map((s) => ({
+      samples: (trajectory?.samples ?? []).map((s, k) => ({
         t: round(s.t, 3),
         p: s.position.map((v) => round(v)),
         v: s.velocity.map((v) => round(v)),
@@ -72,7 +95,7 @@ export function toGenericShowJson({
         j: s.jerk.map((v) => round(v)),
         yaw: round(s.yaw, 2),
         yawRate: round(s.yawRate, 2),
-        c: lightColorAt(activeClipAt(project, s.t), drone.index, project.droneCount, s.t),
+        c: colors[k]?.[i] ?? ([0, 0, 0] as RGB),
       })),
     };
   });
@@ -101,11 +124,8 @@ export function toGenericShowJson({
         kind: f.kind,
         params: f.params,
         points: f.points.map((p) => p.map((v) => round(v))),
-        // Reproducibility metadata for logo/vector formations (kind "svg").
         ...(f.svg ? { svg: f.svg } : {}),
       })),
-      // Living formations: base cloud + animation description. A reader can
-      // reproduce every sampled position from this block alone.
       ...(project.dynamicFormations && project.dynamicFormations.length > 0
         ? {
             dynamicFormations: project.dynamicFormations.map((d) => ({
@@ -125,7 +145,6 @@ export function toGenericShowJson({
           }
         : {}),
       timeline: project.timeline.map((c) => ({ ...c, phase: c.phase ?? "SHOW" })),
-      // Assignment + deconfliction provenance (Sprint 3).
       planning: {
         assignmentAlgorithmVersion: ASSIGNMENT_ALGORITHM_VERSION,
         assignmentStrategy: plan.assignmentStrategy,
@@ -134,8 +153,6 @@ export function toGenericShowJson({
         optimizedClipIds: plan.optimizedClipIds,
       },
       assignments: plan.assignments,
-      // Pre-show / launch provenance (Sprint 4.5). `null` means the exported
-      // show contains NO launch plan, not that launching was validated.
       preShow: plan.preShow
         ? toPreShowExportSection({
             plan: plan.preShow,
@@ -155,7 +172,9 @@ export function toGenericShowJson({
         sampleRate: set.sampleRate,
         algorithmVersion: set.algorithmVersion,
       },
-      lighting: { evaluation: "per-sample, deterministic, from active clip effect" },
+      lighting: {
+        evaluation: "per-sample, deterministic, canonical lighting engine + participation policy",
+      },
       validation: safety
         ? {
             statement: "Validated against current safety profile — not a real-world safety guarantee",
@@ -166,8 +185,6 @@ export function toGenericShowJson({
             sampleRate: safety.sampleRate,
           }
         : null,
-      // Full-show validation provenance (Sprint 4). `null` means the package was
-      // exported WITHOUT a full-show validation pass — never assume it passed.
       fullShowValidation: fullShow
         ? {
             statement: fullShow.statement,
@@ -196,15 +213,25 @@ export function toGenericShowJson({
   );
 }
 
-export function toTrajectoryCsv(project: ShowProject, set: TrajectorySet): string {
+/**
+ * CSV export uses the canonical lighting engine too. `plan` is optional only for
+ * backwards compatibility with older callers; pass it whenever available so
+ * partial-fleet reserve lighting uses the exact participation plan that flew.
+ */
+export function toTrajectoryCsv(
+  project: ShowProject,
+  set: TrajectorySet,
+  plan?: Pick<ShowPlan, "participation">,
+): string {
   const rows = ["time_s,drone_id,x_m,y_m,z_m,vx,vy,vz,yaw_deg,yaw_rate_dps,r,g,b"];
   const frames = set.drones[0]?.samples.length ?? 0;
+  const colors = lightingFrames(project, set, plan?.participation ?? []);
   for (let k = 0; k < frames; k++) {
     for (let i = 0; i < set.drones.length; i++) {
       const drone = set.drones[i]!;
       const s = drone.samples[k];
       if (!s) continue;
-      const c = lightColorAt(activeClipAt(project, s.t), i, project.droneCount, s.t);
+      const c = colors[k]?.[i] ?? ([0, 0, 0] as RGB);
       rows.push(
         [
           s.t.toFixed(3),
