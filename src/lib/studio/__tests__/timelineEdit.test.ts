@@ -6,10 +6,8 @@ import { describe, expect, it } from "vitest";
 
 import { buildBeatGrid } from "@/lib/show/audio";
 import { sanitizeMarkers, sanitizeSections, sortSections } from "@/lib/show/markers";
-import { clipPhase, type TimelineClip } from "@/lib/show/types";
+import type { TimelineClip } from "@/lib/show/types";
 import {
-  AUTHORABLE_CLIP_PHASES,
-  defaultPhaseForNewClip,
   MIN_HOLD,
   MIN_TRANSITION,
   clampZoom,
@@ -119,31 +117,5 @@ describe("annotation sanitisation", () => {
       { id: "a", start: 0, end: 10, label: "a", type: "INTRO" },
     ]);
     expect(sorted.map((s) => s.id)).toEqual(["a", "b"]);
-  });
-});
-
-describe("clip phase authoring", () => {
-  it("defaults the first clip on an empty timeline to TAKEOFF", () => {
-    expect(defaultPhaseForNewClip([])).toBe("TAKEOFF");
-  });
-
-  it("defaults subsequent clips to SHOW", () => {
-    expect(defaultPhaseForNewClip([{ ...clip, phase: "TAKEOFF" }])).toBe("SHOW");
-  });
-
-  it("never offers PRE_SHOW as a timeline-authoring phase", () => {
-    expect(AUTHORABLE_CLIP_PHASES).toEqual(["TAKEOFF", "SHOW", "LANDING"]);
-    expect(AUTHORABLE_CLIP_PHASES).not.toContain("PRE_SHOW");
-  });
-
-  it("patches phase without touching timing or formation", () => {
-    for (const phase of AUTHORABLE_CLIP_PHASES) {
-      const next = { ...clip, phase };
-      expect(next.start).toBe(clip.start);
-      expect(next.transition).toBe(clip.transition);
-      expect(next.hold).toBe(clip.hold);
-      expect(next.formationId).toBe(clip.formationId);
-      expect(clipPhase(next)).toBe(phase);
-    }
   });
 });

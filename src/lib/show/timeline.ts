@@ -1,8 +1,17 @@
 /**
  * Timeline helpers (creative layer). No flight computation lives here.
  */
-import type { ShowProject, TimelineClip } from "./types";
+import type { ShowPhase, ShowProject, TimelineClip } from "./types";
 import { clipPhase } from "./types";
+
+/**
+ * Canonical phase for a newly created clip: the first authored clip of a clean
+ * project is TAKEOFF, everything afterwards is SHOW.
+ */
+export function defaultPhaseForNewClip(timeline: TimelineClip[]): ShowPhase {
+  return timeline.length === 0 ? "TAKEOFF" : "SHOW";
+}
+
 
 export function sortedClips(project: ShowProject): TimelineClip[] {
   return [...project.timeline].sort((a, b) => a.start - b.start);

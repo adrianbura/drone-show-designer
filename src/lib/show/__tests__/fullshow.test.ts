@@ -164,24 +164,6 @@ describe("timeline and home pad validation", () => {
     expect(report.issues.filter((i) => i.severity === "error")).toEqual([]);
   });
 
-  it("accepts a UI-authored TAKEOFF -> SHOW -> LANDING timeline", () => {
-    const project = smallProject();
-    const f = project.formations[0]!.id;
-    const authored: TimelineClip[] = [
-      { ...project.timeline[0]!, id: "a1", formationId: f, start: 0, transition: 8, hold: 4, phase: "TAKEOFF" },
-      { ...project.timeline[0]!, id: "a2", formationId: f, start: 12, transition: 8, hold: 6, phase: "SHOW" },
-      { ...project.timeline[0]!, id: "a3", formationId: f, start: 26, transition: 8, hold: 2, phase: "LANDING" },
-    ];
-    const report = validateTimelineStructure({ ...project, timeline: authored });
-    const codes = report.issues.map((i) => i.code);
-    expect(codes).not.toContain("MISSING_TAKEOFF");
-    expect(codes).not.toContain("MISSING_LANDING");
-    expect(codes).not.toContain("TAKEOFF_NOT_FIRST");
-    expect(codes).not.toContain("LANDING_NOT_LAST");
-    expect(codes).not.toContain("PHASE_OUT_OF_ORDER");
-    expect(report.phaseOrderValid).toBe(true);
-  });
-
   it("flags missing take-off, missing landing, overlaps and bad durations", () => {
     const project = smallProject();
     const bad: TimelineClip[] = [

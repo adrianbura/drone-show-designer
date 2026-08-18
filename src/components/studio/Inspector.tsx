@@ -22,6 +22,7 @@ import ConversionPanel from "./ConversionPanel";
 
 
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
+import { suggestedProjectFileName } from "@/lib/project";
 import { evaluateExportEligibility } from "@/lib/adapters/exportEligibility";
 import {
   downloadText,
@@ -36,11 +37,7 @@ import {
 } from "@/lib/show/assignment";
 import { hexToRgb, rgbToHex } from "@/lib/show/lights";
 import { snapToBeat } from "@/lib/show/audio";
-import { clipPhase, type Easing, type LightEffect } from "@/lib/show/types";
-import {
-  AUTHORABLE_CLIP_PHASES,
-  type AuthorableClipPhase,
-} from "@/lib/studio/timelineEdit";
+import type { Easing, LightEffect, ShowPhase } from "@/lib/show/types";
 import { useStudio } from "@/lib/studio/store";
 
 const EFFECTS: LightEffect[] = ["solid", "pulse", "rainbow", "chase", "twinkle"];
@@ -151,39 +148,22 @@ export default function Inspector() {
                 Phase
               </span>
               <select
-                value={clipPhase(clip)}
-                onChange={(e) =>
-                  patchClip(clip.id, { phase: e.target.value as AuthorableClipPhase })
-                }
+                value={clip.phase}
+                onChange={(e) => patchClip(clip.id, { phase: e.target.value as ShowPhase })}
                 className="studio-input"
                 aria-label="Clip phase"
-                data-testid="clip-phase-select"
               >
-                {AUTHORABLE_CLIP_PHASES.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+                {(["TAKEOFF", "SHOW", "LANDING"] as ShowPhase[]).map((ph) => (
+                  <option key={ph} value={ph}>
+                    {ph}
                   </option>
                 ))}
               </select>
+              <span className="block text-[10px] leading-relaxed text-muted-foreground">
+                TAKEOFF lifts the fleet from its launch pads; LANDING returns every drone to its
+                home pad. A valid show starts with TAKEOFF and ends with LANDING.
+              </span>
             </label>
-            {clipPhase(clip) === "TAKEOFF" && (
-              <p
-                data-testid="clip-phase-note-takeoff"
-                className="rounded border border-border bg-muted/30 p-2 text-[10px] leading-relaxed text-muted-foreground"
-              >
-                Explicit fleet departure phase: the fleet leaves the ground here and climbs to the
-                first airborne formation.
-              </p>
-            )}
-            {clipPhase(clip) === "LANDING" && (
-              <p
-                data-testid="clip-phase-note-landing"
-                className="rounded border border-border bg-muted/30 p-2 text-[10px] leading-relaxed text-muted-foreground"
-              >
-                The formation geometry is not the landing destination: the landing planner returns
-                every drone to its assigned home pad at ground level.
-              </p>
-            )}
             <NumberRow
               label="Start"
               value={clip.start}
@@ -602,7 +582,7 @@ export default function Inspector() {
         <button
           onClick={() =>
             downloadText(
-              `${project.name.replace(/\s+/g, "-").toLowerCase()}.dss.json`,
+              suggestedProjectFileName(project.name),
               toStudioProject(project),
               "application/json",
             )

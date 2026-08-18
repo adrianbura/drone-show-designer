@@ -252,21 +252,3 @@ export function zoomAtTime(
   const start = anchorTime - ratio * span;
   return { zoom, scroll: Math.min(1, Math.max(0, (start - input.start) / maxStart)) };
 }
-
-/**
- * PHASES AUTHORABLE FROM THE TIMELINE UI.
- *
- * PRE_SHOW is deliberately absent: it belongs to the dedicated pre-show system
- * and only ever occupies negative show time.
- */
-export const AUTHORABLE_CLIP_PHASES = ["TAKEOFF", "SHOW", "LANDING"] as const;
-export type AuthorableClipPhase = (typeof AUTHORABLE_CLIP_PHASES)[number];
-
-/**
- * Phase a newly added clip should get: the very first clip on an empty timeline
- * is the explicit fleet departure (TAKEOFF); everything else is SHOW. A LANDING
- * clip is never invented automatically.
- */
-export function defaultPhaseForNewClip(timeline: readonly TimelineClip[]): AuthorableClipPhase {
-  return timeline.length === 0 ? "TAKEOFF" : "SHOW";
-}
