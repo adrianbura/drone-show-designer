@@ -5,6 +5,7 @@ import type { FormationKind } from "@/lib/show/types";
 import { useStudio } from "@/lib/studio/store";
 import AiPanel from "./AiPanel";
 import LibraryPanel from "./LibraryPanel";
+import ImageDesignPanel from "./ImageDesignPanel";
 import VisualLabPanel from "./VisualLabPanel";
 import SvgImportPanel from "./SvgImportPanel";
 
@@ -216,6 +217,8 @@ export default function LeftPanel() {
       <SvgImportPanel />
 
       <VisualLabPanel />
+
+      <ImageDesignPanel />
 
       <AiPanel />
 
