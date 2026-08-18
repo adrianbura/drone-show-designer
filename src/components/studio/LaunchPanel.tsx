@@ -181,14 +181,26 @@ export default function LaunchPanel() {
                 onChange={(v) => patchPreShow({ launch: { rotationDeg: v } })}
               />
             </div>
-            <p className="text-[10px] text-muted-foreground">
-              {project.droneCount} pads generated · grid capacity {capacity}
-              {capacity < project.droneCount
-                ? " — too small: increase rows or columns."
-                : capacity > project.droneCount
-                  ? " — the last row is partially populated."
-                  : ""}
-            </p>
+            <div className="space-y-1 rounded-md border border-border/60 bg-muted/20 p-2">
+              <Row label={t("launchGrid.fleet")} value={String(project.droneCount)} />
+              <Row
+                label={t("launchGrid.configuredGrid")}
+                value={`${preShowConfig.launch.rows} × ${preShowConfig.launch.columns}`}
+              />
+              <Row label={t("launchGrid.configuredCapacity")} value={String(configuredCapacity)} />
+              <Row
+                label={t("launchGrid.effectiveGrid")}
+                value={`${resolvedGrid.rows} × ${resolvedGrid.columns}`}
+              />
+              <Row label={t("launchGrid.effectiveCapacity")} value={String(effectiveCapacity)} />
+              <Row label={t("launchGrid.occupied")} value={String(occupiedPads)} />
+              {autoGrownRows > 0 ? (
+                <Row label={t("launchGrid.autoGrownRows")} value={`+${autoGrownRows}`} />
+              ) : unusedCells > 0 ? (
+                <Row label={t("launchGrid.unusedCells")} value={String(unusedCells)} />
+              ) : null}
+            </div>
+
           </div>
 
           {/* ------------------------------------------------------ staging */}
