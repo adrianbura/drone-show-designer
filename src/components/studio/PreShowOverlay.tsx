@@ -274,7 +274,9 @@ export default function PreShowOverlay({
     <group>
       {showPads ? (
         <group>
+          <GridGuides overlay={overlay} />
           <Instances positions={padPositions} colors={padColors} radius={0.7} />
+
           <Footprint corners={overlay.launch.footprint.corners} color="#38e0d0" opacity={0.5} />
           <Orientation
             origin={[
