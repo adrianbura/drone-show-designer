@@ -1,6 +1,7 @@
 import { DYNAMIC_FORMATION_ALGORITHM_VERSION } from "./dynamic/types";
 import { makeFormation } from "./formations";
 import { sanitizeMarkers, sanitizeSections } from "./markers";
+import { sanitizeScenes } from "./scene/migrate";
 import type { PhaseAltitudes, SafetyLimits, ShowArea, ShowProject } from "./types";
 import {
   FORMATION_ALGORITHM_VERSION,
@@ -72,6 +73,8 @@ export function createDefaultProject(droneCount = 48): ShowProject {
     timeline: [],
     markers: [],
     musicSections: [],
+    // Multi-formation scenes: one entry per composed clip, empty at startup.
+    scenes: [],
   };
 }
 
@@ -198,6 +201,10 @@ export function migrateProject(input: unknown): ShowProject {
       dynamicFormationAlgorithmVersion: DYNAMIC_FORMATION_ALGORITHM_VERSION,
     },
     dynamicFormations: Array.isArray(raw.dynamicFormations) ? raw.dynamicFormations : [],
+    // MULTI-FORMATION SCENES: absent in pre-7.3.5 projects. A clip without a
+    // scene entry is synthesised as a single-object scene on read, so migration
+    // never changes geometry or timing (see show/scene/migrate.ts).
+    scenes: sanitizeScenes(raw.scenes),
     // Editor annotations are restored defensively; they are never required.
     markers: sanitizeMarkers(raw.markers),
     musicSections: sanitizeSections(raw.musicSections),

@@ -160,6 +160,29 @@ export const ro: Dictionary = {
   "formationLibrary.importAsset": "Importă activ",
   "formationLibrary.importFailed": "Fișierul activului nu a putut fi citit: {code}",
 
+
+  // ---- Scene simultane cu mai multe formatii (Sprint 7.3.5) ---------------
+  "scene.title": "Obiecte in scena",
+  "scene.noClip": "Selecteaza un clip din timeline pentru a compune scena.",
+  "scene.budget": "{active} din {fleet} drone folosite — {available} disponibile pentru rezerva.",
+  "scene.overCapacity":
+    "Scena are nevoie de {over} drone mai mult decat flota. Redu bugetul unui obiect — nicio drona nu este eliminata silentios.",
+  "scene.objectDrones": "· {count} drone",
+  "scene.mirror": "Oglindeste pe X",
+  "scene.duplicate": "Duplica obiectul",
+  "scene.position": "Pozitie",
+  "scene.rotation": "Rotatie",
+  "scene.scale": "Scara",
+  "scene.droneBudget": "Drone",
+  "scene.name": "Nume",
+  "scene.align.CENTER_X": "Centrare X",
+  "scene.align.CENTER_Y": "Centrare Y",
+  "scene.align.DISTRIBUTE_X": "Distribuie X",
+  "scene.align.DISTRIBUTE_Y": "Distribuie Y",
+  "scene.proximity": "{a} si {b} sunt la {gap} m — verifica compozitia.",
+  "scene.disclaimer":
+    "Compozitia este doar artistica. Alocarea dronelor, coliziunile si validarea ramin la motorul de zbor.",
+  "scene.addToScene": "Adauga in scena",
   "formations.title": "Formații",
   "formations.addClip": "Adaugă clip",
   "dynamic.title": "Formație dinamică",

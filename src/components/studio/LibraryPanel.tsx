@@ -48,6 +48,7 @@ export default function LibraryPanel() {
     addLibraryDynamicFormation,
     addClip,
     addDynamicClip,
+    addSceneObject,
   } = useStudio();
   const fileRef = useRef<HTMLInputElement>(null);
   const [saveName, setSaveName] = useState("");
@@ -66,6 +67,30 @@ export default function LibraryPanel() {
     } else {
       const created = addLibraryFormation(formationFromAsset(asset, "pending"));
       addClip(created.id);
+    }
+  };
+
+  /**
+   * SIMULTANEOUS SCENES: adds the asset as an ADDITIONAL object of the selected
+   * clip's scene instead of creating a new clip, so several formations can play
+   * together. Physical drone allocation stays with the participation planner.
+   */
+  const addToScene = (asset: FormationAsset) => {
+    if (!selectedClipId) return;
+    if (asset.formationData.kind === "DYNAMIC") {
+      const created = addLibraryDynamicFormation(dynamicFormationFromAsset(asset, "pending"));
+      addSceneObject(selectedClipId, {
+        source: { kind: "DYNAMIC", dynamicFormationId: created.id },
+        name: asset.name,
+        assetId: asset.id,
+      });
+    } else {
+      const created = addLibraryFormation(formationFromAsset(asset, "pending"));
+      addSceneObject(selectedClipId, {
+        source: { kind: "STATIC", formationId: created.id },
+        name: asset.name,
+        assetId: asset.id,
+      });
     }
   };
 
@@ -268,6 +293,16 @@ export default function LibraryPanel() {
                     onClick={() => use(asset)}
                   >
                     {t("formationLibrary.useInShow")}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-6 flex-1 font-mono text-[9px] uppercase tracking-[0.14em]"
+                    disabled={!usable || !selectedClipId}
+                    onClick={() => addToScene(asset)}
+                  >
+                    {t("scene.addToScene")}
                   </Button>
                 </div>
                 <p

@@ -154,6 +154,29 @@ export const en = {
   "formationLibrary.importAsset": "Import asset",
   "formationLibrary.importFailed": "The asset file could not be read: {code}",
 
+  // ---- Simultaneous multi-formation scenes (Sprint 7.3.5) -----------------
+  "scene.title": "Scene objects",
+  "scene.noClip": "Select a timeline clip to compose its scene.",
+  "scene.budget": "{active} of {fleet} drones used — {available} available for reserve roles.",
+  "scene.overCapacity":
+    "The scene needs {over} drones more than the fleet has. Reduce an object budget — drones are never silently dropped.",
+  "scene.objectDrones": "· {count} drones",
+  "scene.mirror": "Mirror on X",
+  "scene.duplicate": "Duplicate object",
+  "scene.position": "Position",
+  "scene.rotation": "Rotation",
+  "scene.scale": "Scale",
+  "scene.droneBudget": "Drones",
+  "scene.name": "Name",
+  "scene.align.CENTER_X": "Center X",
+  "scene.align.CENTER_Y": "Center Y",
+  "scene.align.DISTRIBUTE_X": "Distribute X",
+  "scene.align.DISTRIBUTE_Y": "Distribute Y",
+  "scene.proximity": "{a} and {b} are {gap} m apart — check the composition.",
+  "scene.disclaimer":
+    "Composition is artistic only. Drone allocation, collision checks and validation stay with the flight engine.",
+  "scene.addToScene": "Add to scene",
+
   "formations.title": "Formations",
   "formations.addClip": "Add clip",
   "dynamic.title": "Dynamic formation",
