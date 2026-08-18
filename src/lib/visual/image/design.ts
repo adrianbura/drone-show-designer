@@ -11,6 +11,7 @@ import {
   type DesignPoint,
   type VisualFormationDesign,
   type VisualPrimitive,
+  type VisualSourceType,
 } from "../types";
 import type { ImageAnalysisResult, PixelRing } from "./types";
 
@@ -20,6 +21,14 @@ export interface DesignFromAnalysisInput {
   /** Original file name, used for provenance only. Never pixels. */
   readonly sourceName?: string | undefined;
   readonly createdAt?: string | undefined;
+  /**
+   * Canonical provenance of the RASTER that was analysed. Defaults to
+   * IMAGE_ANALYSIS (a local import); an AI-generated reference passes
+   * AI_GENERATED so assetSourceForDesign() stays the only mapping authority.
+   */
+  readonly sourceType?: VisualSourceType | undefined;
+  /** Compact, pixel-free provenance extras (e.g. the AI drone count). */
+  readonly provenance?: Readonly<Record<string, string | number | boolean>> | undefined;
 }
 
 interface Mapper {
@@ -89,8 +98,9 @@ export function designFromAnalysis(
     }
   });
 
+  const sourceType = input.sourceType ?? "IMAGE_ANALYSIS";
   const sourceRef = JSON.stringify({
-    kind: "IMAGE_ANALYSIS",
+    kind: sourceType,
     file: input.sourceName ?? analysis.options.detail,
     fingerprint: analysis.fingerprint,
     detail: analysis.options.detail,
@@ -98,6 +108,7 @@ export function designFromAnalysis(
     background: analysis.options.background,
     simplify: analysis.options.simplify,
     polarity: analysis.diagnostics.polarity,
+    ...(input.provenance ?? {}),
   });
 
   return {
@@ -116,8 +127,13 @@ export function designFromAnalysis(
       structure === "FILLED" ? "FILLED" : structure === "OUTLINE" ? "OUTLINE" : "STRUCTURAL",
     fillBias: structure === "FILLED" ? "FILL_HEAVY" : "CONTOUR_HEAVY",
     metadata: {
-      sourceType: "IMAGE_ANALYSIS",
-      tags: ["image", `detail:${analysis.options.detail}`, `structure:${structure}`],
+      sourceType,
+      tags: [
+        "image",
+        `detail:${analysis.options.detail}`,
+        `structure:${structure}`,
+        ...(sourceType === "AI_GENERATED" ? ["ai-reference"] : []),
+      ],
       notes: "Deterministic local image analysis. No semantic part recognition.",
       sourceRef,
       ...(input.createdAt ? { createdAt: input.createdAt } : {}),

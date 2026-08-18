@@ -22,6 +22,8 @@ import {
 export interface AiReferenceMeta {
   readonly prompt: string;
   readonly instruction?: string;
+  /** Drone count the reference was generated for (drives the detail budget). */
+  readonly droneCount: number;
   readonly style: VisualReferenceStyle;
   readonly enrichedPrompt: string;
   readonly model: string;
@@ -81,6 +83,7 @@ export default function AiReferencePanel({
         fileFromBase64(result.imageBase64, result.mimeType, `ai-reference-${Date.now()}.png`),
         {
           prompt: text,
+          droneCount,
           ...(mode === "REFINE" && instruction.trim().length > 0
             ? { instruction: instruction.trim() }
             : {}),

@@ -196,5 +196,18 @@ describe("provenance mapping", () => {
   it("derives the asset source from the design, not from the caller", () => {
     const design = designFromAnalysis(analyzeImage(simpleSilhouette(), { detail: "LOW" }));
     expect(assetSourceForDesign(design)).toBe("IMPORTED");
+    expect(design.metadata.sourceType).toBe("IMAGE_ANALYSIS");
+  });
+
+  it("maps an AI reference design to AI_GENERATED and keeps the drone count", () => {
+    const design = designFromAnalysis(analyzeImage(simpleSilhouette(), { detail: "LOW" }), {
+      sourceName: "ai-reference.png",
+      sourceType: "AI_GENERATED",
+      provenance: { aiDroneCount: 200 },
+    });
+    expect(design.metadata.sourceType).toBe("AI_GENERATED");
+    expect(assetSourceForDesign(design)).toBe("AI_GENERATED");
+    expect(JSON.parse(design.metadata.sourceRef!).aiDroneCount).toBe(200);
+    expect(design.metadata.tags).toContain("ai-reference");
   });
 });
