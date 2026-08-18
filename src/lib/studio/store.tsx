@@ -55,6 +55,25 @@ import type {
 } from "../show/types";
 import { showDuration } from "../show/types";
 import {
+  createMarker,
+  createSection,
+  markerTimes,
+  sortMarkers,
+  sortSections,
+  type MusicSection,
+  type MusicSectionType,
+  type TimelineMarker,
+  type TimelineMarkerType,
+} from "../show/markers";
+import {
+  clampZoom,
+  computeTimelineView,
+  scrollToCenter,
+  zoomAtTime,
+  type SnapMode,
+  type TimelineView,
+} from "./timelineEdit";
+import {
   defaultFormationName,
   generateSvgFormationPoints,
   importSvgFile,
@@ -204,6 +223,34 @@ interface StudioContextValue {
   viewEnd: number;
   /** Visual peak envelope of the attached local track (display only). */
   audioPeaks: WaveformPeaks | null;
+  // ---- Timeline editor state (Sprint 7.2) --------------------------------
+  // EDITOR STATE, never project state: zoom / scroll / follow / snap mode never
+  // mark the project dirty and never invalidate a validation report.
+  /** Visible time window shared by the clip track, waveform and overlays. */
+  timelineView: TimelineView;
+  timelineZoom: number;
+  timelineScroll: number;
+  snapMode: SnapMode;
+  followPlayhead: boolean;
+  setSnapMode: (mode: SnapMode) => void;
+  setFollowPlayhead: (on: boolean) => void;
+  setTimelineZoom: (zoom: number, anchorTime?: number) => void;
+  setTimelineScroll: (scroll: number) => void;
+  /** Commits ONE pointer gesture as a single undoable canonical mutation. */
+  commitClipTiming: (id: string, patch: Partial<TimelineClip>) => void;
+  /** Gesture-level undo/redo of committed timeline edits. */
+  undoTimeline: () => void;
+  redoTimeline: () => void;
+  timelineHistoryDepth: { past: number; future: number };
+  // Project-owned authoring annotations.
+  markers: TimelineMarker[];
+  musicSections: MusicSection[];
+  addMarker: (time: number, label?: string, type?: TimelineMarkerType) => void;
+  patchMarker: (id: string, patch: Partial<Omit<TimelineMarker, "id">>) => void;
+  removeMarker: (id: string) => void;
+  addMusicSection: (start: number, end: number, label?: string, type?: MusicSectionType) => void;
+  patchMusicSection: (id: string, patch: Partial<Omit<MusicSection, "id">>) => void;
+  removeMusicSection: (id: string) => void;
   audioAttached: boolean;
   audioBusy: boolean;
   audioError: string | null;
@@ -669,6 +716,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
   const beatGrid = useMemo(() => buildBeatGrid(project.audio), [project.audio]);
 
+  // ---- Timeline editor state (Sprint 7.2) --------------------------------
+  const [snapMode, setSnapMode] = useState<SnapMode>("S050");
+  const [followPlayhead, setFollowPlayhead] = useState(true);
+  const [timelineZoom, setTimelineZoomState] = useState(1);
+  const [timelineScroll, setTimelineScrollState] = useState(0);
+  // One gesture = one snapshot of the canonical choreography data.
+  const timelineHistory = useRef<{ past: ShowProject[]; future: ShowProject[] }>({ past: [], future: [] });
+  const [timelineHistoryDepth, setTimelineHistoryDepth] = useState({ past: 0, future: 0 });
+
   // ---- Audio session (Sprint 7.1) ---------------------------------------
   // The decoded buffer lives ONLY in memory for this session: project files stay
   // pure JSON and never embed audio bytes.
@@ -713,6 +769,41 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, [duration, project.audio, referencePlayback, referenceShow]);
   // PRE-SHOW extends playback into negative show time; SHOW TIME ZERO is fixed.
   const clock = useShowClock(viewEnd, referencePlayback && referenceShow ? 0 : plan.startTime);
+
+  const timelineFullStart = referencePlayback && referenceShow ? 0 : plan.startTime;
+  const timelineView = useMemo(
+    () =>
+      computeTimelineView({
+        start: timelineFullStart,
+        end: viewEnd,
+        zoom: timelineZoom,
+        scroll: timelineScroll,
+      }),
+    [timelineFullStart, viewEnd, timelineZoom, timelineScroll],
+  );
+
+  const setTimelineZoom = useCallback(
+    (zoom: number, anchorTime?: number) => {
+      const input = {
+        start: timelineFullStart,
+        end: viewEnd,
+        zoom: timelineZoom,
+        scroll: timelineScroll,
+      };
+      if (typeof anchorTime === "number") {
+        const next = zoomAtTime(anchorTime, zoom, input);
+        setTimelineZoomState(next.zoom);
+        setTimelineScrollState(next.scroll);
+        return;
+      }
+      setTimelineZoomState(clampZoom(zoom));
+    },
+    [timelineFullStart, viewEnd, timelineZoom, timelineScroll],
+  );
+
+  const setTimelineScroll = useCallback((scroll: number) => {
+    setTimelineScrollState(Math.min(1, Math.max(0, Number.isFinite(scroll) ? scroll : 0)));
+  }, []);
 
   // The clock stays the master; audio only follows it.
   useAudioPlayback({
@@ -987,6 +1078,134 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       timeline: p.timeline.map((c) => (c.id === id ? { ...c, ...patch } : c)),
     }));
   }, []);
+
+  /**
+   * GESTURE COMMIT (Sprint 7.2).
+   *
+   * pointermove may draft freely in the component; exactly one call here lands
+   * the canonical mutation, pushes one undo entry, marks the project dirty and
+   * lets the existing revision engine mark derived reports stale.
+   */
+  const commitClipTiming = useCallback((id: string, patch: Partial<TimelineClip>) => {
+    setProject((p) => {
+      const clip = p.timeline.find((c) => c.id === id);
+      if (!clip) return p;
+      const next = { ...clip, ...patch };
+      if (next.start === clip.start && next.transition === clip.transition && next.hold === clip.hold) {
+        return p;
+      }
+      timelineHistory.current.past.push(p);
+      timelineHistory.current.future = [];
+      setTimelineHistoryDepth({
+        past: timelineHistory.current.past.length,
+        future: 0,
+      });
+      return { ...p, timeline: p.timeline.map((c) => (c.id === id ? next : c)) };
+    });
+  }, []);
+
+  /** Snapshot helper for annotation edits — same one-entry-per-action rule. */
+  const pushTimelineHistory = useCallback(() => {
+    setProject((p) => {
+      timelineHistory.current.past.push(p);
+      timelineHistory.current.future = [];
+      setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
+      return p;
+    });
+  }, []);
+
+  const undoTimeline = useCallback(() => {
+    const previous = timelineHistory.current.past.pop();
+    if (!previous) return;
+    setProject((p) => {
+      timelineHistory.current.future.push(p);
+      setTimelineHistoryDepth({
+        past: timelineHistory.current.past.length,
+        future: timelineHistory.current.future.length,
+      });
+      return previous;
+    });
+  }, []);
+
+  const redoTimeline = useCallback(() => {
+    const next = timelineHistory.current.future.pop();
+    if (!next) return;
+    setProject((p) => {
+      timelineHistory.current.past.push(p);
+      setTimelineHistoryDepth({
+        past: timelineHistory.current.past.length,
+        future: timelineHistory.current.future.length,
+      });
+      return next;
+    });
+  }, []);
+
+  // ---- Markers / music sections (project-owned authoring metadata) --------
+  const addMarker = useCallback(
+    (time: number, label?: string, type?: TimelineMarkerType) => {
+      pushTimelineHistory();
+      const marker = createMarker({ id: nextId("mk"), time, label: label ?? "Marker", type: type ?? "GENERAL" });
+      setProject((p) => ({ ...p, markers: sortMarkers([...(p.markers ?? []), marker]) }));
+    },
+    [pushTimelineHistory],
+  );
+
+  const patchMarker = useCallback(
+    (id: string, patch: Partial<Omit<TimelineMarker, "id">>) => {
+      pushTimelineHistory();
+      setProject((p) => ({
+        ...p,
+        markers: sortMarkers(
+          (p.markers ?? []).map((m) => (m.id === id ? createMarker({ ...m, ...patch, id: m.id }) : m)),
+        ),
+      }));
+    },
+    [pushTimelineHistory],
+  );
+
+  const removeMarker = useCallback(
+    (id: string) => {
+      pushTimelineHistory();
+      setProject((p) => ({ ...p, markers: (p.markers ?? []).filter((m) => m.id !== id) }));
+    },
+    [pushTimelineHistory],
+  );
+
+  const addMusicSection = useCallback(
+    (start: number, end: number, label?: string, type?: MusicSectionType) => {
+      pushTimelineHistory();
+      const section = createSection({
+        id: nextId("ms"),
+        start,
+        end,
+        label: label ?? "Section",
+        type: type ?? "CUSTOM",
+      });
+      setProject((p) => ({ ...p, musicSections: sortSections([...(p.musicSections ?? []), section]) }));
+    },
+    [pushTimelineHistory],
+  );
+
+  const patchMusicSection = useCallback(
+    (id: string, patch: Partial<Omit<MusicSection, "id">>) => {
+      pushTimelineHistory();
+      setProject((p) => ({
+        ...p,
+        musicSections: sortSections(
+          (p.musicSections ?? []).map((s) => (s.id === id ? createSection({ ...s, ...patch, id: s.id }) : s)),
+        ),
+      }));
+    },
+    [pushTimelineHistory],
+  );
+
+  const removeMusicSection = useCallback(
+    (id: string) => {
+      pushTimelineHistory();
+      setProject((p) => ({ ...p, musicSections: (p.musicSections ?? []).filter((s) => s.id !== id) }));
+    },
+    [pushTimelineHistory],
+  );
 
   const removeClip = useCallback((id: string) => {
     setProject((p) => ({ ...p, timeline: p.timeline.filter((c) => c.id !== id) }));
