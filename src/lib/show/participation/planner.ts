@@ -69,6 +69,21 @@ export const PARTICIPATION_EXACT_SOLVER_LIMIT = 256;
 /** Single active group id used by this build. Scenes stay group-based. */
 export const PRIMARY_GROUP_ID = "primary";
 
+/**
+ * One active target group of a scene (Sprint 7.3.5). `offset` is the index of
+ * the group's first point inside the scene's COMBINED point list, so the planner
+ * solves one global allocation problem across every simultaneous object.
+ */
+export interface ParticipationTargetGroupSpec {
+  readonly groupId: string;
+  readonly instanceId?: string;
+  readonly name?: string;
+  readonly formationId: string | null;
+  readonly dynamicFormationId?: string;
+  readonly offset: number;
+  readonly pointCount: number;
+}
+
 export interface ParticipationScene {
   readonly clipId: string;
   readonly formationId: string | null;
@@ -77,6 +92,11 @@ export interface ParticipationScene {
   readonly points: readonly Vector3Tuple[];
   /** Stable point ids (dynamic assets). Index-aligned with `points`. */
   readonly pointIds?: readonly string[];
+  /**
+   * Simultaneous active groups covering `points`. Absent for a legacy
+   * single-formation clip, which is treated as one implicit group.
+   */
+  readonly groups?: readonly ParticipationTargetGroupSpec[];
 }
 
 export interface PlanFleetParticipationInput {
@@ -295,6 +315,27 @@ export function planFleetParticipation(
     activeCol = solveMatching(allRows, activeCost, reserveCost, m, exact);
   }
 
+  // ------------------------------------------------------- scene target groups
+  // One group per simultaneous visual object; a legacy clip has exactly one.
+  const groupSpecs: ParticipationTargetGroupSpec[] =
+    scene.groups && scene.groups.length > 0
+      ? scene.groups.map((g) => ({ ...g }))
+      : [
+          {
+            groupId: PRIMARY_GROUP_ID,
+            formationId: scene.formationId,
+            ...(scene.dynamicFormationId ? { dynamicFormationId: scene.dynamicFormationId } : {}),
+            offset: 0,
+            pointCount: m,
+          },
+        ];
+  const groupOfColumn = (col: number): ParticipationTargetGroupSpec => {
+    for (const g of groupSpecs) {
+      if (col >= g.offset && col < g.offset + g.pointCount) return g;
+    }
+    return groupSpecs[0]!;
+  };
+
   const activeAssignments: ActivePointAssignment[] = [];
   const participation = new Array<DroneParticipation | null>(fleetSize).fill(null);
   const nonActive: number[] = [];
@@ -313,7 +354,7 @@ export function planFleetParticipation(
         droneId: drones[i]!.id,
         droneIndex: i,
         role: "ACTIVE_FORMATION",
-        groupId: PRIMARY_GROUP_ID,
+        groupId: groupOfColumn(col).groupId,
         formationPointIndex: col,
         ...(pointId ? { formationPointId: pointId } : {}),
         target: points[col]!,
@@ -442,19 +483,28 @@ export function planFleetParticipation(
     };
   });
 
-  const group: FormationTargetGroup = {
-    groupId: PRIMARY_GROUP_ID,
-    formationId: scene.formationId,
-    ...(scene.dynamicFormationId ? { dynamicFormationId: scene.dynamicFormationId } : {}),
-    pointCount: m,
-    assignments: activeAssignments,
-  };
+  // DISJOINT PHYSICAL SUBSETS are structural: every column belongs to exactly
+  // one group and the matching gives every column at most one drone.
+  const activeGroups: FormationTargetGroup[] = groupSpecs.map((spec) => ({
+    groupId: spec.groupId,
+    formationId: spec.formationId,
+    ...(spec.dynamicFormationId ? { dynamicFormationId: spec.dynamicFormationId } : {}),
+    ...(spec.instanceId ? { instanceId: spec.instanceId } : {}),
+    ...(spec.name ? { name: spec.name } : {}),
+    offset: spec.offset,
+    pointCount: spec.pointCount,
+    assignments: activeAssignments.filter(
+      (a) =>
+        a.formationPointIndex >= spec.offset &&
+        a.formationPointIndex < spec.offset + spec.pointCount,
+    ),
+  }));
 
   const plan: FleetParticipationPlan = {
     clipId: scene.clipId,
     fleetSize,
     policy,
-    activeGroups: [group],
+    activeGroups,
     drones: droneParticipation,
     counts: participationCounts(droneParticipation, fleetSize),
     reserveZone,
