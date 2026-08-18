@@ -1,7 +1,6 @@
 import { Boxes, Layers, Music4, Plus, Type } from "lucide-react";
 import { useState } from "react";
 
-import { probeAudioFile } from "@/lib/show/audio";
 import type { FormationKind } from "@/lib/show/types";
 import { useStudio } from "@/lib/studio/store";
 import AiPanel from "./AiPanel";
@@ -109,10 +108,21 @@ const FLEET_PRESETS = [24, 48, 100, 200, 300];
 
 
 export default function LeftPanel() {
-  const { project, patchProject, setDroneCount, addFormation, addClip, updateFormation } =
-    useStudio();
+  const {
+    project,
+    patchProject,
+    setDroneCount,
+    addFormation,
+    addClip,
+    updateFormation,
+    attachAudioFile,
+    detachAudioFile,
+    setAudioOffset,
+    audioAttached,
+    audioBusy,
+    audioError,
+  } = useStudio();
   const [text, setText] = useState("SHOW");
-  const [audioBusy, setAudioBusy] = useState(false);
 
   return (
     <div className="flex h-full flex-col gap-5 overflow-y-auto p-4">
@@ -244,26 +254,45 @@ export default function LeftPanel() {
         <h2 className="panel-title">
           <Music4 className="size-3.5" /> Music
         </h2>
-        <p className="truncate font-mono text-[11px] text-muted-foreground">{project.audio.name}</p>
+        <p className="truncate font-mono text-[11px] text-muted-foreground">
+          {audioAttached ? project.audio.name : "No track attached"}
+        </p>
+        {/* The file is decoded locally; audio bytes are never uploaded or saved
+            into the project file, only its name, duration and tempo. */}
         <label className="chip-btn cursor-pointer justify-center">
-          {audioBusy ? "Reading…" : "Import audio"}
+          {audioBusy ? "Reading…" : audioAttached ? "Replace audio" : "Attach audio"}
           <input
             type="file"
             accept="audio/*"
             className="hidden"
             onChange={async (e) => {
               const file = e.target.files?.[0];
+              e.target.value = "";
               if (!file) return;
-              setAudioBusy(true);
-              try {
-                const meta = await probeAudioFile(file);
-                patchProject({ audio: { ...project.audio, ...meta } });
-              } finally {
-                setAudioBusy(false);
-              }
+              await attachAudioFile(file);
             }}
           />
         </label>
+        {audioError && <p className="text-[11px] text-destructive">{audioError}</p>}
+        {audioAttached && (
+          <>
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              {project.audio.duration.toFixed(2)} s
+            </p>
+            <Field
+              label="Audio offset"
+              value={project.audio.offset}
+              onChange={setAudioOffset}
+              min={-60}
+              max={600}
+              step={0.1}
+              unit=" s"
+            />
+            <button type="button" className="chip-btn w-full justify-center" onClick={detachAudioFile}>
+              Detach audio
+            </button>
+          </>
+        )}
         <Field
           label="Tempo"
           value={project.audio.bpm}

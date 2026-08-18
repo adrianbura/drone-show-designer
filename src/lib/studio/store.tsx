@@ -21,7 +21,7 @@ import { generatePoints, makeFormation } from "../show/formations";
 import { buildShowPlan, samplesAt, sampleTrajectorySet, DEFAULT_SAMPLE_RATE } from "../show/trajectory";
 import type { ClipTransitionOverride, ShowPlan, TrajectorySample, TrajectorySet } from "../show/trajectory";
 import { validateShow, type SafetyReport } from "../show/safety";
-import { buildBeatGrid, type BeatGrid } from "../show/audio";
+import { buildBeatGrid, decodeAudioFile, type BeatGrid, type WaveformPeaks } from "../show/audio";
 import {
   compareAssignmentStrategies,
   type AssignmentComparison,
@@ -152,6 +152,7 @@ import {
   type RotationFitMode,
 } from "../import/essp/conversion";
 import { useShowClock, type PlaybackSpeed } from "./clock";
+import { useAudioPlayback } from "./audioPlayback";
 import { resolveShortcut } from "./shortcuts";
 import { createBrowserKeyValueStore, type KeyValueStore } from "../library/repository";
 import {
@@ -195,6 +196,26 @@ interface StudioContextValue {
   beatGrid: BeatGrid;
   /** Canonical show duration — always showDuration(project). */
   duration: number;
+  /**
+   * Last time visible in the editor: the show, extended to cover an attached
+   * audio track so music can be auditioned before any clip exists. Presentation
+   * only — never an input to flight computation.
+   */
+  viewEnd: number;
+  /** Visual peak envelope of the attached local track (display only). */
+  audioPeaks: WaveformPeaks | null;
+  audioAttached: boolean;
+  audioBusy: boolean;
+  audioError: string | null;
+  audioVolume: number;
+  audioMuted: boolean;
+  /** Decodes a LOCAL file: bytes never leave the machine, never persisted. */
+  attachAudioFile: (file: File) => Promise<void>;
+  detachAudioFile: () => void;
+  setAudioVolume: (v: number) => void;
+  setAudioMuted: (muted: boolean) => void;
+  /** Show time at which the audio file starts (seconds, may be negative). */
+  setAudioOffset: (offset: number) => void;
   time: number;
   playing: boolean;
   speed: PlaybackSpeed;
@@ -227,7 +248,7 @@ interface StudioContextValue {
   setLimits: (patch: Partial<SafetyLimits>) => void;
   addFormation: (kind: FormationKind, params?: Record<string, number | string>) => Formation;
   updateFormation: (id: string, params: Record<string, number | string>) => void;
-  addClip: (formationId: string) => void;
+  addClip: (formationId: string, timing?: { transition?: number; hold?: number }) => void;
   /** Imported SVG assets, keyed by asset id (reproducibility + regeneration). */
   svgAssets: Record<string, SvgAsset>;
   svgDraft: SvgDraft | null;
@@ -424,7 +445,10 @@ interface StudioContextValue {
   removeDynamicFormation: (id: string) => void;
   patchDynamicFormation: (id: string, patch: Partial<DynamicFormation>) => void;
   /** Appends a timeline clip whose hold plays the given dynamic formation. */
-  addDynamicClip: (dynamicFormationId: string) => void;
+  addDynamicClip: (
+    dynamicFormationId: string,
+    timing?: { transition?: number; hold?: number },
+  ) => void;
   /** Attaches / detaches a dynamic formation on the selected clip. */
   setClipDynamicFormation: (clipId: string, dynamicFormationId: string | null) => void;
   applyDynamicPreset: (id: string, preset: DynamicPresetId, amount?: number) => void;
@@ -506,6 +530,14 @@ interface StudioContextValue {
   revertAiProposal: () => void;
   discardAiProposal: () => void;
   /** Applies the draft as ordinary project content (undoable). */
+  patchAiProposal: (patch: {
+    width?: number;
+    altitude?: number;
+    transition?: number;
+    hold?: number;
+    cycles?: number;
+    cycleDuration?: number;
+  }) => void;
   applyAiProposal: (options?: { addToTimeline?: boolean }) => DynamicFormation | Formation | null;
 }
 
@@ -559,7 +591,8 @@ const nextId = (prefix: string) => `${prefix}-${++counter}-${Date.now().toString
 export function StudioProvider({ children }: { children: ReactNode }) {
   // Lazy initializer: keeps module scope free of runtime work (Worker-safe).
   const [project, setProject] = useState<ShowProject>(() => createDefaultProject());
-  const [selectedClipId, setSelectedClipId] = useState<string | null>("c-1");
+  // Clean startup: nothing is selected because nothing is authored yet.
+  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [sampleRate, setSampleRate] = useState<number>(DEFAULT_SAMPLE_RATE);
   const [svgAssets, setSvgAssets] = useState<Record<string, SvgAsset>>({});
   const [svgDraft, setSvgDraft] = useState<SvgDraft | null>(null);
@@ -636,6 +669,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
   const beatGrid = useMemo(() => buildBeatGrid(project.audio), [project.audio]);
 
+  // ---- Audio session (Sprint 7.1) ---------------------------------------
+  // The decoded buffer lives ONLY in memory for this session: project files stay
+  // pure JSON and never embed audio bytes.
+  const audioBufferRef = useRef<AudioBuffer | null>(null);
+  const [audioPeaks, setAudioPeaks] = useState<WaveformPeaks | null>(null);
+  const [audioBusy, setAudioBusy] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [audioVolume, setAudioVolume] = useState(0.8);
+  const [audioMuted, setAudioMuted] = useState(false);
+
   // Deterministic revision of everything the full-show analysis depends on.
   const analysisRevision = useMemo(
     () => computeAnalysisRevision(project, { sampleRate, assignmentStrategy, transitionOverrides }),
@@ -662,8 +705,57 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }
     return Math.max(showDuration(project), 1);
   }, [project, referencePlayback, referenceShow]);
+  // Editor range: an attached track is auditionable even with an empty timeline.
+  const viewEnd = useMemo(() => {
+    if (referencePlayback && referenceShow) return duration;
+    const audioEnd = project.audio.attached ? project.audio.offset + project.audio.duration : 0;
+    return Math.max(duration, audioEnd, 1);
+  }, [duration, project.audio, referencePlayback, referenceShow]);
   // PRE-SHOW extends playback into negative show time; SHOW TIME ZERO is fixed.
-  const clock = useShowClock(duration, referencePlayback && referenceShow ? 0 : plan.startTime);
+  const clock = useShowClock(viewEnd, referencePlayback && referenceShow ? 0 : plan.startTime);
+
+  // The clock stays the master; audio only follows it.
+  useAudioPlayback({
+    buffer: audioBufferRef.current,
+    playing: clock.playing && !referencePlayback,
+    time: clock.time,
+    speed: clock.speed,
+    offset: project.audio.offset,
+    volume: audioVolume,
+    muted: audioMuted,
+  });
+
+  const attachAudioFile = useCallback(async (file: File) => {
+    setAudioBusy(true);
+    setAudioError(null);
+    try {
+      const decoded = await decodeAudioFile(file);
+      audioBufferRef.current = decoded.buffer;
+      setAudioPeaks(decoded.peaks);
+      setProject((p) => ({
+        ...p,
+        audio: { ...p.audio, name: decoded.name, duration: decoded.duration, attached: true },
+      }));
+    } catch (err) {
+      audioBufferRef.current = null;
+      setAudioPeaks(null);
+      setAudioError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAudioBusy(false);
+    }
+  }, []);
+
+  const detachAudioFile = useCallback(() => {
+    audioBufferRef.current = null;
+    setAudioPeaks(null);
+    setAudioError(null);
+    setProject((p) => ({ ...p, audio: { ...p.audio, name: "", duration: 0, attached: false } }));
+  }, []);
+
+  const setAudioOffset = useCallback((offset: number) => {
+    const value = Number.isFinite(offset) ? Number(offset.toFixed(3)) : 0;
+    setProject((p) => ({ ...p, audio: { ...p.audio, offset: value } }));
+  }, []);
 
   const samplesAtTime = useCallback((t: number) => samplesAt(plan, t), [plan]);
 
@@ -862,7 +954,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [svgDraft],
   );
 
-  const addClip = useCallback((formationId: string) => {
+  const addClip = useCallback((formationId: string, timing?: { transition?: number; hold?: number }) => {
     const id = nextId("c");
     setProject((p) => {
       const landing = p.timeline.filter((c) => c.phase === "LANDING");
@@ -872,8 +964,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         id,
         formationId,
         start: end,
-        transition: 8,
-        hold: 6,
+        transition: Math.max(0.5, timing?.transition ?? 8),
+        hold: Math.max(0, timing?.hold ?? 6),
         easing: "minJerk",
         color: [120, 220, 255],
         effect: "solid",
@@ -1054,7 +1146,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   const addDynamicClip = useCallback(
-    (dynamicFormationId: string) => {
+    (dynamicFormationId: string, timing?: { transition?: number; hold?: number }) => {
       const id = nextId("c");
       // Resolve the dynamic formation INSIDE the updater: a library insert adds
       // the formation and the clip in the same tick, so the closure snapshot of
@@ -1073,9 +1165,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           id,
           formationId: sourceId,
           start: end,
-          transition: 10,
+          transition: Math.max(0.5, timing?.transition ?? 10),
           // A dynamic clip holds for at least one full animation cycle.
-          hold: Math.max(dynamic.duration, 4),
+          hold: Math.max(timing?.hold ?? 0, dynamic.duration, 4),
           easing: "minJerk",
           color: [140, 210, 255],
           effect: "solid",
@@ -2080,6 +2172,46 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     });
   }, [acceptProposal]);
 
+  /**
+   * Human edit of a DRAFT proposal. The proposal stays a proposal: the edit is
+   * re-validated against project constraints and the deterministic builder
+   * regenerates geometry, so nothing bypasses validation.
+   */
+  const patchAiProposal = useCallback(
+    (patch: {
+      width?: number;
+      altitude?: number;
+      transition?: number;
+      hold?: number;
+      cycles?: number;
+      cycleDuration?: number;
+    }) => {
+      setAiProposal((current) => {
+        if (!current) return current;
+        const next: AIChoreographyProposalV1 = {
+          ...current,
+          formationSpec: {
+            ...current.formationSpec,
+            width: patch.width ?? current.formationSpec.width,
+            altitude: patch.altitude ?? current.formationSpec.altitude,
+          },
+          animationSpec: {
+            ...current.animationSpec,
+            cycles: patch.cycles ?? current.animationSpec.cycles,
+            cycleDuration: patch.cycleDuration ?? current.animationSpec.cycleDuration,
+          },
+          timing: {
+            recommendedTransition: patch.transition ?? current.timing.recommendedTransition,
+            hold: patch.hold ?? current.timing.hold,
+          },
+        };
+        setAiProposalErrors(validateProposal(next, project.droneCount).errors);
+        return next;
+      });
+    },
+    [project.droneCount],
+  );
+
   const discardAiProposal = useCallback(() => {
     setAiProposal(null);
     setAiProposalErrors([]);
@@ -2096,7 +2228,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setProject((p) => ({ ...p, formations: [...p.formations, formation] }));
 
       if (!built.dynamicFormation) {
-        if (options.addToTimeline) addClip(formation.id);
+        if (options.addToTimeline) {
+          addClip(formation.id, {
+            transition: proposal.timing.recommendedTransition,
+            hold: proposal.timing.hold,
+          });
+        }
         discardAiProposal();
         return formation;
       }
@@ -2110,7 +2247,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setSelectedPointIdsState([]);
       setSelectedMotionGroupId(null);
       setDynamicEditTime(0);
-      if (options.addToTimeline) addDynamicClip(dynamic.id);
+      if (options.addToTimeline) {
+        addDynamicClip(dynamic.id, {
+          transition: proposal.timing.recommendedTransition,
+          hold: proposal.timing.hold,
+        });
+      }
       discardAiProposal();
       return dynamic;
     },
@@ -2173,6 +2315,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       safety,
       beatGrid,
       duration,
+      viewEnd,
+      audioPeaks,
+      audioAttached: project.audio.attached === true,
+      audioBusy,
+      audioError,
+      audioVolume,
+      audioMuted,
+      attachAudioFile,
+      detachAudioFile,
+      setAudioVolume,
+      setAudioMuted,
+      setAudioOffset,
       time: clock.time,
       playing: clock.playing,
       speed: clock.speed,
@@ -2392,6 +2546,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       refineAiProposal,
       revertAiProposal,
       discardAiProposal,
+      patchAiProposal,
       applyAiProposal,
     }),
 
@@ -2403,6 +2558,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       safety,
       beatGrid,
       duration,
+      viewEnd,
+      audioPeaks,
+      audioBusy,
+      audioError,
+      audioVolume,
+      audioMuted,
+      attachAudioFile,
+      detachAudioFile,
+      setAudioOffset,
       clock,
       selectedClipId,
       samplesAtTime,
@@ -2570,6 +2734,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       refineAiProposal,
       revertAiProposal,
       discardAiProposal,
+      patchAiProposal,
       applyAiProposal,
     ],
 

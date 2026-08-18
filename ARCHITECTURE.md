@@ -14,6 +14,7 @@ interfaces already defined here.
 | Show Core (domain model) | `src/lib/show/types.ts` | implemented |
 | Formation Engine | `src/lib/show/formations.ts` | implemented (grid/circle/sphere/helix/cube/wave/heart/text) |
 | Dynamic Formation Engine | `src/lib/show/dynamic/*` (global transform track + additive motion groups, presets, design-time report) | implemented |
+| Audio session (local) | `src/lib/show/audio.ts` (decode, visual peak envelope), `src/lib/studio/audioPlayback.ts` (clock-slaved playback) | implemented |
 
 | Choreography Engine | `src/lib/show/timeline.ts` + `src/lib/studio/store.tsx` | implemented |
 | Canonical show clock | `src/lib/studio/clock.ts` (anchor-based, drift-free, speed + loop) | implemented |
@@ -124,3 +125,18 @@ statement — the SafetyValidator remains the only authority on flight limits.
   invalidates project state or engine memoisation.
 - UI: `SetupWizard.tsx` (new show / show setup), `LaunchGridPreview.tsx` (top-down pad
   preview), `LibraryPanel.tsx` (browse, save, import, export, reuse).
+
+## Audio session (Sprint 7.1)
+
+The canonical show clock stays the master timing source; audio is a slave. A
+local file is decoded in the browser (`decodeAudioFile`) and reduced to a display
+only min/max envelope (`extractPeaks`). Audio bytes never leave the machine and
+are never written into a project file: only `name`, `duration`, `bpm`, `offset`
+and `attached` are persisted, so a reopened project asks for the file again.
+Audio time = show time - `audio.offset`; playback restarts when it drifts more
+than `DRIFT_TOLERANCE` from the clock. Nothing in this layer influences
+trajectories, safety or export.
+
+A new project starts with an EMPTY TIMELINE (`createDefaultProject`). Demo
+choreography exists only behind the explicit `createDemoProject` factory used by
+tests and documentation.

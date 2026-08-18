@@ -105,6 +105,12 @@ export interface ShowArea {
 export interface AudioTrack {
   name: string;
   bpm: number;
+  /**
+   * True once a local audio file has been attached in this session. Audio bytes
+   * are NEVER stored in the project file — only this metadata is, so a reopened
+   * project asks the operator to re-attach the same file.
+   */
+  attached?: boolean;
   /** Seconds before the first beat. */
   offset: number;
   /** Duration of the AUDIO FILE. This is NOT the show duration. */

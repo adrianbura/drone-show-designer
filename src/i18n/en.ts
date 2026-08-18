@@ -207,6 +207,17 @@ export const en = {
   "ai.previewTime": "Preview time",
   "ai.empty": "Describe a formation to get a proposal.",
 
+  "ai.width": "Width (m)",
+  "ai.altitude": "Altitude (m)",
+  "ai.transition": "Transition (s)",
+  "ai.hold": "Hold (s)",
+  "ai.cycles": "Cycles",
+  "ai.cycleDuration": "Cycle (s)",
+  "timeline.empty": "Empty timeline — add a formation or apply an AI proposal to start the show.",
+  "audio.track": "Audio track",
+  "audio.mute": "Mute audio",
+  "audio.volume": "Audio volume",
+
   "diagnostic.LOOP_DISCONTINUITY": "The animation has a discontinuity at the loop boundary.",
   "diagnostic.SPACING": "Points come closer together than the configured minimum separation.",
   "diagnostic.SPEED": "The animation implies a speed above the configured limit.",
