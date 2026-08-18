@@ -2805,6 +2805,115 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
 
 
+  // ---- Lighting, reveal & colour effects (Sprint 7.4) ---------------------
+  // The store owns SELECTION and MUTATION only. Every colour value is produced
+  // by the lighting engine, so viewport, inspector and export agree by design.
+  const [selectedLightingEffectId, setSelectedLightingEffectId] = useState<string | null>(null);
+  const [lightingPreview, setLightingPreview] = useState(true);
+  const lightingSeed = useRef(0);
+
+  const lightingEffects = useMemo(
+    () =>
+      effectsForClip(project.lighting, selectedClipId ?? "")
+        .slice()
+        .sort((a, b) => a.priority - b.priority || a.start - b.start || a.id.localeCompare(b.id)),
+    [project.lighting, selectedClipId],
+  );
+
+  const lightingReport = useMemo(() => validateLightingProgram(project), [project]);
+
+  const selectedLightingEffect = useMemo(
+    () => (project.lighting?.effects ?? []).find((e) => e.id === selectedLightingEffectId) ?? null,
+    [project.lighting, selectedLightingEffectId],
+  );
+
+  /** Single write path: one call = one undoable lighting program revision. */
+  const editLighting = useCallback(
+    (fn: (effects: LightingEffectInstance[]) => LightingEffectInstance[]) => {
+      pushTimelineHistory();
+      setProject((p) => ({
+        ...p,
+        lighting: {
+          schemaVersion: LIGHTING_SCHEMA_VERSION,
+          effects: fn([...(p.lighting?.effects ?? [])]),
+        },
+      }));
+    },
+    [pushTimelineHistory],
+  );
+
+  const addLightingEffectFromPreset = useCallback(
+    (clipId: string, presetId: string, target?: LightingTarget) => {
+      const preset = findLightingPreset(presetId);
+      if (!preset) return null;
+      const id = newLightingEffectId(Date.now() + lightingSeed.current++);
+      const created: LightingEffectInstance = {
+        ...createEffectFromPreset(preset, target ?? { kind: "SCENE", clipId }),
+        id,
+      };
+      editLighting((list) => [...list, created]);
+      setSelectedLightingEffectId(id);
+      return id;
+    },
+    [editLighting],
+  );
+
+  const patchLightingEffect = useCallback(
+    (id: string, patch: Partial<Omit<LightingEffectInstance, "id">>) => {
+      editLighting((list) => list.map((e) => (e.id === id ? { ...e, ...patch, id } : e)));
+    },
+    [editLighting],
+  );
+
+  const patchLightingParameters = useCallback(
+    (id: string, patch: Partial<LightingEffectParameters>) => {
+      editLighting((list) =>
+        list.map((e) => (e.id === id ? { ...e, parameters: { ...e.parameters, ...patch } } : e)),
+      );
+    },
+    [editLighting],
+  );
+
+  const removeLightingEffect = useCallback(
+    (id: string) => {
+      editLighting((list) => list.filter((e) => e.id !== id));
+      setSelectedLightingEffectId((current) => (current === id ? null : current));
+    },
+    [editLighting],
+  );
+
+  const commitLightingTiming = useCallback(
+    (id: string, timing: { start?: number; duration?: number }) => {
+      editLighting((list) =>
+        list.map((e) => {
+          if (e.id !== id) return e;
+          const start = Number.isFinite(timing.start) ? Number(timing.start!.toFixed(3)) : e.start;
+          const duration = Number.isFinite(timing.duration)
+            ? Math.max(0.1, Number(timing.duration!.toFixed(3)))
+            : e.duration;
+          return { ...e, start, duration };
+        }),
+      );
+    },
+    [editLighting],
+  );
+
+  const lightingStatesAtTime = useCallback(
+    (t: number): DroneLightState[] => {
+      if (!lightingPreview) return [];
+      if ((project.lighting?.effects.length ?? 0) === 0) return [];
+      return projectLightingAt(
+        {
+          project,
+          participation: plan.participation,
+          positions: samplesAtTime(t).map((s) => s.position),
+        },
+        t,
+      );
+    },
+    [lightingPreview, project, plan.participation, samplesAtTime],
+  );
+
   const value = useMemo<StudioContextValue>(
     () => ({
       project,
