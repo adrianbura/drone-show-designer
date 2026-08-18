@@ -118,6 +118,21 @@ function assertIntegrity(project: ShowProject): void {
       }
     }
   }
+  // LIGHTING INTEGRITY: an effect must resolve to a real clip target and carry
+  // finite timing, otherwise the file is rejected before it replaces the show.
+  for (const effect of project.lighting?.effects ?? []) {
+    if (!effect || typeof effect.id !== "string" || typeof effect.target?.clipId !== "string") {
+      throw new ProjectFileError("MALFORMED_PROJECT", "A lighting effect is malformed.");
+    }
+    if (
+      typeof effect.start !== "number" ||
+      !Number.isFinite(effect.start) ||
+      typeof effect.duration !== "number" ||
+      !(effect.duration > 0)
+    ) {
+      throw new ProjectFileError("MALFORMED_PROJECT", `Lighting effect ${effect.id} has invalid timing.`);
+    }
+  }
   for (const dynamic of project.dynamicFormations ?? []) {
     if (!dynamic || typeof dynamic.id !== "string" || !Array.isArray(dynamic.points)) {
       throw new ProjectFileError("DYNAMIC_INTEGRITY", "A dynamic formation is malformed.");

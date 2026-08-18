@@ -12,6 +12,7 @@ import {
   reserveLightingScale,
   resolveParticipationSettings,
 } from "../participation";
+import { emittedColor, projectLightingAt, validateLightingProgram } from "../lighting";
 import { activeClipAt } from "../timeline";
 import type { RGB, ShowProject } from "../types";
 import type { DroneLightSample, FullShowIssue, FullShowPlan, LightingReport } from "./types";
@@ -35,8 +36,15 @@ export function lightSamplesAt(
   const participation = clip
     ? (plan.showPlan.participation.find((p) => p.clipId === clip.id) ?? null)
     : null;
+  // Authored lighting effects (Sprint 7.4) take precedence over the legacy
+  // per-clip effect: one evaluation path for preview, report and export.
+  const lights =
+    (project.lighting?.effects.length ?? 0) > 0
+      ? projectLightingAt({ project, participation: plan.showPlan.participation }, t)
+      : [];
   return plan.drones.map((d) => {
-    const base = lightColorAt(clip, d.index, project.droneCount, t);
+    const state = lights[d.index];
+    const base = state ? emittedColor(state) : lightColorAt(clip, d.index, project.droneCount, t);
     const role = participation ? participationOf(participation, d.index)?.role : undefined;
     const color = role ? scaleColor(base, reserveLightingScale(role, policy)) : base;
     return {
@@ -111,6 +119,20 @@ export function validateLightProgram(
         }
       }
     }
+  }
+
+  // The authored lighting program is validated structurally once and folded in
+  // as advisory issues; it never blocks the flight validation result.
+  for (const issue of validateLightingProgram(project).issues) {
+    issues.push({
+      id: `light-${++n}`,
+      severity: issue.severity,
+      category: "lighting",
+      code: issue.code,
+      message: issue.message,
+      time: issue.time ?? 0,
+      clipId: issue.clipId,
+    });
   }
 
   return { sampledInstants: steps, invalidSamples, issues };
