@@ -1,12 +1,14 @@
 /**
- * REFERENCE IMAGE PANEL — presentation only (Sprint 8B1).
+ * REFERENCE IMAGE PANEL — presentation only (Sprint 8B1 / 8B2).
  *
  * Three-stage diagnostic surface: REFERENCE (the image), STRUCTURE (exactly what
- * the analysis decided to preserve) and DRONES (the exact-N compiler result).
+ * the analysis decided to preserve, now editable) and DRONES (the exact-N
+ * compiler result).
  *
- * The panel owns NO geometry logic: analysis lives in src/lib/visual/image and
- * point generation stays with the deterministic Drone Art Compiler. Saving an
- * asset never touches the show timeline.
+ * The panel owns NO geometry logic: analysis lives in src/lib/visual/image,
+ * structure edits are pure commands in src/lib/visual/editor and point
+ * generation stays with the deterministic Drone Art Compiler. Saving an asset
+ * never touches the show timeline.
  */
 import { Image as ImageIcon, Save, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -19,15 +21,27 @@ import {
   compileVisualFormation,
   decodeImageFile,
   designFromAnalysis,
+  designToAnalysis,
   formationFromCompiled,
   assetSourceForDesign,
+  hitTestDesign,
   ImageAnalysisError,
+  letterbox,
+  screenToDesign,
+  toleranceInDesignUnits,
+  useStructureEditor,
+  type DesignPoint,
   type ImageAnalysisResult,
   type ImageBackgroundMode,
   type ImageDetailLevel,
   type ImageStructureMode,
   type RgbaImage,
+  type StructureEditorState,
+  type VisualFormationDesign,
 } from "@/lib/visual";
+import StructureEditorToolbar from "./StructureEditorToolbar";
+import StructureInspector from "./StructureInspector";
+import StructureList from "./StructureList";
 
 type Stage = "REFERENCE" | "STRUCTURE" | "DRONES";
 
@@ -38,64 +52,154 @@ const BACKGROUNDS: ImageBackgroundMode[] = ["AUTO", "LIGHT", "DARK"];
 
 const W = 268;
 const H = 200;
+/** Selection tolerance in canvas pixels. */
+const HIT_PIXELS = 6;
 
-/** Draws the preserved structure in analysis pixel space (Y down). */
-function StructureCanvas({ analysis }: { analysis: ImageAnalysisResult }) {
-  const draw = (canvas: HTMLCanvasElement | null) => {
+/**
+ * Draws the EDITED design (not the raw analysis) so every structure edit is
+ * visible immediately, and hosts selection + polyline drawing.
+ */
+function StructureCanvas({
+  design,
+  analysisWidth,
+  analysisHeight,
+  editor,
+}: {
+  design: VisualFormationDesign;
+  analysisWidth: number;
+  analysisHeight: number;
+  editor: StructureEditorState;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const transform = useMemo(
+    () => letterbox(W, H, analysisWidth, analysisHeight),
+    [analysisHeight, analysisWidth],
+  );
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     ctx.clearRect(0, 0, W, H);
-    const aw = analysis.diagnostics.analysisWidth;
-    const ah = analysis.diagnostics.analysisHeight;
-    const scale = Math.min((W - 12) / aw, (H - 12) / ah);
-    const ox = (W - aw * scale) / 2;
-    const oy = (H - ah * scale) / 2;
-    const path = (ring: readonly (readonly [number, number])[]) => {
+
+    const toCanvas = (p: DesignPoint): readonly [number, number] => {
+      const [ax, ay] = designToAnalysis(analysisWidth, analysisHeight, p);
+      return [transform.offsetX + ax * transform.scale, transform.offsetY + ay * transform.scale];
+    };
+    const path = (points: readonly DesignPoint[], closed: boolean) => {
       ctx.beginPath();
-      ring.forEach((p, i) => {
-        const x = ox + p[0] * scale;
-        const y = oy + p[1] * scale;
+      points.forEach((p, i) => {
+        const [x, y] = toCanvas(p);
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       });
-      ctx.closePath();
+      if (closed) ctx.closePath();
     };
-    analysis.components.forEach((component, index) => {
-      const primary = index === 0;
-      if (analysis.options.structure === "FILLED") {
-        ctx.fillStyle = primary ? "rgba(120,200,255,0.22)" : "rgba(120,200,255,0.12)";
-        path(component.outer);
-        ctx.fill();
-        component.holes.forEach((hole) => {
-          ctx.save();
-          ctx.globalCompositeOperation = "destination-out";
-          path(hole);
-          ctx.fill();
-          ctx.restore();
-        });
+
+    for (const primitive of design.primitives) {
+      const enabled = primitive.enabled !== false;
+      const selected = primitive.id === editor.selectedId;
+      ctx.setLineDash(enabled ? [] : [3, 3]);
+      ctx.lineWidth = selected ? 2.4 : primitive.essential ? 1.6 : 1;
+      ctx.strokeStyle = selected
+        ? "rgb(255,214,120)"
+        : enabled
+          ? "rgb(140,220,255)"
+          : "rgba(140,220,255,0.28)";
+      switch (primitive.type) {
+        case "REGION": {
+          if (enabled) {
+            ctx.fillStyle = selected ? "rgba(255,214,120,0.18)" : "rgba(120,200,255,0.18)";
+            path(primitive.outline, true);
+            ctx.fill();
+            for (const hole of primitive.holes ?? []) {
+              ctx.save();
+              ctx.globalCompositeOperation = "destination-out";
+              path(hole, true);
+              ctx.fill();
+              ctx.restore();
+            }
+          }
+          path(primitive.outline, true);
+          ctx.stroke();
+          break;
+        }
+        case "CLOSED_CONTOUR":
+          path(primitive.path, true);
+          ctx.stroke();
+          break;
+        case "POLYLINE":
+          path(primitive.path, false);
+          ctx.stroke();
+          break;
+        case "POINT_FEATURE": {
+          const [x, y] = toCanvas(primitive.position);
+          ctx.beginPath();
+          ctx.arc(x, y, selected ? 4 : 2.5, 0, Math.PI * 2);
+          ctx.stroke();
+          break;
+        }
+        default:
+          break;
       }
-      ctx.lineWidth = primary ? 1.6 : 1;
-      ctx.strokeStyle = primary ? "rgb(140,220,255)" : "rgba(140,220,255,0.6)";
-      path(component.outer);
+    }
+
+    // In-progress polyline (editor-only state, never part of the design yet).
+    if (editor.drawing.length > 0) {
+      ctx.setLineDash([2, 2]);
+      ctx.strokeStyle = "rgb(255,140,180)";
+      ctx.lineWidth = 1.4;
+      path(editor.drawing, false);
       ctx.stroke();
-      ctx.setLineDash([3, 3]);
-      ctx.strokeStyle = "rgba(255,190,120,0.9)";
-      ctx.lineWidth = 1;
-      component.holes.forEach((hole) => {
-        path(hole);
-        ctx.stroke();
-      });
       ctx.setLineDash([]);
-    });
+      ctx.fillStyle = "rgb(255,140,180)";
+      for (const p of editor.drawing) {
+        const [x, y] = toCanvas(p);
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.setLineDash([]);
+  }, [analysisHeight, analysisWidth, design, editor.drawing, editor.selectedId, transform]);
+
+  const pointFromEvent = (event: React.MouseEvent<HTMLCanvasElement>): DesignPoint => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return screenToDesign(rect, transform, event.clientX, event.clientY);
   };
+
   return (
     <canvas
-      ref={draw}
+      ref={canvasRef}
       width={W}
       height={H}
-      className="w-full rounded border border-border/70 bg-background"
+      tabIndex={0}
+      className="w-full rounded border border-border/70 bg-background outline-none"
       role="img"
       aria-label="Extracted structure preview"
+      onClick={(event) => {
+        const point = pointFromEvent(event);
+        if (editor.tool === "DRAW") {
+          editor.addDrawPoint(point);
+          return;
+        }
+        editor.select(
+          hitTestDesign(design, point, toleranceInDesignUnits(transform, HIT_PIXELS)),
+        );
+      }}
+      onDoubleClick={() => {
+        if (editor.tool === "DRAW") editor.commitDrawing();
+      }}
+      onKeyDown={(event) => {
+        if (editor.tool !== "DRAW") return;
+        if (event.key === "Enter") {
+          event.preventDefault();
+          editor.commitDrawing();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          editor.cancelDrawing();
+        }
+      }}
     />
   );
 }
@@ -205,10 +309,14 @@ export default function ImageDesignPanel() {
     ? t(`image.error.${analysed.errorCode}` as "image.error.DECODE_FAILED")
     : null;
 
-  const design = useMemo(
+  const extracted = useMemo(
     () => (analysis ? designFromAnalysis(analysis, { sourceName: source?.name }) : null),
     [analysis, source?.name],
   );
+
+  // The structure editor owns the editable draft; the extraction stays intact.
+  const editor = useStructureEditor(extracted);
+  const design = editor?.draft ?? null;
 
   const compiled = useMemo(() => {
     if (!design) return null;
@@ -223,6 +331,7 @@ export default function ImageDesignPanel() {
       return null;
     }
   }, [count, design]);
+
 
   const pick = async (file: File | undefined) => {
     if (!file) return;
@@ -255,18 +364,30 @@ export default function ImageDesignPanel() {
       id: `vf-img-${design.id}-${Date.now().toString(36)}`,
       name,
     });
+    const edited = editor?.edited ?? false;
     const asset = await library.saveFormation(formation, {
       name,
-      // Provenance follows the DESIGN, never the button that saved it.
+      // Provenance follows the DESIGN, never the button that saved it. Manual
+      // structure edits do NOT downgrade an imported asset to USER.
       source: assetSourceForDesign(design),
       // Identity of the origin only — no pixels, no base64, no ImageData.
       sourceRef: {
         kind: "IMAGE",
         name: source?.name,
         fingerprint: analysis?.fingerprint,
-        params: { detail, structure, background, simplify },
+        params: {
+          detail,
+          structure,
+          background,
+          simplify,
+          edited,
+          editOps: editor?.editOps ?? 0,
+          designVersion: design.version,
+        },
       },
-      tags: ["image", `detail:${detail}`, `structure:${structure}`],
+      tags: edited
+        ? ["image", `detail:${detail}`, `structure:${structure}`, "edited"]
+        : ["image", `detail:${detail}`, `structure:${structure}`],
     });
     setSaved(asset ? asset.name : null);
   };
@@ -340,7 +461,33 @@ export default function ImageDesignPanel() {
               style={{ height: H }}
             />
           )}
-          {stage === "STRUCTURE" && analysis && <StructureCanvas analysis={analysis} />}
+          {stage === "STRUCTURE" && analysis && design && editor && (
+            <div className="space-y-1.5">
+              <StructureEditorToolbar editor={editor} />
+              <StructureCanvas
+                design={design}
+                analysisWidth={analysis.diagnostics.analysisWidth}
+                analysisHeight={analysis.diagnostics.analysisHeight}
+                editor={editor}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                {editor.tool === "DRAW" ? t("image.editor.drawHint") : t("image.editor.intro")}
+              </p>
+              {editor.edited && (
+                <p className="font-mono text-[10px] text-muted-foreground">
+                  {t("image.editor.editedBadge", { ops: editor.editOps })}
+                </p>
+              )}
+              <StructureInspector editor={editor} />
+              <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                {t("image.editor.list")}
+              </div>
+              <StructureList editor={editor} />
+              <p className="text-[10px] text-muted-foreground">
+                {t("image.editor.resetOnControls")}
+              </p>
+            </div>
+          )}
           {stage === "DRONES" && compiled && <PointsCanvas points={compiled.result.points} />}
 
           <div className="grid grid-cols-2 gap-1.5">
