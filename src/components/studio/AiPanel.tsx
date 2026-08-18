@@ -87,6 +87,9 @@ export default function AiPanel() {
         {aiProvider.deterministic ? ` · ${t("ai.deterministic")}` : ""}
       </p>
 
+      {/* AI is an ASSET CREATOR: it never places clips or syncs to the music. */}
+      <p className="text-[11px] text-muted-foreground">{t("ai.assetOnly")}</p>
+
       <textarea
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
@@ -283,14 +286,6 @@ export default function AiPanel() {
               onClick={() => applyAiProposal()}
             >
               {t("ai.apply")}
-            </button>
-            <button
-              type="button"
-              className="chip-btn"
-              disabled={invalid}
-              onClick={() => applyAiProposal({ addToTimeline: true })}
-            >
-              {t("ai.applyWithClip")}
             </button>
             {aiHistory.length > 0 && (
               <button type="button" className="chip-btn" onClick={revertAiProposal}>
