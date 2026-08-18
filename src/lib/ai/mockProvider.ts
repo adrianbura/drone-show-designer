@@ -159,7 +159,7 @@ function buildProposal(
       : ["BODY", "LEFT_WING", "RIGHT_WING"]
     : [];
 
-  if (winged && fleetCount < 40) {
+  if (winged && requestedCount < 40) {
     warnings.push(
       l === "ro"
         ? "Sub 40 de drone silueta aripilor devine grosieră."
@@ -178,7 +178,7 @@ function buildProposal(
   );
 
   const color = intent.color ?? base?.lightingIntent.color ?? ([255, 255, 255] as const);
-  const idSeed = `${prompt}|${fleetCount}|${concept}|${cycles}|${cycle}|${translation.join(",")}|${rotationDeg}|${width}`;
+  const idSeed = `${prompt}|${requestedCount}|${concept}|${cycles}|${cycle}|${translation.join(",")}|${rotationDeg}|${width}`;
 
   return {
     schemaVersion: AI_PROPOSAL_SCHEMA_VERSION,
@@ -186,7 +186,7 @@ function buildProposal(
     title: TITLES[concept][l],
     description: describe(concept, intent, cycles, cycle, translation, rotationDeg),
     concept,
-    fleetCount,
+    fleetCount: requestedCount,
     formationSpec: {
       width: round(width, 2),
       height: round(winged ? width * 0.45 : width, 2),
