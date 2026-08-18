@@ -277,7 +277,10 @@ export function sanitizeLightingProgram(raw: unknown): LightingProgram | undefin
       parameters,
     } as LightingEffectInstance;
     if (effect.metadata && typeof effect.metadata === "object") {
-      effects.push({ ...instance, metadata: effect.metadata as LightingEffectInstance["metadata"] });
+      effects.push({
+        ...instance,
+        metadata: effect.metadata as NonNullable<LightingEffectInstance["metadata"]>,
+      });
     } else {
       effects.push(instance);
     }
