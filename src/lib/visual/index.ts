@@ -14,3 +14,4 @@ export * from "./serialize";
 export * from "./designs";
 export * from "./provenance";
 export * from "./image";
+export * from "./editor";
