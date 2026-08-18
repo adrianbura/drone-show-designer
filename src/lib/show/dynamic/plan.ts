@@ -34,7 +34,12 @@ export interface DynamicSegmentOptions {
  * [0, duration] of the clip's hold.
  */
 export function planDynamicPoint(
-  evaluator: DynamicEvaluator,
+  /**
+   * Any memoised point-field evaluator: a single dynamic formation OR a composed
+   * multi-formation scene (Sprint 7.3.5). Both expose the same sampling surface,
+   * so there is still exactly ONE trajectory format downstream.
+   */
+  evaluator: Pick<DynamicEvaluator, "pointAt">,
   pointIndex: number,
   duration: number,
   options: DynamicSegmentOptions = {},
