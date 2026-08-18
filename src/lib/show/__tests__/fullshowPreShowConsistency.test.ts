@@ -60,9 +60,11 @@ function syntheticSet(startTime: number, end: number, rate: number): TrajectoryS
 /** Independent reference implementation: filter by real timestamps. */
 function referenceMaxVelocity(set: TrajectorySet, start: number, end: number): number {
   let max = 0;
-  for (const s of set.drones[0]!.samples) {
-    if (s.t < start - 1e-9 || s.t > end + 1e-9) continue;
-    max = Math.max(max, Math.hypot(...s.velocity));
+  for (const drone of set.drones) {
+    for (const s of drone.samples) {
+      if (s.t < start - 1e-9 || s.t > end + 1e-9) continue;
+      max = Math.max(max, Math.hypot(...s.velocity));
+    }
   }
   return max;
 }
