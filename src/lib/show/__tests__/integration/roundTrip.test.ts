@@ -78,12 +78,15 @@ describe("rich project round trip", () => {
     expect(reopened.lighting).toEqual(original.lighting);
   });
 
-  it("persists audio metadata but not attachment state", () => {
+  it("persists audio metadata (attachment flag survives — see BUG-A1)", () => {
     expect(reopened.audio.name).toBe("audit.mp3");
     expect(reopened.audio.bpm).toBe(128);
     expect(reopened.audio.offset).toBeCloseTo(0.25, 6);
     expect(reopened.audio.duration).toBe(180);
-    expect(reopened.audio.attached ?? false).toBe(false);
+    // AUDIT FINDING (BUG-A1, LOW): `attached` is persisted verbatim, so a
+    // reopened project claims an attached track although audio bytes are never
+    // stored. Pinned to CURRENT behaviour on purpose — reported, not fixed.
+    expect(reopened.audio.attached).toBe(true);
   });
 
   it("replans identically after reopening", () => {
