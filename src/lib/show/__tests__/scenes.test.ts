@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DEFAULT_AREA, DEFAULT_LIMITS, createDefaultProject, migrateProject } from "../defaultProject";
-import { dynamicFromFormation } from "../dynamic/create";
+import { applyPreset, dynamicFromFormation } from "../dynamic/create";
 import { makeFormation } from "../formations";
 import { buildDroneDefinitions } from "../drones";
 import { planFleetParticipation, resolveParticipationSettings } from "../participation";
@@ -327,7 +327,7 @@ describe("dynamic objects in a scene", () => {
     const wing = grid("f-wing", 40, 40);
     const heart = grid("f-static-heart", 20, 40);
     const base = projectWith(120, [wing, heart]);
-    const dynamic = dynamicFromFormation(wing, { id: "dyn-wing", name: "Pigeon", seed: 7 });
+    const dynamic = applyPreset(dynamicFromFormation(wing, { id: "dyn-wing", name: "Pigeon", seed: 7 }), "PULSE");
     let project: ShowProject = { ...base, dynamicFormations: [dynamic] };
     let scene = emptyScene("clip-scene", "Mixed");
     scene = addObject(project, scene, {
@@ -354,7 +354,7 @@ describe("dynamic objects in a scene", () => {
   it("gives two instances of one dynamic asset independent phases", () => {
     const wing = grid("f-wing2", 30, 40);
     const base = projectWith(120, [wing]);
-    const dynamic = dynamicFromFormation(wing, { id: "dyn-wing2", name: "Butterfly", seed: 3 });
+    const dynamic = applyPreset(dynamicFromFormation(wing, { id: "dyn-wing2", name: "Butterfly", seed: 3 }), "WAVE");
     let project: ShowProject = { ...base, dynamicFormations: [dynamic] };
     let scene = emptyScene("clip-scene", "Butterflies");
     scene = addObject(project, scene, {
