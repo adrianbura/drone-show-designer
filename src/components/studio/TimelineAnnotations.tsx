@@ -59,8 +59,8 @@ export default function TimelineAnnotations({
   onPatchSection,
   onRemoveSection,
 }: TimelineAnnotationsProps) {
-  const { t, locale } = useI18n();
-  const comma = locale === "ro";
+  const { t, language } = useI18n();
+  const comma = language === "ro";
   const [editingMarker, setEditingMarker] = useState<string | null>(null);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const span = Math.max(0.001, view.end - view.start);
