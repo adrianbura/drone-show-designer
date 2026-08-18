@@ -22,6 +22,7 @@ import ConversionPanel from "./ConversionPanel";
 
 
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
+import { evaluateExportEligibility } from "@/lib/adapters/exportEligibility";
 import {
   downloadText,
   toGenericShowJson,
@@ -106,7 +107,8 @@ export default function Inspector() {
     preShowReport,
     preShowStale,
   } = useStudio();
-  const exportBlocked = fullShowReport?.exportReadiness.status === "BLOCKED";
+  const exportEligibility = evaluateExportEligibility(fullShowReport, fullShowStale);
+  const canExportComputedShow = exportEligibility.canExportComputedShow;
   const clip = project.timeline.find((c) => c.id === selectedClipId);
   const analysis =
     transitionAnalysis && transitionAnalysis.clipId === selectedClipId
