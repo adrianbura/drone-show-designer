@@ -402,6 +402,7 @@ export default function ImageDesignPanel() {
                 aiModel: aiMeta.model,
                 aiProvider: aiMeta.providerId,
                 aiRefined: aiMeta.instruction ?? "",
+                aiDroneCount: aiMeta.droneCount,
               }
             : {}),
         },
