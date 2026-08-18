@@ -12,7 +12,7 @@ import { join } from "node:path";
 
 import { DEFAULT_AREA, createDefaultProject } from "../../defaultProject";
 import { makeFormation } from "../../formations";
-import { createMarker, createMusicSection } from "../../markers";
+import { createMarker, createSection } from "../../markers";
 import { DEFAULT_PRE_SHOW, patchPreShowConfig } from "../../preshow";
 import { resolveParticipationSettings } from "../../participation";
 import { addObject, emptyScene, upsertScene, type FormationScene } from "../../scene";
@@ -149,12 +149,12 @@ export function buildComplexProject(fleet = 200, pigeonPoints = 150): ComplexPro
       lookAheadScenes: 2,
     }),
     markers: [
-      createMarker({ id: "m-1", time: 0, label: "Show start", type: "CUE" }),
-      createMarker({ id: "m-2", time: 18, label: "Heart + Star", type: "SECTION" }),
+      createMarker({ id: "m-1", time: 0, label: "Show start", type: "MUSIC" }),
+      createMarker({ id: "m-2", time: 18, label: "Heart + Star", type: "CHOREOGRAPHY" }),
     ],
     musicSections: [
-      createMusicSection({ id: "s-1", start: 0, end: 18, label: "Intro", type: "INTRO" }),
-      createMusicSection({ id: "s-2", start: 18, end: 52, label: "Drop", type: "DROP" }),
+      createSection({ id: "s-1", start: 0, end: 18, label: "Intro", type: "INTRO" }),
+      createSection({ id: "s-2", start: 18, end: 52, label: "Drop", type: "DROP" }),
     ],
   };
 
