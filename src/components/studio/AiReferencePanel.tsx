@@ -22,6 +22,8 @@ import {
 export interface AiReferenceMeta {
   readonly prompt: string;
   readonly instruction?: string;
+  /** Drone count the reference was generated for (drives the detail budget). */
+  readonly droneCount: number;
   readonly style: VisualReferenceStyle;
   readonly enrichedPrompt: string;
   readonly model: string;
