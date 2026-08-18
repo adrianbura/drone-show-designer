@@ -93,7 +93,7 @@ export function sanitizeMarkers(input: unknown): TimelineMarker[] {
       createMarker({
         id: m.id,
         time: m.time,
-        label: typeof m.label === "string" ? m.label : undefined,
+        label: typeof m.label === "string" ? m.label : "",
         type: MARKER_TYPES.includes(m.type as TimelineMarkerType) ? (m.type as TimelineMarkerType) : "GENERAL",
       }),
     );
@@ -115,7 +115,7 @@ export function sanitizeSections(input: unknown): MusicSection[] {
         id: s.id,
         start: s.start,
         end: s.end,
-        label: typeof s.label === "string" ? s.label : undefined,
+        label: typeof s.label === "string" ? s.label : "",
         type: MUSIC_SECTION_TYPES.includes(s.type as MusicSectionType)
           ? (s.type as MusicSectionType)
           : "CUSTOM",
