@@ -48,11 +48,13 @@ function syntheticSet(startTime: number, end: number, rate: number): TrajectoryS
     });
   }
   return {
+    droneCount: 1,
+    algorithmVersion: "test",
     sampleRate: rate,
     startTime,
     duration: end - startTime,
     drones: [{ droneId: "DRN-001", index: 0, samples }],
-  } as TrajectorySet;
+  };
 }
 
 /** Independent reference implementation: filter by real timestamps. */
@@ -109,15 +111,15 @@ describe("PRE_SHOW phase metrics", () => {
     expect(plan.startTime).toBeLessThan(0);
     const set = plan.trajectorySet;
 
-    for (const phase of report.phases) {
+    for (const phase of report.phaseReports) {
       const direct = referenceMaxVelocity(set, phase.start, phase.end);
       expect(phase.maxVelocity).toBeCloseTo(direct, 6);
     }
-    expect(report.phases[0]!.phase).toBe("PRE_SHOW");
-    expect(report.phases[0]!.start).toBeCloseTo(plan.startTime, 6);
+    expect(report.phaseReports[0]!.phase).toBe("PRE_SHOW");
+    expect(report.phaseReports[0]!.start).toBeCloseTo(plan.startTime, 6);
     // PRE_SHOW is real flight, so it must show real motion — the old index math
     // read post-show samples (or none) for negative windows.
-    expect(report.phases[0]!.maxVelocity).toBeGreaterThan(0);
+    expect(report.phaseReports[0]!.maxVelocity).toBeGreaterThan(0);
   });
 });
 
