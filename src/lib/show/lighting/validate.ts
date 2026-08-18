@@ -49,7 +49,8 @@ export function validateLightingProgram(project: ShowProject): LightingValidatio
     }
     if (effect.target.kind !== "SCENE") {
       const scene = project.scenes?.find((s) => s.id === clip.id);
-      const known = scene?.objects.some((o) => o.id === effect.target.instanceId);
+      const instanceId = (effect.target as { instanceId?: string }).instanceId;
+      const known = scene?.objects.some((o) => o.id === instanceId);
       if (scene && !known) {
         push({
           severity: "warning",
