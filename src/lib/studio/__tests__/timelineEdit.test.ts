@@ -59,8 +59,8 @@ describe("snapping", () => {
   });
 
   it("never captures a beat further away than the pixel threshold", () => {
-    // 0.06 s away from the nearest beat, but only ~0.06 px at this scale.
-    const r = snapTimelineTime(1.94, { mode: "BEAT", beatGrid: grid, pixelsPerSecond: 1 });
+    // 0.06 s away from the nearest beat = 60 px at this scale: too far to capture.
+    const r = snapTimelineTime(1.94, { mode: "BEAT", beatGrid: grid, pixelsPerSecond: 1000 });
     expect(r.snapped).toBe(false);
   });
 });
