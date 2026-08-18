@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_LIMITS, createDefaultProject } from "../defaultProject";
+import { DEFAULT_AREA, DEFAULT_LIMITS, createDefaultProject, migrateProject } from "../defaultProject";
 import { dynamicFromFormation } from "../dynamic/create";
 import { makeFormation } from "../formations";
 import { buildDroneDefinitions } from "../drones";
@@ -33,7 +33,6 @@ import {
   type FormationScene,
 } from "../scene";
 import { buildShowPlan } from "../trajectory/schedule";
-import { migrateProject } from "../defaultProject";
 import { serializeProject, parseProjectFile } from "@/lib/project";
 import type { Formation, ShowProject, TimelineClip, Vector3Tuple } from "../types";
 
@@ -59,7 +58,7 @@ function projectWith(fleet: number, formations: Formation[]): ShowProject {
 }
 
 function grid(id: string, count: number, y: number): Formation {
-  return makeFormation(id, `grid-${id}`, "grid", { count, spacing: 3, altitude: y }, 0);
+  return makeFormation(id, `grid-${id}`, "grid", count, DEFAULT_AREA, { altitude: y });
 }
 
 /** Scene composed from N formations with explicit drone budgets. */
@@ -328,7 +327,7 @@ describe("dynamic objects in a scene", () => {
     const wing = grid("f-wing", 40, 40);
     const heart = grid("f-static-heart", 20, 40);
     const base = projectWith(120, [wing, heart]);
-    const dynamic = dynamicFromFormation(wing, "PULSE", { seed: 7 });
+    const dynamic = dynamicFromFormation(wing, { id: "dyn-wing", name: "Pigeon", seed: 7 });
     let project: ShowProject = { ...base, dynamicFormations: [dynamic] };
     let scene = emptyScene("clip-scene", "Mixed");
     scene = addObject(project, scene, {
@@ -355,7 +354,7 @@ describe("dynamic objects in a scene", () => {
   it("gives two instances of one dynamic asset independent phases", () => {
     const wing = grid("f-wing2", 30, 40);
     const base = projectWith(120, [wing]);
-    const dynamic = dynamicFromFormation(wing, "WAVE", { seed: 3 });
+    const dynamic = dynamicFromFormation(wing, { id: "dyn-wing2", name: "Butterfly", seed: 3 });
     let project: ShowProject = { ...base, dynamicFormations: [dynamic] };
     let scene = emptyScene("clip-scene", "Butterflies");
     scene = addObject(project, scene, {
