@@ -105,3 +105,55 @@ describe("project file", () => {
     expect(await readAutosave(store)).toBeNull();
   });
 });
+
+describe("session-only audio availability (BUG-A1)", () => {
+  const session = () => {
+    const project = createDefaultProject(64);
+    return {
+      ...project,
+      audio: { name: "show.mp3", bpm: 128, offset: 1.5, duration: 180, attached: true },
+    };
+  };
+
+  it("keeps audio metadata but drops the attachment claim on save + load", () => {
+    const original = session();
+    expect(original.audio.attached).toBe(true);
+
+    const file = serializeProject(original);
+    // Never persist a false claim that local audio bytes remain available.
+    expect(file.project.audio.attached).toBe(false);
+
+    const reopened = parseProjectFile(projectFileToJson(file)).project;
+    expect(reopened.audio.attached).toBe(false);
+    expect(reopened.audio.name).toBe("show.mp3");
+    expect(reopened.audio.bpm).toBe(128);
+    expect(reopened.audio.offset).toBeCloseTo(1.5, 6);
+    expect(reopened.audio.duration).toBe(180);
+  });
+
+  it("sanitizes a legacy file that claims an attached track", () => {
+    const legacy = serializeProject(session());
+    const tampered = JSON.parse(projectFileToJson(legacy));
+    tampered.project.audio.attached = true;
+    expect(parseProjectFile(JSON.stringify(tampered)).project.audio.attached).toBe(false);
+  });
+
+  it("is stable across save -> load -> save", () => {
+    const first = parseProjectFile(projectFileToJson(serializeProject(session()))).project;
+    const second = parseProjectFile(projectFileToJson(serializeProject(first))).project;
+    expect(second.audio).toEqual(first.audio);
+    expect(second).toEqual(first);
+  });
+
+  it("treats an autosaved snapshot exactly like a reopened project", async () => {
+    const store = new MemoryKeyValueStore();
+    await writeAutosave(store, {
+      savedAt: "2024-05-05T10:00:00.000Z",
+      fileName: "auto.droneshow.json",
+      file: serializeProject(session()),
+    });
+    const restored = await readAutosave(store);
+    expect(restored?.file.project.audio.attached).toBe(false);
+    expect(restored?.file.project.audio.name).toBe("show.mp3");
+  });
+});
