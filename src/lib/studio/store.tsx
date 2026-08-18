@@ -28,6 +28,20 @@ import {
 } from "../show/participation";
 import { buildBeatGrid, decodeAudioFile, type BeatGrid, type WaveformPeaks } from "../show/audio";
 import {
+  LIGHTING_SCHEMA_VERSION,
+  createEffectFromPreset,
+  effectsForClip,
+  findLightingPreset,
+  newLightingEffectId,
+  projectLightingAt,
+  validateLightingProgram,
+  type DroneLightState,
+  type LightingEffectInstance,
+  type LightingEffectParameters,
+  type LightingTarget,
+  type LightingValidationReport,
+} from "../show/lighting";
+import {
   compareAssignmentStrategies,
   type AssignmentComparison,
   type AssignmentStrategyId,
