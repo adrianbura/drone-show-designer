@@ -5,6 +5,7 @@ import * as THREE from "three";
 
 import { useStudio } from "@/lib/studio/store";
 import { lightColorAt } from "@/lib/show/lights";
+import { emittedColor, type DroneLightState } from "@/lib/show/lighting";
 import { activeClipAt } from "@/lib/show/timeline";
 import type { TrajectorySample } from "@/lib/show/trajectory";
 import type { ShowProject } from "@/lib/show/types";
@@ -43,6 +44,7 @@ function Swarm({
   selectedGroupId,
   dynamicSelected,
   dynamicGroupRgbByDrone,
+  lightingStatesAt,
   onSelectDrone,
 }: {
   project: ShowProject;
@@ -58,6 +60,8 @@ function Swarm({
   dynamicSelected: number[];
   /** Motion-group tint per drone while editing a dynamic formation. */
   dynamicGroupRgbByDrone: Map<number, [number, number, number]>;
+  /** Per-drone LED state from the lighting engine; empty = no lighting program. */
+  lightingStatesAt: (t: number) => DroneLightState[];
   onSelectDrone: (index: number, additive: boolean) => void;
 }) {
   const bodies = useRef<THREE.InstancedMesh>(null);
@@ -78,6 +82,9 @@ function Swarm({
     // Pre-show context comes from the canonical plan segments — there is no
     // separate pre-show simulation path.
     const states = preShowPlan && time < 0 ? preShowStatesAt(preShowPlan, time) : null;
+    // LED colours come from the lighting engine — the SAME evaluation path the
+    // report and the export use. Empty means "no lighting program authored".
+    const lights = time >= 0 ? lightingStatesAt(time) : [];
 
     samples.forEach((sample, i) => {
       const p = sample.position;
@@ -90,7 +97,8 @@ function Swarm({
       dummy.updateMatrix();
       haloMesh.setMatrixAt(i, dummy.matrix);
 
-      const c = lightColorAt(clip, i, project.droneCount, time);
+      const light = lights[i];
+      const c = light ? emittedColor(light) : lightColorAt(clip, i, project.droneCount, time);
       const group = groupRgbByDrone?.get(i);
       const motionGroup = dynamicGroupRgbByDrone?.get(i);
       const dimmed = !!selectedGroupId && groupIdByDrone?.[i] !== selectedGroupId;
@@ -161,6 +169,7 @@ export default function Viewport3D() {
     time,
     safety,
     samplesAtTime,
+    lightingStatesAt,
     svgDraft,
     plan,
     preShowOverlay,
@@ -274,6 +283,7 @@ export default function Viewport3D() {
         selectedGroupId={selectedLaunchGroupId}
         dynamicSelected={selectedDroneIndices}
         dynamicGroupRgbByDrone={dynamicGroupRgbByDrone}
+        lightingStatesAt={lightingStatesAt}
         onSelectDrone={handleSelectDrone}
 
       />
