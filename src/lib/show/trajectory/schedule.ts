@@ -18,6 +18,12 @@ import type { PreShowConfig, PreShowPhaseName, PreShowPlan } from "../preshow/ty
 import type { ShowPhase, ShowProject, Vector3Tuple } from "../types";
 import { clipPhase, resolveDynamicFormation, showDuration, TRAJECTORY_ALGORITHM_VERSION } from "../types";
 import { createDynamicEvaluator } from "../dynamic/sampler";
+import {
+  createSceneEvaluator,
+  isCompositeScene,
+  sceneForClip,
+  type SceneEvaluator,
+} from "../scene";
 import { planDynamicPoint } from "../dynamic/plan";
 import {
   planFleetParticipation,
@@ -216,6 +222,23 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
   // SHOW clips with resolvable geometry can absorb pre-positioning drones.
   const sceneFor = (clip: (typeof clips)[number]): ParticipationScene | null => {
     if (clipPhase(clip) !== "SHOW") return null;
+    // MULTI-OBJECT LOOK-AHEAD: a future scene may contain several objects, so
+    // Smart Prepare sees the COMBINED target set of that scene.
+    if (isCompositeScene(project, clip)) {
+      try {
+        const evaluator = createSceneEvaluator(project, sceneForClip(project, clip));
+        if (evaluator.pointCount === 0) return null;
+        return {
+          clipId: clip.id,
+          formationId: clip.formationId,
+          points: evaluator.positionsAt(0),
+          pointIds: evaluator.pointIds,
+          groups: evaluator.groups,
+        };
+      } catch {
+        return null;
+      }
+    }
     const dynamic = resolveDynamicFormation(project, clip);
     if (dynamic) {
       const evaluator = createDynamicEvaluator(dynamic, {
@@ -258,12 +281,58 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
           startOffset: clip.dynamicStartOffset ?? 0,
         })
       : null;
+    /**
+     * SIMULTANEOUS MULTI-FORMATION SCENES. A composed scene resolves to ONE
+     * combined target list (object order, then formation point order) plus the
+     * group descriptors the participation planner allocates disjoint physical
+     * subsets from. Legacy clips keep the single-formation path untouched.
+     */
+    let sceneEvaluator: SceneEvaluator | null = null;
+    if (phase === "SHOW" && isCompositeScene(project, clip)) {
+      try {
+        sceneEvaluator = createSceneEvaluator(project, sceneForClip(project, clip));
+      } catch (err) {
+        errors.push(
+          new TrajectoryPlanningError(
+            "INVALID_FORMATION",
+            err instanceof Error ? err.message : String(err),
+            { clipId: clip.id, phase },
+          ),
+        );
+      }
+      if (sceneEvaluator && sceneEvaluator.pointCount > project.droneCount) {
+        // OVER CAPACITY is reported, never silently truncated.
+        errors.push(
+          new TrajectoryPlanningError(
+            "INVALID_FORMATION",
+            `Scene ${clip.id} needs ${sceneEvaluator.pointCount} drones but the fleet has ${project.droneCount}.`,
+            {
+              clipId: clip.id,
+              phase,
+              required: sceneEvaluator.pointCount,
+              fleetSize: project.droneCount,
+            },
+          ),
+        );
+        sceneEvaluator = null;
+      }
+    }
+    /** Evaluator driving the HOLD: a scene composition, or a single dynamic asset. */
+    const holdEvaluator: Pick<SceneEvaluator, "pointAt" | "positionsAt"> | null =
+      sceneEvaluator ?? dynamicEvaluator ?? null;
+    const holdAnimated = sceneEvaluator ? sceneEvaluator.animated : !!dynamicEvaluator;
+    const holdPointCount = sceneEvaluator
+      ? sceneEvaluator.pointCount
+      : (dynamicFormation?.points.length ?? 0);
+
     const scenePoints: readonly Vector3Tuple[] =
       phase === "LANDING"
         ? home
-        : dynamicEvaluator
-          ? dynamicEvaluator.positionsAt(0)
-          : (formation?.points ?? []);
+        : sceneEvaluator
+          ? sceneEvaluator.positionsAt(0)
+          : dynamicEvaluator
+            ? dynamicEvaluator.positionsAt(0)
+            : (formation?.points ?? []);
 
     /**
      * PARTIAL FLEET PARTICIPATION. When a formation supplies FEWER points than
@@ -274,6 +343,17 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
     const partial =
       phase === "SHOW" && scenePoints.length > 0 && scenePoints.length < project.droneCount;
     let participationPlan: FleetParticipationPlan | null = null;
+    const participationSceneInput: ParticipationScene = {
+      clipId: clip.id,
+      formationId: formation?.id ?? null,
+      ...(dynamicFormation && !sceneEvaluator ? { dynamicFormationId: dynamicFormation.id } : {}),
+      points: scenePoints,
+      ...(sceneEvaluator
+        ? { pointIds: sceneEvaluator.pointIds, groups: sceneEvaluator.groups }
+        : dynamicFormation
+          ? { pointIds: dynamicFormation.points.map((p) => p.id) }
+          : {}),
+    };
     if (partial) {
       const lookAhead: ParticipationScene[] = [];
       for (let k = clipIndex + 1; k < clips.length && lookAhead.length < participationSettings.lookAheadScenes; k++) {
@@ -284,13 +364,7 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
         participationPlan = planFleetParticipation({
           drones,
           current,
-          scene: {
-            clipId: clip.id,
-            formationId: formation?.id ?? null,
-            ...(dynamicFormation ? { dynamicFormationId: dynamicFormation.id } : {}),
-            points: scenePoints,
-            ...(dynamicFormation ? { pointIds: dynamicFormation.points.map((p) => p.id) } : {}),
-          },
+          scene: participationSceneInput,
           lookAhead,
           settings: participationSettings,
           limits: project.limits,
@@ -303,13 +377,7 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
         participationPlan = planFleetParticipation({
           drones,
           current,
-          scene: {
-            clipId: clip.id,
-            formationId: formation?.id ?? null,
-            ...(dynamicFormation ? { dynamicFormationId: dynamicFormation.id } : {}),
-            points: scenePoints,
-            ...(dynamicFormation ? { pointIds: dynamicFormation.points.map((p) => p.id) } : {}),
-          },
+          scene: participationSceneInput,
           lookAhead,
           settings: { ...participationSettings, defaultPolicy: "SMART_PREPARE", clips: {} },
           limits: project.limits,
@@ -443,27 +511,27 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
           phase,
           kind: "hold",
           planned:
-            dynamicEvaluator && dynamicFormation && pointIndex >= 0
-              ? planDynamicPoint(dynamicEvaluator, pointIndex % dynamicFormation.points.length, clip.hold, {
+            holdEvaluator && holdAnimated && holdPointCount > 0 && pointIndex >= 0
+              ? planDynamicPoint(holdEvaluator, pointIndex % holdPointCount, clip.hold, {
                   faceDirectionOfTravel: phase === "SHOW",
                 })
               : planHold(to, clip.hold),
-          ...(dynamicFormation ? { dynamicFormationId: dynamicFormation.id } : {}),
+          ...(dynamicFormation && !sceneEvaluator ? { dynamicFormationId: dynamicFormation.id } : {}),
         });
       }
 
     }
     // After a dynamic hold the swarm sits wherever the animation ended, so the
     // NEXT clip's assignment starts from the true end state.
-    if (dynamicEvaluator && dynamicFormation && clip.hold > 0) {
-      const end = dynamicEvaluator.positionsAt(clip.hold);
+    if (holdEvaluator && holdAnimated && holdPointCount > 0 && clip.hold > 0) {
+      const end = holdEvaluator.positionsAt(clip.hold);
       current = drones.map((d, i) => {
         const active = participationPlan
           ? (participationPlan.drones[i]?.formationPointIndex ?? -1)
           : (clipAssignments[i]?.targetPointIndex ?? i);
         // Non-participating drones stay where the participation plan put them.
         if (active < 0) return target[i] ?? d.homePosition;
-        return end[active % dynamicFormation.points.length] ?? target[i] ?? d.homePosition;
+        return end[active % holdPointCount] ?? target[i] ?? d.homePosition;
       });
     } else {
       current = target;
