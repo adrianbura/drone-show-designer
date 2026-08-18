@@ -211,8 +211,56 @@ export function sanitizeLightingProgram(raw: unknown): LightingProgram | undefin
     const target = sanitizeTarget(effect?.target);
     if (!target || typeof effect.id !== "string") continue;
     if (!LIGHTING_EFFECT_TYPES.includes(effect.type as LightingEffectInstance["type"])) continue;
-    const p = (effect.parameters ?? {}) as Record<string, unknown>;
-    effects.push({
+    const raw = (effect.parameters ?? {}) as Record<string, unknown>;
+    const g = (key: string): unknown => raw[key];
+    const dir = g("direction");
+    const org = g("origin");
+    const easing = g("easing");
+    const distanceMode = g("distanceMode");
+    const space = g("space");
+    const stages = g("stages");
+    const parameters: Record<string, unknown> = {};
+    if (easing === "LINEAR" || easing === "SMOOTH" || easing === "MIN_JERK") parameters["easing"] = easing;
+    if (Array.isArray(dir) && dir.length === 3) {
+      parameters["direction"] = [num(dir[0], 1), num(dir[1], 0), num(dir[2], 0)] as const;
+    }
+    if (Array.isArray(org) && org.length === 3) {
+      parameters["origin"] = [num(org[0], 0), num(org[1], 0), num(org[2], 0)] as const;
+    }
+    if (distanceMode === "PLANAR" || distanceMode === "SPATIAL") parameters["distanceMode"] = distanceMode;
+    if (space === "REFERENCE_SPACE" || space === "WORLD_SPACE") parameters["space"] = space;
+    for (const key of [
+      "angleDeg",
+      "softness",
+      "cycles",
+      "cycleDuration",
+      "minIntensity",
+      "maxIntensity",
+      "phase",
+      "intensity",
+      "stageOverlap",
+    ]) {
+      const value = g(key);
+      if (typeof value === "number") parameters[key] = num(value, 0);
+    }
+    for (const key of ["fromColor", "toColor", "color"]) {
+      const color = sanitizeColor(g(key));
+      if (color) parameters[key] = color;
+    }
+    const stops = sanitizeStops(g("stops"));
+    if (stops) parameters["stops"] = stops;
+    if (Array.isArray(stages)) {
+      const clean = (stages as { groupIds?: unknown }[])
+        .map((s) => ({
+          groupIds: Array.isArray(s?.groupIds)
+            ? s.groupIds.filter((id): id is string => typeof id === "string")
+            : [],
+        }))
+        .filter((s) => s.groupIds.length > 0);
+      if (clean.length > 0) parameters["stages"] = clean;
+    }
+
+    const instance = {
       id: effect.id,
       target,
       type: effect.type as LightingEffectInstance["type"],
@@ -226,49 +274,13 @@ export function sanitizeLightingProgram(raw: unknown): LightingProgram | undefin
         : "MULTIPLY_INTENSITY",
       priority: num(effect.priority, 0),
       enabled: effect.enabled !== false,
-      parameters: {
-        ...(p.easing === "LINEAR" || p.easing === "SMOOTH" || p.easing === "MIN_JERK"
-          ? { easing: p.easing }
-          : {}),
-        ...(Array.isArray(p.direction) && p.direction.length === 3
-          ? { direction: [num(p.direction[0], 1), num(p.direction[1], 0), num(p.direction[2], 0)] as const }
-          : {}),
-        ...(typeof p.angleDeg === "number" ? { angleDeg: num(p.angleDeg, 0) } : {}),
-        ...(Array.isArray(p.origin) && p.origin.length === 3
-          ? { origin: [num(p.origin[0], 0), num(p.origin[1], 0), num(p.origin[2], 0)] as const }
-          : {}),
-        ...(typeof p.softness === "number" ? { softness: num(p.softness, 0) } : {}),
-        ...(p.distanceMode === "PLANAR" || p.distanceMode === "SPATIAL"
-          ? { distanceMode: p.distanceMode }
-          : {}),
-        ...(p.space === "REFERENCE_SPACE" || p.space === "WORLD_SPACE" ? { space: p.space } : {}),
-        ...(typeof p.cycles === "number" ? { cycles: num(p.cycles, 1) } : {}),
-        ...(typeof p.cycleDuration === "number" ? { cycleDuration: num(p.cycleDuration, 1) } : {}),
-        ...(typeof p.minIntensity === "number" ? { minIntensity: num(p.minIntensity, 0) } : {}),
-        ...(typeof p.maxIntensity === "number" ? { maxIntensity: num(p.maxIntensity, 1) } : {}),
-        ...(typeof p.phase === "number" ? { phase: num(p.phase, 0) } : {}),
-        ...(sanitizeColor(p.fromColor) ? { fromColor: sanitizeColor(p.fromColor)! } : {}),
-        ...(sanitizeColor(p.toColor) ? { toColor: sanitizeColor(p.toColor)! } : {}),
-        ...(sanitizeColor(p.color) ? { color: sanitizeColor(p.color)! } : {}),
-        ...(sanitizeStops(p.stops) ? { stops: sanitizeStops(p.stops)! } : {}),
-        ...(typeof p.intensity === "number" ? { intensity: num(p.intensity, 1) } : {}),
-        ...(Array.isArray(p.stages)
-          ? {
-              stages: (p.stages as { groupIds?: unknown }[])
-                .map((s) => ({
-                  groupIds: Array.isArray(s?.groupIds)
-                    ? s.groupIds.filter((g): g is string => typeof g === "string")
-                    : [],
-                }))
-                .filter((s) => s.groupIds.length > 0),
-            }
-          : {}),
-        ...(typeof p.stageOverlap === "number" ? { stageOverlap: num(p.stageOverlap, 0.25) } : {}),
-      },
-      ...(effect.metadata && typeof effect.metadata === "object"
-        ? { metadata: effect.metadata as LightingEffectInstance["metadata"] }
-        : {}),
-    });
+      parameters,
+    } as LightingEffectInstance;
+    if (effect.metadata && typeof effect.metadata === "object") {
+      effects.push({ ...instance, metadata: effect.metadata as LightingEffectInstance["metadata"] });
+    } else {
+      effects.push(instance);
+    }
   }
   return { schemaVersion: LIGHTING_SCHEMA_VERSION, effects };
 }
