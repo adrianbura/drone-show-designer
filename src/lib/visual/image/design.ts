@@ -11,6 +11,7 @@ import {
   type DesignPoint,
   type VisualFormationDesign,
   type VisualPrimitive,
+  type VisualSourceType,
 } from "../types";
 import type { ImageAnalysisResult, PixelRing } from "./types";
 
@@ -20,6 +21,14 @@ export interface DesignFromAnalysisInput {
   /** Original file name, used for provenance only. Never pixels. */
   readonly sourceName?: string | undefined;
   readonly createdAt?: string | undefined;
+  /**
+   * Canonical provenance of the RASTER that was analysed. Defaults to
+   * IMAGE_ANALYSIS (a local import); an AI-generated reference passes
+   * AI_GENERATED so assetSourceForDesign() stays the only mapping authority.
+   */
+  readonly sourceType?: VisualSourceType | undefined;
+  /** Compact, pixel-free provenance extras (e.g. the AI drone count). */
+  readonly provenance?: Readonly<Record<string, string | number | boolean>> | undefined;
 }
 
 interface Mapper {
