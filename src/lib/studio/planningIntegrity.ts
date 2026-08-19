@@ -21,27 +21,43 @@
  * `overrideBasis` captures exactly those inputs. When the basis of a clip
  * changes, its override is stale and must be dropped — but only that clip's.
  */
-import type { ShowProject } from "../show/types";
+import type { ShowProject, Vector3Tuple } from "../show/types";
 import { clipPhase } from "../show/types";
 import type { ClipTransitionOverride } from "../show/trajectory/schedule";
+import { buildDroneDefinitions } from "../show/drones";
+import { canonicalClipTarget, clipOptimizability } from "../show/trajectory/target";
 
 export type OverrideBasisMap = Readonly<Record<string, string>>;
 
-/** Stable signature of everything an override for `clipId` was computed for. */
+function quantize(points: readonly Vector3Tuple[]): string {
+  return points.map((p) => p.map((v) => Number(v.toFixed(4)).toFixed(4)).join(",")).join(";");
+}
+
+/**
+ * Stable signature of everything an override for `clipId` was computed for.
+ *
+ * It hashes the CANONICAL resolved target (composite scene transforms, scene
+ * object geometry/budgets, dynamic entry state, base formation points) — the
+ * exact optimisation input — plus timing and the safety limits that drive
+ * feasibility. Anything that changes the target therefore invalidates exactly
+ * this clip's override, and nothing else.
+ */
 export function overrideBasis(project: ShowProject, clipId: string): string | null {
   const clip = project.timeline.find((c) => c.id === clipId);
   if (!clip || clipPhase(clip) !== "SHOW") return null;
-  const formation = project.formations.find((f) => f.id === clip.formationId);
-  if (!formation) return null;
-  const points = formation.points.map((p) => p.map((v) => Number(v.toFixed(4))).join(",")).join(";");
+  const home = buildDroneDefinitions(project).map((d) => d.homePosition);
+  if (!clipOptimizability(project, clipId, home).optimizable) return null;
+  const resolved = canonicalClipTarget(project, clip, home);
   return [
     project.droneCount,
     clip.start.toFixed(4),
     clip.transition.toFixed(4),
     clip.easing,
     clip.formationId,
-    formation.points.length,
-    points,
+    resolved.kind,
+    resolved.dynamicFormationId ?? "-",
+    resolved.rawTarget.length,
+    quantize(resolved.rawTarget),
     project.limits.maxVelocity,
     project.limits.maxAcceleration,
     project.limits.maxJerk,
@@ -49,6 +65,7 @@ export function overrideBasis(project: ShowProject, clipId: string): string | nu
     project.limits.maxAltitude,
   ].join("|");
 }
+
 
 /** Basis for every clip that currently carries an override. */
 export function computeOverrideBasis(

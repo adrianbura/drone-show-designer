@@ -1977,27 +1977,33 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
 
   // ---- Transition analysis / optimisation --------------------------------
-  const canAnalyzeSelectedClip = !!selectedClipId && isOptimizableClip(project, selectedClipId);
+  const canAnalyzeSelectedClip =
+    !!selectedClipId && isOptimizableClip(project, selectedClipId, plan);
 
-  /** Converts an analysis into a plan override the full-show planner can apply. */
+  /**
+   * Converts an analysis into a plan override the full-show planner can apply.
+   * `targetPointIndex` indexes the CANONICAL fleet-indexed target list the
+   * analysis was run against (see trajectory/target.ts), so no re-mapping
+   * against base formation points happens here.
+   */
   const overrideFromAnalysis = useCallback(
     (clipId: string, analysis: TransitionAnalysis): ClipTransitionOverride | null => {
-      const clip = project.timeline.find((c) => c.id === clipId);
-      const points = project.formations.find((f) => f.id === clip?.formationId)?.points ?? [];
-      if (points.length === 0) return null;
+      if (!isOptimizableClip(project, clipId, plan)) return null;
+      if (analysis.dronePlans.length === 0) return null;
       return {
-        targetPointIndex: analysis.dronePlans.map((p) => p.targetPointIndex % points.length),
+        targetPointIndex: analysis.dronePlans.map((p) => p.targetPointIndex),
         startOffsets: analysis.dronePlans.map((p) => p.startOffset),
         laneOffsets: analysis.dronePlans.map((p) => p.lane.offsetMetres),
         strategy: `${analysis.metrics.assignmentStrategy}+optimized`,
       };
     },
-    [project],
+    [project, plan],
   );
+
 
   const analyzeSelectedTransition = useCallback(() => {
     const clipId = selectedClipId;
-    if (!clipId || !isOptimizableClip(project, clipId)) return;
+    if (!clipId || !isOptimizableClip(project, clipId, plan)) return;
     setTransitionBusy(true);
     setTransitionError(null);
     try {
@@ -2027,7 +2033,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const optimizeSelectedTransition = useCallback(() => {
     const clipId = selectedClipId;
-    if (!clipId || !isOptimizableClip(project, clipId)) return;
+    if (!clipId || !isOptimizableClip(project, clipId, plan)) return;
     setTransitionBusy(true);
     setTransitionError(null);
     try {

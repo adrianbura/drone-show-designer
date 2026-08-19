@@ -24,7 +24,9 @@ import {
   sceneForClip,
   type SceneEvaluator,
 } from "../scene";
+import { padPoints, resolveClipGeometry } from "./target";
 import { planDynamicPoint } from "../dynamic/plan";
+
 import {
   planFleetParticipation,
   participationTargets,
@@ -133,12 +135,8 @@ export interface BuildShowPlanOptions {
   readonly participation?: import("../participation").ParticipationSettings;
 }
 
-function padPoints(points: readonly Vector3Tuple[], count: number, fallback: Vector3Tuple[]): Vector3Tuple[] {
-  if (points.length === 0) return fallback.slice(0, count);
-  const out: Vector3Tuple[] = [];
-  for (let i = 0; i < count; i++) out.push(points[i % points.length]!);
-  return out;
-}
+
+
 
 /**
  * Deterministic vertical layering of crossing morph paths. Not a collision
@@ -262,61 +260,29 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
 
   for (const [clipIndex, clip] of clips.entries()) {
     const phase = clipPhase(clip);
-    const formation = project.formations.find((f) => f.id === clip.formationId);
-    if (!formation && phase !== "LANDING") {
+    /**
+     * CANONICAL TARGET RESOLUTION. Composite scene -> dynamic formation ->
+     * base formation, resolved by the shared resolver the Transition Optimizer
+     * also uses, so optimiser input and flown target can never diverge.
+     */
+    const geometry = resolveClipGeometry(project, clip, { home });
+    const formation = geometry.formation;
+    for (const problem of geometry.problems) {
       errors.push(
-        new TrajectoryPlanningError(
-          "INVALID_FORMATION",
-          `Clip ${clip.id} references a missing formation`,
-          { clipId: clip.id, phase },
-        ),
+        new TrajectoryPlanningError("INVALID_FORMATION", problem.message, {
+          clipId: clip.id,
+          phase,
+          ...(problem.code === "SCENE_OVER_CAPACITY"
+            ? { required: problem.required, fleetSize: problem.fleetSize }
+            : {}),
+        }),
       );
     }
     // A dynamic clip animates during its HOLD. The transition still morphs to
     // the animation state the hold starts at, so continuity is exact.
-    const dynamicFormation = phase === "LANDING" ? undefined : resolveDynamicFormation(project, clip);
-    const dynamicEvaluator = dynamicFormation
-      ? createDynamicEvaluator(dynamicFormation, {
-          playbackRate: clip.playbackRate ?? 1,
-          startOffset: clip.dynamicStartOffset ?? 0,
-        })
-      : null;
-    /**
-     * SIMULTANEOUS MULTI-FORMATION SCENES. A composed scene resolves to ONE
-     * combined target list (object order, then formation point order) plus the
-     * group descriptors the participation planner allocates disjoint physical
-     * subsets from. Legacy clips keep the single-formation path untouched.
-     */
-    let sceneEvaluator: SceneEvaluator | null = null;
-    if (phase === "SHOW" && isCompositeScene(project, clip)) {
-      try {
-        sceneEvaluator = createSceneEvaluator(project, sceneForClip(project, clip));
-      } catch (err) {
-        errors.push(
-          new TrajectoryPlanningError(
-            "INVALID_FORMATION",
-            err instanceof Error ? err.message : String(err),
-            { clipId: clip.id, phase },
-          ),
-        );
-      }
-      if (sceneEvaluator && sceneEvaluator.pointCount > project.droneCount) {
-        // OVER CAPACITY is reported, never silently truncated.
-        errors.push(
-          new TrajectoryPlanningError(
-            "INVALID_FORMATION",
-            `Scene ${clip.id} needs ${sceneEvaluator.pointCount} drones but the fleet has ${project.droneCount}.`,
-            {
-              clipId: clip.id,
-              phase,
-              required: sceneEvaluator.pointCount,
-              fleetSize: project.droneCount,
-            },
-          ),
-        );
-        sceneEvaluator = null;
-      }
-    }
+    const dynamicFormation = geometry.dynamicEvaluator ? geometry.dynamicEvaluator.formation : undefined;
+    const dynamicEvaluator = geometry.dynamicEvaluator;
+    const sceneEvaluator: SceneEvaluator | null = geometry.sceneEvaluator;
     /** Evaluator driving the HOLD: a scene composition, or a single dynamic asset. */
     const holdEvaluator: Pick<SceneEvaluator, "pointAt" | "positionsAt"> | null =
       sceneEvaluator ?? dynamicEvaluator ?? null;
@@ -325,14 +291,8 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
       ? sceneEvaluator.pointCount
       : (dynamicFormation?.points.length ?? 0);
 
-    const scenePoints: readonly Vector3Tuple[] =
-      phase === "LANDING"
-        ? home
-        : sceneEvaluator
-          ? sceneEvaluator.positionsAt(0)
-          : dynamicEvaluator
-            ? dynamicEvaluator.positionsAt(0)
-            : (formation?.points ?? []);
+    const scenePoints: readonly Vector3Tuple[] = phase === "LANDING" ? home : geometry.points;
+
 
     /**
      * PARTIAL FLEET PARTICIPATION. When a formation supplies FEWER points than
@@ -400,13 +360,21 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
 
     // An optimiser override replaces both the assignment and the deconfliction
     // decorators for this clip; otherwise the configured strategy runs.
+    //
+    // TARGET INDEX CONTRACT: `targetPointIndex` indexes the CANONICAL
+    // fleet-indexed target list (`rawTarget`), never the base formation point
+    // list. A partial-fleet participation clip is not representable by the
+    // override schema (the participation plan owns roles and hold indices), so
+    // its override is ignored rather than misapplied.
     const override =
-      phase === "SHOW" && overrides[clip.id]?.targetPointIndex.length === drones.length
+      phase === "SHOW" &&
+      !participationPlan &&
+      overrides[clip.id]?.targetPointIndex.length === drones.length
         ? overrides[clip.id]!
         : undefined;
     let clipAssignments: DroneAssignment[];
     let strategyId: string;
-    if (participationPlan && !override) {
+    if (participationPlan) {
       // The participation planner already solved drone -> target; the scheduler
       // must not reshuffle it, so the mapping is applied as-is.
       clipAssignments = drones.map((d, i) => ({
@@ -416,18 +384,18 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
       }));
       strategyId = "fleetParticipation";
     } else if (override) {
-      const points = formation?.points ?? [];
       clipAssignments = drones.map((d, i) => ({
         droneId: d.id,
         sourcePointIndex: i,
         targetPointIndex: Math.min(
           Math.max(0, override.targetPointIndex[i] ?? i),
-          Math.max(0, (points.length || rawTarget.length) - 1),
+          Math.max(0, rawTarget.length - 1),
         ),
       }));
       strategyId = override.strategy;
       optimizedClipIds.push(clip.id);
     } else {
+
       // LANDING: pads are interchangeable, so the globally optimal (minimum
       // total distance) pad assignment is used. On straight-line descents this
       // removes the path crossings that an index-identity mapping produces.
