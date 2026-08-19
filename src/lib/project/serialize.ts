@@ -134,12 +134,14 @@ export function migratePlanningState(
           { clipId },
         );
       }
-      overrides[clipId] = {
+      const override: ClipTransitionOverride = {
         targetPointIndex: [...o.targetPointIndex],
         startOffsets: [...o.startOffsets],
         laneOffsets: [...o.laneOffsets],
         strategy: o.strategy,
       };
+      if (context.project) assertOverrideResolves(context.project, clipId, override);
+      overrides[clipId] = override;
     }
   }
   return { assignmentStrategy: strategy, transitionOverrides: overrides };
