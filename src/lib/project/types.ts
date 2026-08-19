@@ -7,16 +7,18 @@
  * transient editor state (dialogs, hover, busy flags, AI drafts) is not.
  */
 import type { AssignmentStrategyId } from "../show/assignment";
+import type { ReferenceTrajectoryLayer } from "../import/essp/native/types";
 import type { ClipTransitionOverride } from "../show/trajectory/schedule";
 import type { ShowProject } from "../show/types";
 
 export const PROJECT_FILE_KIND = "DroneShowStudioProject";
 /**
  * v2 adds the optional `planning` section (assignment strategy + applied
- * transition overrides). v1 files remain openable and migrate to planning
- * defaults.
+ * transition overrides). v3 adds the optional `referenceLayer`: the losslessly
+ * preserved imported ESSP trajectory/RGB payload that owns playback for every
+ * interval not yet promoted to the planner. Older files remain openable.
  */
-export const PROJECT_SCHEMA_VERSION = 2;
+export const PROJECT_SCHEMA_VERSION = 3;
 export const PROJECT_FILE_EXTENSION = ".droneshow.json";
 export const PROJECT_ENGINE_NAME = "Drone Show Studio";
 
@@ -51,6 +53,13 @@ export interface ProjectFile {
   readonly project: ShowProject;
   /** Present from schema v2 on; v1 files migrate to planning defaults. */
   readonly planning?: ProjectPlanningState;
+  /**
+   * IMPORTED TRAJECTORY LAYER (schema v3). Byte-preserving copy of an imported
+   * ESSP show plus the per-clip playback ownership. Present only for projects
+   * created by extracting an imported show; it is the reason an
+   * import -> save -> reopen cycle reproduces the imported playback exactly.
+   */
+  readonly referenceLayer?: ReferenceTrajectoryLayer;
   readonly editor?: ProjectEditorPreferences;
 }
 
@@ -60,6 +69,7 @@ export type ProjectFileErrorCode =
   | "UNSUPPORTED_VERSION"
   | "MALFORMED_PROJECT"
   | "MALFORMED_PLANNING"
+  | "MALFORMED_REFERENCE_LAYER"
   | "FORMATION_INTEGRITY"
   | "DYNAMIC_INTEGRITY";
 
