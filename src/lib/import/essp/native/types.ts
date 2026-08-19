@@ -41,7 +41,8 @@
 import type { LightingProgram } from "../../../show/lighting/types";
 import type { Formation, TimelineClip } from "../../../show/types";
 import type { DynamicFormation } from "../../../show/dynamic/types";
-import type { AssetSaveInput } from "../../../library/types";
+import type { AssetSaveInput, SceneAssetDependencies } from "../../../library/types";
+import type { FormationScene } from "../../../show/scene/types";
 import type { ReferenceSegmentClassification } from "../forensics/types";
 
 export const REFERENCE_LAYER_KIND = "ESSP_IMPORTED_TRAJECTORY_LAYER";
@@ -167,12 +168,25 @@ export interface ReferenceLayerReconciliation {
   readonly changed: boolean;
 }
 
-/** Library asset draft produced by the extractor (never saved by itself). */
-export interface ReferenceAssetDraft {
-  readonly kind: "STATIC" | "DYNAMIC";
-  readonly formation: Formation | DynamicFormation;
-  readonly input: AssetSaveInput;
-}
+/**
+ * Library asset draft produced by the extractor (never saved by itself).
+ *
+ * A SCENE draft carries the WHOLE extracted composition of one clip plus the
+ * dependencies it references, so an imported scene can be reused exactly like an
+ * authored one. Saving a draft is metadata only — it never promotes a clip.
+ */
+export type ReferenceAssetDraft =
+  | {
+      readonly kind: "STATIC" | "DYNAMIC";
+      readonly formation: Formation | DynamicFormation;
+      readonly input: AssetSaveInput;
+    }
+  | {
+      readonly kind: "SCENE";
+      readonly scene: FormationScene;
+      readonly dependencies: SceneAssetDependencies;
+      readonly input: AssetSaveInput;
+    };
 
 export interface ReferenceExtractionDiagnostic {
   readonly clipId: string;

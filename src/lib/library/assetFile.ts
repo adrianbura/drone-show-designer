@@ -20,6 +20,13 @@ export interface AssetFileDocument {
   readonly asset: FormationAsset;
 }
 
+/** Id prefix per asset kind: static / dynamic / formation scene. */
+export function assetIdPrefix(asset: FormationAsset): string {
+  if (asset.assetType === "DYNAMIC_FORMATION") return "dfa";
+  if (asset.assetType === "FORMATION_SCENE") return "fsa";
+  return "sfa";
+}
+
 export function assetFileName(asset: FormationAsset): string {
   const slug =
     asset.name
@@ -56,9 +63,5 @@ export function parseAssetFile(text: string): FormationAsset {
     });
   }
   const asset = migrateAsset(doc.asset);
-  return {
-    ...asset,
-    id: newAssetId(asset.assetType === "DYNAMIC_FORMATION" ? "dfa" : "sfa"),
-    source: "IMPORTED",
-  };
+  return { ...asset, id: newAssetId(assetIdPrefix(asset)), source: "IMPORTED" };
 }

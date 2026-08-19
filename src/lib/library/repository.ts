@@ -5,6 +5,7 @@
  * swappable: `MemoryKeyValueStore` in tests, IndexedDB in the browser with a
  * localStorage fallback, and a future cloud repository without UI changes.
  */
+import { assetIdPrefix } from "./assetFile";
 import { migrateAsset, newAssetId, structuredClonePlain } from "./serialize";
 import {
   ASSET_SCHEMA_VERSION,
@@ -179,7 +180,7 @@ export class LocalFormationAssetRepository implements FormationAssetRepository {
     const ts = new Date().toISOString();
     const copy: FormationAsset = {
       ...structuredClonePlain(source),
-      id: newAssetId(source.assetType === "DYNAMIC_FORMATION" ? "dfa" : "sfa"),
+      id: newAssetId(assetIdPrefix(source)),
       version: 1,
       name: name?.trim() || `${source.name} copy`,
       favorite: false,

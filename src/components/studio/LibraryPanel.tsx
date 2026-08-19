@@ -24,7 +24,7 @@ import {
 } from "@/lib/library";
 import { useStudio } from "@/lib/studio/store";
 
-const VIEWS: LibraryView[] = ["ALL", "STATIC", "DYNAMIC", "FAVORITES", "RECENT"];
+const VIEWS: LibraryView[] = ["ALL", "STATIC", "DYNAMIC", "SCENE", "FAVORITES", "RECENT"];
 
 function Thumbnail({ asset }: { asset: FormationAsset }) {
   const points = asset.thumbnail?.points ?? [];
@@ -49,6 +49,8 @@ export default function LibraryPanel() {
     addClip,
     addDynamicClip,
     addSceneObject,
+    addSceneAssetToShow,
+    sceneAssetPayloadForClip,
   } = useStudio();
   const fileRef = useRef<HTMLInputElement>(null);
   const [saveName, setSaveName] = useState("");
@@ -57,9 +59,14 @@ export default function LibraryPanel() {
   const selectedClip = project.timeline.find((c) => c.id === selectedClipId) ?? null;
   const selectedFormation = project.formations.find((f) => f.id === selectedClip?.formationId);
 
+  const scenePayload = selectedClipId ? sceneAssetPayloadForClip(selectedClipId) : null;
+
   const use = (asset: FormationAsset) => {
     if (assetFleetCompatibility(asset, project.droneCount) === "TOO_LARGE") return;
-    if (asset.formationData.kind === "DYNAMIC") {
+    if (asset.formationData.kind === "SCENE") {
+      // A whole composition becomes a whole clip — every dependency is copied.
+      addSceneAssetToShow(asset);
+    } else if (asset.formationData.kind === "DYNAMIC") {
       const created = addLibraryDynamicFormation(
         dynamicFormationFromAsset(asset, "pending"),
       );
@@ -76,7 +83,7 @@ export default function LibraryPanel() {
    * together. Physical drone allocation stays with the participation planner.
    */
   const addToScene = (asset: FormationAsset) => {
-    if (!selectedClipId) return;
+    if (!selectedClipId || asset.formationData.kind === "SCENE") return;
     if (asset.formationData.kind === "DYNAMIC") {
       const created = addLibraryDynamicFormation(dynamicFormationFromAsset(asset, "pending"));
       addSceneObject(selectedClipId, {
@@ -189,6 +196,27 @@ export default function LibraryPanel() {
             {t("formationLibrary.dynamic")}
           </Button>
         </div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-7 w-full font-mono text-[9px] uppercase tracking-[0.14em]"
+          disabled={!scenePayload}
+          title={scenePayload ? t("formationLibrary.saveScene") : t("formationLibrary.sceneNoScene")}
+          onClick={async () => {
+            if (!scenePayload) return;
+            await library.saveScene(scenePayload.scene, scenePayload.dependencies, {
+              name: saveName || scenePayload.scene.name,
+              tags: normalizeTagInput(saveTags),
+              source: scenePayload.source,
+              sourceRef: scenePayload.sourceRef,
+            });
+            setSaveName("");
+            setSaveTags("");
+          }}
+        >
+          {t("formationLibrary.scene")}
+        </Button>
       </div>
 
       <div className="relative">
@@ -242,11 +270,27 @@ export default function LibraryPanel() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-xs text-foreground">{asset.name}</div>
                     <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-                      {asset.assetType === "DYNAMIC_FORMATION"
-                        ? t("formationLibrary.dynamic")
-                        : t("formationLibrary.static")}{" "}
+                      {asset.assetType === "FORMATION_SCENE"
+                        ? t("formationLibrary.scene")
+                        : asset.assetType === "DYNAMIC_FORMATION"
+                          ? t("formationLibrary.dynamic")
+                          : t("formationLibrary.static")}{" "}
                       · {t("formationLibrary.points", { count: asset.droneCount })}
                     </div>
+                    {asset.formationData.kind === "SCENE" ? (
+                      <div className="font-mono text-[9px] text-muted-foreground/80">
+                        {t("formationLibrary.sceneMeta", {
+                          objects: asset.formationData.scene.objects.length,
+                          formations: asset.formationData.dependencies.formations.length,
+                          dynamics: asset.formationData.dependencies.dynamicFormations.length,
+                        })}
+                      </div>
+                    ) : null}
+                    {asset.source === "ESSP_DERIVED" ? (
+                      <div className="font-mono text-[9px] text-accent/80">
+                        {t("formationLibrary.esspDerived")}
+                      </div>
+                    ) : null}
                     {asset.tags.length > 0 ? (
                       <div className="truncate font-mono text-[9px] text-muted-foreground/80">
                         {asset.tags.join(" · ")}
@@ -299,7 +343,12 @@ export default function LibraryPanel() {
                     size="sm"
                     variant="outline"
                     className="h-6 flex-1 font-mono text-[9px] uppercase tracking-[0.14em]"
-                    disabled={!usable || !selectedClipId}
+                    disabled={!usable || !selectedClipId || asset.formationData.kind === "SCENE"}
+                    title={
+                      asset.formationData.kind === "SCENE"
+                        ? t("formationLibrary.sceneAddBlocked")
+                        : t("scene.addToScene")
+                    }
                     onClick={() => addToScene(asset)}
                   >
                     {t("scene.addToScene")}

@@ -22,6 +22,13 @@ import { LIGHTING_SCHEMA_VERSION } from "../../../show/lighting/types";
 import type { DynamicFormation } from "../../../show/dynamic/types";
 import type { Formation, RGB, TimelineClip, Vector3Tuple } from "../../../show/types";
 import { convertReferenceSegmentToDynamicFormation } from "../conversion/convert";
+import { collectSceneDependencies } from "../../../library/sceneAsset";
+import {
+  IDENTITY_INSTANCE_TRANSFORM,
+  SCENE_SCHEMA_VERSION,
+  newSceneObjectId,
+  type FormationScene,
+} from "../../../show/scene/types";
 import { segmentEligibility } from "../conversion/types";
 import type { ReferenceForensicsReport, ReferenceSceneSegment } from "../forensics/types";
 import { colorAt, sampleReferenceShow } from "../playback";
@@ -251,6 +258,35 @@ export function extractReferenceTimeline(
       assets.push({ kind: "DYNAMIC", formation: args.dynamic, input: assetInput });
     } else if (args.kind === "SCENE") {
       assets.push({ kind: "STATIC", formation, input: assetInput });
+    }
+    // WHOLE-CLIP reuse: the extracted composition itself, as a scene draft with
+    // its dependencies bundled. Imported scenes are reused like authored ones.
+    if (args.kind === "SCENE") {
+      const scene: FormationScene = {
+        id: clipId,
+        name: args.label,
+        schemaVersion: SCENE_SCHEMA_VERSION,
+        objects: [
+          {
+            id: newSceneObjectId(index),
+            name: args.label,
+            source: args.dynamic
+              ? { kind: "DYNAMIC", dynamicFormationId: args.dynamic.id }
+              : { kind: "STATIC", formationId: formation.id },
+            transform: IDENTITY_INSTANCE_TRANSFORM,
+          },
+        ],
+        transform: IDENTITY_INSTANCE_TRANSFORM,
+      };
+      assets.push({
+        kind: "SCENE",
+        scene,
+        dependencies: collectSceneDependencies(scene, {
+          formations: [formation],
+          dynamicFormations: args.dynamic ? [args.dynamic] : [],
+        }),
+        input: { ...assetInput, name: `${args.label} (scene)` },
+      });
     }
 
     // Observed LED choreography: LEDs off while travelling, reveal after arrival.

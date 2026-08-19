@@ -8,6 +8,7 @@
  * is language-neutral and is never translated.
  */
 import type { DynamicFormation } from "../show/dynamic/types";
+import type { FormationScene } from "../show/scene/types";
 import type { Formation } from "../show/types";
 
 /** Persisted schema version of the library payload. */
@@ -16,10 +17,11 @@ export const ASSET_SCHEMA_VERSION = 1;
 export const ASSET_FILE_EXTENSION = ".droneformation.json";
 export const ASSET_FILE_KIND = "DroneShowStudioFormationAsset";
 
-/** Only the first two are implemented; the rest keep the model additive. */
+/** Only the first three are implemented; the rest keep the model additive. */
 export type FormationAssetType =
   | "STATIC_FORMATION"
   | "DYNAMIC_FORMATION"
+  | "FORMATION_SCENE"
   | "SVG_ASSET"
   | "TEXT_ASSET"
   | "AI_GENERATED_ASSET";
@@ -34,6 +36,18 @@ export type FormationAssetSource =
 /** Compact 2D preview: normalised [0,1] XY point pairs, top-down (X / Y up). */
 export interface AssetThumbnail {
   readonly points: readonly (readonly [number, number])[];
+}
+
+/**
+ * SELF-CONTAINED SCENE SNAPSHOT.
+ *
+ * A scene asset travels with EVERY formation / dynamic formation its objects
+ * reference, so it never depends on project-owned ids. Reusing the asset copies
+ * these dependencies into the project under fresh ids.
+ */
+export interface SceneAssetDependencies {
+  readonly formations: readonly Formation[];
+  readonly dynamicFormations: readonly DynamicFormation[];
 }
 
 /**
@@ -57,6 +71,13 @@ export interface FormationAssetMetadata {
   readonly duration?: number;
   readonly loop?: string;
   readonly algorithmVersion?: string;
+  /** SCENE assets only. */
+  readonly objectCount?: number;
+  readonly staticDependencyCount?: number;
+  readonly dynamicDependencyCount?: number;
+  /** Sum of the per-object requested drone counts of a SCENE asset. */
+  readonly requestedDroneCount?: number;
+  readonly sceneSchemaVersion?: number;
 }
 
 export interface FormationAsset {
@@ -79,11 +100,23 @@ export interface FormationAsset {
   /** Exact engine payload. Dynamic assets keep the FULL animation model. */
   readonly formationData:
     | { readonly kind: "STATIC"; readonly formation: Formation }
-    | { readonly kind: "DYNAMIC"; readonly formation: DynamicFormation };
+    | { readonly kind: "DYNAMIC"; readonly formation: DynamicFormation }
+    | {
+        readonly kind: "SCENE";
+        readonly scene: FormationScene;
+        readonly dependencies: SceneAssetDependencies;
+      };
   readonly metadata: FormationAssetMetadata;
 }
 
-export type LibraryView = "ALL" | "STATIC" | "DYNAMIC" | "FAVORITES" | "RECENT" | "BUILT_IN";
+export type LibraryView =
+  | "ALL"
+  | "STATIC"
+  | "DYNAMIC"
+  | "SCENE"
+  | "FAVORITES"
+  | "RECENT"
+  | "BUILT_IN";
 
 export interface LibraryQuery {
   readonly view: LibraryView;

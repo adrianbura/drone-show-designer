@@ -1,6 +1,7 @@
-import { Layers, ShieldCheck, Trash2, Wand2 } from "lucide-react";
+import { Layers, Library, ShieldCheck, Trash2, Wand2 } from "lucide-react";
 import { useState } from "react";
 
+import { useLibrary } from "@/lib/library/provider";
 import { useStudio } from "@/lib/studio/store";
 import type { SpliceVerificationReport } from "@/lib/import/essp/native";
 
@@ -32,7 +33,24 @@ export default function NativeConversionPanel() {
     selectedClipId,
     selectClip,
   } = useStudio();
+  const library = useLibrary();
   const [splices, setSplices] = useState<SpliceVerificationReport | null>(null);
+  const [saved, setSaved] = useState<number | null>(null);
+  const sceneDrafts = referenceAssetDrafts.filter((d) => d.kind === "SCENE");
+
+  /**
+   * Saves the extracted compositions as reusable SCENE assets. Metadata only:
+   * provenance stays ESSP_DERIVED and no clip is promoted by saving.
+   */
+  const saveScenesToLibrary = async () => {
+    let count = 0;
+    for (const draft of sceneDrafts) {
+      if (draft.kind !== "SCENE") continue;
+      const asset = await library.saveScene(draft.scene, draft.dependencies, draft.input);
+      if (asset) count += 1;
+    }
+    setSaved(count);
+  };
 
   const ownerOf = (clipId: string) =>
     referenceLayer?.bindings.find((b) => b.clipId === clipId)?.owner ?? "PLANNER";
@@ -103,7 +121,23 @@ export default function NativeConversionPanel() {
             </dd>
             <dt>assets ready</dt>
             <dd className="text-right text-foreground">{referenceAssetDrafts.length}</dd>
+            <dt>scene assets</dt>
+            <dd className="text-right text-foreground">{sceneDrafts.length}</dd>
           </dl>
+
+          <button
+            onClick={() => void saveScenesToLibrary()}
+            disabled={sceneDrafts.length === 0 || library.busy}
+            className="chip-btn w-full justify-center disabled:opacity-40"
+            title="Save every extracted scene as a reusable library asset (does not promote any clip)"
+          >
+            <Library className="size-3" /> Save scenes to library
+          </button>
+          {saved !== null && (
+            <p className="text-[10px] leading-relaxed text-success">
+              {saved} scene assets saved — reuse them from the Library panel.
+            </p>
+          )}
 
           <button
             onClick={() => setSplices(verifyReferenceSplices())}

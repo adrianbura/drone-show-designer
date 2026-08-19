@@ -226,6 +226,13 @@ import { useAudioPlayback } from "./audioPlayback";
 import { resolveShortcut } from "./shortcuts";
 import { createBrowserKeyValueStore, type KeyValueStore } from "../library/repository";
 import {
+  collectSceneDependencies,
+  instantiateSceneAsset,
+  sceneAssetDuration,
+  type FormationAsset,
+  type SceneAssetDependencies,
+} from "../library";
+import {
   addObject,
   alignObjects,
   duplicateObject,
@@ -237,6 +244,7 @@ import {
   resolveSceneAt,
   sceneBudget,
   sceneForClip,
+  projectScene,
   upsertScene,
   type FormationScene,
   type InstanceTransform,
@@ -443,6 +451,22 @@ interface StudioContextValue {
   addLibraryFormation: (formation: Formation) => Formation;
   /** Inserts a library dynamic formation as a NEW dynamic formation (fresh id). */
   addLibraryDynamicFormation: (formation: DynamicFormation) => DynamicFormation;
+  /**
+   * Reuses a FORMATION_SCENE library asset: copies its dependencies and scene
+   * into the project under fresh ids and appends a new timeline clip bound to
+   * the copied scene. Returns the new clip id.
+   */
+  addSceneAssetToShow: (
+    asset: FormationAsset,
+    timing?: { transition?: number; hold?: number },
+  ) => string | null;
+  /** Save-to-library payload of a clip's authored scene (null when it has none). */
+  sceneAssetPayloadForClip: (clipId: string) => {
+    readonly scene: FormationScene;
+    readonly dependencies: SceneAssetDependencies;
+    readonly source: FormationAsset["source"];
+    readonly sourceRef: FormationAsset["sourceRef"];
+  } | null;
   setDroneCount: (n: number) => void;
   setLimits: (patch: Partial<SafetyLimits>) => void;
   addFormation: (kind: FormationKind, params?: Record<string, number | string>) => Formation;
@@ -1754,6 +1778,111 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     },
     [commitDynamic],
   );
+
+  /**
+   * REUSE A WHOLE COMPOSITION (scene asset).
+   *
+   * The library asset is an immutable snapshot, so insertion COPIES everything
+   * it needs into the project under fresh ids: the formation dependencies, the
+   * dynamic formation dependencies and the scene itself. The scene is bound to a
+   * brand new timeline clip (`scene.id === clip.id`) inserted with the ordinary
+   * timeline semantics, LANDING-last included. There is no ESSP-only path: an
+   * imported scene is reused exactly like an authored one, as planner-owned
+   * project content.
+   */
+  const addSceneAssetToShow = useCallback(
+    (asset: FormationAsset, timing?: { transition?: number; hold?: number }) => {
+      if (asset.formationData.kind !== "SCENE") return null;
+      const clipId = nextId("c");
+      const instance = instantiateSceneAsset(asset, {
+        sceneId: clipId,
+        formationId: (i) => `${clipId}-f-${String(i + 1).padStart(2, "0")}`,
+        dynamicFormationId: (i) => `${clipId}-dyn-${String(i + 1).padStart(2, "0")}`,
+      });
+      const cycle = sceneAssetDuration(asset);
+      setProject((p) => {
+        const landing = p.timeline.filter((c) => c.phase === "LANDING");
+        const body = p.timeline.filter((c) => c.phase !== "LANDING");
+        const end = body.reduce((m, c) => Math.max(m, c.start + c.transition + c.hold), 0);
+        const anchorFormationId =
+          instance.formations[0]?.id ??
+          instance.dynamicFormations[0]?.sourceFormationId ??
+          p.formations[0]?.id ??
+          "";
+        const clip: TimelineClip = {
+          id: clipId,
+          formationId: anchorFormationId,
+          start: end,
+          transition: Math.max(0.5, timing?.transition ?? 8),
+          hold: Math.max(timing?.hold ?? 6, cycle),
+          easing: "minJerk",
+          color: [140, 210, 255],
+          effect: "solid",
+          phase: defaultPhaseForNewClip(p.timeline),
+        };
+        const shift = clip.transition + clip.hold;
+        const next: ShowProject = {
+          ...p,
+          formations: [...p.formations, ...instance.formations],
+          dynamicFormations: [...(p.dynamicFormations ?? []), ...instance.dynamicFormations],
+          timeline: [...body, clip, ...landing.map((c) => ({ ...c, start: c.start + shift }))],
+        };
+        return upsertScene(next, instance.scene);
+      });
+      setSelectedClipId(clipId);
+      setSelectedSceneObjectId(instance.scene.objects[0]?.id ?? null);
+      return clipId;
+    },
+    [],
+  );
+
+  /**
+   * SAVE THE CURRENT SCENE AS A LIBRARY ASSET (payload only — the library owns
+   * persistence). Only a clip with an EXPLICIT authored scene qualifies; the
+   * bundle carries exactly the dependencies that scene references.
+   *
+   * Provenance is inherited, never overwritten: a clip extracted from an
+   * imported ESSP show stays ESSP_DERIVED even when the user saves it manually.
+   * Saving is metadata only, so it never promotes the source clip.
+   */
+  const sceneAssetPayloadForClip = useCallback(
+    (
+      clipId: string,
+    ): {
+      readonly scene: FormationScene;
+      readonly dependencies: SceneAssetDependencies;
+      readonly source: FormationAsset["source"];
+      readonly sourceRef: FormationAsset["sourceRef"];
+    } | null => {
+      const p = projectRef.current;
+      const scene = projectScene(p, clipId);
+      if (!scene || scene.objects.length === 0) return null;
+      const dependencies = collectSceneDependencies(scene, p);
+      const binding = referenceLayerRef.current?.bindings.find((b) => b.clipId === clipId) ?? null;
+      if (!binding) return { scene, dependencies, source: "USER", sourceRef: undefined };
+      return {
+        scene,
+        dependencies,
+        source: "ESSP_DERIVED",
+        sourceRef: {
+          kind: "FILE",
+          name: "imported ESSP show",
+          fingerprint: referenceLayerRef.current?.showHash,
+          params: {
+            clipId,
+            segmentId: binding.sourceSegmentId ?? "",
+            classification: binding.sourceClassification ?? "",
+            startTime: binding.referenceStart,
+            endTime: binding.referenceEnd,
+          },
+        },
+      };
+    },
+    [],
+  );
+
+
+
 
   const editDynamic = useCallback(
     (id: string, fn: (formation: DynamicFormation) => DynamicFormation) => {
@@ -3573,6 +3702,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       currentSetupDraft,
       addLibraryFormation,
       addLibraryDynamicFormation,
+      addSceneAssetToShow,
+      sceneAssetPayloadForClip,
       setDroneCount,
       setLimits,
       addFormation,

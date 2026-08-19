@@ -17,10 +17,13 @@ import {
 import type { ReactNode } from "react";
 
 import type { DynamicFormation } from "../show/dynamic/types";
+import type { FormationScene } from "../show/scene/types";
 import type { Formation } from "../show/types";
 import {
   assetFromDynamicFormation,
   assetFromFormation,
+  assetFromScene,
+  type SceneAssetDependencies,
   createBrowserKeyValueStore,
   filterAssets,
   LocalFormationAssetRepository,
@@ -50,6 +53,17 @@ export interface LibraryApi {
   saveFormation: (formation: Formation, input: AssetSaveInput) => Promise<FormationAsset | null>;
   saveDynamicFormation: (
     formation: DynamicFormation,
+    input: AssetSaveInput,
+  ) => Promise<FormationAsset | null>;
+  /**
+   * Saves a WHOLE composition as one self-contained scene asset. The caller
+   * bundles exactly the dependencies the scene references (see
+   * `collectSceneDependencies`) and supplies the provenance of the scene — an
+   * imported scene stays ESSP_DERIVED even when the user saves it by hand.
+   */
+  saveScene: (
+    scene: FormationScene,
+    dependencies: SceneAssetDependencies,
     input: AssetSaveInput,
   ) => Promise<FormationAsset | null>;
   remove: (id: string) => Promise<void>;
@@ -128,6 +142,8 @@ export function LibraryProvider({
       saveFormation: (formation, input) => run(() => repo.save(assetFromFormation(formation, input))),
       saveDynamicFormation: (formation, input) =>
         run(() => repo.save(assetFromDynamicFormation(formation, input))),
+      saveScene: (scene, dependencies, input) =>
+        run(() => repo.save(assetFromScene(scene, dependencies, input))),
       remove: async (id) => void (await run(() => repo.remove(id))),
       rename: async (id, name) => void (await run(() => repo.rename(id, name))),
       duplicate: async (id) => void (await run(() => repo.duplicate(id))),

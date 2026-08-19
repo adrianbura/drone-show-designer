@@ -7,6 +7,8 @@ function matchesView(asset: FormationAsset, view: LibraryQuery["view"]): boolean
       return asset.assetType === "STATIC_FORMATION";
     case "DYNAMIC":
       return asset.assetType === "DYNAMIC_FORMATION";
+    case "SCENE":
+      return asset.assetType === "FORMATION_SCENE";
     case "FAVORITES":
       return asset.favorite;
     case "BUILT_IN":
