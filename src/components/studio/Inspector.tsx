@@ -20,7 +20,6 @@ import EsspPanel from "./EsspPanel";
 import ForensicsPanel from "./ForensicsPanel";
 import ConversionPanel from "./ConversionPanel";
 
-
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
 import { evaluateExportEligibility } from "@/lib/adapters/exportEligibility";
 import {
@@ -29,6 +28,7 @@ import {
   toStudioProject,
   toTrajectoryCsv,
 } from "@/lib/adapters/export";
+import { suggestedProjectFileName } from "@/lib/project";
 import {
   assignmentStrategyLabel,
   SELECTABLE_ASSIGNMENT_STRATEGIES,
@@ -398,7 +398,6 @@ export default function Inspector() {
         </div>
       </section>
 
-
       <section className="panel-card">
         <h2 className="panel-title">
           <ShieldCheck className="size-3.5" /> Flight envelope
@@ -516,7 +515,6 @@ export default function Inspector() {
       <ConversionPanel />
       <SimulationPanel />
 
-
       <section className="panel-card">
         <h2 className="panel-title">
           <Download className="size-3.5" /> Export
@@ -590,7 +588,7 @@ export default function Inspector() {
           onClick={() =>
             downloadText(
               `${project.name.replace(/\s+/g, "-").toLowerCase()}.trajectories.csv`,
-              toTrajectoryCsv(project, trajectorySet),
+              toTrajectoryCsv(project, trajectorySet, plan),
               "text/csv",
             )
           }
@@ -602,7 +600,7 @@ export default function Inspector() {
         <button
           onClick={() =>
             downloadText(
-              `${project.name.replace(/\s+/g, "-").toLowerCase()}.dss.json`,
+              suggestedProjectFileName(project.name),
               toStudioProject(project),
               "application/json",
             )
