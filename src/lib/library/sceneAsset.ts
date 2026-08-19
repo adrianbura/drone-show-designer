@@ -51,19 +51,20 @@ export function collectSceneDependencies(
   const formations = new Map<string, Formation>();
   const dynamics = new Map<string, DynamicFormation>();
   for (const object of scene.objects) {
-    if (object.source.kind === "STATIC") {
-      const formation = project.formations.find((f) => f.id === object.source.formationId);
+    const src = object.source;
+    if (src.kind === "STATIC") {
+      const formation = project.formations.find((f) => f.id === src.formationId);
       if (!formation) {
         throw new LibraryError("MALFORMED_ASSET", "Scene object has no static source formation", {
           sceneId: scene.id,
           objectId: object.id,
-          formationId: object.source.formationId,
+          formationId: src.formationId,
         });
       }
       formations.set(formation.id, structuredClonePlain(formation));
       continue;
     }
-    const dynamicId = object.source.dynamicFormationId;
+    const dynamicId = src.dynamicFormationId;
     const dynamic = (project.dynamicFormations ?? []).find((d) => d.id === dynamicId);
     if (!dynamic) {
       throw new LibraryError("MALFORMED_ASSET", "Scene object has no dynamic source formation", {
@@ -79,9 +80,15 @@ export function collectSceneDependencies(
       ? project.formations.find((f) => f.id === copy.sourceFormationId)
       : undefined;
     if (source) formations.set(source.id, structuredClonePlain(source));
-    dynamics.set(copy.id, source ? copy : { ...copy, sourceFormationId: undefined });
+    dynamics.set(copy.id, source ? copy : withoutSourceFormation(copy));
   }
   return { formations: [...formations.values()], dynamicFormations: [...dynamics.values()] };
+}
+
+/** Drops the provenance link instead of leaving a dangling project id. */
+function withoutSourceFormation(dynamic: DynamicFormation): DynamicFormation {
+  const { sourceFormationId: _dropped, ...rest } = dynamic;
+  return rest as DynamicFormation;
 }
 
 /** Point count of an object after its requested drone budget is applied. */
@@ -89,12 +96,12 @@ function objectPointCount(
   object: SceneFormationInstance,
   dependencies: SceneAssetDependencies,
 ): number {
+  const src = object.source;
   const available =
-    object.source.kind === "STATIC"
-      ? (dependencies.formations.find((f) => f.id === object.source.formationId)?.points.length ?? 0)
-      : (dependencies.dynamicFormations.find(
-          (d) => d.id === (object.source as { dynamicFormationId: string }).dynamicFormationId,
-        )?.points.length ?? 0);
+    src.kind === "STATIC"
+      ? (dependencies.formations.find((f) => f.id === src.formationId)?.points.length ?? 0)
+      : (dependencies.dynamicFormations.find((d) => d.id === src.dynamicFormationId)?.points
+          .length ?? 0);
   const requested = object.requestedDroneCount ?? null;
   return requested && requested > 0 ? Math.min(requested, available) : available;
 }
@@ -211,12 +218,13 @@ export function validateSceneAssetPayload(asset: FormationAsset): void {
     }
     if (seen.has(object.id)) fail("Scene object ids are not unique", { objectId: object.id });
     seen.add(object.id);
-    if (object.source.kind === "STATIC") {
-      const formation = dependencies.formations.find((f) => f.id === object.source.formationId);
+    const src = object.source;
+    if (src.kind === "STATIC") {
+      const formation = dependencies.formations.find((f) => f.id === src.formationId);
       if (!formation) {
         fail("Scene asset references a formation that is not bundled", {
           objectId: object.id,
-          formationId: object.source.formationId,
+          formationId: src.formationId,
         });
       }
       if (!Array.isArray(formation!.points) || formation!.points.length === 0) {
@@ -228,16 +236,16 @@ export function validateSceneAssetPayload(asset: FormationAsset): void {
       }
       continue;
     }
-    if (object.source.kind !== "DYNAMIC") {
+    if (src.kind !== "DYNAMIC") {
       fail("Scene object has an unknown source kind", { objectId: object.id });
     }
     const dynamic = dependencies.dynamicFormations.find(
-      (d) => d.id === object.source.dynamicFormationId,
+      (d) => d.id === src.dynamicFormationId,
     );
     if (!dynamic) {
       fail("Scene asset references a dynamic formation that is not bundled", {
         objectId: object.id,
-        dynamicFormationId: object.source.dynamicFormationId,
+        dynamicFormationId: src.dynamicFormationId,
       });
     }
     if (!Array.isArray(dynamic!.points) || dynamic!.points.length === 0) {
@@ -296,11 +304,9 @@ export function instantiateSceneAsset(
     const sourceFormationId = copy.sourceFormationId
       ? formationIdMap.get(copy.sourceFormationId)
       : undefined;
-    return {
-      ...copy,
-      id,
-      ...(sourceFormationId ? { sourceFormationId } : { sourceFormationId: undefined }),
-    };
+    return sourceFormationId
+      ? { ...copy, id, sourceFormationId }
+      : withoutSourceFormation({ ...copy, id });
   });
 
   const objects: SceneFormationInstance[] = data.scene.objects.map((object, index) => {
