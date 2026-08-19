@@ -2803,7 +2803,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           formations: [...result.formations],
           timeline: [...result.timeline],
           dynamicFormations: [...result.dynamicFormations],
-          scenes: [],
+          // Multi-object compositions inferred from the imported show (one per
+          // decomposed scene clip); one-object scenes stay plain clips.
+          scenes: [...result.scenes],
           lighting: result.lighting,
           // The imported takeoff is authored as a clip, so the native pre-show
           // staging must not also claim the time before show zero.
