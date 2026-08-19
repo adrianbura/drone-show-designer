@@ -1762,6 +1762,129 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [editScene],
   );
 
+  /* ---------------- reference-assisted scene editing (design only) --------- */
+  /**
+   * The comparison surface is PURELY a design aid: it reads the imported
+   * reference show and the resolved editable scene, and never influences
+   * ownership, promotion, planning or export.
+   */
+  const selectedClipBinding = useMemo<ReferenceClipBinding | null>(
+    () =>
+      selectedClipId
+        ? (referenceLayer?.bindings.find((b) => b.clipId === selectedClipId) ?? null)
+        : null,
+    [referenceLayer, selectedClipId],
+  );
+
+  const sceneGhostFrame = useMemo<ReferenceGhostFrame | null>(() => {
+    if (!sceneReferenceGhost) return null;
+    if (!referenceLayerShow || !selectedClip || !selectedScene || !selectedClipBinding) return null;
+    return referenceGhostFrame({
+      show: referenceLayerShow,
+      project,
+      scene: selectedScene,
+      clip: selectedClip,
+      binding: selectedClipBinding,
+      frame: sceneComparisonFrame,
+      currentTime: clock.time,
+    });
+  }, [
+    sceneReferenceGhost,
+    sceneComparisonFrame,
+    referenceLayerShow,
+    project,
+    selectedScene,
+    selectedClip,
+    selectedClipBinding,
+    clock.time,
+  ]);
+
+  const sceneDeviation = useMemo<SceneDeviationReport | null>(() => {
+    if (!referenceLayerShow || !selectedClip || !selectedScene || !selectedClipBinding) return null;
+    return sceneDeviationReport({
+      show: referenceLayerShow,
+      project,
+      scene: selectedScene,
+      clip: selectedClip,
+      binding: selectedClipBinding,
+      frame: sceneComparisonFrame,
+      currentTime: clock.time,
+    });
+  }, [
+    sceneComparisonFrame,
+    referenceLayerShow,
+    project,
+    selectedScene,
+    selectedClip,
+    selectedClipBinding,
+    clock.time,
+  ]);
+
+  const sceneCorrespondence = useMemo<CorrespondenceLine[]>(() => {
+    if (!sceneReferenceGhost || !resolvedSceneObjectId) return [];
+    if (!referenceLayerShow || !selectedClip || !selectedScene || !selectedClipBinding) return [];
+    return correspondenceLines({
+      show: referenceLayerShow,
+      project,
+      scene: selectedScene,
+      clip: selectedClip,
+      binding: selectedClipBinding,
+      frame: sceneComparisonFrame,
+      currentTime: clock.time,
+      objectId: resolvedSceneObjectId,
+    });
+  }, [
+    sceneReferenceGhost,
+    sceneComparisonFrame,
+    resolvedSceneObjectId,
+    referenceLayerShow,
+    project,
+    selectedScene,
+    selectedClip,
+    selectedClipBinding,
+    clock.time,
+  ]);
+
+  const canResetSelectedSceneObject = useMemo(
+    () =>
+      !!selectedClipId &&
+      !!resolvedSceneObjectId &&
+      canResetSceneObject(referenceLayer, selectedClipId, resolvedSceneObjectId),
+    [referenceLayer, selectedClipId, resolvedSceneObjectId],
+  );
+
+  /** ONE undo entry; restores geometry + transform of a single object. */
+  const resetSceneObject = useCallback(
+    (clipId: string, objectId: string) => {
+      const layer = referenceLayerRef.current;
+      const next = resetSceneObjectToExtracted(projectRef.current, layer, clipId, objectId);
+      if (!next) return;
+      pushTimelineHistory();
+      setProject(next);
+    },
+    [pushTimelineHistory],
+  );
+
+  /** Planner-owned experiment copy; the reference-owned clip is untouched. */
+  const duplicateSceneAsEditable = useCallback(
+    (clipId: string) => {
+      const newClipId = nextId("clip");
+      const result = duplicateSceneAsEditableCopy(projectRef.current, clipId, {
+        clipId: newClipId,
+        formationId: () => nextId("f"),
+        dynamicFormationId: () => nextId("dyn"),
+      });
+      if (!result) return null;
+      pushTimelineHistory();
+      setProject(result.project);
+      setSelectedClipId(result.clipId);
+      setSelectedSceneObjectId(null);
+      return result.clipId;
+    },
+    [pushTimelineHistory],
+  );
+
+
   const addLibraryFormation = useCallback((formation: Formation) => {
     // A library asset is a template: the project always gets a fresh id so the
     // stored asset and the project copy can diverge independently.
