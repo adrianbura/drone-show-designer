@@ -169,6 +169,9 @@ export default function NativeConversionPanel() {
                   >
                     <span className="truncate">
                       {d.kind} {d.dynamic ? "· anim" : ""}{" "}
+                      {d.representation === "COMPOSED_SCENE"
+                        ? `· ${d.objects.length} objects`
+                        : ""}{" "}
                       {d.fidelityRmsMeters != null ? `· rms ${d.fidelityRmsMeters.toFixed(2)}m` : ""}
                     </span>
                     <span
@@ -177,6 +180,20 @@ export default function NativeConversionPanel() {
                       {owner === "REFERENCE" ? "IMPORTED" : "PLANNER"}
                     </span>
                   </button>
+                  {d.representation === "COMPOSED_SCENE" && (
+                    <div className="mt-0.5 space-y-0.5 border-l border-border pl-2">
+                      <p className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                        Composed scene · {d.decompositionSource ?? "evidence"} · confidence{" "}
+                        {((d.decompositionConfidence ?? 0) * 100).toFixed(0)}%
+                      </p>
+                      {d.objects.map((o) => (
+                        <p key={o.objectId} className="font-mono text-[9px] text-muted-foreground">
+                          {o.name} · {o.droneCount} drones {o.dynamic ? "· anim" : "· static"} · res{" "}
+                          {o.meanResidualMeters.toFixed(2)}m
+                        </p>
+                      ))}
+                    </div>
+                  )}
                   {owner === "REFERENCE" && (
                     <button
                       onClick={() => promoteReferenceClip(d.clipId)}
@@ -185,11 +202,17 @@ export default function NativeConversionPanel() {
                       Promote to planner
                     </button>
                   )}
+                  {d.decompositionReasons.map((r) => (
+                    <p key={r} className="text-[9px] leading-relaxed text-muted-foreground">
+                      {r}
+                    </p>
+                  ))}
                   {d.warnings.map((w) => (
                     <p key={w} className="text-[9px] leading-relaxed text-warning">
                       {w}
                     </p>
                   ))}
+
                 </li>
               );
             })}
