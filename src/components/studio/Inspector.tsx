@@ -112,6 +112,10 @@ export default function Inspector() {
     preShowReport,
     preShowStale,
     buildProjectFile,
+    canEditClipAsScene,
+    editClipAsScene,
+    duplicateClipForDesign,
+    projectScenes,
   } = useStudio();
   const exportEligibility = evaluateExportEligibility(fullShowReport, fullShowStale);
   const canExportComputedShow = exportEligibility.canExportComputedShow;
@@ -126,6 +130,7 @@ export default function Inspector() {
       : null;
   const optimizationResult =
     optimization && optimization.clipId === selectedClipId ? optimization.result : null;
+  const hasAuthoredScene = !!clip && projectScenes.some((sc) => sc.id === clip.id);
   const isOptimized = !!selectedClipId && !!transitionOverrides[selectedClipId];
 
   return (
@@ -148,6 +153,19 @@ export default function Inspector() {
                 </option>
               ))}
             </select>
+            {/* DESIGN ROUTING — points at the right editing surface, mutates
+                nothing until an explicit action is pressed. */}
+            <ClipDesignActions
+              clipId={clip.id}
+              hasScene={hasAuthoredScene}
+              isDynamic={!!clip.dynamicFormationId}
+              canConvert={canEditClipAsScene(clip.id)}
+              isShowClip={clipPhase(clip) === "SHOW"}
+              onConvert={() => {
+                if (editClipAsScene(clip.id)) scrollToPanel("scene-panel");
+              }}
+              onDuplicate={() => duplicateClipForDesign(clip.id)}
+            />
             <label className="space-y-1.5">
               <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                 Phase
@@ -502,13 +520,17 @@ export default function Inspector() {
 
       <LaunchPanel />
 
-      <SceneObjectsPanel />
+      <div id="scene-panel">
+        <SceneObjectsPanel />
+      </div>
 
       <LightingEffectsPanel />
 
       <ParticipationPanel />
 
-      <DynamicPanel />
+      <div id="dynamic-panel">
+        <DynamicPanel />
+      </div>
 
       <FullShowPanel />
 
@@ -635,6 +657,85 @@ export default function Inspector() {
           ))}
         </ul>
       </section>
+    </div>
+  );
+}
+
+/** Scrolls the inspector to the panel that actually edits the selected clip. */
+function scrollToPanel(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/**
+ * CLIP -> DESIGN ROUTING. Read-only guidance plus two explicit commands; opening
+ * or reading this block never mutates the project.
+ */
+function ClipDesignActions({
+  clipId,
+  hasScene,
+  isDynamic,
+  canConvert,
+  isShowClip,
+  onConvert,
+  onDuplicate,
+}: {
+  clipId: string;
+  hasScene: boolean;
+  isDynamic: boolean;
+  canConvert: boolean;
+  isShowClip: boolean;
+  onConvert: () => void;
+  onDuplicate: () => void;
+}) {
+  return (
+    <div className="space-y-1.5 rounded border border-border bg-muted/20 p-2" data-testid="clip-design-actions">
+      <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Design</p>
+      {hasScene && (
+        <button
+          onClick={() => scrollToPanel("scene-panel")}
+          className="chip-btn w-full justify-center"
+          data-testid="clip-design-open-scene"
+        >
+          Edit scene objects
+        </button>
+      )}
+      {isDynamic && (
+        <button
+          onClick={() => scrollToPanel("dynamic-panel")}
+          className="chip-btn w-full justify-center"
+          data-testid="clip-design-open-dynamic"
+        >
+          Edit dynamic formation
+        </button>
+      )}
+      {canConvert && (
+        <button
+          onClick={onConvert}
+          className="chip-btn w-full justify-center"
+          data-testid="clip-design-edit-as-scene"
+          title="Creates one editable scene with the exact geometry, timing and lighting this clip already shows."
+        >
+          Edit as Scene
+        </button>
+      )}
+      {isShowClip && (
+        <button
+          onClick={onDuplicate}
+          className="chip-btn w-full justify-center"
+          data-testid="clip-design-duplicate"
+          title="Copies this clip for design work with fresh ids, inserted before landing."
+        >
+          Duplicate clip
+        </button>
+      )}
+      <p className="font-mono text-[9px] leading-relaxed text-muted-foreground">
+        {hasScene
+          ? "Authored scene — object transforms are editable."
+          : isDynamic
+            ? "Dynamic formation clip."
+            : "Static clip — convert to a scene to compose objects."}
+      </p>
+      <span className="sr-only">{clipId}</span>
     </div>
   );
 }
