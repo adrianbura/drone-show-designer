@@ -54,6 +54,32 @@ function AxisRow({
 
 const GIZMO_MODES = ["MOVE", "ROTATE", "SCALE"] as const;
 
+/** Fast design actions, labelled for a designer rather than for the maths. */
+const DESIGN_ACTIONS: readonly (readonly [SceneDesignActionKind, string])[] = [
+  ["CENTER", "Center"],
+  ["ORIGIN_XZ", "Origin X/Z"],
+  ["RAISE", "Raise +5"],
+  ["LOWER", "Lower -5"],
+  ["ROTATE_90", "Rotate 90°"],
+  ["MIRROR_X", "Mirror X"],
+  ["MIRROR_Z", "Mirror Z"],
+  ["SCALE_HALF", "Scale ×0.5"],
+  ["SCALE_DOUBLE", "Scale ×2"],
+  ["RESET_TRANSFORM", "Reset"],
+];
+
+const ALIGN_MODES: readonly (readonly [SceneAlignMode, string])[] = [
+  ["ALIGN_MIN_X", "Align left"],
+  ["ALIGN_CENTER_X", "Align centre X"],
+  ["ALIGN_MAX_X", "Align right"],
+  ["ALIGN_MIN_Z", "Align back"],
+  ["ALIGN_CENTER_Z", "Align centre Z"],
+  ["ALIGN_MAX_Z", "Align front"],
+  ["MATCH_ALTITUDE", "Match altitude"],
+  ["DISTRIBUTE_X", "Distribute X"],
+  ["DISTRIBUTE_Z", "Distribute Z"],
+];
+
 export default function SceneObjectsPanel() {
   const { t } = useI18n();
   /** Local NUDGE amounts. Deltas are relative, so mixed values stay untouched. */
@@ -95,6 +121,8 @@ export default function SceneObjectsPanel() {
     canResetSelectedSceneObject,
     resetSceneObject,
     duplicateSceneAsEditable,
+    applySceneDesign,
+    alignSceneObjectsByMode,
   } = useStudio();
 
   if (!selectedClipId || !selectedScene) {
@@ -403,6 +431,41 @@ export default function SceneObjectsPanel() {
               {t("common.delete")}
             </Button>
           </div>
+          {/* FAST DESIGN ACTIONS — one click, one undo entry, batch-aware. */}
+          <div className="flex flex-wrap gap-1" data-testid="scene-design-actions">
+            {DESIGN_ACTIONS.map(([action, label]) => (
+              <Button
+                key={action}
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-6 px-1.5 font-mono text-[9px] uppercase tracking-[0.14em]"
+                data-testid={`scene-design-${action}`}
+                onClick={() => applySceneDesign(clipId, selectedSceneObjectIds, action)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+
+          {selectedSceneObjectIds.length > 1 && (
+            <div className="flex flex-wrap gap-1" data-testid="scene-align-actions">
+              {ALIGN_MODES.map(([mode, label]) => (
+                <Button
+                  key={mode}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-1.5 font-mono text-[9px] uppercase tracking-[0.14em]"
+                  data-testid={`scene-align-${mode}`}
+                  onClick={() => alignSceneObjectsByMode(clipId, selectedSceneObjectIds, mode)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          )}
+
           {(sceneSelectionMixed.position ||
             sceneSelectionMixed.rotationDeg ||
             sceneSelectionMixed.scale) && (
