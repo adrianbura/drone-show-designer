@@ -1294,50 +1294,55 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       if (next.start === clip.start && next.transition === clip.transition && next.hold === clip.hold) {
         return p;
       }
-      timelineHistory.current.past.push(p);
-      timelineHistory.current.future = [];
-      setTimelineHistoryDepth({
-        past: timelineHistory.current.past.length,
-        future: 0,
-      });
+      pushSnapshot(p);
       return { ...p, timeline: p.timeline.map((c) => (c.id === id ? next : c)) };
     });
-  }, []);
+  }, [pushSnapshot]);
 
   /** Snapshot helper for annotation edits — same one-entry-per-action rule. */
   const pushTimelineHistory = useCallback(() => {
     setProject((p) => {
-      timelineHistory.current.past.push(p);
-      timelineHistory.current.future = [];
-      setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
+      pushSnapshot(p);
       return p;
     });
+  }, [pushSnapshot]);
+
+  /** Undo/redo restore project + planning state atomically. */
+  const restoreSnapshot = useCallback((snapshot: TimelineHistorySnapshot) => {
+    const overrides = { ...snapshot.transitionOverrides };
+    // Re-seed the basis from the restored project so the invalidation guard
+    // does not treat a faithfully restored override as stale.
+    overrideBasisRef.current = computeOverrideBasis(snapshot.project, overrides);
+    setTransitionOverrides(overrides);
+    setProject(snapshot.project);
+    setSelectedClipId((current) =>
+      current && snapshot.project.timeline.some((c) => c.id === current)
+        ? current
+        : (snapshot.project.timeline[0]?.id ?? null),
+    );
   }, []);
 
   const undoTimeline = useCallback(() => {
     const previous = timelineHistory.current.past.pop();
     if (!previous) return;
-    setProject((p) => {
-      timelineHistory.current.future.push(p);
-      setTimelineHistoryDepth({
-        past: timelineHistory.current.past.length,
-        future: timelineHistory.current.future.length,
-      });
-      return previous;
+    timelineHistory.current.future.push(currentSnapshot());
+    setTimelineHistoryDepth({
+      past: timelineHistory.current.past.length,
+      future: timelineHistory.current.future.length,
     });
-  }, []);
+    restoreSnapshot(previous);
+  }, [currentSnapshot, restoreSnapshot]);
 
   const redoTimeline = useCallback(() => {
     const next = timelineHistory.current.future.pop();
     if (!next) return;
-    setProject((p) => {
-      timelineHistory.current.past.push(p);
-      setTimelineHistoryDepth({
-        past: timelineHistory.current.past.length,
-        future: timelineHistory.current.future.length,
-      });
-      return next;
+    timelineHistory.current.past.push(currentSnapshot());
+    setTimelineHistoryDepth({
+      past: timelineHistory.current.past.length,
+      future: timelineHistory.current.future.length,
     });
+    restoreSnapshot(next);
+
   }, []);
 
   // ---- Markers / music sections (project-owned authoring metadata) --------
