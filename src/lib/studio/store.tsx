@@ -862,6 +862,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const overrideBasisRef = useRef<OverrideBasisMap>({});
   const transitionOverridesRef = useRef<Record<string, ClipTransitionOverride>>({});
   transitionOverridesRef.current = transitionOverrides;
+  const projectRef = useRef(project);
+  projectRef.current = project;
 
   // ---- Audio session (Sprint 7.1) ---------------------------------------
   // The decoded buffer lives ONLY in memory for this session: project files stay
@@ -880,8 +882,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
   const fullShowStale = !!fullShow && fullShow.report.analysisRevision !== analysisRevision;
 
-  // Stale-result guard: any project edit invalidates analysis AND any applied
-  // optimiser override, because both were computed for the previous geometry.
+  /**
+   * STALE-RESULT GUARD.
+   *
+   * Transient analysis reports are always dropped on a project edit. Applied
+   * overrides are canonical planning state, so they are pruned SURGICALLY: only
+   * clips whose planning basis actually changed (geometry, limits, `start`,
+   * `transition`, easing, formation) lose their override. A blanket reset would
+   * silently revert a saved optimized project to unoptimized planning.
+   */
   const projectGeneration = useRef(0);
   useEffect(() => {
     projectGeneration.current += 1;
@@ -889,8 +898,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setAssignmentComparison(null);
     setOptimization(null);
     setTransitionError(null);
-    setTransitionOverrides({});
+    setTransitionOverrides((current) => {
+      const pruned = pruneTransitionOverrides(projectRef.current, current, overrideBasisRef.current);
+      overrideBasisRef.current = pruned.basis;
+      return pruned.changed ? pruned.overrides : current;
+    });
   }, [project.formations, project.droneCount, project.timeline, project.limits, project.area]);
+
 
   // Canonical duration — NEVER project.audio.duration.
   const duration = useMemo(() => {
