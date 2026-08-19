@@ -44,6 +44,12 @@ import {
   type SnapResult,
 } from "@/lib/studio/timelineEdit";
 import { packTimelineClipLanes } from "@/lib/studio/timelineLayout";
+import {
+  middlePanScroll,
+  resolveTimelineWheel,
+  type MiddlePanSession,
+} from "@/lib/studio/timelineNavigation";
+
 import { useStudio } from "@/lib/studio/store";
 import AudioWaveformTrack from "./AudioWaveformTrack";
 import LightingTrack from "./LightingTrack";
