@@ -136,3 +136,65 @@ export function verifySpliceBoundaries(
     worstDeltaMeters: worst,
   };
 }
+
+/**
+ * Playback samples for the viewport/inspector: reference-owned intervals return
+ * the imported positions with a finite-difference velocity, and NO acceleration
+ * or jerk — the imported layer carries no derivative profile, and inventing one
+ * would fake dynamics the source never stated. Planner-owned intervals return
+ * the planned samples untouched.
+ */
+export function splicedTrajectorySamples<
+  T extends { readonly position: Vector3Tuple; readonly velocity: Vector3Tuple },
+>(
+  show: ReferenceShow | null,
+  layer: ReferenceTrajectoryLayer | null,
+  time: number,
+  planned: readonly T[],
+): { samples: T[]; owner: "REFERENCE" | "PLANNER" } {
+  if (!show || !layer) return { samples: [...planned], owner: "PLANNER" };
+  const interval = intervalAtTime(layer, time);
+  if (!interval || interval.owner !== "REFERENCE") {
+    return { samples: [...planned], owner: "PLANNER" };
+  }
+  const dt = 1 / Math.max(1, show.timing.positionRateHz);
+  const samples = planned.map((sample, i) => {
+    const drone = show.drones[i];
+    if (!drone) return sample;
+    const here = sampleReferenceDrone(drone, time, show.timing).position;
+    const ahead = sampleReferenceDrone(drone, time + dt, show.timing).position;
+    const behind = sampleReferenceDrone(drone, Math.max(0, time - dt), show.timing).position;
+    const span = time <= 0 ? dt : 2 * dt;
+    return {
+      ...sample,
+      position: here as Vector3Tuple,
+      velocity: [
+        (ahead[0] - behind[0]) / span,
+        (ahead[1] - behind[1]) / span,
+        (ahead[2] - behind[2]) / span,
+      ] as Vector3Tuple,
+      acceleration: [0, 0, 0] as Vector3Tuple,
+      jerk: [0, 0, 0] as Vector3Tuple,
+    };
+  });
+  return { samples, owner: "REFERENCE" };
+}
+
+/** LED output of a reference-owned instant: the original RGB bytes. */
+export function referenceLightStates(
+  show: ReferenceShow,
+  time: number,
+  fleetSize: number,
+): { r: number; g: number; b: number; intensity: number }[] {
+  const out: { r: number; g: number; b: number; intensity: number }[] = [];
+  for (let i = 0; i < fleetSize; i += 1) {
+    const drone = show.drones[i];
+    if (!drone) {
+      out.push({ r: 0, g: 0, b: 0, intensity: 0 });
+      continue;
+    }
+    const c = sampleReferenceDrone(drone, time, show.timing).color;
+    out.push({ r: c[0], g: c[1], b: c[2], intensity: 1 });
+  }
+  return out;
+}
