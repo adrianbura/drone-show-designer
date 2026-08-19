@@ -91,6 +91,7 @@ import {
 } from "../show/markers";
 import { timelineContentRange } from "./timelineLayout";
 import { insertClipBeforeLanding } from "./clipInsertion";
+import { convertClipToScene, duplicateShowClip } from "./clipDesign";
 import { insertLibraryAsset, type AssetInsertionTiming } from "./assetInsertion";
 import {
   reconcileEditorSelection,
@@ -274,6 +275,8 @@ import {
   sceneBudget,
   sceneForClip,
   sceneGroupPivot,
+  applySceneDesignAction,
+  alignSceneObjectsBy,
   selectAllSceneObjects,
   projectScene,
   upsertScene,
@@ -284,6 +287,8 @@ import {
   type SceneAlignment,
   type SceneBudget,
   type SceneClickMode,
+  type SceneDesignActionKind,
+  type SceneAlignMode,
   type SceneFormationInstance,
   type SceneGizmoMode,
   type SceneSelection,
@@ -1924,26 +1929,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [pushSnapshot, setSelectedSceneObjectIds],
   );
 
-  /** "Duplicate clip": fresh clip/scene/object ids, inserted before LANDING. */
-  const duplicateClipForDesign = useCallback(
-    (clipId: string) => {
-      const newClipId = nextId("clip");
-      let ok = false;
-      setProject((p) => {
-        const result = duplicateShowClip(p, clipId, {
-          clipId: newClipId,
-          lightingEffectId: (index) => `${newClipId}-fx-${index + 1}`,
-        });
-        if (!result) return p;
-        ok = true;
-        pushSnapshot(p);
-        return result.project;
-      });
-      if (ok) selectClip(newClipId);
-      return ok ? newClipId : null;
-    },
-    [pushSnapshot, selectClip],
-  );
 
 
   /* ------------------------------------------- viewport transform gizmo ---- */
@@ -4017,6 +4002,27 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       applySelectionReconciliation(projectRef.current, id, previous);
     },
     [applySelectionReconciliation],
+  );
+
+  /** "Duplicate clip": fresh clip/scene/object ids, inserted before LANDING. */
+  const duplicateClipForDesign = useCallback(
+    (clipId: string) => {
+      const newClipId = nextId("clip");
+      let ok = false;
+      setProject((p) => {
+        const result = duplicateShowClip(p, clipId, {
+          clipId: newClipId,
+          lightingEffectId: (index: number) => `${newClipId}-fx-${index + 1}`,
+        });
+        if (!result) return p;
+        ok = true;
+        pushSnapshot(p);
+        return result.project;
+      });
+      if (ok) selectClip(newClipId);
+      return ok ? newClipId : null;
+    },
+    [pushSnapshot, selectClip],
   );
 
   /**
