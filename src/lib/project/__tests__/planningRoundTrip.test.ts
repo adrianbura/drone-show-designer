@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import { toStudioProject } from "../../adapters/export";
 import { MemoryKeyValueStore } from "../../library/repository";
-import { createDefaultProject } from "../../show/defaultProject";
+import { createDefaultProject, createDemoProject } from "../../show/defaultProject";
 import { buildShowPlan } from "../../show/trajectory/schedule";
 import { sampleTrajectorySet } from "../../show/trajectory/sampler";
 import type { ClipTransitionOverride } from "../../show/trajectory/schedule";
@@ -27,13 +27,13 @@ import {
 
 const SAMPLE_RATE = 10;
 
-function optimizableClipId(project: ReturnType<typeof createDefaultProject>): string {
+function optimizableClipId(project: ReturnType<typeof createDemoProject>): string {
   const clip = project.timeline.find((c) => (c.phase ?? "SHOW") === "SHOW" && c.transition > 0);
   return (clip ?? project.timeline[1] ?? project.timeline[0]!).id;
 }
 
 /** Deterministic, structurally valid override (reversed target mapping). */
-function makeOverride(project: ReturnType<typeof createDefaultProject>, clipId: string): ClipTransitionOverride {
+function makeOverride(project: ReturnType<typeof createDemoProject>, clipId: string): ClipTransitionOverride {
   const clip = project.timeline.find((c) => c.id === clipId)!;
   const points = project.formations.find((f) => f.id === clip.formationId)!.points;
   const n = project.droneCount;
@@ -45,7 +45,7 @@ function makeOverride(project: ReturnType<typeof createDefaultProject>, clipId: 
   };
 }
 
-function planningFor(project: ReturnType<typeof createDefaultProject>): ProjectPlanningState {
+function planningFor(project: ReturnType<typeof createDemoProject>): ProjectPlanningState {
   const clipId = optimizableClipId(project);
   return {
     assignmentStrategy: "optimalDistance",
@@ -55,7 +55,7 @@ function planningFor(project: ReturnType<typeof createDefaultProject>): ProjectP
 
 describe("project planning round-trip", () => {
   it("round-trips the assignment strategy", () => {
-    const project = createDefaultProject(24);
+    const project = createDemoProject(24);
     const text = projectFileToJson(
       serializeProject(project, {
         planning: { assignmentStrategy: "optimalDistance", transitionOverrides: {} },
@@ -65,7 +65,7 @@ describe("project planning round-trip", () => {
   });
 
   it("round-trips an applied transition override exactly", () => {
-    const project = createDefaultProject(24);
+    const project = createDemoProject(24);
     const planning = planningFor(project);
     const clipId = Object.keys(planning.transitionOverrides)[0]!;
     const reopened = parseProjectFile(projectFileToJson(serializeProject(project, { planning })));
@@ -82,7 +82,7 @@ describe("project planning round-trip", () => {
   });
 
   it("reproduces identical sampled trajectories after save -> open", () => {
-    const project = createDefaultProject(24);
+    const project = createDemoProject(24);
     const planning = planningFor(project);
     const reopened = parseProjectFile(projectFileToJson(serializeProject(project, { planning })));
 
@@ -109,7 +109,7 @@ describe("project planning round-trip", () => {
   });
 
   it("does NOT silently revert to unoptimized planning", () => {
-    const project = createDefaultProject(24);
+    const project = createDemoProject(24);
     const planning = planningFor(project);
     const reopened = parseProjectFile(projectFileToJson(serializeProject(project, { planning })));
     const unoptimized = sampleTrajectorySet(buildShowPlan(project, {}), { sampleRate: SAMPLE_RATE });
@@ -131,7 +131,7 @@ describe("project planning round-trip", () => {
   });
 
   it("persists and restores editor preferences", () => {
-    const project = createDefaultProject(16);
+    const project = createDemoProject(16);
     const selected = project.timeline[1]?.id ?? project.timeline[0]!.id;
     const file = parseProjectFile(
       projectFileToJson(serializeProject(project, { editor: { selectedClipId: selected, sampleRate: 25 } })),
@@ -148,7 +148,7 @@ describe("project planning round-trip", () => {
   });
 
   it("preserves planning state through autosave and recovery", async () => {
-    const project = createDefaultProject(20);
+    const project = createDemoProject(20);
     const planning = planningFor(project);
     const store = new MemoryKeyValueStore();
     await writeAutosave(store, {
@@ -195,7 +195,7 @@ describe("project planning round-trip", () => {
   });
 
   it("Inspector studio-project export carries the same planning state as Save", () => {
-    const project = createDefaultProject(18);
+    const project = createDemoProject(18);
     const planning = planningFor(project);
     const editor = { selectedClipId: project.timeline[0]!.id, sampleRate: 25 };
     const save = projectFileToJson(serializeProject(project, { planning, editor }));
