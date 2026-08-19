@@ -157,7 +157,9 @@ describe("project planning round-trip", () => {
       file: serializeProject(project, { planning, editor: { sampleRate: 25, selectedClipId: null } }),
     });
     const snapshot = await readAutosave(store);
-    expect(snapshot?.file.planning).toEqual(planning);
+    // Design descriptors are part of the planning section; an unauthored
+    // project carries an empty map.
+    expect(snapshot?.file.planning).toEqual({ ...planning, transitionDesigns: {} });
     expect(snapshot?.file.editor?.sampleRate).toBe(25);
   });
 
@@ -177,7 +179,11 @@ describe("project planning round-trip", () => {
       legacyV1(createDemoProject(12), { sampleRate: 10, assignmentStrategy: "optimalDistance" }),
     );
     expect(file.schemaVersion).toBe(3);
-    expect(file.planning).toEqual({ assignmentStrategy: "optimalDistance", transitionOverrides: {} });
+    expect(file.planning).toEqual({
+      assignmentStrategy: "optimalDistance",
+      transitionOverrides: {},
+      transitionDesigns: {},
+    });
   });
 
   it("falls back to the default for an unknown legacy strategy", () => {
