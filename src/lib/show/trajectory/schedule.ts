@@ -135,12 +135,8 @@ export interface BuildShowPlanOptions {
   readonly participation?: import("../participation").ParticipationSettings;
 }
 
-function padPoints(points: readonly Vector3Tuple[], count: number, fallback: Vector3Tuple[]): Vector3Tuple[] {
-  if (points.length === 0) return fallback.slice(0, count);
-  const out: Vector3Tuple[] = [];
-  for (let i = 0; i < count; i++) out.push(points[i % points.length]!);
-  return out;
-}
+
+
 
 /**
  * Deterministic vertical layering of crossing morph paths. Not a collision
