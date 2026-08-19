@@ -226,6 +226,13 @@ import { useAudioPlayback } from "./audioPlayback";
 import { resolveShortcut } from "./shortcuts";
 import { createBrowserKeyValueStore, type KeyValueStore } from "../library/repository";
 import {
+  collectSceneDependencies,
+  instantiateSceneAsset,
+  sceneAssetDuration,
+  type FormationAsset,
+  type SceneAssetDependencies,
+} from "../library";
+import {
   addObject,
   alignObjects,
   duplicateObject,
