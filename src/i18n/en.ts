@@ -315,6 +315,8 @@ export const en = {
   "timeline.redo": "Redo timeline edit",
   "timeline.zoomIn": "Zoom in",
   "timeline.zoomOut": "Zoom out",
+  "timeline.fit": "Fit content",
+  "timeline.fitShort": "Fit",
   "timeline.scroll": "Scroll timeline",
   "timeline.follow": "Follow playhead",
   "timeline.dragHint": "drag to move, edges resize transition and hold (Alt = no snap, Esc = cancel)",
