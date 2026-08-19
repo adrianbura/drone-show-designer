@@ -8,7 +8,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { SimulationClient, type RunMode } from "./client";
-import { buildSimulationPackage, SimulationPackageError, deriveValidationState } from "./package";
+import {
+  assertShowSimulationRunnable,
+  buildSimulationPackage,
+  deriveValidationState,
+  isShowSimulationRunnable,
+  SimulationPackageError,
+} from "./package";
 import { historyEntryFromReport, parseSimulationRunReport } from "./report";
 import {
   BridgeError,
@@ -68,8 +74,7 @@ export function useSimulation() {
     () => deriveValidationState(fullShowReport, fullShowStale, analysisRevision),
     [fullShowReport, fullShowStale, analysisRevision],
   );
-  const showRunnable =
-    validationState === "VALIDATED" || validationState === "VALIDATED_WITH_WARNINGS";
+  const showRunnable = isShowSimulationRunnable(validationState);
 
   const refreshHealth = useCallback(async () => {
     try {
@@ -137,6 +142,10 @@ export function useSimulation() {
       setError(null);
       setReport(null);
       try {
+        // UI disabling is presentation only. Enforce the validation contract at
+        // the orchestration boundary as well so programmatic callers cannot
+        // start stale, failed or unvalidated show trajectories.
+        if (mode === "SHOW_TRAJECTORY") assertShowSimulationRunnable(validationState);
         const pkg = mode === "SHOW_TRAJECTORY" ? buildPackage() : null;
         const prepared = await client.prepare(pkg, environmentMode);
         setSnapshot({
@@ -159,7 +168,7 @@ export function useSimulation() {
         setBusy(false);
       }
     },
-    [buildPackage, client, droneId, environmentMode, followRun],
+    [buildPackage, client, droneId, environmentMode, followRun, validationState],
   );
 
   const cancel = useCallback(async () => {
