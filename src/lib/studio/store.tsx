@@ -429,6 +429,27 @@ interface StudioContextValue {
   alignSceneObjects: (clipId: string, alignment: SceneAlignment) => void;
   patchSceneTransform: (clipId: string, patch: Partial<InstanceTransform>) => void;
 
+  // ---- Reference-assisted scene editing (design aid only) -----------------
+  /** Imported-reference binding of the selected clip (null when authored). */
+  selectedClipBinding: ReferenceClipBinding | null;
+  /** Reference ghost overlay of the selected ESSP-derived scene. */
+  sceneReferenceGhost: boolean;
+  setSceneReferenceGhost: (enabled: boolean) => void;
+  /** Shared comparison clock for the whole scene. */
+  sceneComparisonFrame: SceneComparisonFrame;
+  setSceneComparisonFrame: (frame: SceneComparisonFrame) => void;
+  sceneGhostFrame: ReferenceGhostFrame | null;
+  /** DESIGN deviation of editable geometry vs imported geometry. */
+  sceneDeviation: SceneDeviationReport | null;
+  /** Correspondence lines for the selected object only. */
+  sceneCorrespondence: CorrespondenceLine[];
+  canResetSelectedSceneObject: boolean;
+  /** Restores ONE object to the extracted state (single undo entry). */
+  resetSceneObject: (clipId: string, objectId: string) => void;
+  /** Planner-owned editable copy of the whole scene; returns the new clip id. */
+  duplicateSceneAsEditable: (clipId: string) => string | null;
+
+
   // ---- Lighting, reveal & colour effects (Sprint 7.4) ---------------------
   /** Lighting effects of the selected clip, in evaluation order. */
   lightingEffects: LightingEffectInstance[];
