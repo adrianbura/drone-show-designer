@@ -73,6 +73,7 @@ import type {
   TimelineClip,
 } from "../show/types";
 import { showDuration } from "../show/types";
+import { nextSelectedClipId, removeTimelineClipReferences } from "../show/timeline";
 import {
   createMarker,
   createSection,
@@ -1386,10 +1387,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [pushTimelineHistory],
   );
 
-  const removeClip = useCallback((id: string) => {
-    setProject((p) => ({ ...p, timeline: p.timeline.filter((c) => c.id !== id) }));
-    setSelectedClipId(null);
-  }, []);
 
   // ---- Dynamic formations (Sprint 6B) ------------------------------------
   // All editing is delegation to the pure engine: every action maps a
@@ -1409,6 +1406,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     const clip = project.timeline.find((c) => c.id === selectedClipId);
     return clip ? sceneForClip(project, clip) : null;
   }, [project, selectedClipId]);
+
+  /**
+   * DERIVED SELECTION SAFETY: a scene-object id is only ever exposed while it
+   * still resolves inside the currently selected scene. Stale ids left behind
+   * by a clip/object deletion can never leak to the UI.
+   */
+  const resolvedSceneObjectId = useMemo<string | null>(() => {
+    if (!selectedSceneObjectId) return null;
+    return selectedScene?.objects.some((o) => o.id === selectedSceneObjectId) ? selectedSceneObjectId : null;
+  }, [selectedScene, selectedSceneObjectId]);
+
 
   const selectedSceneBudget = useMemo<SceneBudget | null>(
     () => (selectedScene ? sceneBudget(project, selectedScene, project.droneCount) : null),
@@ -2987,6 +2995,44 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [editLighting],
   );
 
+  /**
+   * ATOMIC CLIP DELETION (referential integrity).
+   *
+   * ONE undo entry, ONE project update: the clip, its composed scene, its
+   * participation override and every lighting effect targeting it disappear
+   * together. Reusable assets (formations, dynamic formations, SVG sources)
+   * are never touched. Declared here so the lighting/dynamic selection setters
+   * it reconciles are already in scope.
+   */
+  const removeClip = useCallback((id: string) => {
+    setProject((p) => {
+      const removed = p.timeline.find((c) => c.id === id);
+      if (!removed) return p;
+      timelineHistory.current.past.push(p);
+      timelineHistory.current.future = [];
+      setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
+
+      const next = removeTimelineClipReferences(p, id);
+      setSelectedClipId((current) => (current === id ? nextSelectedClipId(next.timeline, removed) : current));
+      setSelectedSceneObjectId(null);
+      setSelectedLightingEffectId((current) =>
+        current && next.lighting?.effects.some((e) => e.id === current) ? current : null,
+      );
+      // Only drop an explicit dynamic selection when it was reached through the
+      // deleted clip; standalone dynamic editing survives.
+      if (removed.dynamicFormationId) {
+        setExplicitDynamicId((current) => (current === removed.dynamicFormationId ? null : current));
+      }
+      setTransitionOverrides((current) => {
+        if (!Object.prototype.hasOwnProperty.call(current, id)) return current;
+        const rest = { ...current };
+        delete rest[id];
+        return rest;
+      });
+      return next;
+    });
+  }, []);
+
   const commitLightingTiming = useCallback(
     (id: string, timing: { start?: number; duration?: number }) => {
       editLighting((list) =>
@@ -3070,7 +3116,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectedScene,
       selectedSceneBudget,
       selectedSceneWarnings,
-      selectedSceneObjectId,
+      selectedSceneObjectId: resolvedSceneObjectId,
       selectSceneObject: setSelectedSceneObjectId,
       addSceneObject,
       patchSceneObject,
@@ -3355,7 +3401,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectedScene,
       selectedSceneBudget,
       selectedSceneWarnings,
-      selectedSceneObjectId,
+      resolvedSceneObjectId,
       addSceneObject,
       patchSceneObject,
       patchSceneObjectTransform,
