@@ -844,9 +844,23 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [followPlayhead, setFollowPlayhead] = useState(true);
   const [timelineZoom, setTimelineZoomState] = useState(1);
   const [timelineScroll, setTimelineScrollState] = useState(0);
-  // One gesture = one snapshot of the canonical choreography data.
-  const timelineHistory = useRef<{ past: ShowProject[]; future: ShowProject[] }>({ past: [], future: [] });
+  /**
+   * TIMELINE HISTORY MODEL.
+   *
+   * One gesture = ONE snapshot of every canonical authoring/planning state a
+   * timeline command can change: the project AND the applied transition
+   * overrides (which decide the flown trajectory). Transient analysis reports
+   * are deliberately NOT snapshotted — they are derived and recomputed.
+   */
+  const timelineHistory = useRef<{ past: TimelineHistorySnapshot[]; future: TimelineHistorySnapshot[] }>({
+    past: [],
+    future: [],
+  });
   const [timelineHistoryDepth, setTimelineHistoryDepth] = useState({ past: 0, future: 0 });
+  /** Planning basis of each applied override — see ./planningIntegrity. */
+  const overrideBasisRef = useRef<OverrideBasisMap>({});
+  const transitionOverridesRef = useRef<Record<string, ClipTransitionOverride>>({});
+  transitionOverridesRef.current = transitionOverrides;
 
   // ---- Audio session (Sprint 7.1) ---------------------------------------
   // The decoded buffer lives ONLY in memory for this session: project files stay
