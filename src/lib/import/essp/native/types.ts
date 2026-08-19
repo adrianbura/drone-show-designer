@@ -167,12 +167,25 @@ export interface ReferenceLayerReconciliation {
   readonly changed: boolean;
 }
 
-/** Library asset draft produced by the extractor (never saved by itself). */
-export interface ReferenceAssetDraft {
-  readonly kind: "STATIC" | "DYNAMIC";
-  readonly formation: Formation | DynamicFormation;
-  readonly input: AssetSaveInput;
-}
+/**
+ * Library asset draft produced by the extractor (never saved by itself).
+ *
+ * A SCENE draft carries the WHOLE extracted composition of one clip plus the
+ * dependencies it references, so an imported scene can be reused exactly like an
+ * authored one. Saving a draft is metadata only — it never promotes a clip.
+ */
+export type ReferenceAssetDraft =
+  | {
+      readonly kind: "STATIC" | "DYNAMIC";
+      readonly formation: Formation | DynamicFormation;
+      readonly input: AssetSaveInput;
+    }
+  | {
+      readonly kind: "SCENE";
+      readonly scene: FormationScene;
+      readonly dependencies: SceneAssetDependencies;
+      readonly input: AssetSaveInput;
+    };
 
 export interface ReferenceExtractionDiagnostic {
   readonly clipId: string;
