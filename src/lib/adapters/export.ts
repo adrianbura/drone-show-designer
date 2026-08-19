@@ -258,8 +258,11 @@ export function toTrajectoryCsv(
  * envelope. This deliberately delegates to src/lib/project so Save/Open and the
  * Inspector export can never drift to different `kind` or schema semantics.
  */
-export function toStudioProject(project: ShowProject): string {
-  return projectFileToJson(serializeProject(project));
+export function toStudioProject(
+  project: ShowProject,
+  options: Parameters<typeof serializeProject>[1] = {},
+): string {
+  return projectFileToJson(serializeProject(project, options));
 }
 
 export function downloadText(filename: string, contents: string, mime: string) {
