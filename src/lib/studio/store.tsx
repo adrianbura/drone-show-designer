@@ -244,6 +244,7 @@ import {
   resolveSceneAt,
   sceneBudget,
   sceneForClip,
+  projectScene,
   upsertScene,
   type FormationScene,
   type InstanceTransform,
