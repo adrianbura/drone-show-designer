@@ -160,6 +160,13 @@ export const en = {
   "formationLibrary.exportAsset": "Export asset",
   "formationLibrary.importAsset": "Import asset",
   "formationLibrary.importFailed": "The asset file could not be read: {code}",
+  "formationLibrary.view.SCENE": "Scenes",
+  "formationLibrary.scene": "Formation scene",
+  "formationLibrary.saveScene": "Save the whole scene of the selected clip to the library",
+  "formationLibrary.sceneMeta": "{objects} objects · {formations} formations · {dynamics} dynamic",
+  "formationLibrary.sceneNoScene": "Select a clip with an authored scene to save it.",
+  "formationLibrary.sceneAddBlocked": "A scene asset is inserted as a whole clip, not as one object.",
+  "formationLibrary.esspDerived": "Extracted from an imported show",
 
   // ---- Simultaneous multi-formation scenes (Sprint 7.3.5) -----------------
   "scene.title": "Scene objects",

@@ -166,6 +166,13 @@ export const ro: Dictionary = {
   "formationLibrary.exportAsset": "Exportă activul",
   "formationLibrary.importAsset": "Importă activ",
   "formationLibrary.importFailed": "Fișierul activului nu a putut fi citit: {code}",
+  "formationLibrary.view.SCENE": "Scene",
+  "formationLibrary.scene": "Scenă de formație",
+  "formationLibrary.saveScene": "Salvează întreaga scenă a clipului selectat în bibliotecă",
+  "formationLibrary.sceneMeta": "{objects} obiecte · {formations} formații · {dynamics} dinamice",
+  "formationLibrary.sceneNoScene": "Selectează un clip cu o scenă creată pentru a o salva.",
+  "formationLibrary.sceneAddBlocked": "O scenă se inserează ca un clip întreg, nu ca un singur obiect.",
+  "formationLibrary.esspDerived": "Extrasă dintr-un show importat",
 
 
   // ---- Scene simultane cu mai multe formatii (Sprint 7.3.5) ---------------
