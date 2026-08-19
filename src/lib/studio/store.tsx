@@ -53,6 +53,11 @@ import {
   optimizeTransition as optimizeTransitionCore,
   transitionInputForClip,
   DEFAULT_OPTIMIZATION_SETTINGS,
+  buildDesignOverride,
+  DEFAULT_TRANSITION_DESIGN,
+  deriveTransitionMode,
+  normalizeTransitionDesign,
+  type TransitionDesignState,
   type TransitionAnalysis,
   type TransitionOptimizationResult,
 } from "../show/transition";
@@ -1001,6 +1006,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [svgError, setSvgError] = useState<SvgFormationError | null>(null);
   const [assignmentStrategy, setAssignmentStrategy] = useState<AssignmentStrategyId>("nearestNeighbor");
   const [transitionOverrides, setTransitionOverrides] = useState<Record<string, ClipTransitionOverride>>({});
+  /**
+   * AUTHORED TRANSITION DESIGN per clip (mode + stagger pattern). Intent only:
+   * the flown data always lives in `transitionOverrides`, which this state
+   * produces through the existing optimizer/analyzer.
+   */
+  const [transitionDesigns, setTransitionDesigns] = useState<Record<string, TransitionDesignState>>({});
   const [transitionAnalysis, setTransitionAnalysis] = useState<
     { clipId: string; analysis: TransitionAnalysis } | null
   >(null);
@@ -1125,6 +1136,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const overrideBasisRef = useRef<OverrideBasisMap>({});
   const transitionOverridesRef = useRef<Record<string, ClipTransitionOverride>>({});
   transitionOverridesRef.current = transitionOverrides;
+  const transitionDesignsRef = useRef<Record<string, TransitionDesignState>>({});
+  transitionDesignsRef.current = transitionDesigns;
   const projectRef = useRef(project);
   projectRef.current = project;
 
@@ -1371,6 +1384,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setExplicitDynamicId(null);
     overrideBasisRef.current = {};
     setTransitionOverrides({});
+    setTransitionDesigns({});
     setTransitionAnalysis(null);
     setAssignmentComparison(null);
     setOptimization(null);
@@ -1573,6 +1587,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     (): TimelineHistorySnapshot => ({
       project: projectRef.current,
       transitionOverrides: { ...transitionOverridesRef.current },
+      transitionDesigns: { ...transitionDesignsRef.current },
     }),
     [],
   );
@@ -1586,6 +1601,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     timelineHistory.current.past.push({
       project,
       transitionOverrides: { ...transitionOverridesRef.current },
+      transitionDesigns: { ...transitionDesignsRef.current },
     });
     timelineHistory.current.future = [];
     setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
@@ -1626,6 +1642,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     // does not treat a faithfully restored override as stale.
     overrideBasisRef.current = computeOverrideBasis(snapshot.project, overrides);
     setTransitionOverrides(overrides);
+    setTransitionDesigns({ ...(snapshot.transitionDesigns ?? {}) });
     setProject(snapshot.project);
     const previous = selectedClipIdRef.current;
     const restoredClip =
@@ -2791,6 +2808,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setTransitionError(null);
     overrideBasisRef.current = {};
     setTransitionOverrides({});
+    setTransitionDesigns({});
   }, []);
 
   const applySuggestedDuration = useCallback(() => {
@@ -3296,6 +3314,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         pushSnapshot(previous);
         overrideBasisRef.current = computeOverrideBasis(next, {});
         setTransitionOverrides({});
+        setTransitionDesigns({});
         setProject(next);
         setReferenceLayer(layer);
         setReferenceLayerShow(show);
@@ -3459,13 +3478,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const buildProjectFile = useCallback(
     (): ProjectFile =>
       serializeProject(project, {
-        planning: { assignmentStrategy, transitionOverrides },
+        planning: { assignmentStrategy, transitionOverrides, transitionDesigns },
         // LOSSLESS: the imported payload is written verbatim, so reopening the
         // saved project reproduces the imported playback exactly.
         referenceLayer,
         editor: { selectedClipId, sampleRate },
       }),
-    [project, assignmentStrategy, transitionOverrides, referenceLayer, selectedClipId, sampleRate],
+    [
+      project,
+      assignmentStrategy,
+      transitionOverrides,
+      transitionDesigns,
+      referenceLayer,
+      selectedClipId,
+      sampleRate,
+    ],
   );
 
   const saveProjectFile = useCallback(() => {
@@ -3540,6 +3567,20 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       const restored = restore?.planning?.transitionOverrides ?? {};
       overrideBasisRef.current = computeOverrideBasis(next, restored);
       setTransitionOverrides({ ...restored });
+      // Legacy files (v1/v2/v3 without designs) derive the mode from the
+      // override data itself, so a reopened project never claims a mode it
+      // cannot support.
+      const restoredDesigns: Record<string, TransitionDesignState> = {};
+      for (const clipId of Object.keys(restored)) {
+        restoredDesigns[clipId] = normalizeTransitionDesign({
+          ...DEFAULT_TRANSITION_DESIGN,
+          mode: deriveTransitionMode(restored[clipId]),
+        });
+      }
+      for (const [clipId, design] of Object.entries(restore?.planning?.transitionDesigns ?? {})) {
+        restoredDesigns[clipId] = normalizeTransitionDesign(design);
+      }
+      setTransitionDesigns(restoredDesigns);
     }
     if (typeof restore?.sampleRate === "number" && Number.isFinite(restore.sampleRate)) {
       setSampleRate(restore.sampleRate);
@@ -4181,6 +4222,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           const basis = { ...overrideBasisRef.current };
           delete basis[id];
           overrideBasisRef.current = basis;
+          return rest;
+        });
+        setTransitionDesigns((current) => {
+          if (!Object.prototype.hasOwnProperty.call(current, id)) return current;
+          const rest = { ...current };
+          delete rest[id];
           return rest;
         });
         return next;
