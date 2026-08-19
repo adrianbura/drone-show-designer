@@ -1820,6 +1820,53 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  /**
+   * SAVE THE CURRENT SCENE AS A LIBRARY ASSET (payload only — the library owns
+   * persistence). Only a clip with an EXPLICIT authored scene qualifies; the
+   * bundle carries exactly the dependencies that scene references.
+   *
+   * Provenance is inherited, never overwritten: a clip extracted from an
+   * imported ESSP show stays ESSP_DERIVED even when the user saves it manually.
+   * Saving is metadata only, so it never promotes the source clip.
+   */
+  const sceneAssetPayloadForClip = useCallback(
+    (
+      clipId: string,
+    ): {
+      readonly scene: FormationScene;
+      readonly dependencies: SceneAssetDependencies;
+      readonly source: FormationAsset["source"];
+      readonly sourceRef: FormationAsset["sourceRef"];
+    } | null => {
+      const p = projectRef.current;
+      const scene = projectScene(p, clipId);
+      if (!scene || scene.objects.length === 0) return null;
+      const dependencies = collectSceneDependencies(scene, p);
+      const binding = referenceLayerRef.current?.bindings.find((b) => b.clipId === clipId) ?? null;
+      if (!binding) return { scene, dependencies, source: "USER", sourceRef: undefined };
+      return {
+        scene,
+        dependencies,
+        source: "ESSP_DERIVED",
+        sourceRef: {
+          kind: "FILE",
+          name: "imported ESSP show",
+          fingerprint: referenceLayerRef.current?.showHash,
+          params: {
+            clipId,
+            segmentId: binding.sourceSegmentId ?? "",
+            classification: binding.sourceClassification ?? "",
+            startTime: binding.referenceStart,
+            endTime: binding.referenceEnd,
+          },
+        },
+      };
+    },
+    [],
+  );
+
+
+
 
   const editDynamic = useCallback(
     (id: string, fn: (formation: DynamicFormation) => DynamicFormation) => {
