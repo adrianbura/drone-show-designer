@@ -40,6 +40,11 @@ export interface GenericExportInput {
   preShowReport?: PreShowValidationReport | null;
   /** True when the standalone pre-show report describes a DIFFERENT project revision. */
   preShowStale?: boolean;
+  /**
+   * LED authority of an imported (reference-owned) instant: the original RGB
+   * bytes. Returns null when the authored lighting engine owns time `t`.
+   */
+  referenceColorsAt?: (t: number) => RGB[] | null;
 }
 
 /**
@@ -53,11 +58,18 @@ function lightingFrames(
   project: ShowProject,
   set: TrajectorySet,
   participation: ShowPlan["participation"] = [],
+  referenceColorsAt?: (t: number) => RGB[] | null,
 ): RGB[][] {
   const frameCount = set.drones[0]?.samples.length ?? 0;
   const frames: RGB[][] = new Array(frameCount);
   for (let k = 0; k < frameCount; k++) {
     const t = set.drones[0]?.samples[k]?.t ?? (set.startTime ?? 0) + k / set.sampleRate;
+    // A reference-owned instant keeps its imported RGB bytes — never re-lit.
+    const imported = referenceColorsAt?.(t) ?? null;
+    if (imported) {
+      frames[k] = imported;
+      continue;
+    }
     const positions: Vector3Tuple[] = set.drones.map(
       (drone) => drone.samples[k]?.position ?? ([0, 0, 0] as const),
     );
@@ -79,8 +91,9 @@ export function toGenericShowJson({
   fullShowStale,
   preShowReport,
   preShowStale,
+  referenceColorsAt,
 }: GenericExportInput): string {
-  const colors = lightingFrames(project, set, plan.participation);
+  const colors = lightingFrames(project, set, plan.participation, referenceColorsAt);
   const drones = plan.drones.map((drone, i) => {
     const trajectory = set.drones[i];
     return {
@@ -225,10 +238,11 @@ export function toTrajectoryCsv(
   project: ShowProject,
   set: TrajectorySet,
   plan?: Pick<ShowPlan, "participation">,
+  referenceColorsAt?: (t: number) => RGB[] | null,
 ): string {
   const rows = ["time_s,drone_id,x_m,y_m,z_m,vx,vy,vz,yaw_deg,yaw_rate_dps,r,g,b"];
   const frames = set.drones[0]?.samples.length ?? 0;
-  const colors = lightingFrames(project, set, plan?.participation ?? []);
+  const colors = lightingFrames(project, set, plan?.participation ?? [], referenceColorsAt);
   for (let k = 0; k < frames; k++) {
     for (let i = 0; i < set.drones.length; i++) {
       const drone = set.drones[i]!;

@@ -20,6 +20,11 @@ import type { TrajectorySet } from "../trajectory/types";
 import type { PreShowPlan } from "../preshow/types";
 import type { PreShowValidationReport } from "../preshow/validate";
 import type { RGB, ShowPhase, ShowProject } from "../types";
+import type {
+  EffectiveTrajectoryAuthority,
+  ReferenceAuthorityInput,
+  SpliceContinuityReport,
+} from "./effective";
 
 export const FULL_SHOW_ENGINE_VERSION = "0.1.0";
 
@@ -145,7 +150,18 @@ export interface FullShowPlan {
   readonly segments: ShowSegment[];
   readonly transitions: ShowTransition[];
   readonly holds: ShowHold[];
+  /**
+   * THE EFFECTIVE TRAJECTORY: reference-owned intervals carry the imported
+   * samples, planner-owned intervals the composed planner output. Every
+   * validation, metric, simulation and export reads exactly this set.
+   */
   readonly trajectorySet: TrajectorySet;
+  /** The pure planner output on the same grid (diagnostics and splice checks). */
+  readonly plannerTrajectorySet: TrajectorySet;
+  /** Which authority produced which part of `trajectorySet`. */
+  readonly effectiveAuthority: EffectiveTrajectoryAuthority;
+  /** Boundary agreement between the two authorities (null when planner-only). */
+  readonly splice: SpliceContinuityReport | null;
   /** The continuous plan the set was sampled from — playback uses this. */
   readonly showPlan: ShowPlan;
   readonly metadata: FullShowPlanMetadata;
@@ -162,6 +178,11 @@ export interface ComposeFullShowOptions {
   readonly analyzedClipIds?: readonly string[];
   /** Clip ids whose analysis still reports unresolved conflicts. */
   readonly unresolvedClipIds?: readonly string[];
+  /**
+   * Imported ESSP authority. When present the composed set is SPLICED: the
+   * analysis judges what actually flies, not the planner-only approximation.
+   */
+  readonly reference?: ReferenceAuthorityInput | null;
 }
 
 /* ------------------------------------------------------------------ issues */
@@ -366,6 +387,10 @@ export interface FullShowValidationReport {
   readonly contextualConflicts: ContextualConflict[];
   readonly safety: SafetyReport;
   readonly continuity: ContinuityReport;
+  /** Which authority owns which part of the validated trajectory. */
+  readonly effectiveAuthority: EffectiveTrajectoryAuthority;
+  /** Splice boundary agreement; null when the show is planner-only. */
+  readonly splice: SpliceContinuityReport | null;
   readonly timeline: TimelineValidationReport;
   readonly homePads: HomePadReport;
   readonly lighting: LightingReport;

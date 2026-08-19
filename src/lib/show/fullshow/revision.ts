@@ -7,6 +7,7 @@
  * report revision to decide whether a report is stale — nothing is ever guessed
  * from timestamps.
  */
+import type { ReferenceTrajectoryLayer } from "../../import/essp/native/types";
 import type { ClipTransitionOverride } from "../trajectory/schedule";
 import type { ShowProject } from "../types";
 
@@ -27,6 +28,12 @@ export interface RevisionInputs {
   readonly sampleRate: number;
   readonly assignmentStrategy: string;
   readonly transitionOverrides?: Readonly<Record<string, ClipTransitionOverride>>;
+  /**
+   * Imported ESSP authority. Ownership decides WHICH samples are validated and
+   * exported, so any change of the layer identity or of a clip's ownership must
+   * make an existing report stale.
+   */
+  readonly referenceLayer?: ReferenceTrajectoryLayer | null;
 }
 
 /** Stable, order-independent digest of everything the analysis depends on. */
@@ -98,6 +105,35 @@ export function computeAnalysisRevision(project: ShowProject, inputs: RevisionIn
         )}`,
     );
 
+  // The imported layer is part of the flown output: identity of the archive,
+  // its clocks and per-clip ownership all change the effective trajectory.
+  const layer = inputs.referenceLayer ?? null;
+  const reference = layer
+    ? [
+        layer.showHash,
+        round(layer.positionRateHz),
+        round(layer.rgbRateHz),
+        round(layer.metersPerUnit),
+        fnv1a(JSON.stringify(layer.axisMapping)),
+        fnv1a(
+          [...layer.bindings]
+            .sort((a, b) => a.order - b.order || a.clipId.localeCompare(b.clipId))
+            .map((b) =>
+              [
+                b.clipId,
+                b.order,
+                b.owner,
+                b.signature,
+                round(b.referenceStart),
+                round(b.referenceHoldStart),
+                round(b.referenceEnd),
+              ].join("|"),
+            )
+            .join(";"),
+        ),
+      ].join("|")
+    : "none";
+
   const payload = [
     project.id,
     project.droneCount,
@@ -114,6 +150,7 @@ export function computeAnalysisRevision(project: ShowProject, inputs: RevisionIn
     `li=${lighting}`,
     `sr=${inputs.sampleRate}`,
     `as=${inputs.assignmentStrategy}`,
+    `ref=${reference}`,
     clips.join("~"),
     formations.join("~"),
     dynamics.join("~"),

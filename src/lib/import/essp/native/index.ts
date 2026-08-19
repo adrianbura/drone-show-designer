@@ -8,3 +8,4 @@ export * from "./signature";
 export * from "./intervals";
 export * from "./extract";
 export * from "./splice";
+export * from "./derivatives";

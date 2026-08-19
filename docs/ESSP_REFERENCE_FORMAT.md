@@ -103,3 +103,39 @@ The reference archive is **not** committed. Tests use deterministic synthetic
 ESSP fixtures. The optional golden suite runs only when
 `ESSP_REFERENCE_FIXTURE_PATH` points at a local directory containing the 150
 files; ordinary CI passes without it.
+
+## Effective trajectory authority (hybrid ESSP + planner)
+
+A project that carries an imported layer has exactly **one** trajectory the
+studio judges: the **effective trajectory set**, built by
+`src/lib/show/fullshow/effective.ts`.
+
+- Reference-owned intervals contain the **imported samples** — positions
+  verbatim, and velocity / acceleration / jerk finite-differenced on the SOURCE
+  clock (`h = 1 / positionRateHz`, see `native/derivatives.ts`). Yaw is not part
+  of the payload, so reference-owned samples report `yaw = 0, yawRate = 0`
+  instead of inventing a heading.
+- Planner-owned intervals contain the composed planner output, untouched.
+- There is no blending. Ownership per instant comes from
+  `resolveReferenceIntervals()`; promoting one clip moves only that clip's
+  transition, hold and the following transition to the planner.
+
+**Sample grid.** The effective rate is the smallest multiple of the imported
+position rate that is ≥ the requested rate (25 Hz requested + 8 Hz source →
+32 Hz), and the grid start is aligned to that rate. Every original position
+timestamp therefore lands on the grid — reference-owned samples are exact — while
+the grid stays uniform, which the continuity validator requires.
+
+**Splice boundaries.** Where ownership changes, both authorities must agree on
+position (≤ 0.05 m) and velocity (≤ 0.75 m/s). A boundary outside tolerance is
+reported as a `SPLICE_DISCONTINUITY` **error** and blocks export: otherwise the
+show would teleport or snap speed at the handover.
+
+**LEDs.** A reference-owned instant keeps its original RGB byte triplets in
+preview and in export; the authored lighting engine owns planner-owned instants.
+
+**Consumers.** Full-show validation (continuity, conflicts, safety, phase and
+transition metrics), the simulation package and both exports read this same set.
+The analysis revision includes the layer identity (`showHash`, clocks) and every
+clip's ownership and signature, so promoting a clip makes an existing report
+stale.

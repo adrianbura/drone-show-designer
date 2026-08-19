@@ -81,6 +81,7 @@ export default function Inspector() {
     project,
     plan,
     trajectorySet,
+    referenceColorsAt,
     sampleRate,
     setSampleRate,
     safety,
@@ -577,6 +578,7 @@ export default function Inspector() {
                 fullShowStale,
                 preShowReport,
                 preShowStale,
+                referenceColorsAt,
               }),
               "application/json",
             )
@@ -590,7 +592,7 @@ export default function Inspector() {
           onClick={() =>
             downloadText(
               `${project.name.replace(/\s+/g, "-").toLowerCase()}.trajectories.csv`,
-              toTrajectoryCsv(project, trajectorySet, plan),
+              toTrajectoryCsv(project, trajectorySet, plan, referenceColorsAt),
               "text/csv",
             )
           }

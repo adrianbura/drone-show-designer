@@ -135,6 +135,23 @@ export default function FullShowPanel() {
             </span>
           </div>
 
+          {report.effectiveAuthority.kind === "SPLICED" && (
+            <p className="rounded border border-border/60 bg-muted/30 p-2 text-[11px] text-muted-foreground">
+              Validated trajectory is <strong>hybrid</strong>:{" "}
+              {report.effectiveAuthority.referenceSeconds.toFixed(1)}s imported (verbatim, sampled at{" "}
+              {report.effectiveAuthority.sampleRate} Hz on the source clock) and{" "}
+              {report.effectiveAuthority.plannerSeconds.toFixed(1)}s planned
+              {report.effectiveAuthority.promotedClipIds.length > 0
+                ? ` · ${report.effectiveAuthority.promotedClipIds.length} promoted clip(s)`
+                : ""}
+              . Splice boundaries:{" "}
+              {report.splice
+                ? `${report.splice.boundaries.filter((b) => b.ok).length}/${report.splice.boundaries.length} within ${report.splice.positionToleranceMeters.toFixed(2)} m / ${report.splice.velocityToleranceMps.toFixed(2)} m/s`
+                : "none"}
+              .
+            </p>
+          )}
+
           {fullShowStale && (
             <p className="flex items-start gap-1.5 rounded border border-warning/50 bg-warning/10 p-2 text-[11px] text-warning">
               <Info className="mt-[1px] size-3.5 shrink-0" />
