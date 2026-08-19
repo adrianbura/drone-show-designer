@@ -90,6 +90,12 @@ import {
   type TimelineMarkerType,
 } from "../show/markers";
 import { timelineContentRange } from "./timelineLayout";
+import { insertClipBeforeLanding } from "./clipInsertion";
+import { insertLibraryAsset, type AssetInsertionTiming } from "./assetInsertion";
+import {
+  reconcileEditorSelection,
+  type EditorClipSelectionState,
+} from "./clipSelection";
 import {
   computeOverrideBasis,
   pruneTransitionOverrides,
@@ -400,6 +406,8 @@ interface StudioContextValue {
   setSpeed: (s: PlaybackSpeed) => void;
   setLoop: (loop: boolean) => void;
   selectClip: (id: string | null) => void;
+  /** Library "Use in show": one undoable authoring action for any asset kind. */
+  insertLibraryAssetIntoShow: (asset: FormationAsset, timing?: AssetInsertionTiming) => string | null;
   patchProject: (patch: Partial<ShowProject>) => void;
 
   // ---- Fleet participation (Sprint 7.3) -----------------------------------
@@ -936,6 +944,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [project, setProject] = useState<ShowProject>(() => createDefaultProject());
   // Clean startup: nothing is selected because nothing is authored yet.
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  /**
+   * SINGLE RECONCILIATION AUTHORITY. Assigned once below, referenced through a
+   * ref so early commands (undo/redo restore, clip delete) can reuse exactly the
+   * same editor-state reconciliation as selectClip.
+   */
+  /** Latest selected clip id, so callbacks stay dependency-free. */
+  const selectedClipIdRef = useRef<string | null>(null);
+  selectedClipIdRef.current = selectedClipId;
+  const reconcileSelectionRef = useRef<
+    (project: ShowProject, nextClipId: string | null, previousClipId: string | null) => void
+  >(() => {});
   /**
    * CANONICAL SCENE SELECTION. Multi-selection is the normal case; the primary
    * object is the one single-object controls edit. Editor state only: selecting
@@ -1475,13 +1494,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setProject((p) => {
         const next: ShowProject = { ...p, formations: [...p.formations, formation] };
         if (options.addToTimeline === false) return next;
-        const landing = p.timeline.filter((c) => c.phase === "LANDING");
-        const body = p.timeline.filter((c) => c.phase !== "LANDING");
-        const end = body.reduce((m, c) => Math.max(m, c.start + c.transition + c.hold), 0);
         const clip: TimelineClip = {
           id: clipId,
           formationId: formation.id,
-          start: end,
+          start: 0,
           transition: 10,
           hold: 8,
           easing: "minJerk",
@@ -1489,11 +1505,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           effect: "solid",
           phase: "SHOW",
         };
-        const shift = clip.transition + clip.hold;
-        return {
-          ...next,
-          timeline: [...body, clip, ...landing.map((c) => ({ ...c, start: c.start + shift }))],
-        };
+        return { ...next, timeline: insertClipBeforeLanding(p.timeline, clip) };
       });
       if (options.addToTimeline !== false) setSelectedClipId(clipId);
       setSvgDraft(null);
@@ -1505,13 +1517,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const addClip = useCallback((formationId: string, timing?: { transition?: number; hold?: number }) => {
     const id = nextId("c");
     setProject((p) => {
-      const landing = p.timeline.filter((c) => c.phase === "LANDING");
-      const body = p.timeline.filter((c) => c.phase !== "LANDING");
-      const end = body.reduce((m, c) => Math.max(m, c.start + c.transition + c.hold), 0);
       const clip: TimelineClip = {
         id,
         formationId,
-        start: end,
+        start: 0,
         transition: Math.max(0.5, timing?.transition ?? 8),
         hold: Math.max(0, timing?.hold ?? 6),
         easing: "minJerk",
@@ -1519,11 +1528,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         effect: "solid",
         phase: defaultPhaseForNewClip(p.timeline),
       };
-      const shift = clip.transition + clip.hold;
-      return {
-        ...p,
-        timeline: [...body, clip, ...landing.map((c) => ({ ...c, start: c.start + shift }))],
-      };
+      return { ...p, timeline: insertClipBeforeLanding(p.timeline, clip) };
     });
     setSelectedClipId(id);
   }, []);
@@ -1595,11 +1600,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     overrideBasisRef.current = computeOverrideBasis(snapshot.project, overrides);
     setTransitionOverrides(overrides);
     setProject(snapshot.project);
-    setSelectedClipId((current) =>
-      current && snapshot.project.timeline.some((c) => c.id === current)
-        ? current
-        : (snapshot.project.timeline[0]?.id ?? null),
-    );
+    const previous = selectedClipIdRef.current;
+    const restoredClip =
+      previous && snapshot.project.timeline.some((c) => c.id === previous)
+        ? previous
+        : (snapshot.project.timeline[0]?.id ?? null);
+    setSelectedClipId(restoredClip);
+    // Undo/redo restores project content only: transient drafts are dropped and
+    // every clip-scoped selection is reconciled against the restored project.
+    reconcileSelectionRef.current(snapshot.project, restoredClip, previous);
   }, []);
 
   const undoTimeline = useCallback(() => {
@@ -2214,50 +2223,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * project content.
    */
   const addSceneAssetToShow = useCallback(
-    (asset: FormationAsset, timing?: { transition?: number; hold?: number }) => {
+    (asset: FormationAsset, timing?: AssetInsertionTiming) => {
       if (asset.formationData.kind !== "SCENE") return null;
-      const clipId = nextId("c");
-      const instance = instantiateSceneAsset(asset, {
-        sceneId: clipId,
-        formationId: (i) => `${clipId}-f-${String(i + 1).padStart(2, "0")}`,
-        dynamicFormationId: (i) => `${clipId}-dyn-${String(i + 1).padStart(2, "0")}`,
-      });
-      const cycle = sceneAssetDuration(asset);
-      setProject((p) => {
-        const landing = p.timeline.filter((c) => c.phase === "LANDING");
-        const body = p.timeline.filter((c) => c.phase !== "LANDING");
-        const end = body.reduce((m, c) => Math.max(m, c.start + c.transition + c.hold), 0);
-        const anchorFormationId =
-          instance.formations[0]?.id ??
-          instance.dynamicFormations[0]?.sourceFormationId ??
-          p.formations[0]?.id ??
-          "";
-        const clip: TimelineClip = {
-          id: clipId,
-          formationId: anchorFormationId,
-          start: end,
-          transition: Math.max(0.5, timing?.transition ?? 8),
-          hold: Math.max(timing?.hold ?? 6, cycle),
-          easing: "minJerk",
-          color: [140, 210, 255],
-          effect: "solid",
-          phase: defaultPhaseForNewClip(p.timeline),
-        };
-        const shift = clip.transition + clip.hold;
-        const next: ShowProject = {
-          ...p,
-          formations: [...p.formations, ...instance.formations],
-          dynamicFormations: [...(p.dynamicFormations ?? []), ...instance.dynamicFormations],
-          timeline: [...body, clip, ...landing.map((c) => ({ ...c, start: c.start + shift }))],
-        };
-        return upsertScene(next, instance.scene);
-      });
-      setSelectedClipId(clipId);
-      setSelectedSceneObjectId(instance.scene.objects[0]?.id ?? null);
-      return clipId;
+      return insertLibraryAssetIntoShowRef.current(asset, timing);
     },
     [],
   );
+
+  /** Assigned below, once the selection reconciliation authority exists. */
+  const insertLibraryAssetIntoShowRef = useRef<
+    (asset: FormationAsset, timing?: AssetInsertionTiming) => string | null
+  >(() => null);
 
   /**
    * SAVE THE CURRENT SCENE AS A LIBRARY ASSET (payload only — the library owns
@@ -2408,9 +2384,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setProject((p) => {
         const dynamic = (p.dynamicFormations ?? []).find((d) => d.id === dynamicFormationId);
         if (!dynamic) return p;
-        const landing = p.timeline.filter((c) => c.phase === "LANDING");
-        const body = p.timeline.filter((c) => c.phase !== "LANDING");
-        const end = body.reduce((m, c) => Math.max(m, c.start + c.transition + c.hold), 0);
         const sourceId =
           dynamic.sourceFormationId && p.formations.some((f) => f.id === dynamic.sourceFormationId)
             ? dynamic.sourceFormationId
@@ -2418,7 +2391,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         const clip: TimelineClip = {
           id,
           formationId: sourceId,
-          start: end,
+          start: 0,
           transition: Math.max(0.5, timing?.transition ?? 10),
           // A dynamic clip holds for at least one full animation cycle.
           hold: Math.max(timing?.hold ?? 0, dynamic.duration, 4),
@@ -2430,11 +2403,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           playbackRate: 1,
           dynamicStartOffset: 0,
         };
-        const shift = clip.transition + clip.hold;
-        return {
-          ...p,
-          timeline: [...body, clip, ...landing.map((c) => ({ ...c, start: c.start + shift }))],
-        };
+        return { ...p, timeline: insertClipBeforeLanding(p.timeline, clip) };
       });
 
       setSelectedClipId(id);
@@ -3915,6 +3884,113 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [project.lighting, selectedLightingEffectId],
   );
 
+  /* ------------------------------ canonical clip-selection lifecycle ------ */
+  /** Latest clip-scoped editor selection, read by the reconciliation authority. */
+  const editorSelectionRef = useRef<EditorClipSelectionState>({
+    sceneSelection: EMPTY_SCENE_SELECTION,
+    selectedLightingEffectId: null,
+    explicitDynamicId: null,
+    selectedPointIds: [],
+    selectedMotionGroupId: null,
+    gizmoDraftActive: false,
+  });
+  editorSelectionRef.current = {
+    sceneSelection: sceneSelectionState,
+    selectedLightingEffectId,
+    explicitDynamicId,
+    selectedPointIds,
+    selectedMotionGroupId,
+    gizmoDraftActive: sceneGizmoDraft !== null,
+  };
+
+  /**
+   * ONE reconciliation path (clip switch, clip delete, undo/redo restore).
+   * Editor state only: no project mutation, no history, no ownership promotion,
+   * no timeline view or playhead change.
+   */
+  const lastReconciledClipRef = useRef<string | null>(null);
+  const applySelectionReconciliation = useCallback(
+    (nextProject: ShowProject, nextClipId: string | null, previousClipId: string | null) => {
+      const next = reconcileEditorSelection(
+        nextProject,
+        nextClipId,
+        editorSelectionRef.current,
+        previousClipId,
+      );
+      lastReconciledClipRef.current = nextClipId;
+      gizmoIdsRef.current = [];
+      setSceneGizmoDraft(null);
+      setSceneSelectionState(next.sceneSelection);
+      setSelectedLightingEffectId(next.selectedLightingEffectId);
+      setExplicitDynamicId(next.explicitDynamicId);
+      setSelectedPointIdsState([...next.selectedPointIds]);
+      setSelectedMotionGroupId(next.selectedMotionGroupId);
+    },
+    [],
+  );
+  reconcileSelectionRef.current = applySelectionReconciliation;
+
+  /**
+   * DEFENSIVE RECONCILIATION: paths that set the selected clip as a side effect
+   * of an authoring command (new clip, duplicate, jump-to-issue, project load)
+   * get the identical editor-state reconciliation, so there is never a second
+   * lifecycle implementation.
+   */
+  useEffect(() => {
+    if (lastReconciledClipRef.current === selectedClipId) return;
+    const previous = lastReconciledClipRef.current;
+    applySelectionReconciliation(projectRef.current, selectedClipId, previous);
+  }, [selectedClipId, applySelectionReconciliation]);
+
+  /** CANONICAL SELECT CLIP COMMAND. */
+  const selectClip = useCallback(
+    (id: string | null) => {
+      const previous = selectedClipIdRef.current;
+      if (previous === id) return;
+      setSelectedClipId(id);
+      applySelectionReconciliation(projectRef.current, id, previous);
+    },
+    [applySelectionReconciliation],
+  );
+
+  /**
+   * LIBRARY "USE IN SHOW" = ONE AUTHORING ACTION.
+   *
+   * One snapshot, one project update: copied dependencies, the new scene, the
+   * new clip and the LANDING shift are a single undo entry, and the selection is
+   * made canonical for the new clip afterwards (editor state only).
+   */
+  const insertLibraryAssetIntoShow = useCallback(
+    (asset: FormationAsset, timing?: AssetInsertionTiming) => {
+      const clipId = nextId("c");
+      let result;
+      try {
+        result = insertLibraryAsset(
+          projectRef.current,
+          asset,
+          {
+            clipId,
+            formationId: (i) => `${clipId}-f-${String(i + 1).padStart(2, "0")}`,
+            dynamicFormationId: (i) => `${clipId}-dyn-${String(i + 1).padStart(2, "0")}`,
+          },
+          timing ?? {},
+        );
+      } catch {
+        return null;
+      }
+      pushSnapshot(projectRef.current);
+      setProject(result.project);
+      setSelectedClipId(result.clipId);
+      applySelectionReconciliation(result.project, result.clipId, selectedClipIdRef.current);
+      // SCENE assets select exactly their first object so the gizmo attaches.
+      const first = result.sceneObjectIds[0] ?? null;
+      if (first) setSceneSelectionState({ ids: [first], primaryId: first });
+      return result.clipId;
+    },
+    [applySelectionReconciliation, pushSnapshot],
+  );
+  insertLibraryAssetIntoShowRef.current = insertLibraryAssetIntoShow;
+
   /** Single write path: one call = one undoable lighting program revision. */
   const editLighting = useCallback(
     (fn: (effects: LightingEffectInstance[]) => LightingEffectInstance[]) => {
@@ -3987,16 +4063,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         pushSnapshot(p);
 
         const next = removeTimelineClipReferences(p, id);
-        setSelectedClipId((current) => (current === id ? nextSelectedClipId(next.timeline, removed) : current));
-        setSelectedSceneObjectId(null);
-        setSelectedLightingEffectId((current) =>
-          current && next.lighting?.effects.some((e) => e.id === current) ? current : null,
-        );
-        // Only drop an explicit dynamic selection when it was reached through the
-        // deleted clip; standalone dynamic editing survives.
-        if (removed.dynamicFormationId) {
-          setExplicitDynamicId((current) => (current === removed.dynamicFormationId ? null : current));
-        }
+        const previous = selectedClipIdRef.current;
+        const nextClip =
+          previous === id ? nextSelectedClipId(next.timeline, removed) : previous;
+        setSelectedClipId(nextClip);
+        // SAME reconciliation as selectClip — no second editor-state path.
+        reconcileSelectionRef.current(next, nextClip, previous);
         setTransitionOverrides((current) => {
           if (!Object.prototype.hasOwnProperty.call(current, id)) return current;
           const rest = { ...current };
@@ -4185,7 +4257,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       stop: clock.stop,
       setSpeed: clock.setSpeed,
       setLoop: clock.setLoop,
-      selectClip: setSelectedClipId,
+      selectClip,
+      insertLibraryAssetIntoShow,
       patchProject,
       participationSettings,
       patchParticipation,
