@@ -113,11 +113,13 @@ export function objectSourceDroneIds(
   project: ShowProject,
   object: SceneFormationInstance,
 ): readonly string[] {
+  const src = object.source;
   const formationId =
-    object.source.kind === "STATIC"
-      ? object.source.formationId
-      : (project.dynamicFormations ?? []).find((d) => d.id === object.source.dynamicFormationId)
+    src.kind === "STATIC"
+      ? src.formationId
+      : (project.dynamicFormations ?? []).find((d) => d.id === src.dynamicFormationId)
           ?.sourceFormationId;
+
   if (!formationId) return [];
   const raw = project.formations.find((f) => f.id === formationId)?.params?.["sourceDroneIds"];
   if (typeof raw !== "string" || raw.trim().length === 0) return [];
