@@ -360,8 +360,14 @@ export function migrateProjectFile(raw: unknown): ProjectFile {
     savedAt: typeof candidate.savedAt === "string" ? candidate.savedAt : new Date().toISOString(),
     app: candidate.app ?? { name: PROJECT_ENGINE_NAME, schemaVersion: SCHEMA_VERSION },
     project,
-    // v1 files carry no planning section: they migrate to planning defaults.
-    planning: migratePlanningState((candidate as { planning?: unknown }).planning),
+    // v1 files carry no planning section: the legacy editor strategy is the
+    // only planning truth they have, so it is migrated instead of discarded.
+    planning: migratePlanningState((candidate as { planning?: unknown }).planning, {
+      project,
+      ...(version <= 1
+        ? { legacyStrategy: (candidate.editor as { assignmentStrategy?: unknown } | undefined)?.assignmentStrategy }
+        : {}),
+    }),
     ...(candidate.editor ? { editor: candidate.editor } : {}),
   };
 }
