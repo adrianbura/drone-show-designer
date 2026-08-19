@@ -17,7 +17,6 @@
  * Tiling is what makes the ownership rule in `intervals.ts` total: every instant
  * of the imported show belongs to exactly one interval of exactly one clip.
  */
-import { assetFromDynamicFormation, assetFromFormation } from "../../../library/serialize";
 import type { LightingEffectInstance, LightingProgram } from "../../../show/lighting/types";
 import { LIGHTING_SCHEMA_VERSION } from "../../../show/lighting/types";
 import type { DynamicFormation } from "../../../show/dynamic/types";
@@ -398,11 +397,7 @@ export function extractReferenceTimeline(
   }
 
   const lighting: LightingProgram = { schemaVersion: LIGHTING_SCHEMA_VERSION, effects };
-  const layer = buildReferenceLayer(show, bindings, { extractedAt: options.extractedAt });
-
-  // Touch the library serializers so drafts stay in sync with asset shape.
-  void assetFromFormation;
-  void assetFromDynamicFormation;
+  const layer = buildReferenceLayer(show, bindings, options.extractedAt ? { extractedAt: options.extractedAt } : {});
 
   return {
     formations,
