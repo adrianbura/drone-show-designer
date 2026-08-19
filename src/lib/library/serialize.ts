@@ -85,10 +85,6 @@ export function assetFromDynamicFormation(
   };
 }
 
-/** JSON round-trip clone — keeps assets plain, serialisable and detached. */
-export function structuredClonePlain<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
-}
 
 /** Project-owned copy of a static asset. The library asset stays untouched. */
 export function formationFromAsset(asset: FormationAsset, newId: string): Formation {
