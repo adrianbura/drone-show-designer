@@ -129,6 +129,9 @@ export interface ReferenceTrajectoryLayer {
   readonly axisMapping: Readonly<Record<string, string>>;
   readonly drones: readonly ReferenceLayerDrone[];
   readonly bindings: readonly ReferenceClipBinding[];
+  /** Extracted-state history per clip; used ONLY by "reset to extracted state". */
+  readonly extractedScenes?: readonly ReferenceExtractedSceneSnapshot[];
+
   /** Reverse-engineering disclaimer, carried with the data. */
   readonly experimental: string;
 }
