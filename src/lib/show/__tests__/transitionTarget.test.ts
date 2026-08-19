@@ -17,7 +17,7 @@ import { buildDroneDefinitions } from "../drones";
 import { applyPreset, dynamicFromFormation } from "../dynamic/create";
 import { makeFormation } from "../formations";
 import { addObject, emptyScene, patchObjectTransform, upsertScene } from "../scene";
-import { buildShowPlan } from "../trajectory/schedule";
+import { buildShowPlan, positionsAt } from "../trajectory/schedule";
 import { canonicalClipTarget, clipOptimizability } from "../trajectory/target";
 import { isOptimizableClip, transitionInputForClip } from "../transition/project";
 import { TransitionOptimizationError } from "../transition/types";
@@ -64,6 +64,25 @@ function schedulerTarget(project: ShowProject): Vector3Tuple[] {
   return canonicalClipTarget(project, clip, home).rawTarget as Vector3Tuple[];
 }
 
+/** Fleet positions the PLAN actually reaches at the end of the transition. */
+function flownHoldPositions(project: ShowProject): Vector3Tuple[] {
+  const plan = buildShowPlan(project);
+  const clip = project.timeline.find((c) => c.id === CLIP)!;
+  return positionsAt(plan, clip.start + clip.transition + 1e-4) as Vector3Tuple[];
+}
+
+const key = (p: Vector3Tuple) => p.map((v) => v.toFixed(3)).join(",");
+const sortedKeys = (ps: readonly Vector3Tuple[]) => ps.map(key).sort();
+
+/**
+ * The flown fleet state at hold start must be a PERMUTATION of the optimiser's
+ * target list — this is the non-tautological half of the equality (it reads the
+ * planner's sampled trajectories, not the resolver).
+ */
+function expectFlownMatchesTarget(project: ShowProject) {
+  expect(sortedKeys(flownHoldPositions(project))).toEqual(sortedKeys(optimizerTarget(project)));
+}
+
 function optimizerTarget(project: ShowProject): Vector3Tuple[] {
   const plan = buildShowPlan(project);
   return transitionInputForClip(project, plan, CLIP, { strategy: "optimalDistance" })
@@ -76,6 +95,7 @@ describe("canonical target agreement", () => {
     const project = projectWith(24, [f], showClip(f.id));
     expect(optimizerTarget(project)).toEqual(schedulerTarget(project));
     expect(optimizerTarget(project)).toHaveLength(24);
+    expectFlownMatchesTarget(project);
   });
 
   it("agrees for a dynamic clip and uses its hold-start state, not the base points", () => {
@@ -115,8 +135,10 @@ describe("canonical target agreement", () => {
       project,
       patchObjectTransform(scene, scene.objects[1]!.id, { position: [30, 5, -10] }),
     );
+    expectFlownMatchesTarget(project);
     const after = optimizerTarget(moved);
     expect(after).toEqual(schedulerTarget(moved));
+    expectFlownMatchesTarget(moved);
     expect(after).not.toEqual(before);
   });
 });
@@ -179,12 +201,9 @@ describe("override basis invalidation", () => {
     const f = grid("f-shrink", 24, 40);
     const project = projectWith(24, [f], showClip(f.id));
     expect(overrideBasis(project, CLIP)).not.toBeNull();
-    const bigger: ShowProject = {
-      ...project,
-      droneCount: 40,
-      drones: buildDroneDefinitions({ ...project, droneCount: 40 }).length,
-    } as ShowProject;
+    // Fleet grows past the formation's point count -> the participation planner
+    // owns this clip, so no override basis may exist any more.
+    expect(buildDroneDefinitions({ ...project, droneCount: 40 })).toHaveLength(40);
     expect(overrideBasis({ ...project, droneCount: 40 }, CLIP)).toBeNull();
-    expect(bigger.droneCount).toBe(40);
   });
 });
