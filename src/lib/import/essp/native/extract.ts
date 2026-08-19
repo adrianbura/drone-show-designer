@@ -105,7 +105,13 @@ const ANIMATED_CLASSES = new Set([
   "DYNAMIC_DEFORMATION",
 ]);
 
+/** Structural deep copy of plain extracted data (history must not alias). */
+function deepCopy<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 function round(value: number, digits = 3): number {
+
   const f = 10 ** digits;
   return Math.round(value * f) / f;
 }
