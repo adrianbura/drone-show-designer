@@ -227,6 +227,8 @@ import {
   toProjectFileError,
   writeAutosave,
   type ProjectAutosaveSnapshot,
+  type ProjectFile,
+  type ProjectPlanningState,
 } from "../project";
 import {
   buildProposalContent,
