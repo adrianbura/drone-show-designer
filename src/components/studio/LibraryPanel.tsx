@@ -46,10 +46,8 @@ export default function LibraryPanel() {
     selectedDynamicFormation,
     addLibraryFormation,
     addLibraryDynamicFormation,
-    addClip,
-    addDynamicClip,
     addSceneObject,
-    addSceneAssetToShow,
+    insertLibraryAssetIntoShow,
     sceneAssetPayloadForClip,
   } = useStudio();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -63,18 +61,9 @@ export default function LibraryPanel() {
 
   const use = (asset: FormationAsset) => {
     if (assetFleetCompatibility(asset, project.droneCount) === "TOO_LARGE") return;
-    if (asset.formationData.kind === "SCENE") {
-      // A whole composition becomes a whole clip — every dependency is copied.
-      addSceneAssetToShow(asset);
-    } else if (asset.formationData.kind === "DYNAMIC") {
-      const created = addLibraryDynamicFormation(
-        dynamicFormationFromAsset(asset, "pending"),
-      );
-      addDynamicClip(created.id);
-    } else {
-      const created = addLibraryFormation(formationFromAsset(asset, "pending"));
-      addClip(created.id);
-    }
+    // ONE authoring action for every asset kind: copied dependencies, new scene,
+    // new clip and the LANDING shift are a single undo entry.
+    insertLibraryAssetIntoShow(asset);
   };
 
   /**
