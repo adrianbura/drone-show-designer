@@ -641,7 +641,11 @@ export function extractReferenceTimeline(
   }
 
   const lighting: LightingProgram = { schemaVersion: LIGHTING_SCHEMA_VERSION, effects };
-  const layer = buildReferenceLayer(show, bindings, options.extractedAt ? { extractedAt: options.extractedAt } : {});
+  const layer: ReferenceTrajectoryLayer = {
+    ...buildReferenceLayer(show, bindings, options.extractedAt ? { extractedAt: options.extractedAt } : {}),
+    extractedScenes,
+  };
+
 
   return {
     formations,
