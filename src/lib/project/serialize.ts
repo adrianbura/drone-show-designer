@@ -7,9 +7,12 @@
  * replace the open project, and every accepted file is normalised through the
  * canonical project migration.
  */
+import { SELECTABLE_ASSIGNMENT_STRATEGIES, type AssignmentStrategyId } from "../show/assignment";
 import { migrateProject } from "../show/defaultProject";
+import type { ClipTransitionOverride } from "../show/trajectory/schedule";
 import { SCHEMA_VERSION, type ShowProject } from "../show/types";
 import {
+  DEFAULT_PLANNING_STRATEGY,
   PROJECT_ENGINE_NAME,
   PROJECT_FILE_EXTENSION,
   PROJECT_FILE_KIND,
@@ -17,6 +20,7 @@ import {
   ProjectFileError,
   type ProjectEditorPreferences,
   type ProjectFile,
+  type ProjectPlanningState,
 } from "./types";
 
 function plainClone<T>(value: T): T {
