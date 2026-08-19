@@ -8,7 +8,7 @@
 import type { DynamicFormation } from "../show/dynamic/types";
 import type { Formation, Vec3 } from "../show/types";
 import { validateSceneAssetPayload } from "./sceneAsset";
-import { structuredClonePlain, thumbnailFromPoints } from "./snapshot";
+import { newAssetId, structuredClonePlain, thumbnailFromPoints } from "./snapshot";
 import {
   ASSET_SCHEMA_VERSION,
   LibraryError,
@@ -17,15 +17,10 @@ import {
   type FormationAsset,
 } from "./types";
 
-export { structuredClonePlain, thumbnailFromPoints };
+export { newAssetId, structuredClonePlain, thumbnailFromPoints };
 
 function nowIso(): string {
   return new Date().toISOString();
-}
-
-export function newAssetId(prefix = "asset"): string {
-  const rand = Math.random().toString(36).slice(2, 8);
-  return `${prefix}-${Date.now().toString(36)}-${rand}`;
 }
 
 export function assetFromFormation(formation: Formation, input: AssetSaveInput): FormationAsset {
