@@ -50,17 +50,16 @@ export default function NativeConversionPanel() {
       <div className="grid grid-cols-2 gap-2 pt-1">
         <button
           onClick={extractReferenceShowToProject}
-          disabled={!referenceShow || !forensicsReport}
+          disabled={!referenceShow || forensicsBusy}
           className="chip-btn justify-center disabled:opacity-40"
           title={
             !referenceShow
               ? "Import an ESSP show first"
-              : !forensicsReport
-                ? "Run the reference analysis first"
-                : "Replace the project content with the extracted timeline"
+              : "Replace the project content with the extracted timeline"
           }
         >
-          <Wand2 className="size-3" /> Extract to timeline
+          <Wand2 className="size-3" />{" "}
+          {forensicsBusy ? "Analysing…" : forensicsReport ? "Extract to timeline" : "Analyse & extract"}
         </button>
         <button
           onClick={() => {
