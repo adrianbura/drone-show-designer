@@ -262,61 +262,29 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
 
   for (const [clipIndex, clip] of clips.entries()) {
     const phase = clipPhase(clip);
-    const formation = project.formations.find((f) => f.id === clip.formationId);
-    if (!formation && phase !== "LANDING") {
+    /**
+     * CANONICAL TARGET RESOLUTION. Composite scene -> dynamic formation ->
+     * base formation, resolved by the shared resolver the Transition Optimizer
+     * also uses, so optimiser input and flown target can never diverge.
+     */
+    const geometry = resolveClipGeometry(project, clip, { home });
+    const formation = geometry.formation;
+    for (const problem of geometry.problems) {
       errors.push(
-        new TrajectoryPlanningError(
-          "INVALID_FORMATION",
-          `Clip ${clip.id} references a missing formation`,
-          { clipId: clip.id, phase },
-        ),
+        new TrajectoryPlanningError("INVALID_FORMATION", problem.message, {
+          clipId: clip.id,
+          phase,
+          ...(problem.code === "SCENE_OVER_CAPACITY"
+            ? { required: problem.required, fleetSize: problem.fleetSize }
+            : {}),
+        }),
       );
     }
     // A dynamic clip animates during its HOLD. The transition still morphs to
     // the animation state the hold starts at, so continuity is exact.
-    const dynamicFormation = phase === "LANDING" ? undefined : resolveDynamicFormation(project, clip);
-    const dynamicEvaluator = dynamicFormation
-      ? createDynamicEvaluator(dynamicFormation, {
-          playbackRate: clip.playbackRate ?? 1,
-          startOffset: clip.dynamicStartOffset ?? 0,
-        })
-      : null;
-    /**
-     * SIMULTANEOUS MULTI-FORMATION SCENES. A composed scene resolves to ONE
-     * combined target list (object order, then formation point order) plus the
-     * group descriptors the participation planner allocates disjoint physical
-     * subsets from. Legacy clips keep the single-formation path untouched.
-     */
-    let sceneEvaluator: SceneEvaluator | null = null;
-    if (phase === "SHOW" && isCompositeScene(project, clip)) {
-      try {
-        sceneEvaluator = createSceneEvaluator(project, sceneForClip(project, clip));
-      } catch (err) {
-        errors.push(
-          new TrajectoryPlanningError(
-            "INVALID_FORMATION",
-            err instanceof Error ? err.message : String(err),
-            { clipId: clip.id, phase },
-          ),
-        );
-      }
-      if (sceneEvaluator && sceneEvaluator.pointCount > project.droneCount) {
-        // OVER CAPACITY is reported, never silently truncated.
-        errors.push(
-          new TrajectoryPlanningError(
-            "INVALID_FORMATION",
-            `Scene ${clip.id} needs ${sceneEvaluator.pointCount} drones but the fleet has ${project.droneCount}.`,
-            {
-              clipId: clip.id,
-              phase,
-              required: sceneEvaluator.pointCount,
-              fleetSize: project.droneCount,
-            },
-          ),
-        );
-        sceneEvaluator = null;
-      }
-    }
+    const dynamicFormation = geometry.dynamicEvaluator ? geometry.dynamicEvaluator.formation : undefined;
+    const dynamicEvaluator = geometry.dynamicEvaluator;
+    const sceneEvaluator: SceneEvaluator | null = geometry.sceneEvaluator;
     /** Evaluator driving the HOLD: a scene composition, or a single dynamic asset. */
     const holdEvaluator: Pick<SceneEvaluator, "pointAt" | "positionsAt"> | null =
       sceneEvaluator ?? dynamicEvaluator ?? null;
@@ -325,14 +293,8 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
       ? sceneEvaluator.pointCount
       : (dynamicFormation?.points.length ?? 0);
 
-    const scenePoints: readonly Vector3Tuple[] =
-      phase === "LANDING"
-        ? home
-        : sceneEvaluator
-          ? sceneEvaluator.positionsAt(0)
-          : dynamicEvaluator
-            ? dynamicEvaluator.positionsAt(0)
-            : (formation?.points ?? []);
+    const scenePoints: readonly Vector3Tuple[] = phase === "LANDING" ? home : geometry.points;
+
 
     /**
      * PARTIAL FLEET PARTICIPATION. When a formation supplies FEWER points than
