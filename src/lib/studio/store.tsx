@@ -1081,6 +1081,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setProject(created);
     setSelectedClipId(created.timeline[0]?.id ?? null);
     setExplicitDynamicId(null);
+    overrideBasisRef.current = {};
     setTransitionOverrides({});
     setTransitionAnalysis(null);
     setAssignmentComparison(null);
@@ -2039,7 +2040,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setTransitionAnalysis({ clipId, analysis: result.final });
       const override = overrideFromAnalysis(clipId, result.final);
       // Only the preview/validation layer changes; the project stays untouched.
-      if (override) setTransitionOverrides((prev) => ({ ...prev, [clipId]: override }));
+      if (override) {
+        // Record the planning basis this override was computed for, so a later
+        // timing/geometry edit invalidates exactly this clip.
+        overrideBasisRef.current = {
+          ...overrideBasisRef.current,
+          ...computeOverrideBasis(project, { [clipId]: override }),
+        };
+        setTransitionOverrides((prev) => ({ ...prev, [clipId]: override }));
+      }
     } catch (err) {
       setTransitionError(describeTransitionError(err));
     } finally {
@@ -2052,6 +2061,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setAssignmentComparison(null);
     setOptimization(null);
     setTransitionError(null);
+    overrideBasisRef.current = {};
     setTransitionOverrides({});
   }, []);
 
@@ -2610,7 +2620,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     // strategy are canonical planning inputs, so a reopened project must not
     // silently revert to unoptimized planning.
     setAssignmentStrategy(restore?.planning?.assignmentStrategy ?? "nearestNeighbor");
-    setTransitionOverrides(restore?.planning?.transitionOverrides ?? {});
+    {
+      const restored = restore?.planning?.transitionOverrides ?? {};
+      overrideBasisRef.current = computeOverrideBasis(next, restored);
+      setTransitionOverrides({ ...restored });
+    }
     if (typeof restore?.sampleRate === "number" && Number.isFinite(restore.sampleRate)) {
       setSampleRate(restore.sampleRate);
     }
