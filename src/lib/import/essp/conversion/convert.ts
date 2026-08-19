@@ -17,8 +17,10 @@ import {
 import { decomposeSegment, deformationTracks, segmentWindow } from "./decompose";
 import { evaluateDynamicFormationFidelity, type FidelitySource } from "./fidelity";
 import { simplifyQuaternionTrack, simplifyVectorTrack, unionIndices } from "./simplify";
+import { subsetIndicesForDroneIds, subsetPointCloudSequence } from "./subset";
 import {
   REFERENCE_DYNAMIC_CONVERTER_VERSION,
+  ReferenceConversionError,
   segmentEligibility,
   type ConversionOptions,
   type DynamicFormationConversionProposal,
