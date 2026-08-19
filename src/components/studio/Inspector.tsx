@@ -25,10 +25,9 @@ import { evaluateExportEligibility } from "@/lib/adapters/exportEligibility";
 import {
   downloadText,
   toGenericShowJson,
-  toStudioProject,
   toTrajectoryCsv,
 } from "@/lib/adapters/export";
-import { suggestedProjectFileName } from "@/lib/project";
+import { projectFileToJson, suggestedProjectFileName } from "@/lib/project";
 import {
   assignmentStrategyLabel,
   SELECTABLE_ASSIGNMENT_STRATEGIES,
