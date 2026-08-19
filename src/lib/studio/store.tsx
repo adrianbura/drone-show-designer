@@ -198,6 +198,26 @@ import {
   type DynamicFormationFidelityReport,
   type RotationFitMode,
 } from "../import/essp/conversion";
+import {
+  clipOutputSignature,
+  extractReferenceTimeline,
+  intervalAtTime,
+  promoteReferenceClips,
+  reconcileReferenceLayer,
+  referenceLightStates,
+  referenceOwnershipSummary,
+  referenceShowFromLayer,
+  reseedReferenceSignatures,
+  splicedTrajectorySamples,
+  verifySpliceBoundaries,
+  REFERENCE_LAYER_LIMITATIONS,
+  ReferenceLayerError,
+  type ReferenceAssetDraft,
+  type ReferenceExtractionDiagnostic,
+  type ReferenceOwnershipSummary,
+  type ReferenceTrajectoryLayer,
+  type SpliceVerificationReport,
+} from "../import/essp/native";
 import { useShowClock, type PlaybackSpeed } from "./clock";
 import { useAudioPlayback } from "./audioPlayback";
 import { resolveShortcut } from "./shortcuts";
@@ -532,6 +552,34 @@ interface StudioContextValue {
   showReferencePaths: boolean;
   setShowReferencePaths: (v: boolean) => void;
 
+  // ---- Imported trajectory layer + editable extraction (A + B) -----------
+  /**
+   * Losslessly preserved imported ESSP payload with per-clip playback
+   * ownership. While a clip is REFERENCE-owned its interval plays the imported
+   * samples; a flight-output edit promotes only that interval (and the next
+   * transition) to the planner.
+   */
+  referenceLayer: ReferenceTrajectoryLayer | null;
+  /** Ownership of every spliced interval, derived from the layer. */
+  referenceOwnership: ReferenceOwnershipSummary | null;
+  /** True when the playhead currently sits on a reference-owned interval. */
+  referenceOwnedNow: boolean;
+  /** Per-clip extraction diagnostics (fidelity, classification, warnings). */
+  referenceExtraction: readonly ReferenceExtractionDiagnostic[];
+  /** Library asset drafts produced by the extraction, not yet saved. */
+  referenceAssetDrafts: readonly ReferenceAssetDraft[];
+  referenceExtractionWarnings: readonly string[];
+  referenceExtractionError: { code: string; message: string } | null;
+  /** Extracts TAKEOFF + scenes + LANDING into the project (replaces content). */
+  extractReferenceShowToProject: () => void;
+  /** Explicit operator promotion of one clip to planner ownership. */
+  promoteReferenceClip: (clipId: string) => void;
+  /** Drops the imported layer; playback becomes fully planner-generated. */
+  clearReferenceLayer: () => void;
+  /** Boundary agreement between reference and planner at ownership switches. */
+  verifyReferenceSplices: () => SpliceVerificationReport | null;
+  referenceLayerLimitations: readonly string[];
+
   // ---- Reference forensics (Sprint 6A.5, analysis only) ------------------
   /** Derived motion analysis of the imported reference show. Never mutates it. */
   forensicsReport: ReferenceForensicsReport | null;
@@ -816,6 +864,19 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
   const [selectedReferenceDroneId, setSelectedReferenceDroneId] = useState<string | null>(null);
   const [showReferencePaths, setShowReferencePaths] = useState(false);
+  const [referenceLayer, setReferenceLayer] = useState<ReferenceTrajectoryLayer | null>(null);
+  /** Rehydrated payload of the layer — the playback authority for its intervals. */
+  const [referenceLayerShow, setReferenceLayerShow] = useState<ReferenceShow | null>(null);
+  const [referenceExtraction, setReferenceExtraction] = useState<
+    readonly ReferenceExtractionDiagnostic[]
+  >([]);
+  const [referenceAssetDrafts, setReferenceAssetDrafts] = useState<readonly ReferenceAssetDraft[]>([]);
+  const [referenceExtractionWarnings, setReferenceExtractionWarnings] = useState<readonly string[]>(
+    [],
+  );
+  const [referenceExtractionError, setReferenceExtractionError] = useState<
+    { code: string; message: string } | null
+  >(null);
   const [forensicsReport, setForensicsReport] = useState<ReferenceForensicsReport | null>(null);
   const [forensicsBusy, setForensicsBusy] = useState(false);
   const [forensicsError, setForensicsError] = useState<string | null>(null);
