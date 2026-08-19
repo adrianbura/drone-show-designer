@@ -24,6 +24,7 @@
 import type { ShowProject, Vector3Tuple } from "../show/types";
 import { clipPhase } from "../show/types";
 import type { ClipTransitionOverride } from "../show/trajectory/schedule";
+import type { TransitionDesignState } from "../show/transition/design";
 import { buildDroneDefinitions } from "../show/drones";
 import { canonicalClipTarget, clipOptimizability } from "../show/trajectory/target";
 
@@ -137,4 +138,9 @@ export function pruneTransitionOverrides(
 export interface TimelineHistorySnapshot {
   readonly project: ShowProject;
   readonly transitionOverrides: Readonly<Record<string, ClipTransitionOverride>>;
+  /**
+   * Authored transition design intent (mode + stagger settings) that produced
+   * the overrides above. Optional so pre-existing snapshots stay valid.
+   */
+  readonly transitionDesigns?: Readonly<Record<string, TransitionDesignState>>;
 }
