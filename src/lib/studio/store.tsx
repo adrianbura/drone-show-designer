@@ -73,6 +73,7 @@ import type {
   TimelineClip,
 } from "../show/types";
 import { showDuration } from "../show/types";
+import { nextSelectedClipId, removeTimelineClipReferences } from "../show/timeline";
 import {
   createMarker,
   createSection,
@@ -1386,10 +1387,48 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [pushTimelineHistory],
   );
 
-  const removeClip = useCallback((id: string) => {
-    setProject((p) => ({ ...p, timeline: p.timeline.filter((c) => c.id !== id) }));
-    setSelectedClipId(null);
-  }, []);
+  /**
+   * ATOMIC CLIP DELETION (referential integrity).
+   *
+   * ONE undo entry, ONE project update: the clip, its composed scene, its
+   * participation override and every lighting effect targeting it disappear
+   * together. Reusable assets (formations, dynamic formations, SVG sources)
+   * are never touched.
+   */
+  const removeClip = useCallback(
+    (id: string) => {
+      setProject((p) => {
+        const removed = p.timeline.find((c) => c.id === id);
+        if (!removed) return p;
+        timelineHistory.current.past.push(p);
+        timelineHistory.current.future = [];
+        setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
+
+        const next = removeTimelineClipReferences(p, id);
+        setSelectedClipId((current) =>
+          current === id ? nextSelectedClipId(next.timeline, removed) : current,
+        );
+        setSelectedSceneObjectId(null);
+        setSelectedLightingEffectId((current) => {
+          if (!current) return current;
+          return next.lighting?.effects.some((e) => e.id === current) ? current : null;
+        });
+        // Only drop an explicit dynamic selection when it was reached through
+        // the deleted clip; standalone dynamic editing survives.
+        if (removed.dynamicFormationId) {
+          setExplicitDynamicId((current) => (current === removed.dynamicFormationId ? null : current));
+        }
+        setTransitionOverrides((current) => {
+          if (!Object.prototype.hasOwnProperty.call(current, id)) return current;
+          const rest = { ...current };
+          delete rest[id];
+          return rest;
+        });
+        return next;
+      });
+    },
+    [],
+  );
 
   // ---- Dynamic formations (Sprint 6B) ------------------------------------
   // All editing is delegation to the pure engine: every action maps a
