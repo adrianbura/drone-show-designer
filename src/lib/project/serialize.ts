@@ -10,7 +10,7 @@
 import { SELECTABLE_ASSIGNMENT_STRATEGIES, type AssignmentStrategyId } from "../show/assignment";
 import { migrateProject } from "../show/defaultProject";
 import type { ClipTransitionOverride } from "../show/trajectory/schedule";
-import { SCHEMA_VERSION, type ShowProject } from "../show/types";
+import { clipPhase, SCHEMA_VERSION, type ShowProject } from "../show/types";
 import {
   DEFAULT_PLANNING_STRATEGY,
   PROJECT_ENGINE_NAME,
@@ -67,21 +67,95 @@ function isFiniteNumberArray(value: unknown): value is number[] {
 }
 
 /**
- * PLANNING MIGRATION. Unknown/legacy strategy ids degrade to the default
- * (never blindly cast), while a structurally broken override is a hard project
- * file error: silently dropping it would change the flown trajectory.
+ * OVERRIDE SEMANTIC INTEGRITY. A persisted override is a full drone -> target
+ * mapping for one SHOW clip. If it no longer resolves against the migrated
+ * project the file is rejected: dropping or truncating it would change the
+ * flown trajectory of a project the operator believes is optimised.
  */
-export function migratePlanningState(raw: unknown): ProjectPlanningState {
-  if (raw === undefined || raw === null) return defaultPlanningState();
+function assertOverrideResolves(
+  project: ShowProject,
+  clipId: string,
+  override: ClipTransitionOverride,
+): void {
+  const fail = (message: string, details: Record<string, unknown> = {}): never => {
+    throw new ProjectFileError("MALFORMED_PLANNING", message, { clipId, ...details });
+  };
+  const clip = project.timeline.find((c) => c.id === clipId);
+  if (!clip) fail(`Transition override references unknown clip ${clipId}.`);
+  if (clipPhase(clip!) !== "SHOW") {
+    fail(`Transition override targets non-SHOW clip ${clipId}.`, { phase: clipPhase(clip!) });
+  }
+  const n = project.droneCount;
+  for (const key of ["targetPointIndex", "startOffsets", "laneOffsets"] as const) {
+    if (override[key].length !== n) {
+      fail(`Transition override ${key} for clip ${clipId} does not cover the fleet.`, {
+        expected: n,
+        actual: override[key].length,
+      });
+    }
+  }
+  // The scheduler resolves an override index into the clip's target formation
+  // points (padded to the fleet when the formation is missing).
+  const points = project.formations.find((f) => f.id === clip!.formationId)?.points ?? [];
+  const limit = points.length || n;
+  for (const index of override.targetPointIndex) {
+    if (!Number.isInteger(index)) {
+      fail(`Transition override for clip ${clipId} has a non-integer target index.`, { index });
+    }
+    if (index < 0 || index >= limit) {
+      fail(`Transition override for clip ${clipId} has an out-of-range target index.`, {
+        index,
+        limit,
+      });
+    }
+  }
+}
+
+/** A strategy id is only adopted when this build can actually select it. */
+function selectableStrategy(value: unknown): AssignmentStrategyId | null {
+  return typeof value === "string" &&
+    (SELECTABLE_ASSIGNMENT_STRATEGIES as readonly string[]).includes(value)
+    ? (value as AssignmentStrategyId)
+    : null;
+}
+
+export interface PlanningMigrationContext {
+  /**
+   * LEGACY STRATEGY (schema <= 1). Older files stored the selected assignment
+   * strategy in `editor.assignmentStrategy`. Ignoring it would silently change
+   * the flown trajectory of an old project, so it is migrated into planning —
+   * but only when the file predates v2 and carries no planning section. It is
+   * never authoritative for v2 files.
+   */
+  readonly legacyStrategy?: unknown;
+  /**
+   * The already-migrated project. Persisted overrides are validated against it:
+   * an override that no longer resolves is a hard error, never a silent drop.
+   */
+  readonly project?: ShowProject;
+}
+
+/**
+ * PLANNING MIGRATION. Unknown/legacy strategy ids degrade to the default
+ * (never blindly cast), while a structurally or semantically broken override is
+ * a hard project file error: silently dropping or truncating it would change
+ * the flown trajectory.
+ */
+export function migratePlanningState(
+  raw: unknown,
+  context: PlanningMigrationContext = {},
+): ProjectPlanningState {
+  if (raw === undefined || raw === null) {
+    return {
+      assignmentStrategy: selectableStrategy(context.legacyStrategy) ?? DEFAULT_PLANNING_STRATEGY,
+      transitionOverrides: {},
+    };
+  }
   if (typeof raw !== "object") {
     throw new ProjectFileError("MALFORMED_PLANNING", "The planning section is malformed.");
   }
   const candidate = raw as { assignmentStrategy?: unknown; transitionOverrides?: unknown };
-  const strategy =
-    typeof candidate.assignmentStrategy === "string" &&
-    (SELECTABLE_ASSIGNMENT_STRATEGIES as readonly string[]).includes(candidate.assignmentStrategy)
-      ? (candidate.assignmentStrategy as AssignmentStrategyId)
-      : DEFAULT_PLANNING_STRATEGY;
+  const strategy = selectableStrategy(candidate.assignmentStrategy) ?? DEFAULT_PLANNING_STRATEGY;
 
   const overrides: Record<string, ClipTransitionOverride> = {};
   const rawOverrides = candidate.transitionOverrides;
@@ -105,12 +179,14 @@ export function migratePlanningState(raw: unknown): ProjectPlanningState {
           { clipId },
         );
       }
-      overrides[clipId] = {
+      const override: ClipTransitionOverride = {
         targetPointIndex: [...o.targetPointIndex],
         startOffsets: [...o.startOffsets],
         laneOffsets: [...o.laneOffsets],
         strategy: o.strategy,
       };
+      if (context.project) assertOverrideResolves(context.project, clipId, override);
+      overrides[clipId] = override;
     }
   }
   return { assignmentStrategy: strategy, transitionOverrides: overrides };
@@ -284,8 +360,14 @@ export function migrateProjectFile(raw: unknown): ProjectFile {
     savedAt: typeof candidate.savedAt === "string" ? candidate.savedAt : new Date().toISOString(),
     app: candidate.app ?? { name: PROJECT_ENGINE_NAME, schemaVersion: SCHEMA_VERSION },
     project,
-    // v1 files carry no planning section: they migrate to planning defaults.
-    planning: migratePlanningState((candidate as { planning?: unknown }).planning),
+    // v1 files carry no planning section: the legacy editor strategy is the
+    // only planning truth they have, so it is migrated instead of discarded.
+    planning: migratePlanningState((candidate as { planning?: unknown }).planning, {
+      project,
+      ...(version <= 1
+        ? { legacyStrategy: (candidate.editor as { assignmentStrategy?: unknown } | undefined)?.assignmentStrategy }
+        : {}),
+    }),
     ...(candidate.editor ? { editor: candidate.editor } : {}),
   };
 }

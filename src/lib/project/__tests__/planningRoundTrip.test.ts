@@ -161,23 +161,43 @@ describe("project planning round-trip", () => {
     expect(snapshot?.file.editor?.sampleRate).toBe(25);
   });
 
-  it("migrates a legacy v1 file without planning to defaults", () => {
-    const project = createDefaultProject(12);
-    const legacy = {
+  function legacyV1(project: ReturnType<typeof createDemoProject>, editor: Record<string, unknown>) {
+    return JSON.stringify({
       kind: PROJECT_FILE_KIND,
       schemaVersion: 1,
       savedAt: "2025-01-01T00:00:00.000Z",
       app: { name: "Drone Show Studio", schemaVersion: "1.0" },
       project,
-      editor: { sampleRate: 10, assignmentStrategy: "optimalDistance" },
-    };
-    const file = parseProjectFile(JSON.stringify(legacy));
+      editor,
+    });
+  }
+
+  it("migrates a legacy v1 assignment strategy into planning", () => {
+    const file = parseProjectFile(
+      legacyV1(createDemoProject(12), { sampleRate: 10, assignmentStrategy: "optimalDistance" }),
+    );
     expect(file.schemaVersion).toBe(2);
-    expect(file.planning).toEqual({ assignmentStrategy: "nearestNeighbor", transitionOverrides: {} });
+    expect(file.planning).toEqual({ assignmentStrategy: "optimalDistance", transitionOverrides: {} });
   });
 
-  it("degrades an unknown strategy and rejects a malformed override", () => {
-    const project = createDefaultProject(12);
+  it("falls back to the default for an unknown legacy strategy", () => {
+    const unknown = parseProjectFile(legacyV1(createDemoProject(12), { assignmentStrategy: "warpDrive" }));
+    expect(unknown.planning?.assignmentStrategy).toBe("nearestNeighbor");
+    const none = parseProjectFile(legacyV1(createDemoProject(12), { sampleRate: 10 }));
+    expect(none.planning?.assignmentStrategy).toBe("nearestNeighbor");
+  });
+
+  it("does not let editor.assignmentStrategy override v2 planning", () => {
+    const project = createDemoProject(12);
+    const base = serializeProject(project, {
+      planning: { assignmentStrategy: "nearestNeighbor", transitionOverrides: {} },
+      editor: { assignmentStrategy: "optimalDistance" },
+    });
+    expect(parseProjectFile(projectFileToJson(base)).planning?.assignmentStrategy).toBe("nearestNeighbor");
+  });
+
+  it("degrades an unknown v2 strategy and rejects a structurally malformed override", () => {
+    const project = createDemoProject(12);
     const base = serializeProject(project);
     const unknown = parseProjectFile(
       JSON.stringify({ ...base, planning: { assignmentStrategy: "warpDrive", transitionOverrides: {} } }),
@@ -192,6 +212,71 @@ describe("project planning round-trip", () => {
         }),
       ),
     ).toThrowError(ProjectFileError);
+  });
+
+  describe("override semantic integrity", () => {
+    const project = createDemoProject(24);
+    const planning = planningFor(project);
+    const clipId = Object.keys(planning.transitionOverrides)[0]!;
+    const good = planning.transitionOverrides[clipId]!;
+
+    function open(overrides: Record<string, unknown>) {
+      return parseProjectFile(
+        JSON.stringify({
+          ...serializeProject(project),
+          planning: { assignmentStrategy: "optimalDistance", transitionOverrides: overrides },
+        }),
+      );
+    }
+
+    function expectRejected(overrides: Record<string, unknown>) {
+      let error: unknown;
+      try {
+        open(overrides);
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeInstanceOf(ProjectFileError);
+      expect((error as ProjectFileError).code).toBe("MALFORMED_PLANNING");
+    }
+
+    it("accepts a valid override", () => {
+      expect(open({ [clipId]: good }).planning?.transitionOverrides[clipId]).toEqual(good);
+    });
+
+    it("rejects a wrong targetPointIndex length", () => {
+      expectRejected({ [clipId]: { ...good, targetPointIndex: good.targetPointIndex.slice(0, 5) } });
+    });
+
+    it("rejects wrong startOffsets / laneOffsets lengths", () => {
+      expectRejected({ [clipId]: { ...good, startOffsets: good.startOffsets.slice(0, 3) } });
+      expectRejected({ [clipId]: { ...good, laneOffsets: [...good.laneOffsets, 0] } });
+    });
+
+    it("rejects a fractional target index", () => {
+      const targetPointIndex = [...good.targetPointIndex];
+      targetPointIndex[0] = 1.5;
+      expectRejected({ [clipId]: { ...good, targetPointIndex } });
+    });
+
+    it("rejects an unknown clip id", () => {
+      expectRejected({ "clip-that-does-not-exist": good });
+    });
+
+    it("rejects an override on a non-SHOW clip", () => {
+      const nonShow = project.timeline.find((c) => (c.phase ?? "SHOW") !== "SHOW");
+      if (!nonShow) return;
+      expectRejected({ [nonShow.id]: good });
+    });
+
+    it("rejects an out-of-range target index", () => {
+      const targetPointIndex = [...good.targetPointIndex];
+      targetPointIndex[1] = 10_000;
+      expectRejected({ [clipId]: { ...good, targetPointIndex } });
+      const negative = [...good.targetPointIndex];
+      negative[2] = -1;
+      expectRejected({ [clipId]: { ...good, targetPointIndex: negative } });
+    });
   });
 
   it("Inspector studio-project export carries the same planning state as Save", () => {
