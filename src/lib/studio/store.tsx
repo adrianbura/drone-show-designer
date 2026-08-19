@@ -1279,6 +1279,29 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  /** The canonical snapshot of everything a timeline command may change. */
+  const currentSnapshot = useCallback(
+    (): TimelineHistorySnapshot => ({
+      project: projectRef.current,
+      transitionOverrides: { ...transitionOverridesRef.current },
+    }),
+    [],
+  );
+
+  /**
+   * SINGLE HISTORY PRODUCER. Every timeline command (clip timing commit, clip
+   * delete, marker/section and lighting edits) pushes through here, so an undo
+   * entry always carries project + planning state together.
+   */
+  const pushSnapshot = useCallback((project: ShowProject) => {
+    timelineHistory.current.past.push({
+      project,
+      transitionOverrides: { ...transitionOverridesRef.current },
+    });
+    timelineHistory.current.future = [];
+    setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
+  }, []);
+
   /**
    * GESTURE COMMIT (Sprint 7.2).
    *
