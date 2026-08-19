@@ -90,7 +90,7 @@ describe("wedding story separation", () => {
           }
         }
         expect(min, `${f.id} min separation`).toBeGreaterThanOrEqual(
-          project.safety.minSeparation,
+          project.limits.minSeparation,
         );
       }
     });
