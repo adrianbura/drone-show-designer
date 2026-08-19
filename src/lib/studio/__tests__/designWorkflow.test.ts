@@ -21,13 +21,39 @@ import {
 } from "../../show/scene";
 import { IDENTITY_INSTANCE_TRANSFORM } from "../../show/scene/types";
 import type { FormationScene } from "../../show/scene";
-import type { ShowProject } from "../../show/types";
+import { makeFormation } from "../../show/formations";
+import type { ShowProject, TimelineClip } from "../../show/types";
 import { canConvertClipToScene, convertClipToScene, duplicateShowClip } from "../clipDesign";
 
 const IDS = { clipId: "clip-copy", lightingEffectId: (i: number) => `fx-copy-${i}` };
 
+const N = 12;
+
+function clip(over: Partial<TimelineClip> & Pick<TimelineClip, "id" | "formationId">): TimelineClip {
+  return {
+    start: 0,
+    transition: 8,
+    hold: 6,
+    easing: "minJerk",
+    color: [120, 200, 255],
+    effect: "solid",
+    phase: "SHOW",
+    ...over,
+  };
+}
+
+/** Static SHOW clip + LANDING, no authored scene: the design entry point. */
 function base(): ShowProject {
-  return createDefaultProject(48);
+  const project = createDefaultProject(N);
+  const fa = makeFormation("f-a", "A", "grid", N, project.area);
+  return {
+    ...project,
+    formations: [fa],
+    timeline: [
+      clip({ id: "clip-a", formationId: fa.id, start: 0 }),
+      clip({ id: "clip-landing", formationId: fa.id, start: 20, phase: "LANDING" }),
+    ],
+  };
 }
 
 function showClipId(project: ShowProject): string {
