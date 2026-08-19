@@ -129,7 +129,13 @@ export function isValidAsset(value: unknown): value is FormationAsset {
   if (typeof a.id !== "string" || a.id.length === 0) return false;
   if (typeof a.name !== "string") return false;
   if (typeof a.version !== "number" || typeof a.schemaVersion !== "number") return false;
-  if (a.assetType !== "STATIC_FORMATION" && a.assetType !== "DYNAMIC_FORMATION") return false;
+  if (
+    a.assetType !== "STATIC_FORMATION" &&
+    a.assetType !== "DYNAMIC_FORMATION" &&
+    a.assetType !== "FORMATION_SCENE"
+  ) {
+    return false;
+  }
   if (!Array.isArray(a.tags)) return false;
   if (typeof a.droneCount !== "number") return false;
   const data = a.formationData;
@@ -138,12 +144,24 @@ export function isValidAsset(value: unknown): value is FormationAsset {
   if (data.kind === "DYNAMIC") {
     return Array.isArray(data.formation?.points) && Array.isArray(data.formation?.groups);
   }
+  if (data.kind === "SCENE") {
+    return (
+      !!data.scene &&
+      Array.isArray(data.scene.objects) &&
+      !!data.dependencies &&
+      Array.isArray(data.dependencies.formations) &&
+      Array.isArray(data.dependencies.dynamicFormations)
+    );
+  }
   return false;
 }
 
 /**
  * Migrates an asset to the current schema version. Unknown FUTURE versions are
  * rejected rather than guessed at, so a malformed asset fails gracefully.
+ *
+ * Legacy STATIC / DYNAMIC assets are returned unchanged; SCENE assets get the
+ * full referential integrity check (no dangling formation or dynamic ids).
  */
 export function migrateAsset(value: unknown): FormationAsset {
   if (!isValidAsset(value)) {
@@ -156,5 +174,6 @@ export function migrateAsset(value: unknown): FormationAsset {
       { id: value.id, schemaVersion: value.schemaVersion },
     );
   }
+  if (value.formationData.kind === "SCENE") validateSceneAssetPayload(value);
   return value;
 }
