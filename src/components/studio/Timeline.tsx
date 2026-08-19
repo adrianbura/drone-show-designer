@@ -28,6 +28,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/i18n";
 import { rgbToHex } from "@/lib/show/lights";
 import { markerTimes } from "@/lib/show/markers";
+import { describeTransitionDesign } from "@/lib/show/transition";
+import { clipPhase } from "@/lib/show/types";
 import { PLAYBACK_SPEEDS, type PlaybackSpeed } from "@/lib/studio/clock";
 import {
   MAX_ZOOM,
@@ -145,6 +147,8 @@ export default function Timeline() {
     patchMusicSection,
     removeMusicSection,
     clipThumbnails,
+    transitionDesignFor,
+    transitionDesignNeedsRecalculation,
   } = useStudio();
   const { t, language } = useI18n();
   const comma = language === "ro";
@@ -690,6 +694,20 @@ export default function Timeline() {
                   <span className="block truncate font-mono text-[9px] text-muted-foreground">
                     T {formatSeconds(transition, comma)} · H {formatSeconds(hold, comma)}
                   </span>
+                  {/* TRANSITION DESIGN — compact read-only summary. */}
+                  {clipPhase(clip) === "SHOW" && (
+                    <span
+                      data-testid={`clip-transition-summary-${clip.id}`}
+                      className={`block truncate font-mono text-[9px] ${
+                        transitionDesignNeedsRecalculation(clip.id)
+                          ? "text-warning"
+                          : "text-muted-foreground/80"
+                      }`}
+                    >
+                      {describeTransitionDesign(transitionDesignFor(clip.id))}
+                      {transitionDesignNeedsRecalculation(clip.id) ? " · recalc" : ""}
+                    </span>
+                  )}
                 </button>
 
                 {/* THUMBNAIL — front-elevation identification glyph, inert. */}
