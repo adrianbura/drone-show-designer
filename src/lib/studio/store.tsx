@@ -2554,9 +2554,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const adoptProjectFile = useCallback(
     (file: ProjectFile, fileName: string) => {
       adoptProject(file.project, fileName, {
-        planning: file.planning,
+        ...(file.planning ? { planning: file.planning } : {}),
         selectedClipId: file.editor?.selectedClipId ?? null,
-        sampleRate: file.editor?.sampleRate,
+        ...(typeof file.editor?.sampleRate === "number"
+          ? { sampleRate: file.editor.sampleRate }
+          : {}),
       });
     },
     [adoptProject],
