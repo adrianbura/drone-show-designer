@@ -360,13 +360,21 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
 
     // An optimiser override replaces both the assignment and the deconfliction
     // decorators for this clip; otherwise the configured strategy runs.
+    //
+    // TARGET INDEX CONTRACT: `targetPointIndex` indexes the CANONICAL
+    // fleet-indexed target list (`rawTarget`), never the base formation point
+    // list. A partial-fleet participation clip is not representable by the
+    // override schema (the participation plan owns roles and hold indices), so
+    // its override is ignored rather than misapplied.
     const override =
-      phase === "SHOW" && overrides[clip.id]?.targetPointIndex.length === drones.length
+      phase === "SHOW" &&
+      !participationPlan &&
+      overrides[clip.id]?.targetPointIndex.length === drones.length
         ? overrides[clip.id]!
         : undefined;
     let clipAssignments: DroneAssignment[];
     let strategyId: string;
-    if (participationPlan && !override) {
+    if (participationPlan) {
       // The participation planner already solved drone -> target; the scheduler
       // must not reshuffle it, so the mapping is applied as-is.
       clipAssignments = drones.map((d, i) => ({
@@ -376,18 +384,18 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
       }));
       strategyId = "fleetParticipation";
     } else if (override) {
-      const points = formation?.points ?? [];
       clipAssignments = drones.map((d, i) => ({
         droneId: d.id,
         sourcePointIndex: i,
         targetPointIndex: Math.min(
           Math.max(0, override.targetPointIndex[i] ?? i),
-          Math.max(0, (points.length || rawTarget.length) - 1),
+          Math.max(0, rawTarget.length - 1),
         ),
       }));
       strategyId = override.strategy;
       optimizedClipIds.push(clip.id);
     } else {
+
       // LANDING: pads are interchangeable, so the globally optimal (minimum
       // total distance) pad assignment is used. On straight-line descents this
       // removes the path crossings that an index-identity mapping produces.
