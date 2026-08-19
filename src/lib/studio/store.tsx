@@ -3066,34 +3066,39 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * are never touched. Declared here so the lighting/dynamic selection setters
    * it reconciles are already in scope.
    */
-  const removeClip = useCallback((id: string) => {
-    setProject((p) => {
-      const removed = p.timeline.find((c) => c.id === id);
-      if (!removed) return p;
-      timelineHistory.current.past.push(p);
-      timelineHistory.current.future = [];
-      setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
+  const removeClip = useCallback(
+    (id: string) => {
+      setProject((p) => {
+        const removed = p.timeline.find((c) => c.id === id);
+        if (!removed) return p;
+        pushSnapshot(p);
 
-      const next = removeTimelineClipReferences(p, id);
-      setSelectedClipId((current) => (current === id ? nextSelectedClipId(next.timeline, removed) : current));
-      setSelectedSceneObjectId(null);
-      setSelectedLightingEffectId((current) =>
-        current && next.lighting?.effects.some((e) => e.id === current) ? current : null,
-      );
-      // Only drop an explicit dynamic selection when it was reached through the
-      // deleted clip; standalone dynamic editing survives.
-      if (removed.dynamicFormationId) {
-        setExplicitDynamicId((current) => (current === removed.dynamicFormationId ? null : current));
-      }
-      setTransitionOverrides((current) => {
-        if (!Object.prototype.hasOwnProperty.call(current, id)) return current;
-        const rest = { ...current };
-        delete rest[id];
-        return rest;
+        const next = removeTimelineClipReferences(p, id);
+        setSelectedClipId((current) => (current === id ? nextSelectedClipId(next.timeline, removed) : current));
+        setSelectedSceneObjectId(null);
+        setSelectedLightingEffectId((current) =>
+          current && next.lighting?.effects.some((e) => e.id === current) ? current : null,
+        );
+        // Only drop an explicit dynamic selection when it was reached through the
+        // deleted clip; standalone dynamic editing survives.
+        if (removed.dynamicFormationId) {
+          setExplicitDynamicId((current) => (current === removed.dynamicFormationId ? null : current));
+        }
+        setTransitionOverrides((current) => {
+          if (!Object.prototype.hasOwnProperty.call(current, id)) return current;
+          const rest = { ...current };
+          delete rest[id];
+          const basis = { ...overrideBasisRef.current };
+          delete basis[id];
+          overrideBasisRef.current = basis;
+          return rest;
+        });
+        return next;
       });
-      return next;
-    });
-  }, []);
+    },
+    [pushSnapshot],
+  );
+
 
   const commitLightingTiming = useCallback(
     (id: string, timing: { start?: number; duration?: number }) => {
