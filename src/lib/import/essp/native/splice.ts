@@ -10,7 +10,7 @@
  * (the importer orders drones by their numeric source id). Fleet drones beyond
  * the imported count always come from the planner.
  */
-import type { DroneSample, Vector3Tuple } from "../../../show/types";
+import type { DroneSample, RGB, Vector3Tuple } from "../../../show/types";
 import { sampleReferenceDrone } from "../playback";
 import type { ReferenceShow } from "../types";
 import { intervalAtTime, resolveReferenceIntervals } from "./intervals";
@@ -40,12 +40,12 @@ export function referenceFleetSamples(
     if (!drone) {
       const fallback = planned[i];
       out.push(
-        fallback ?? { position: [0, 0, 0] as Vector3Tuple, color: [0, 0, 0] as const },
+        fallback ?? { position: [0, 0, 0] as Vector3Tuple, color: [0, 0, 0] as RGB },
       );
       continue;
     }
     const sample = sampleReferenceDrone(drone, time, show.timing);
-    out.push({ position: sample.position as Vector3Tuple, color: sample.color as const });
+    out.push({ position: sample.position as Vector3Tuple, color: sample.color as RGB });
   }
   return out;
 }
