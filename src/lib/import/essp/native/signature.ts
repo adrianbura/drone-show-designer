@@ -87,10 +87,11 @@ function lightingSignature(project: ShowProject, clipId: string): string {
 }
 
 function participationSignature(project: ShowProject, clipId: string): string {
-  const settings = resolveParticipationSettings(project.participation);
-  const { clips, ...global } = settings as Record<string, unknown> & {
-    clips?: Record<string, unknown>;
-  };
+  const settings = resolveParticipationSettings(project.participation) as unknown as Record<
+    string,
+    unknown
+  > & { clips?: Record<string, unknown> };
+  const { clips, ...global } = settings;
   return fnv1a(JSON.stringify({ global, clip: clips?.[clipId] ?? null }));
 }
 
