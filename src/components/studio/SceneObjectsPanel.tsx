@@ -13,7 +13,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import type { SceneComparisonFrame } from "@/lib/import/essp/native";
-import type { SceneAlignment } from "@/lib/show/scene";
+import type { SceneAlignMode, SceneAlignment, SceneDesignActionKind } from "@/lib/show/scene";
 import { useStudio } from "@/lib/studio/store";
 
 const ALIGNMENTS: SceneAlignment[] = ["CENTER_X", "CENTER_Y", "DISTRIBUTE_X", "DISTRIBUTE_Y"];
