@@ -4,8 +4,10 @@ import { createDemoProject } from "@/lib/show/defaultProject";
 import { buildShowPlan, sampleTrajectorySet } from "@/lib/show/trajectory";
 import { simulationPayloadHash } from "../hash";
 import {
+  assertShowSimulationRunnable,
   buildSimulationPackage,
   deriveValidationState,
+  isShowSimulationRunnable,
   SimulationPackageError,
 } from "../package";
 import { BRIDGE_PATHS } from "../api";
@@ -78,6 +80,19 @@ describe("validation gate", () => {
   it("treats a revision mismatch as stale", () => {
     const report = { status: "PASS", analysisRevision: "other" } as never;
     expect(deriveValidationState(report, false, "rev")).toBe("STALE_VALIDATION");
+  });
+
+  it("allows only validated show trajectories to start", () => {
+    expect(isShowSimulationRunnable("VALIDATED")).toBe(true);
+    expect(isShowSimulationRunnable("VALIDATED_WITH_WARNINGS")).toBe(true);
+    for (const state of ["UNVALIDATED", "STALE_VALIDATION", "FAILED_VALIDATION"] as const) {
+      expect(isShowSimulationRunnable(state)).toBe(false);
+      expect(() => assertShowSimulationRunnable(state)).toThrowError(
+        expect.objectContaining({ code: "VALIDATION_REQUIRED" }),
+      );
+    }
+    expect(() => assertShowSimulationRunnable("VALIDATED")).not.toThrow();
+    expect(() => assertShowSimulationRunnable("VALIDATED_WITH_WARNINGS")).not.toThrow();
   });
 });
 
