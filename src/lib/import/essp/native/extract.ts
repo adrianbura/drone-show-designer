@@ -211,6 +211,9 @@ export function extractReferenceTimeline(
   const formations: Formation[] = [];
   const dynamicFormations: DynamicFormation[] = [];
   const sceneCompositions: FormationScene[] = [];
+  /** Immutable extracted-state history, one entry per extracted clip. */
+  const extractedScenes: ReferenceExtractedSceneSnapshot[] = [];
+
   const timeline: TimelineClip[] = [];
   const bindings: ReferenceClipBinding[] = [];
   const assets: ReferenceAssetDraft[] = [];
