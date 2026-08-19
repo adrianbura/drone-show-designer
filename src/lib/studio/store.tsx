@@ -2560,7 +2560,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       void writeAutosave(store, {
         savedAt,
         fileName: projectFileName,
-        file: serializeProject(project, { savedAt }),
+        file: serializeProject(project, {
+          savedAt,
+          planning: { assignmentStrategy, transitionOverrides },
+          editor: { selectedClipId, sampleRate },
+        }),
       }).then(() => setProjectAutosavedAt(savedAt));
     }, delay);
     return () => clearTimeout(timer);
