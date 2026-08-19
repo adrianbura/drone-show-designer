@@ -280,6 +280,8 @@ interface StudioContextValue {
   setFollowPlayhead: (on: boolean) => void;
   setTimelineZoom: (zoom: number, anchorTime?: number) => void;
   setTimelineScroll: (scroll: number) => void;
+  /** Restores the full authored content range (zoom 1, scroll 0). */
+  fitTimeline: () => void;
   /** Commits ONE pointer gesture as a single undoable canonical mutation. */
   commitClipTiming: (id: string, patch: Partial<TimelineClip>) => void;
   /** Gesture-level undo/redo of committed timeline edits. */
@@ -3038,6 +3040,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setFollowPlayhead,
       setTimelineZoom,
       setTimelineScroll,
+      fitTimeline,
       commitClipTiming,
       undoTimeline,
       redoTimeline,
@@ -3330,6 +3333,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       followPlayhead,
       setTimelineZoom,
       setTimelineScroll,
+      fitTimeline,
       commitClipTiming,
       undoTimeline,
       redoTimeline,
