@@ -176,7 +176,7 @@ describe("project planning round-trip", () => {
     const file = parseProjectFile(
       legacyV1(createDemoProject(12), { sampleRate: 10, assignmentStrategy: "optimalDistance" }),
     );
-    expect(file.schemaVersion).toBe(2);
+    expect(file.schemaVersion).toBe(3);
     expect(file.planning).toEqual({ assignmentStrategy: "optimalDistance", transitionOverrides: {} });
   });
 
