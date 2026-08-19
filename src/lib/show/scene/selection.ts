@@ -18,6 +18,13 @@ export interface SceneSelectionDuplicateResult {
   readonly objectIds: readonly string[];
 }
 
+export interface SceneSelectionState {
+  /** Canonical scene-order selection. */
+  readonly objectIds: readonly string[];
+  /** The object whose absolute controls / reference metrics are shown. */
+  readonly primaryObjectId: string | null;
+}
+
 /** Existing selected ids, unique and ordered exactly like scene.objects. */
 export function canonicalSceneSelection(
   scene: FormationScene,
@@ -26,6 +33,71 @@ export function canonicalSceneSelection(
   if (objectIds.length === 0 || scene.objects.length === 0) return [];
   const wanted = new Set(objectIds);
   return scene.objects.filter((object) => wanted.has(object.id)).map((object) => object.id);
+}
+
+/**
+ * Reconciles editor selection after clip/object changes.
+ * The primary must always belong to the selection; otherwise the first selected
+ * object becomes primary. An empty selection always has a null primary.
+ */
+export function reconcileSceneSelection(
+  scene: FormationScene,
+  state: SceneSelectionState,
+): SceneSelectionState {
+  const objectIds = canonicalSceneSelection(scene, state.objectIds);
+  if (objectIds.length === 0) return { objectIds: [], primaryObjectId: null };
+  return {
+    objectIds,
+    primaryObjectId:
+      state.primaryObjectId && objectIds.includes(state.primaryObjectId)
+        ? state.primaryObjectId
+        : objectIds[0]!,
+  };
+}
+
+/** Plain click: replace the selection with exactly one object. */
+export function replaceSceneSelection(
+  scene: FormationScene,
+  objectId: string | null,
+): SceneSelectionState {
+  if (!objectId || !scene.objects.some((object) => object.id === objectId)) {
+    return { objectIds: [], primaryObjectId: null };
+  }
+  return { objectIds: [objectId], primaryObjectId: objectId };
+}
+
+/**
+ * Ctrl/Shift click semantics: toggle membership without ever leaving a stale
+ * primary. Toggling an object ON makes it primary; toggling the primary OFF
+ * falls back deterministically to the first remaining scene-order object.
+ */
+export function toggleSceneSelection(
+  scene: FormationScene,
+  state: SceneSelectionState,
+  objectId: string,
+): SceneSelectionState {
+  if (!scene.objects.some((object) => object.id === objectId)) {
+    return reconcileSceneSelection(scene, state);
+  }
+  const current = new Set(canonicalSceneSelection(scene, state.objectIds));
+  if (current.has(objectId)) current.delete(objectId);
+  else current.add(objectId);
+  const objectIds = canonicalSceneSelection(scene, [...current]);
+  if (objectIds.length === 0) return { objectIds: [], primaryObjectId: null };
+  if (current.has(objectId)) return { objectIds, primaryObjectId: objectId };
+  return {
+    objectIds,
+    primaryObjectId:
+      state.primaryObjectId && objectIds.includes(state.primaryObjectId)
+        ? state.primaryObjectId
+        : objectIds[0]!,
+  };
+}
+
+/** Ctrl+A while the Scene editor is focused. */
+export function selectAllSceneObjects(scene: FormationScene): SceneSelectionState {
+  const objectIds = scene.objects.map((object) => object.id);
+  return { objectIds, primaryObjectId: objectIds[0] ?? null };
 }
 
 /**
