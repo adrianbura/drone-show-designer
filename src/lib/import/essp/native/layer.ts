@@ -291,6 +291,11 @@ export function migrateReferenceLayer(raw: unknown): ReferenceTrajectoryLayer {
       fileBase64: d.fileBase64,
     })),
     bindings: c.bindings.map((b) => ({ ...b })),
+    ...(() => {
+      const extractedScenes = sanitizeExtractedScenes(c.extractedScenes);
+      return extractedScenes.length > 0 ? { extractedScenes } : {};
+    })(),
+
     experimental: typeof c.experimental === "string" ? c.experimental : ESSP_EXPERIMENTAL_LABEL,
   };
 }
