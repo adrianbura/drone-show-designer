@@ -52,14 +52,13 @@ describe("reference timeline extraction", () => {
     expect(result.formations.length + result.dynamicFormations.length).toBeGreaterThan(0);
     expect(result.layer.bindings.length).toBe(result.timeline.length);
     // Clips stay inside the imported playback window and never overlap.
-    const sorted = [...result.timeline].sort((a, b) => a.startTime - b.startTime);
+    const sorted = [...result.timeline].sort((a, b) => a.start - b.start);
     let cursor = -1e-6;
     for (const clip of sorted) {
-      expect(clip.startTime).toBeGreaterThanOrEqual(cursor - 1e-6);
-      expect(clip.startTime + clip.duration).toBeLessThanOrEqual(
-        show.timing.playbackDurationSeconds + 1e-6,
-      );
-      cursor = clip.startTime + clip.duration;
+      const end = clip.start + clip.transition + clip.hold;
+      expect(clip.start).toBeGreaterThanOrEqual(cursor - 1e-6);
+      expect(end).toBeLessThanOrEqual(show.timing.playbackDurationSeconds + 1e-6);
+      cursor = end;
     }
   });
 });
