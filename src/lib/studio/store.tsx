@@ -451,6 +451,22 @@ interface StudioContextValue {
   addLibraryFormation: (formation: Formation) => Formation;
   /** Inserts a library dynamic formation as a NEW dynamic formation (fresh id). */
   addLibraryDynamicFormation: (formation: DynamicFormation) => DynamicFormation;
+  /**
+   * Reuses a FORMATION_SCENE library asset: copies its dependencies and scene
+   * into the project under fresh ids and appends a new timeline clip bound to
+   * the copied scene. Returns the new clip id.
+   */
+  addSceneAssetToShow: (
+    asset: FormationAsset,
+    timing?: { transition?: number; hold?: number },
+  ) => string | null;
+  /** Save-to-library payload of a clip's authored scene (null when it has none). */
+  sceneAssetPayloadForClip: (clipId: string) => {
+    readonly scene: FormationScene;
+    readonly dependencies: SceneAssetDependencies;
+    readonly source: FormationAsset["source"];
+    readonly sourceRef: FormationAsset["sourceRef"];
+  } | null;
   setDroneCount: (n: number) => void;
   setLimits: (patch: Partial<SafetyLimits>) => void;
   addFormation: (kind: FormationKind, params?: Record<string, number | string>) => Formation;
@@ -3686,6 +3702,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       currentSetupDraft,
       addLibraryFormation,
       addLibraryDynamicFormation,
+      addSceneAssetToShow,
+      sceneAssetPayloadForClip,
       setDroneCount,
       setLimits,
       addFormation,
