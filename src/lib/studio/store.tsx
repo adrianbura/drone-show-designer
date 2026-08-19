@@ -633,6 +633,21 @@ interface StudioContextValue {
   clearTransitionAnalysis: () => void;
   /** Applies the estimated minimum duration to the analysed clip. */
   applySuggestedDuration: () => void;
+  // ---- Transition design (mode + stagger over the SAME override) ---------
+  /** Authored design intent per clip; persisted with the planning state. */
+  transitionDesigns: Record<string, TransitionDesignState>;
+  /** Authored design of a clip, or the mode derived from its override data. */
+  transitionDesignFor: (clipId: string) => TransitionDesignState;
+  /** True when the authored design lost its override (semantic invalidation). */
+  transitionDesignNeedsRecalculation: (clipId: string) => boolean;
+  /** One designer change = one undo entry; rebuilds the canonical override. */
+  setTransitionDesign: (clipId: string, patch: Partial<TransitionDesignState>) => void;
+  /** MANUAL mode: edits the existing per-drone start/lane offset data. */
+  patchTransitionDroneOffset: (
+    clipId: string,
+    index: number,
+    patch: { startOffset?: number; laneOffset?: number },
+  ) => void;
   canAnalyzeSelectedClip: boolean;
   showPaths: boolean;
   setShowPaths: (v: boolean) => void;
@@ -4596,6 +4611,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       optimizeSelectedTransition,
       clearTransitionAnalysis,
       applySuggestedDuration,
+      transitionDesigns,
+      transitionDesignFor,
+      transitionDesignNeedsRecalculation,
+      setTransitionDesign,
+      patchTransitionDroneOffset,
       canAnalyzeSelectedClip,
       showPaths,
       setShowPaths,
@@ -4914,6 +4934,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       optimizeSelectedTransition,
       clearTransitionAnalysis,
       applySuggestedDuration,
+      transitionDesigns,
+      transitionDesignFor,
+      transitionDesignNeedsRecalculation,
+      setTransitionDesign,
+      patchTransitionDroneOffset,
       canAnalyzeSelectedClip,
       showPaths,
       showConflicts,
