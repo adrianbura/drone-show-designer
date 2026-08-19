@@ -87,6 +87,11 @@ import {
 } from "../show/markers";
 import { timelineContentRange } from "./timelineLayout";
 import {
+  computeOverrideBasis,
+  pruneTransitionOverrides,
+  type OverrideBasisMap,
+} from "./planningIntegrity";
+import {
   clampZoom,
   defaultPhaseForNewClip,
   computeTimelineView,
