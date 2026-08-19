@@ -41,3 +41,9 @@ export function thumbnailFromPoints(points: readonly Vec3[], maxPoints = 400): A
     ),
   };
 }
+
+/** Collision-resistant asset id. */
+export function newAssetId(prefix = "asset"): string {
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `${prefix}-${Date.now().toString(36)}-${rand}`;
+}
