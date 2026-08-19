@@ -6,10 +6,17 @@
  * export. Everything required to reopen a show for editing is stored here;
  * transient editor state (dialogs, hover, busy flags, AI drafts) is not.
  */
+import type { AssignmentStrategyId } from "../show/assignment";
+import type { ClipTransitionOverride } from "../show/trajectory/schedule";
 import type { ShowProject } from "../show/types";
 
 export const PROJECT_FILE_KIND = "DroneShowStudioProject";
-export const PROJECT_SCHEMA_VERSION = 1;
+/**
+ * v2 adds the optional `planning` section (assignment strategy + applied
+ * transition overrides). v1 files remain openable and migrate to planning
+ * defaults.
+ */
+export const PROJECT_SCHEMA_VERSION = 2;
 export const PROJECT_FILE_EXTENSION = ".droneshow.json";
 export const PROJECT_ENGINE_NAME = "Drone Show Studio";
 
