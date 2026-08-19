@@ -90,6 +90,7 @@ import {
   computeOverrideBasis,
   pruneTransitionOverrides,
   type OverrideBasisMap,
+  type TimelineHistorySnapshot,
 } from "./planningIntegrity";
 import {
   clampZoom,
