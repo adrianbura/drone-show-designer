@@ -36,9 +36,9 @@ export interface GenericExportInput {
   fullShow?: FullShowValidationReport | null;
   /** True when the report was produced for a DIFFERENT project revision. */
   fullShowStale?: boolean;
-  /** Pre-show validation provenance for `plan.preShow`, when one exists. */
+  /** Legacy/standalone pre-show validation provenance when no full-show report is supplied. */
   preShowReport?: PreShowValidationReport | null;
-  /** True when the pre-show report describes a DIFFERENT project revision. */
+  /** True when the standalone pre-show report describes a DIFFERENT project revision. */
   preShowStale?: boolean;
 }
 
@@ -100,6 +100,9 @@ export function toGenericShowJson({
     };
   });
 
+  const canonicalPreShowReport = fullShow?.preShow ?? preShowReport ?? null;
+  const canonicalPreShowStale = fullShow ? !!fullShowStale : !!preShowStale;
+
   return JSON.stringify(
     {
       schema: EXPORT_SCHEMA_NAME,
@@ -156,8 +159,8 @@ export function toGenericShowJson({
       preShow: plan.preShow
         ? toPreShowExportSection({
             plan: plan.preShow,
-            report: preShowReport ?? null,
-            stale: !!preShowStale,
+            report: canonicalPreShowReport,
+            stale: canonicalPreShowStale,
             analysisRevision: fullShow?.analysisRevision ?? null,
           })
         : null,
