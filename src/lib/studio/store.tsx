@@ -91,7 +91,7 @@ import {
 } from "../show/markers";
 import { timelineContentRange } from "./timelineLayout";
 import { insertClipBeforeLanding } from "./clipInsertion";
-import { convertClipToScene, duplicateShowClip } from "./clipDesign";
+import { canConvertClipToScene, convertClipToScene, duplicateShowClip } from "./clipDesign";
 import { insertLibraryAsset, type AssetInsertionTiming } from "./assetInsertion";
 import {
   reconcileEditorSelection,
@@ -287,6 +287,8 @@ import {
   type SceneAlignment,
   type SceneBudget,
   type SceneClickMode,
+  timelineThumbnails,
+  type ThumbnailPoint,
   type SceneDesignActionKind,
   type SceneAlignMode,
   type SceneFormationInstance,
@@ -451,6 +453,26 @@ interface StudioContextValue {
   mirrorSceneObjectsBatch: (clipId: string, objectIds: readonly string[]) => void;
   duplicateSceneObjectsBatch: (clipId: string, objectIds: readonly string[]) => void;
   removeSceneObjectsBatch: (clipId: string, objectIds: readonly string[]) => void;
+  /** One-click design action on the selection (ONE mutation, ONE undo entry). */
+  applySceneDesign: (
+    clipId: string,
+    objectIds: readonly string[],
+    action: SceneDesignActionKind,
+    options?: { readonly altitudeStep?: number },
+  ) => void;
+  /** Alignment / distribution across a multi-selection. */
+  alignSceneObjectsByMode: (
+    clipId: string,
+    objectIds: readonly string[],
+    mode: SceneAlignMode,
+  ) => void;
+  /** "Edit as Scene" for a static SHOW clip; geometry-preserving. */
+  canEditClipAsScene: (clipId: string) => boolean;
+  editClipAsScene: (clipId: string) => boolean;
+  /** "Duplicate clip" for design; returns the new clip id. */
+  duplicateClipForDesign: (clipId: string) => string | null;
+  /** Normalised front-elevation thumbnail points per clip (identification aid). */
+  clipThumbnails: Record<string, ThumbnailPoint[]>;
 
   // ---- Viewport transform gizmo ------------------------------------------
   gizmoMode: SceneGizmoMode;
@@ -1910,6 +1932,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   /* ------------------------------------------- clip design commands ------- */
+  const canEditClipAsScene = useCallback(
+    (clipId: string) => canConvertClipToScene(projectRef.current, clipId),
+    [],
+  );
+
+  /**
+   * THUMBNAILS: one decimated pass per project revision. Never per frame, never
+   * exported — purely an identification aid on the timeline.
+   */
+  const clipThumbnails = useMemo(() => timelineThumbnails(project, 48), [project]);
+
   /** "Edit as Scene": materialises the clip's implicit scene, one undo entry. */
   const editClipAsScene = useCallback(
     (clipId: string) => {
@@ -4274,6 +4307,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       mirrorSceneObjectsBatch,
       duplicateSceneObjectsBatch,
       removeSceneObjectsBatch,
+      applySceneDesign,
+      alignSceneObjectsByMode,
+      canEditClipAsScene,
+      editClipAsScene,
+      duplicateClipForDesign,
+      clipThumbnails,
       gizmoMode,
       setGizmoMode,
       gizmoTranslateSnap,
@@ -4610,6 +4649,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       mirrorSceneObjectsBatch,
       duplicateSceneObjectsBatch,
       removeSceneObjectsBatch,
+      applySceneDesign,
+      alignSceneObjectsByMode,
+      canEditClipAsScene,
+      editClipAsScene,
+      duplicateClipForDesign,
+      clipThumbnails,
       gizmoMode,
       gizmoTranslateSnap,
       gizmoRotateSnap,
