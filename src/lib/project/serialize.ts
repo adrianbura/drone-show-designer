@@ -12,6 +12,10 @@ import { migrateReferenceLayer } from "../import/essp/native/layer";
 import { ReferenceLayerError, type ReferenceTrajectoryLayer } from "../import/essp/native/types";
 import { migrateProject } from "../show/defaultProject";
 import type { ClipTransitionOverride } from "../show/trajectory/schedule";
+import {
+  normalizeTransitionDesign,
+  type TransitionDesignState,
+} from "../show/transition/design";
 import { clipPhase, SCHEMA_VERSION, type ShowProject } from "../show/types";
 import {
   DEFAULT_PLANNING_STRATEGY,
@@ -154,12 +158,17 @@ export function migratePlanningState(
     return {
       assignmentStrategy: selectableStrategy(context.legacyStrategy) ?? DEFAULT_PLANNING_STRATEGY,
       transitionOverrides: {},
+      transitionDesigns: {},
     };
   }
   if (typeof raw !== "object") {
     throw new ProjectFileError("MALFORMED_PLANNING", "The planning section is malformed.");
   }
-  const candidate = raw as { assignmentStrategy?: unknown; transitionOverrides?: unknown };
+  const candidate = raw as {
+    assignmentStrategy?: unknown;
+    transitionOverrides?: unknown;
+    transitionDesigns?: unknown;
+  };
   const strategy = selectableStrategy(candidate.assignmentStrategy) ?? DEFAULT_PLANNING_STRATEGY;
 
   const overrides: Record<string, ClipTransitionOverride> = {};
@@ -194,7 +203,16 @@ export function migratePlanningState(
       overrides[clipId] = override;
     }
   }
-  return { assignmentStrategy: strategy, transitionOverrides: overrides };
+  // Design descriptors are EDITOR INTENT, not flight data: an unreadable entry
+  // degrades to the derived mode instead of failing the file.
+  const designs: Record<string, TransitionDesignState> = {};
+  const rawDesigns = candidate.transitionDesigns;
+  if (rawDesigns && typeof rawDesigns === "object" && !Array.isArray(rawDesigns)) {
+    for (const [clipId, value] of Object.entries(rawDesigns as Record<string, unknown>)) {
+      designs[clipId] = normalizeTransitionDesign(value);
+    }
+  }
+  return { assignmentStrategy: strategy, transitionOverrides: overrides, transitionDesigns: designs };
 }
 
 export function projectFileToJson(file: ProjectFile): string {

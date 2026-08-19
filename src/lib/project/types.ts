@@ -9,6 +9,7 @@
 import type { AssignmentStrategyId } from "../show/assignment";
 import type { ReferenceTrajectoryLayer } from "../import/essp/native/types";
 import type { ClipTransitionOverride } from "../show/trajectory/schedule";
+import type { TransitionDesignState } from "../show/transition/design";
 import type { ShowProject } from "../show/types";
 
 export const PROJECT_FILE_KIND = "DroneShowStudioProject";
@@ -40,6 +41,13 @@ export interface ProjectEditorPreferences {
 export interface ProjectPlanningState {
   readonly assignmentStrategy: AssignmentStrategyId;
   readonly transitionOverrides: Record<string, ClipTransitionOverride>;
+  /**
+   * AUTHORED TRANSITION DESIGN (mode + stagger pattern) per clip. It is the
+   * designer intent that PRODUCED the override above, kept so reopening a
+   * project shows the same mode instead of a guessed one. Absent in legacy
+   * files: the mode is then derived from the override data itself.
+   */
+  readonly transitionDesigns?: Record<string, TransitionDesignState>;
 }
 
 export const DEFAULT_PLANNING_STRATEGY: AssignmentStrategyId = "nearestNeighbor";
