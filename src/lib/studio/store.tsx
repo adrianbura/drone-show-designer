@@ -2620,9 +2620,59 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [assignmentStrategy, transitionOverrides],
   );
 
+  /** Extraction proper: needs a segmentation report for the same show. */
+  const applyReferenceExtraction = useCallback(
+    (show: ReferenceShow, report: ReferenceForensicsReport) => {
+      try {
+        const result = extractReferenceTimeline(show, report);
+        const previous = projectRef.current;
+        const next: ShowProject = {
+          ...previous,
+          droneCount: result.droneCount,
+          formations: [...result.formations],
+          timeline: [...result.timeline],
+          dynamicFormations: [...result.dynamicFormations],
+          scenes: [],
+          lighting: result.lighting,
+          // The imported takeoff is authored as a clip, so the native pre-show
+          // staging must not also claim the time before show zero.
+          ...(previous.preShow ? { preShow: { ...previous.preShow, enabled: false } } : {}),
+        };
+        // Signatures are seeded against the REAL project (limits, participation,
+        // strategy included), so nothing is promoted by the extraction itself.
+        const layer = reseedReferenceSignatures(next, result.layer, {
+          assignmentStrategy,
+          transitionOverrides: {},
+        });
+        pushSnapshot(previous);
+        overrideBasisRef.current = computeOverrideBasis(next, {});
+        setTransitionOverrides({});
+        setProject(next);
+        setReferenceLayer(layer);
+        setReferenceLayerShow(show);
+        setReferenceExtraction(result.diagnostics);
+        setReferenceAssetDrafts(result.assets);
+        setReferenceExtractionWarnings(result.warnings);
+        setReferenceExtractionError(null);
+        setSelectedClipId(result.timeline[0]?.id ?? null);
+        setReferencePlayback(false);
+      } catch (err) {
+        setReferenceExtractionError({
+          code: err instanceof ReferenceLayerError ? err.code : "EXTRACTION_FAILED",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    },
+    [assignmentStrategy, pushSnapshot],
+  );
+
+  /**
+   * One-click extraction. The segmentation report is a DERIVED input: when it is
+   * missing or stale for the loaded show, the analysis is run here first instead
+   * of forcing the operator to discover a second button.
+   */
   const extractReferenceShowToProject = useCallback(() => {
     const show = referenceShow;
-    const report = forensicsReport;
     if (!show) {
       setReferenceExtractionError({
         code: "NO_REFERENCE_SHOW",
@@ -2630,53 +2680,42 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       });
       return;
     }
-    if (!report) {
-      setReferenceExtractionError({
-        code: "NO_FORENSICS_REPORT",
-        message: "Run the reference analysis first: its segmentation decides the scene boundaries.",
-      });
+    setReferenceExtractionError(null);
+    if (forensicsReport && !forensicsStale) {
+      applyReferenceExtraction(show, forensicsReport);
       return;
     }
-    try {
-      const result = extractReferenceTimeline(show, report);
-      const previous = projectRef.current;
-      const next: ShowProject = {
-        ...previous,
-        droneCount: result.droneCount,
-        formations: [...result.formations],
-        timeline: [...result.timeline],
-        dynamicFormations: [...result.dynamicFormations],
-        scenes: [],
-        lighting: result.lighting,
-        // The imported takeoff is authored as a clip, so the native pre-show
-        // staging must not also claim the time before show zero.
-        ...(previous.preShow ? { preShow: { ...previous.preShow, enabled: false } } : {}),
-      };
-      // Signatures are seeded against the REAL project (limits, participation,
-      // strategy included), so nothing is promoted by the extraction itself.
-      const layer = reseedReferenceSignatures(next, result.layer, {
-        assignmentStrategy,
-        transitionOverrides: {},
-      });
-      pushSnapshot(previous);
-      overrideBasisRef.current = computeOverrideBasis(next, {});
-      setTransitionOverrides({});
-      setProject(next);
-      setReferenceLayer(layer);
-      setReferenceLayerShow(show);
-      setReferenceExtraction(result.diagnostics);
-      setReferenceAssetDrafts(result.assets);
-      setReferenceExtractionWarnings(result.warnings);
-      setReferenceExtractionError(null);
-      setSelectedClipId(result.timeline[0]?.id ?? null);
-      setReferencePlayback(false);
-    } catch (err) {
-      setReferenceExtractionError({
-        code: err instanceof ReferenceLayerError ? err.code : "EXTRACTION_FAILED",
-        message: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }, [referenceShow, forensicsReport, assignmentStrategy, pushSnapshot]);
+    const run = ++forensicsRunRef.current;
+    setForensicsBusy(true);
+    setForensicsError(null);
+    setTimeout(() => {
+      try {
+        const report = analyzeReferenceShow(show, {
+          preset: forensicsPreset,
+          thresholds: forensicsThresholds,
+          shouldCancel: () => forensicsRunRef.current !== run,
+        });
+        if (forensicsRunRef.current !== run) return;
+        setForensicsReport(report);
+        setSelectedForensicSegmentId(report.segments[0]?.id ?? null);
+        applyReferenceExtraction(show, report);
+      } catch (err) {
+        if (forensicsRunRef.current !== run) return;
+        const message = err instanceof Error ? err.message : String(err);
+        setForensicsError(message);
+        setReferenceExtractionError({ code: "ANALYSIS_FAILED", message });
+      } finally {
+        if (forensicsRunRef.current === run) setForensicsBusy(false);
+      }
+    }, 30);
+  }, [
+    referenceShow,
+    forensicsReport,
+    forensicsStale,
+    forensicsPreset,
+    forensicsThresholds,
+    applyReferenceExtraction,
+  ]);
 
   const promoteReferenceClip = useCallback(
     (clipId: string) => {
