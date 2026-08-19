@@ -39,8 +39,11 @@ export interface BuildSimulationPackageInput {
 }
 
 export class SimulationPackageError extends Error {
-  readonly code: "DRONE_NOT_FOUND" | "TRAJECTORY_EMPTY";
-  constructor(code: "DRONE_NOT_FOUND" | "TRAJECTORY_EMPTY", message: string) {
+  readonly code: "DRONE_NOT_FOUND" | "TRAJECTORY_EMPTY" | "VALIDATION_REQUIRED";
+  constructor(
+    code: "DRONE_NOT_FOUND" | "TRAJECTORY_EMPTY" | "VALIDATION_REQUIRED",
+    message: string,
+  ) {
     super(message);
     this.name = "SimulationPackageError";
     this.code = code;
@@ -61,6 +64,27 @@ export function deriveValidationState(
   if (report.status === "FAIL") return "FAILED_VALIDATION";
   if (report.status === "PASS_WITH_WARNINGS") return "VALIDATED_WITH_WARNINGS";
   return "VALIDATED";
+}
+
+/** Canonical run gate for SHOW_TRAJECTORY simulation. */
+export function isShowSimulationRunnable(state: PackageValidationState): boolean {
+  return state === "VALIDATED" || state === "VALIDATED_WITH_WARNINGS";
+}
+
+/**
+ * Defense-in-depth guard for callers that bypass the UI disabled state.
+ * Package construction remains allowed for bridge validation/inspection; only
+ * starting an actual SHOW_TRAJECTORY run is gated.
+ */
+export function assertShowSimulationRunnable(state: PackageValidationState): void {
+  if (isShowSimulationRunnable(state)) return;
+  const reason =
+    state === "STALE_VALIDATION"
+      ? "The full-show validation is stale. Re-run full-show analysis before simulation."
+      : state === "FAILED_VALIDATION"
+        ? "The full-show validation failed. Resolve blockers before simulation."
+        : "Run full-show validation before simulation.";
+  throw new SimulationPackageError("VALIDATION_REQUIRED", reason);
 }
 
 function provenance(
