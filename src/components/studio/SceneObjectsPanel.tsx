@@ -248,6 +248,86 @@ export default function SceneObjectsPanel() {
         </div>
       )}
 
+      {selectedClipBinding && (
+        <div className="mt-3 space-y-1.5 border-t border-border pt-2">
+          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+            {t("scene.reference.title")}
+          </p>
+          <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span className="uppercase tracking-[0.14em]">{t("scene.reference.show")}</span>
+            <input
+              type="checkbox"
+              checked={sceneReferenceGhost}
+              onChange={(e) => setSceneReferenceGhost(e.target.checked)}
+            />
+          </label>
+          <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span className="uppercase tracking-[0.14em]">{t("scene.reference.frame")}</span>
+            <select
+              value={sceneComparisonFrame}
+              onChange={(e) => setSceneComparisonFrame(e.target.value as SceneComparisonFrame)}
+              className="studio-input w-36 font-mono"
+            >
+              <option value="EXTRACTED">{t("scene.reference.frame.EXTRACTED")}</option>
+              <option value="CURRENT">{t("scene.reference.frame.CURRENT")}</option>
+            </select>
+          </label>
+          {sceneDeviation && (
+            <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+              {t("scene.reference.rms", {
+                rms: sceneDeviation.rmsMeters.toFixed(2),
+                max: sceneDeviation.maxMeters.toFixed(2),
+                count: sceneDeviation.comparedCount,
+              })}
+            </p>
+          )}
+          {objectDeviation && (
+            <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+              {t("scene.reference.objectRms", {
+                rms: objectDeviation.rmsMeters.toFixed(2),
+                max: objectDeviation.maxMeters.toFixed(2),
+                centroid: objectDeviation.centroidShiftMeters.toFixed(2),
+                scale: objectDeviation.scaleChange.toFixed(2),
+              })}
+              {objectDeviation.rotationDeg !== null
+                ? ` · ${t("scene.reference.rotation", {
+                    deg: objectDeviation.rotationDeg.toFixed(1),
+                  })}`
+                : ""}
+            </p>
+          )}
+          {objectDeviation && !objectDeviation.membershipKnown && (
+            <p className="font-mono text-[9px] leading-relaxed text-warning">
+              {t("scene.reference.membershipUnknown")}
+            </p>
+          )}
+          <div className="flex flex-col gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!canResetSelectedSceneObject || !selected}
+              className="h-6 justify-start px-1.5 font-mono text-[9px] uppercase tracking-[0.14em]"
+              onClick={() => selected && resetSceneObject(clipId, selected.id)}
+            >
+              <RotateCcw className="mr-1 size-3" /> {t("scene.reference.reset")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-6 justify-start px-1.5 font-mono text-[9px] uppercase tracking-[0.14em]"
+              onClick={() => duplicateSceneAsEditable(clipId)}
+            >
+              <CopyPlus className="mr-1 size-3" /> {t("scene.reference.duplicate")}
+            </Button>
+          </div>
+          <p className="font-mono text-[9px] leading-relaxed text-muted-foreground">
+            {t("scene.reference.note")}
+          </p>
+        </div>
+      )}
+
       {selectedSceneWarnings.length > 0 && (
         <ul className="mt-2 space-y-1">
           {selectedSceneWarnings.map((w) => (
@@ -257,6 +337,7 @@ export default function SceneObjectsPanel() {
           ))}
         </ul>
       )}
+
 
       <p className="mt-2 font-mono text-[9px] leading-relaxed text-muted-foreground">
         {t("scene.disclaimer")}
