@@ -2003,7 +2003,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const analyzeSelectedTransition = useCallback(() => {
     const clipId = selectedClipId;
-    if (!clipId || !isOptimizableClip(project, clipId)) return;
+    if (!clipId || !isOptimizableClip(project, clipId, plan)) return;
     setTransitionBusy(true);
     setTransitionError(null);
     try {
@@ -2033,7 +2033,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const optimizeSelectedTransition = useCallback(() => {
     const clipId = selectedClipId;
-    if (!clipId || !isOptimizableClip(project, clipId)) return;
+    if (!clipId || !isOptimizableClip(project, clipId, plan)) return;
     setTransitionBusy(true);
     setTransitionError(null);
     try {
