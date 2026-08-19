@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { demoProject } from "../../show/demo";
+import { createDefaultProject } from "../../show/defaultProject";
 import {
   alignSceneObjectsBy,
   applySceneDesignAction,
@@ -20,13 +20,14 @@ import {
   upsertScene,
 } from "../../show/scene";
 import { IDENTITY_INSTANCE_TRANSFORM } from "../../show/scene/types";
+import type { FormationScene } from "../../show/scene";
 import type { ShowProject } from "../../show/types";
 import { canConvertClipToScene, convertClipToScene, duplicateShowClip } from "../clipDesign";
 
 const IDS = { clipId: "clip-copy", lightingEffectId: (i: number) => `fx-copy-${i}` };
 
 function base(): ShowProject {
-  return demoProject();
+  return createDefaultProject(48);
 }
 
 function showClipId(project: ShowProject): string {
@@ -159,8 +160,7 @@ describe("fast design actions", () => {
     const centres = next.objects.map((o) => objectCentre(project, o));
     const cx = centres.reduce((s, c) => s + c[0], 0) / centres.length;
     const cz = centres.reduce((s, c) => s + c[2], 0) / centres.length;
-    expect(Math.abs(cx)).toBeLessThan 
-    (1e-6);
+    expect(Math.abs(cx)).toBeLessThan(1e-6);
     expect(Math.abs(cz)).toBeLessThan(1e-6);
     centres.forEach((c, i) => expect(c[1]).toBeCloseTo(before[i]![1], 6));
   });
@@ -247,7 +247,7 @@ describe("alignment and distribution", () => {
   it("aligns to min / max / centre on X", () => {
     const { project, scene } = threeObjectScene();
     const ids = ["a", "b", "c"];
-    const xs = (s: typeof scene) => s.objects.map((o) => objectCentre(project, o)[0]);
+    const xs = (s: FormationScene) => s.objects.map((o) => objectCentre(project, o)[0]);
     const min = Math.min(...xs(scene));
     const left = alignSceneObjectsBy(project, scene, ids, "ALIGN_MIN_X");
     xs(left).forEach((x) => expect(x).toBeCloseTo(min, 6));
