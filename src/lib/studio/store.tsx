@@ -1071,7 +1071,26 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setProject((p) => ({ ...p, audio: { ...p.audio, offset: value } }));
   }, []);
 
-  const samplesAtTime = useCallback((t: number) => samplesAt(plan, t), [plan]);
+  /**
+   * SPLICED PLAYBACK. Reference-owned intervals of an imported show play the
+   * imported samples; everything else is the planner output. Exactly one
+   * authority per instant — never a blend of the two.
+   */
+  const samplesAtTime = useCallback(
+    (t: number) =>
+      splicedTrajectorySamples(referenceLayerShow, referenceLayer, t, samplesAt(plan, t)).samples,
+    [plan, referenceLayer, referenceLayerShow],
+  );
+
+  const referenceOwnership = useMemo(
+    () => (referenceLayer ? referenceOwnershipSummary(referenceLayer) : null),
+    [referenceLayer],
+  );
+  const referenceOwnedNow = useMemo(
+    () =>
+      !!referenceLayer && intervalAtTime(referenceLayer, clock.time)?.owner === "REFERENCE",
+    [referenceLayer, clock.time],
+  );
 
   const patchProject = useCallback((patch: Partial<ShowProject>) => {
     setProject((p) => ({ ...p, ...patch }));
@@ -3199,6 +3218,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const lightingStatesAtTime = useCallback(
     (t: number): DroneLightState[] => {
+      // An imported reference-owned interval owns its LEDs too: the displayed
+      // colour is the original RGB byte triplet, not an authored effect.
+      if (referenceLayerShow && referenceLayer && intervalAtTime(referenceLayer, t)?.owner === "REFERENCE") {
+        return referenceLightStates(referenceLayerShow, t, project.droneCount);
+      }
       if (!lightingPreview) return [];
       if ((project.lighting?.effects.length ?? 0) === 0) return [];
       return projectLightingAt(
@@ -3210,7 +3234,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         t,
       );
     },
-    [lightingPreview, project, plan.participation, samplesAtTime],
+    [lightingPreview, project, plan.participation, samplesAtTime, referenceLayer, referenceLayerShow],
   );
 
   const value = useMemo<StudioContextValue>(
