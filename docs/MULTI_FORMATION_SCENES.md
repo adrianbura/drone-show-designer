@@ -16,3 +16,21 @@ exactly like any other:
 - Assets are never padded with dummy points to match the fleet.
 - Placement into a scene is always a USER action (*Add as next scene* / *Add to
   current scene*). Compiling or saving an asset never touches the timeline.
+
+## ESSP true scene decomposition
+
+`src/lib/import/essp/native/decomposition.ts` decides, per extracted reference
+clip, between:
+
+- `SCENE_CONTAINER` — one native formation object (the default);
+- `COMPOSED_SCENE` — several inferred objects, each with its own formation /
+  dynamic formation and its own disjoint source-drone membership.
+
+The decision is evidence driven (forensic motion clusters plus spatial
+separation, scored on separation ratio, membership stability and coherence
+gain) and only accepted above a confidence threshold. Below it the clip stays a
+single object — the importer never invents structure it cannot measure.
+
+Each accepted object is an ordinary `SceneFormationInstance`, so it can be
+selected, transformed, relit and promoted to planner ownership independently;
+untouched objects of the same scene stay reference-exact.

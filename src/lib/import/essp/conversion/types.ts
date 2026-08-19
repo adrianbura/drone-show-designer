@@ -80,6 +80,12 @@ export interface ConversionOptions {
   readonly stableCoreResidualMeters?: number;
   readonly formationId?: string;
   readonly name?: string;
+  /**
+   * SUBSET BOUNDARY: convert only these source drone ids (in sequence order).
+   * Absent / empty means the whole fleet. The conversion maths is identical —
+   * only the analysed point cloud is narrowed (see `conversion/subset.ts`).
+   */
+  readonly sourceDroneIds?: readonly string[];
 }
 
 export interface ResolvedConversionOptions {

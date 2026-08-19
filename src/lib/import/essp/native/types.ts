@@ -188,6 +188,21 @@ export type ReferenceAssetDraft =
       readonly input: AssetSaveInput;
     };
 
+/** How one extracted scene is represented natively. */
+export type ReferenceSceneRepresentation = "STATIC" | "DYNAMIC" | "COMPOSED_SCENE";
+
+/** One inferred object of a decomposed scene, as reported to the operator. */
+export interface ReferenceSceneObjectDiagnostic {
+  readonly objectId: string;
+  readonly name: string;
+  readonly droneCount: number;
+  readonly sourceDroneIds: readonly string[];
+  readonly dynamic: boolean;
+  readonly meanResidualMeters: number;
+  readonly formationId: string;
+  readonly dynamicFormationId: string | null;
+}
+
 export interface ReferenceExtractionDiagnostic {
   readonly clipId: string;
   readonly kind: ReferenceClipKind;
@@ -200,12 +215,21 @@ export interface ReferenceExtractionDiagnostic {
   readonly fidelityRmsMeters: number | null;
   readonly fidelityStatus: string | null;
   readonly dynamic: boolean;
+  /** STATIC / DYNAMIC / COMPOSED_SCENE for scene clips; STATIC otherwise. */
+  readonly representation: ReferenceSceneRepresentation;
+  readonly objects: readonly ReferenceSceneObjectDiagnostic[];
+  /** Decomposition evidence: confidence and why the decision was taken. */
+  readonly decompositionConfidence: number | null;
+  readonly decompositionSource: string | null;
+  readonly decompositionReasons: readonly string[];
   readonly warnings: readonly string[];
 }
 
 export interface ReferenceExtractionResult {
   readonly formations: readonly Formation[];
   readonly dynamicFormations: readonly DynamicFormation[];
+  /** Multi-object compositions, one per decomposed scene clip (`scene.id === clip.id`). */
+  readonly scenes: readonly FormationScene[];
   readonly timeline: readonly TimelineClip[];
   readonly lighting: LightingProgram;
   readonly layer: ReferenceTrajectoryLayer;

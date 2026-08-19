@@ -17,8 +17,10 @@ import {
 import { decomposeSegment, deformationTracks, segmentWindow } from "./decompose";
 import { evaluateDynamicFormationFidelity, type FidelitySource } from "./fidelity";
 import { simplifyQuaternionTrack, simplifyVectorTrack, unionIndices } from "./simplify";
+import { subsetIndicesForDroneIds, subsetPointCloudSequence } from "./subset";
 import {
   REFERENCE_DYNAMIC_CONVERTER_VERSION,
+  ReferenceConversionError,
   segmentEligibility,
   type ConversionOptions,
   type DynamicFormationConversionProposal,
@@ -396,7 +398,17 @@ export function convertReferenceSegmentToDynamicFormation(
   segment: ReferenceSceneSegment,
   options: ConversionOptions = {},
 ): DynamicFormationConversionProposal {
-  const sequence = sequenceFromReferenceShow(referenceShow);
+  const full = sequenceFromReferenceShow(referenceShow);
+  const subset = options.sourceDroneIds?.length
+    ? subsetIndicesForDroneIds(full, options.sourceDroneIds)
+    : null;
+  if (subset && subset.length === 0) {
+    throw new ReferenceConversionError(
+      "NO_DRONES",
+      "The requested drone subset does not intersect the imported show.",
+    );
+  }
+  const sequence = subset ? subsetPointCloudSequence(full, subset) : full;
   return convertSequenceSegment(
     sequence,
     segment,
