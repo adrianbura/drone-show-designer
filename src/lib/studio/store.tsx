@@ -87,6 +87,12 @@ import {
 } from "../show/markers";
 import { timelineContentRange } from "./timelineLayout";
 import {
+  computeOverrideBasis,
+  pruneTransitionOverrides,
+  type OverrideBasisMap,
+  type TimelineHistorySnapshot,
+} from "./planningIntegrity";
+import {
   clampZoom,
   defaultPhaseForNewClip,
   computeTimelineView,
@@ -839,9 +845,25 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [followPlayhead, setFollowPlayhead] = useState(true);
   const [timelineZoom, setTimelineZoomState] = useState(1);
   const [timelineScroll, setTimelineScrollState] = useState(0);
-  // One gesture = one snapshot of the canonical choreography data.
-  const timelineHistory = useRef<{ past: ShowProject[]; future: ShowProject[] }>({ past: [], future: [] });
+  /**
+   * TIMELINE HISTORY MODEL.
+   *
+   * One gesture = ONE snapshot of every canonical authoring/planning state a
+   * timeline command can change: the project AND the applied transition
+   * overrides (which decide the flown trajectory). Transient analysis reports
+   * are deliberately NOT snapshotted — they are derived and recomputed.
+   */
+  const timelineHistory = useRef<{ past: TimelineHistorySnapshot[]; future: TimelineHistorySnapshot[] }>({
+    past: [],
+    future: [],
+  });
   const [timelineHistoryDepth, setTimelineHistoryDepth] = useState({ past: 0, future: 0 });
+  /** Planning basis of each applied override — see ./planningIntegrity. */
+  const overrideBasisRef = useRef<OverrideBasisMap>({});
+  const transitionOverridesRef = useRef<Record<string, ClipTransitionOverride>>({});
+  transitionOverridesRef.current = transitionOverrides;
+  const projectRef = useRef(project);
+  projectRef.current = project;
 
   // ---- Audio session (Sprint 7.1) ---------------------------------------
   // The decoded buffer lives ONLY in memory for this session: project files stay
@@ -860,8 +882,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
   const fullShowStale = !!fullShow && fullShow.report.analysisRevision !== analysisRevision;
 
-  // Stale-result guard: any project edit invalidates analysis AND any applied
-  // optimiser override, because both were computed for the previous geometry.
+  /**
+   * STALE-RESULT GUARD.
+   *
+   * Transient analysis reports are always dropped on a project edit. Applied
+   * overrides are canonical planning state, so they are pruned SURGICALLY: only
+   * clips whose planning basis actually changed (geometry, limits, `start`,
+   * `transition`, easing, formation) lose their override. A blanket reset would
+   * silently revert a saved optimized project to unoptimized planning.
+   */
   const projectGeneration = useRef(0);
   useEffect(() => {
     projectGeneration.current += 1;
@@ -869,8 +898,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setAssignmentComparison(null);
     setOptimization(null);
     setTransitionError(null);
-    setTransitionOverrides({});
+    setTransitionOverrides((current) => {
+      const pruned = pruneTransitionOverrides(projectRef.current, current, overrideBasisRef.current);
+      overrideBasisRef.current = pruned.basis;
+      return pruned.changed ? pruned.overrides : current;
+    });
   }, [project.formations, project.droneCount, project.timeline, project.limits, project.area]);
+
 
   // Canonical duration — NEVER project.audio.duration.
   const duration = useMemo(() => {
@@ -1047,6 +1081,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setProject(created);
     setSelectedClipId(created.timeline[0]?.id ?? null);
     setExplicitDynamicId(null);
+    overrideBasisRef.current = {};
     setTransitionOverrides({});
     setTransitionAnalysis(null);
     setAssignmentComparison(null);
@@ -1259,6 +1294,29 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  /** The canonical snapshot of everything a timeline command may change. */
+  const currentSnapshot = useCallback(
+    (): TimelineHistorySnapshot => ({
+      project: projectRef.current,
+      transitionOverrides: { ...transitionOverridesRef.current },
+    }),
+    [],
+  );
+
+  /**
+   * SINGLE HISTORY PRODUCER. Every timeline command (clip timing commit, clip
+   * delete, marker/section and lighting edits) pushes through here, so an undo
+   * entry always carries project + planning state together.
+   */
+  const pushSnapshot = useCallback((project: ShowProject) => {
+    timelineHistory.current.past.push({
+      project,
+      transitionOverrides: { ...transitionOverridesRef.current },
+    });
+    timelineHistory.current.future = [];
+    setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
+  }, []);
+
   /**
    * GESTURE COMMIT (Sprint 7.2).
    *
@@ -1274,50 +1332,55 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       if (next.start === clip.start && next.transition === clip.transition && next.hold === clip.hold) {
         return p;
       }
-      timelineHistory.current.past.push(p);
-      timelineHistory.current.future = [];
-      setTimelineHistoryDepth({
-        past: timelineHistory.current.past.length,
-        future: 0,
-      });
+      pushSnapshot(p);
       return { ...p, timeline: p.timeline.map((c) => (c.id === id ? next : c)) };
     });
-  }, []);
+  }, [pushSnapshot]);
 
   /** Snapshot helper for annotation edits — same one-entry-per-action rule. */
   const pushTimelineHistory = useCallback(() => {
     setProject((p) => {
-      timelineHistory.current.past.push(p);
-      timelineHistory.current.future = [];
-      setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
+      pushSnapshot(p);
       return p;
     });
+  }, [pushSnapshot]);
+
+  /** Undo/redo restore project + planning state atomically. */
+  const restoreSnapshot = useCallback((snapshot: TimelineHistorySnapshot) => {
+    const overrides = { ...snapshot.transitionOverrides };
+    // Re-seed the basis from the restored project so the invalidation guard
+    // does not treat a faithfully restored override as stale.
+    overrideBasisRef.current = computeOverrideBasis(snapshot.project, overrides);
+    setTransitionOverrides(overrides);
+    setProject(snapshot.project);
+    setSelectedClipId((current) =>
+      current && snapshot.project.timeline.some((c) => c.id === current)
+        ? current
+        : (snapshot.project.timeline[0]?.id ?? null),
+    );
   }, []);
 
   const undoTimeline = useCallback(() => {
     const previous = timelineHistory.current.past.pop();
     if (!previous) return;
-    setProject((p) => {
-      timelineHistory.current.future.push(p);
-      setTimelineHistoryDepth({
-        past: timelineHistory.current.past.length,
-        future: timelineHistory.current.future.length,
-      });
-      return previous;
+    timelineHistory.current.future.push(currentSnapshot());
+    setTimelineHistoryDepth({
+      past: timelineHistory.current.past.length,
+      future: timelineHistory.current.future.length,
     });
-  }, []);
+    restoreSnapshot(previous);
+  }, [currentSnapshot, restoreSnapshot]);
 
   const redoTimeline = useCallback(() => {
     const next = timelineHistory.current.future.pop();
     if (!next) return;
-    setProject((p) => {
-      timelineHistory.current.past.push(p);
-      setTimelineHistoryDepth({
-        past: timelineHistory.current.past.length,
-        future: timelineHistory.current.future.length,
-      });
-      return next;
+    timelineHistory.current.past.push(currentSnapshot());
+    setTimelineHistoryDepth({
+      past: timelineHistory.current.past.length,
+      future: timelineHistory.current.future.length,
     });
+    restoreSnapshot(next);
+
   }, []);
 
   // ---- Markers / music sections (project-owned authoring metadata) --------
@@ -1977,7 +2040,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setTransitionAnalysis({ clipId, analysis: result.final });
       const override = overrideFromAnalysis(clipId, result.final);
       // Only the preview/validation layer changes; the project stays untouched.
-      if (override) setTransitionOverrides((prev) => ({ ...prev, [clipId]: override }));
+      if (override) {
+        // Record the planning basis this override was computed for, so a later
+        // timing/geometry edit invalidates exactly this clip.
+        overrideBasisRef.current = {
+          ...overrideBasisRef.current,
+          ...computeOverrideBasis(project, { [clipId]: override }),
+        };
+        setTransitionOverrides((prev) => ({ ...prev, [clipId]: override }));
+      }
     } catch (err) {
       setTransitionError(describeTransitionError(err));
     } finally {
@@ -1990,6 +2061,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setAssignmentComparison(null);
     setOptimization(null);
     setTransitionError(null);
+    overrideBasisRef.current = {};
     setTransitionOverrides({});
   }, []);
 
@@ -2548,7 +2620,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     // strategy are canonical planning inputs, so a reopened project must not
     // silently revert to unoptimized planning.
     setAssignmentStrategy(restore?.planning?.assignmentStrategy ?? "nearestNeighbor");
-    setTransitionOverrides(restore?.planning?.transitionOverrides ?? {});
+    {
+      const restored = restore?.planning?.transitionOverrides ?? {};
+      overrideBasisRef.current = computeOverrideBasis(next, restored);
+      setTransitionOverrides({ ...restored });
+    }
     if (typeof restore?.sampleRate === "number" && Number.isFinite(restore.sampleRate)) {
       setSampleRate(restore.sampleRate);
     }
@@ -3004,34 +3080,39 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * are never touched. Declared here so the lighting/dynamic selection setters
    * it reconciles are already in scope.
    */
-  const removeClip = useCallback((id: string) => {
-    setProject((p) => {
-      const removed = p.timeline.find((c) => c.id === id);
-      if (!removed) return p;
-      timelineHistory.current.past.push(p);
-      timelineHistory.current.future = [];
-      setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
+  const removeClip = useCallback(
+    (id: string) => {
+      setProject((p) => {
+        const removed = p.timeline.find((c) => c.id === id);
+        if (!removed) return p;
+        pushSnapshot(p);
 
-      const next = removeTimelineClipReferences(p, id);
-      setSelectedClipId((current) => (current === id ? nextSelectedClipId(next.timeline, removed) : current));
-      setSelectedSceneObjectId(null);
-      setSelectedLightingEffectId((current) =>
-        current && next.lighting?.effects.some((e) => e.id === current) ? current : null,
-      );
-      // Only drop an explicit dynamic selection when it was reached through the
-      // deleted clip; standalone dynamic editing survives.
-      if (removed.dynamicFormationId) {
-        setExplicitDynamicId((current) => (current === removed.dynamicFormationId ? null : current));
-      }
-      setTransitionOverrides((current) => {
-        if (!Object.prototype.hasOwnProperty.call(current, id)) return current;
-        const rest = { ...current };
-        delete rest[id];
-        return rest;
+        const next = removeTimelineClipReferences(p, id);
+        setSelectedClipId((current) => (current === id ? nextSelectedClipId(next.timeline, removed) : current));
+        setSelectedSceneObjectId(null);
+        setSelectedLightingEffectId((current) =>
+          current && next.lighting?.effects.some((e) => e.id === current) ? current : null,
+        );
+        // Only drop an explicit dynamic selection when it was reached through the
+        // deleted clip; standalone dynamic editing survives.
+        if (removed.dynamicFormationId) {
+          setExplicitDynamicId((current) => (current === removed.dynamicFormationId ? null : current));
+        }
+        setTransitionOverrides((current) => {
+          if (!Object.prototype.hasOwnProperty.call(current, id)) return current;
+          const rest = { ...current };
+          delete rest[id];
+          const basis = { ...overrideBasisRef.current };
+          delete basis[id];
+          overrideBasisRef.current = basis;
+          return rest;
+        });
+        return next;
       });
-      return next;
-    });
-  }, []);
+    },
+    [pushSnapshot],
+  );
+
 
   const commitLightingTiming = useCallback(
     (id: string, timing: { start?: number; duration?: number }) => {
