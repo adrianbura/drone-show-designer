@@ -19,6 +19,7 @@ import DynamicPanel from "./DynamicPanel";
 import EsspPanel from "./EsspPanel";
 import ForensicsPanel from "./ForensicsPanel";
 import ConversionPanel from "./ConversionPanel";
+import NativeConversionPanel from "./NativeConversionPanel";
 
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
 import { evaluateExportEligibility } from "@/lib/adapters/exportEligibility";
@@ -512,6 +513,7 @@ export default function Inspector() {
 
       <EsspPanel />
       <ForensicsPanel />
+      <NativeConversionPanel />
       <ConversionPanel />
       <SimulationPanel />
 
