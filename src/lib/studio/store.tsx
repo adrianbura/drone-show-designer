@@ -198,6 +198,26 @@ import {
   type DynamicFormationFidelityReport,
   type RotationFitMode,
 } from "../import/essp/conversion";
+import {
+  clipOutputSignature,
+  extractReferenceTimeline,
+  intervalAtTime,
+  promoteReferenceClips,
+  reconcileReferenceLayer,
+  referenceLightStates,
+  referenceOwnershipSummary,
+  referenceShowFromLayer,
+  reseedReferenceSignatures,
+  splicedTrajectorySamples,
+  verifySpliceBoundaries,
+  REFERENCE_LAYER_LIMITATIONS,
+  ReferenceLayerError,
+  type ReferenceAssetDraft,
+  type ReferenceExtractionDiagnostic,
+  type ReferenceOwnershipSummary,
+  type ReferenceTrajectoryLayer,
+  type SpliceVerificationReport,
+} from "../import/essp/native";
 import { useShowClock, type PlaybackSpeed } from "./clock";
 import { useAudioPlayback } from "./audioPlayback";
 import { resolveShortcut } from "./shortcuts";
@@ -532,6 +552,34 @@ interface StudioContextValue {
   showReferencePaths: boolean;
   setShowReferencePaths: (v: boolean) => void;
 
+  // ---- Imported trajectory layer + editable extraction (A + B) -----------
+  /**
+   * Losslessly preserved imported ESSP payload with per-clip playback
+   * ownership. While a clip is REFERENCE-owned its interval plays the imported
+   * samples; a flight-output edit promotes only that interval (and the next
+   * transition) to the planner.
+   */
+  referenceLayer: ReferenceTrajectoryLayer | null;
+  /** Ownership of every spliced interval, derived from the layer. */
+  referenceOwnership: ReferenceOwnershipSummary | null;
+  /** True when the playhead currently sits on a reference-owned interval. */
+  referenceOwnedNow: boolean;
+  /** Per-clip extraction diagnostics (fidelity, classification, warnings). */
+  referenceExtraction: readonly ReferenceExtractionDiagnostic[];
+  /** Library asset drafts produced by the extraction, not yet saved. */
+  referenceAssetDrafts: readonly ReferenceAssetDraft[];
+  referenceExtractionWarnings: readonly string[];
+  referenceExtractionError: { code: string; message: string } | null;
+  /** Extracts TAKEOFF + scenes + LANDING into the project (replaces content). */
+  extractReferenceShowToProject: () => void;
+  /** Explicit operator promotion of one clip to planner ownership. */
+  promoteReferenceClip: (clipId: string) => void;
+  /** Drops the imported layer; playback becomes fully planner-generated. */
+  clearReferenceLayer: () => void;
+  /** Boundary agreement between reference and planner at ownership switches. */
+  verifyReferenceSplices: () => SpliceVerificationReport | null;
+  referenceLayerLimitations: readonly string[];
+
   // ---- Reference forensics (Sprint 6A.5, analysis only) ------------------
   /** Derived motion analysis of the imported reference show. Never mutates it. */
   forensicsReport: ReferenceForensicsReport | null;
@@ -816,6 +864,19 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
   const [selectedReferenceDroneId, setSelectedReferenceDroneId] = useState<string | null>(null);
   const [showReferencePaths, setShowReferencePaths] = useState(false);
+  const [referenceLayer, setReferenceLayer] = useState<ReferenceTrajectoryLayer | null>(null);
+  /** Rehydrated payload of the layer — the playback authority for its intervals. */
+  const [referenceLayerShow, setReferenceLayerShow] = useState<ReferenceShow | null>(null);
+  const [referenceExtraction, setReferenceExtraction] = useState<
+    readonly ReferenceExtractionDiagnostic[]
+  >([]);
+  const [referenceAssetDrafts, setReferenceAssetDrafts] = useState<readonly ReferenceAssetDraft[]>([]);
+  const [referenceExtractionWarnings, setReferenceExtractionWarnings] = useState<readonly string[]>(
+    [],
+  );
+  const [referenceExtractionError, setReferenceExtractionError] = useState<
+    { code: string; message: string } | null
+  >(null);
   const [forensicsReport, setForensicsReport] = useState<ReferenceForensicsReport | null>(null);
   const [forensicsBusy, setForensicsBusy] = useState(false);
   const [forensicsError, setForensicsError] = useState<string | null>(null);
@@ -1010,7 +1071,26 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setProject((p) => ({ ...p, audio: { ...p.audio, offset: value } }));
   }, []);
 
-  const samplesAtTime = useCallback((t: number) => samplesAt(plan, t), [plan]);
+  /**
+   * SPLICED PLAYBACK. Reference-owned intervals of an imported show play the
+   * imported samples; everything else is the planner output. Exactly one
+   * authority per instant — never a blend of the two.
+   */
+  const samplesAtTime = useCallback(
+    (t: number) =>
+      splicedTrajectorySamples(referenceLayerShow, referenceLayer, t, samplesAt(plan, t)).samples,
+    [plan, referenceLayer, referenceLayerShow],
+  );
+
+  const referenceOwnership = useMemo(
+    () => (referenceLayer ? referenceOwnershipSummary(referenceLayer) : null),
+    [referenceLayer],
+  );
+  const referenceOwnedNow = useMemo(
+    () =>
+      !!referenceLayer && intervalAtTime(referenceLayer, clock.time)?.owner === "REFERENCE",
+    [referenceLayer, clock.time],
+  );
 
   const patchProject = useCallback((patch: Partial<ShowProject>) => {
     setProject((p) => ({ ...p, ...patch }));
@@ -2528,6 +2608,120 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [referenceShow],
   );
 
+  // ---- Imported trajectory layer + editable extraction (A + B) ------------
+  // The layer is the PLAYBACK AUTHORITY for reference-owned intervals; the
+  // extracted clips are ordinary project content. Promotion is decided by the
+  // flight-output signature, never by editor activity.
+  const referenceLayerRef = useRef<ReferenceTrajectoryLayer | null>(null);
+  referenceLayerRef.current = referenceLayer;
+
+  const signatureContext = useMemo(
+    () => ({ assignmentStrategy, transitionOverrides }),
+    [assignmentStrategy, transitionOverrides],
+  );
+
+  const extractReferenceShowToProject = useCallback(() => {
+    const show = referenceShow;
+    const report = forensicsReport;
+    if (!show) {
+      setReferenceExtractionError({
+        code: "NO_REFERENCE_SHOW",
+        message: "Import an ESSP show before extracting it.",
+      });
+      return;
+    }
+    if (!report) {
+      setReferenceExtractionError({
+        code: "NO_FORENSICS_REPORT",
+        message: "Run the reference analysis first: its segmentation decides the scene boundaries.",
+      });
+      return;
+    }
+    try {
+      const result = extractReferenceTimeline(show, report);
+      const previous = projectRef.current;
+      const next: ShowProject = {
+        ...previous,
+        droneCount: result.droneCount,
+        formations: [...result.formations],
+        timeline: [...result.timeline],
+        dynamicFormations: [...result.dynamicFormations],
+        scenes: [],
+        lighting: result.lighting,
+        // The imported takeoff is authored as a clip, so the native pre-show
+        // staging must not also claim the time before show zero.
+        ...(previous.preShow ? { preShow: { ...previous.preShow, enabled: false } } : {}),
+      };
+      // Signatures are seeded against the REAL project (limits, participation,
+      // strategy included), so nothing is promoted by the extraction itself.
+      const layer = reseedReferenceSignatures(next, result.layer, {
+        assignmentStrategy,
+        transitionOverrides: {},
+      });
+      pushSnapshot(previous);
+      overrideBasisRef.current = computeOverrideBasis(next, {});
+      setTransitionOverrides({});
+      setProject(next);
+      setReferenceLayer(layer);
+      setReferenceLayerShow(show);
+      setReferenceExtraction(result.diagnostics);
+      setReferenceAssetDrafts(result.assets);
+      setReferenceExtractionWarnings(result.warnings);
+      setReferenceExtractionError(null);
+      setSelectedClipId(result.timeline[0]?.id ?? null);
+      setReferencePlayback(false);
+    } catch (err) {
+      setReferenceExtractionError({
+        code: err instanceof ReferenceLayerError ? err.code : "EXTRACTION_FAILED",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }, [referenceShow, forensicsReport, assignmentStrategy, pushSnapshot]);
+
+  const promoteReferenceClip = useCallback(
+    (clipId: string) => {
+      const layer = referenceLayerRef.current;
+      if (!layer) return;
+      const signature = clipOutputSignature(projectRef.current, clipId, {
+        assignmentStrategy,
+        transitionOverrides: transitionOverridesRef.current,
+      });
+      const result = promoteReferenceClips(layer, [
+        { clipId, reason: "MANUAL", ...(signature ? { signature } : {}) },
+      ]);
+      if (result.changed) setReferenceLayer(result.layer);
+    },
+    [assignmentStrategy],
+  );
+
+  const clearReferenceLayer = useCallback(() => {
+    setReferenceLayer(null);
+    setReferenceLayerShow(null);
+    setReferenceExtraction([]);
+    setReferenceAssetDrafts([]);
+    setReferenceExtractionWarnings([]);
+  }, []);
+
+  const verifyReferenceSplices = useCallback((): SpliceVerificationReport | null => {
+    const layer = referenceLayerRef.current;
+    if (!layer || !referenceLayerShow) return null;
+    return verifySpliceBoundaries(referenceLayerShow, layer, (t) =>
+      samplesAt(plan, t).map((sample) => sample.position),
+    );
+  }, [plan, referenceLayerShow]);
+
+  /**
+   * PROMOTION GUARD. One pass per canonical change of the project or planning
+   * state: only clips whose flight/LED output signature moved are promoted, so
+   * one edited clip never regenerates the rest of the show.
+   */
+  useEffect(() => {
+    const layer = referenceLayerRef.current;
+    if (!layer) return;
+    const result = reconcileReferenceLayer(project, layer, signatureContext);
+    if (result.changed) setReferenceLayer(result.layer);
+  }, [project, signatureContext]);
+
   // ---- Project persistence (Sprint 7) --------------------------------------
   // Saving is pure serialization of the editable project; autosave stores the
   // SAME envelope locally so a crash recovery is just a reopened project.
@@ -2578,9 +2772,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     (): ProjectFile =>
       serializeProject(project, {
         planning: { assignmentStrategy, transitionOverrides },
+        // LOSSLESS: the imported payload is written verbatim, so reopening the
+        // saved project reproduces the imported playback exactly.
+        referenceLayer,
         editor: { selectedClipId, sampleRate },
       }),
-    [project, assignmentStrategy, transitionOverrides, selectedClipId, sampleRate],
+    [project, assignmentStrategy, transitionOverrides, referenceLayer, selectedClipId, sampleRate],
   );
 
   const saveProjectFile = useCallback(() => {
@@ -2608,11 +2805,36 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     fileName: string,
     restore?: {
       planning?: ProjectPlanningState;
+      referenceLayer?: ReferenceTrajectoryLayer | null;
       selectedClipId?: string | null;
       sampleRate?: number;
     },
   ) => {
     setProject(next);
+    // IMPORTED LAYER: rehydrated from the file, so the first frame after
+    // reopening already plays the imported samples. A payload that cannot be
+    // rehydrated is surfaced as an error, never silently downgraded.
+    setReferenceExtractionError(null);
+    setReferenceExtraction([]);
+    setReferenceAssetDrafts([]);
+    setReferenceExtractionWarnings([]);
+    const restoredLayer = restore?.referenceLayer ?? null;
+    if (restoredLayer) {
+      try {
+        setReferenceLayerShow(referenceShowFromLayer(restoredLayer));
+        setReferenceLayer(restoredLayer);
+      } catch (err) {
+        setReferenceLayer(null);
+        setReferenceLayerShow(null);
+        setReferenceExtractionError({
+          code: err instanceof ReferenceLayerError ? err.code : "MALFORMED_LAYER",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+    } else {
+      setReferenceLayer(null);
+      setReferenceLayerShow(null);
+    }
     // selectedClipId is only restored when that clip still exists; otherwise the
     // deterministic fallback is the first clip of the reopened timeline.
     const requested = restore?.selectedClipId;
@@ -2660,6 +2882,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     (file: ProjectFile, fileName: string) => {
       adoptProject(file.project, fileName, {
         ...(file.planning ? { planning: file.planning } : {}),
+        ...(file.referenceLayer ? { referenceLayer: file.referenceLayer } : {}),
         selectedClipId: file.editor?.selectedClipId ?? null,
         ...(typeof file.editor?.sampleRate === "number"
           ? { sampleRate: file.editor.sampleRate }
@@ -2713,6 +2936,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         file: serializeProject(project, {
           savedAt,
           planning: { assignmentStrategy, transitionOverrides },
+          referenceLayer,
           editor: { selectedClipId, sampleRate },
         }),
       }).then(() => setProjectAutosavedAt(savedAt));
@@ -2724,6 +2948,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     getAutosaveStore,
     assignmentStrategy,
     transitionOverrides,
+    referenceLayer,
     selectedClipId,
     sampleRate,
   ]);
@@ -3138,6 +3363,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const lightingStatesAtTime = useCallback(
     (t: number): DroneLightState[] => {
+      // An imported reference-owned interval owns its LEDs too: the displayed
+      // colour is the original RGB byte triplet, not an authored effect.
+      if (referenceLayerShow && referenceLayer && intervalAtTime(referenceLayer, t)?.owner === "REFERENCE") {
+        return referenceLightStates(referenceLayerShow, t, project.droneCount);
+      }
       if (!lightingPreview) return [];
       if ((project.lighting?.effects.length ?? 0) === 0) return [];
       return projectLightingAt(
@@ -3149,7 +3379,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         t,
       );
     },
-    [lightingPreview, project, plan.participation, samplesAtTime],
+    [lightingPreview, project, plan.participation, samplesAtTime, referenceLayer, referenceLayerShow],
   );
 
   const value = useMemo<StudioContextValue>(
@@ -3424,6 +3654,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       clearProjectFileError,
       saveProjectFile,
       buildProjectFile,
+      referenceLayer,
+      referenceOwnership,
+      referenceOwnedNow,
+      referenceExtraction,
+      referenceAssetDrafts,
+      referenceExtractionWarnings,
+      referenceExtractionError,
+      extractReferenceShowToProject,
+      promoteReferenceClip,
+      clearReferenceLayer,
+      verifyReferenceSplices,
+      referenceLayerLimitations: REFERENCE_LAYER_LIMITATIONS,
       openProjectFile,
       autosaveRecovery,
       restoreAutosave,
@@ -3663,6 +3905,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       clearProjectFileError,
       saveProjectFile,
       buildProjectFile,
+      referenceLayer,
+      referenceOwnership,
+      referenceOwnedNow,
+      referenceExtraction,
+      referenceAssetDrafts,
+      referenceExtractionWarnings,
+      referenceExtractionError,
+      extractReferenceShowToProject,
+      promoteReferenceClip,
+      clearReferenceLayer,
+      verifyReferenceSplices,
       openProjectFile,
       autosaveRecovery,
       restoreAutosave,

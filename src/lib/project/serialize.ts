@@ -8,6 +8,8 @@
  * canonical project migration.
  */
 import { SELECTABLE_ASSIGNMENT_STRATEGIES, type AssignmentStrategyId } from "../show/assignment";
+import { migrateReferenceLayer } from "../import/essp/native/layer";
+import { ReferenceLayerError, type ReferenceTrajectoryLayer } from "../import/essp/native/types";
 import { migrateProject } from "../show/defaultProject";
 import type { ClipTransitionOverride } from "../show/trajectory/schedule";
 import { clipPhase, SCHEMA_VERSION, type ShowProject } from "../show/types";
@@ -44,6 +46,8 @@ export function serializeProject(
   options: {
     editor?: ProjectEditorPreferences;
     planning?: ProjectPlanningState;
+    /** Imported ESSP payload + ownership. Written verbatim, never derived. */
+    referenceLayer?: ReferenceTrajectoryLayer | null;
     savedAt?: string;
   } = {},
 ): ProjectFile {
@@ -54,6 +58,7 @@ export function serializeProject(
     app: { name: PROJECT_ENGINE_NAME, schemaVersion: SCHEMA_VERSION },
     project: withDetachedAudio(plainClone(project)),
     planning: plainClone(options.planning ?? defaultPlanningState()),
+    ...(options.referenceLayer ? { referenceLayer: plainClone(options.referenceLayer) } : {}),
     ...(options.editor ? { editor: options.editor } : {}),
   };
 }
@@ -368,8 +373,36 @@ export function migrateProjectFile(raw: unknown): ProjectFile {
         ? { legacyStrategy: (candidate.editor as { assignmentStrategy?: unknown } | undefined)?.assignmentStrategy }
         : {}),
     }),
+    ...readReferenceLayer(candidate, project),
     ...(candidate.editor ? { editor: candidate.editor } : {}),
   };
+}
+
+/**
+ * REFERENCE LAYER MIGRATION. A malformed layer is a hard error: dropping it
+ * would silently downgrade reference-exact playback to generated trajectories.
+ * Bindings for clips that no longer exist are dropped (their intervals become
+ * planner-owned by construction), which is the only tolerated repair.
+ */
+function readReferenceLayer(
+  candidate: { referenceLayer?: unknown },
+  project: ShowProject,
+): { referenceLayer?: ReferenceTrajectoryLayer } {
+  if (candidate.referenceLayer === undefined || candidate.referenceLayer === null) return {};
+  let layer: ReferenceTrajectoryLayer;
+  try {
+    layer = migrateReferenceLayer(candidate.referenceLayer);
+  } catch (error) {
+    throw new ProjectFileError(
+      "MALFORMED_REFERENCE_LAYER",
+      error instanceof ReferenceLayerError
+        ? error.message
+        : "The imported trajectory layer is malformed.",
+    );
+  }
+  const clipIds = new Set(project.timeline.map((c) => c.id));
+  const bindings = layer.bindings.filter((b) => clipIds.has(b.clipId));
+  return { referenceLayer: bindings.length === layer.bindings.length ? layer : { ...layer, bindings } };
 }
 
 /** Parses raw file text. Never mutates or replaces anything by itself. */

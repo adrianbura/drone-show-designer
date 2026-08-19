@@ -206,15 +206,47 @@ export async function buildReferenceShow(
     );
   }
 
-  const timing = timingFrom(parsedFiles[0]);
+  return assembleReferenceShow(drones, parsedFiles, {
+    filesConsidered: ordered.length,
+    diagnostics,
+    mapping,
+  });
+}
+
+/** Timing derived from one parsed file. Both source clocks stay independent. */
+export function referenceTimingFrom(parsed: ParsedEssp): ReferenceTiming {
+  return timingFrom(parsed);
+}
+
+/**
+ * SYNCHRONOUS assembly of the immutable reference show from already-parsed
+ * files. Shared by the file importer and by the persisted trajectory layer, so
+ * a reopened project rebuilds exactly the show that was imported.
+ */
+export function assembleReferenceShow(
+  drones: ReferenceDrone[],
+  parsedFiles: ParsedEssp[],
+  options: {
+    filesConsidered?: number;
+    diagnostics?: EsspFileDiagnostic[];
+    mapping?: EsspAxisMapping;
+    importedAt?: string;
+  } = {},
+): ReferenceShow {
+  const mapping = options.mapping ?? DEFAULT_ESSP_AXIS_MAPPING;
+  const diagnostics = options.diagnostics ?? drones.map((d) => ({ fileName: d.sourceFile, ok: true }));
+  const filesConsidered = options.filesConsidered ?? drones.length;
+  const first = parsedFiles[0];
+  if (!first) throw new EsspImportError("no parsed ESSP file to assemble");
+  const timing = timingFrom(first);
   const launchGrid = inferLaunchGrid(
     drones.map((d) => [d.positionSamples[0] ?? 0, d.positionSamples[1] ?? 0, d.positionSamples[2] ?? 0] as const),
   );
   const invariants = invariantsFrom(parsedFiles);
   const report: ReferenceImportReport = {
-    files: ordered.length,
+    files: filesConsidered,
     validFiles: drones.length,
-    invalidFiles: ordered.length - drones.length,
+    invalidFiles: filesConsidered - drones.length,
     diagnostics,
     timing,
     launchGrid,
@@ -241,7 +273,7 @@ export async function buildReferenceShow(
     timing,
     report,
     statistics: computeReferenceStatistics(drones, timing.positionRateHz, mapping),
-    importedAt: new Date().toISOString(),
+    importedAt: options.importedAt ?? new Date().toISOString(),
   };
 }
 
