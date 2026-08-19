@@ -1755,6 +1755,64 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [commitDynamic],
   );
 
+  /**
+   * REUSE A WHOLE COMPOSITION (scene asset).
+   *
+   * The library asset is an immutable snapshot, so insertion COPIES everything
+   * it needs into the project under fresh ids: the formation dependencies, the
+   * dynamic formation dependencies and the scene itself. The scene is bound to a
+   * brand new timeline clip (`scene.id === clip.id`) inserted with the ordinary
+   * timeline semantics, LANDING-last included. There is no ESSP-only path: an
+   * imported scene is reused exactly like an authored one, as planner-owned
+   * project content.
+   */
+  const addSceneAssetToShow = useCallback(
+    (asset: FormationAsset, timing?: { transition?: number; hold?: number }) => {
+      if (asset.formationData.kind !== "SCENE") return null;
+      const clipId = nextId("c");
+      const instance = instantiateSceneAsset(asset, {
+        sceneId: clipId,
+        formationId: (i) => `${clipId}-f-${String(i + 1).padStart(2, "0")}`,
+        dynamicFormationId: (i) => `${clipId}-dyn-${String(i + 1).padStart(2, "0")}`,
+      });
+      const cycle = sceneAssetDuration(asset);
+      setProject((p) => {
+        const landing = p.timeline.filter((c) => c.phase === "LANDING");
+        const body = p.timeline.filter((c) => c.phase !== "LANDING");
+        const end = body.reduce((m, c) => Math.max(m, c.start + c.transition + c.hold), 0);
+        const anchorFormationId =
+          instance.formations[0]?.id ??
+          instance.dynamicFormations[0]?.sourceFormationId ??
+          p.formations[0]?.id ??
+          "";
+        const clip: TimelineClip = {
+          id: clipId,
+          formationId: anchorFormationId,
+          start: end,
+          transition: Math.max(0.5, timing?.transition ?? 8),
+          hold: Math.max(timing?.hold ?? 6, cycle),
+          easing: "minJerk",
+          color: [140, 210, 255],
+          effect: "solid",
+          phase: defaultPhaseForNewClip(p.timeline),
+        };
+        const shift = clip.transition + clip.hold;
+        const next: ShowProject = {
+          ...p,
+          formations: [...p.formations, ...instance.formations],
+          dynamicFormations: [...(p.dynamicFormations ?? []), ...instance.dynamicFormations],
+          timeline: [...body, clip, ...landing.map((c) => ({ ...c, start: c.start + shift }))],
+        };
+        return upsertScene(next, instance.scene);
+      });
+      setSelectedClipId(clipId);
+      setSelectedSceneObjectId(instance.scene.objects[0]?.id ?? null);
+      return clipId;
+    },
+    [],
+  );
+
+
   const editDynamic = useCallback(
     (id: string, fn: (formation: DynamicFormation) => DynamicFormation) => {
       commitDynamic((list) => list.map((d) => (d.id === id ? fn(d) : d)));
