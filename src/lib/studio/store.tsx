@@ -955,30 +955,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const projectGeneration = useRef(0);
   useEffect(() => {
     projectGeneration.current += 1;
-    // IMPORTED LAYER: rehydrated from the file BEFORE any derived state, so the
-    // first frame after reopening already plays the imported samples. A payload
-    // that cannot be rehydrated is surfaced, never silently downgraded.
-    setReferenceExtractionError(null);
-    const layer = restore?.referenceLayer ?? null;
-    if (layer) {
-      try {
-        setReferenceLayerShow(referenceShowFromLayer(layer));
-        setReferenceLayer(layer);
-      } catch (err) {
-        setReferenceLayer(null);
-        setReferenceLayerShow(null);
-        setReferenceExtractionError({
-          code: err instanceof ReferenceLayerError ? err.code : "MALFORMED_LAYER",
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
-    } else {
-      setReferenceLayer(null);
-      setReferenceLayerShow(null);
-    }
-    setReferenceExtraction([]);
-    setReferenceAssetDrafts([]);
-    setReferenceExtractionWarnings([]);
     setTransitionAnalysis(null);
     setAssignmentComparison(null);
     setOptimization(null);
