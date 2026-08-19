@@ -10,7 +10,7 @@
 import { SELECTABLE_ASSIGNMENT_STRATEGIES, type AssignmentStrategyId } from "../show/assignment";
 import { migrateProject } from "../show/defaultProject";
 import type { ClipTransitionOverride } from "../show/trajectory/schedule";
-import { SCHEMA_VERSION, type ShowProject } from "../show/types";
+import { clipPhase, SCHEMA_VERSION, type ShowProject } from "../show/types";
 import {
   DEFAULT_PLANNING_STRATEGY,
   PROJECT_ENGINE_NAME,
