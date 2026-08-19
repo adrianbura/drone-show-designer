@@ -84,6 +84,7 @@ import {
   type TimelineMarker,
   type TimelineMarkerType,
 } from "../show/markers";
+import { timelineContentRange } from "./timelineLayout";
 import {
   clampZoom,
   defaultPhaseForNewClip,
