@@ -144,6 +144,7 @@ export default function Timeline() {
     addMusicSection,
     patchMusicSection,
     removeMusicSection,
+    clipThumbnails,
   } = useStudio();
   const { t, language } = useI18n();
   const comma = language === "ro";
@@ -691,6 +692,9 @@ export default function Timeline() {
                   </span>
                 </button>
 
+                {/* THUMBNAIL — front-elevation identification glyph, inert. */}
+                <ClipThumbnail points={clipThumbnails[clip.id] ?? []} color={rgbToHex(clip.color)} />
+
                 {/* Transition / hold boundary = formation-ready moment */}
                 <span
                   className="pointer-events-none absolute inset-y-0 left-0 border-r border-dashed opacity-60"
@@ -824,5 +828,26 @@ export default function Timeline() {
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * Lightweight clip identification glyph: a decimated front-elevation of the
+ * geometry the clip resolves to. Pointer-inert, so every timeline gesture keeps
+ * reaching the clip body underneath it.
+ */
+function ClipThumbnail({ points, color }: { points: readonly (readonly [number, number])[]; color: string }) {
+  if (points.length === 0) return null;
+  return (
+    <svg
+      viewBox="0 0 1 1"
+      preserveAspectRatio="none"
+      aria-hidden
+      className="pointer-events-none absolute right-2 top-1 h-6 w-8 opacity-70"
+    >
+      {points.map((p, i) => (
+        <circle key={i} cx={p[0]} cy={1 - p[1]} r={0.035} fill={color} />
+      ))}
+    </svg>
   );
 }

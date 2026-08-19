@@ -14,3 +14,5 @@ export * from "./overlap";
 export * from "./edit";
 export * from "./selection";
 export * from "./group";
+export * from "./design";
+export * from "./thumbnail";

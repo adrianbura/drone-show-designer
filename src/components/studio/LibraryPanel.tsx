@@ -29,9 +29,9 @@ const VIEWS: LibraryView[] = ["ALL", "STATIC", "DYNAMIC", "SCENE", "FAVORITES", 
 function Thumbnail({ asset }: { asset: FormationAsset }) {
   const points = asset.thumbnail?.points ?? [];
   return (
-    <svg viewBox="0 0 1 1" className="size-12 shrink-0 rounded border border-border bg-surface-sunken">
+    <svg viewBox="0 0 1 1" className="size-14 shrink-0 rounded border border-border bg-surface-sunken">
       {points.map((p, i) => (
-        <circle key={i} cx={p[0]} cy={1 - p[1]} r={0.016} className="fill-accent/80" />
+        <circle key={i} cx={p[0]} cy={1 - p[1]} r={0.02} className="fill-accent/80" />
       ))}
     </svg>
   );
@@ -275,11 +275,14 @@ export default function LibraryPanel() {
                         })}
                       </div>
                     ) : null}
-                    {asset.source === "ESSP_DERIVED" ? (
-                      <div className="font-mono text-[9px] text-accent/80">
-                        {t("formationLibrary.esspDerived")}
-                      </div>
-                    ) : null}
+                    {/* PROVENANCE always visible: an ESSP-derived asset carries
+                        different editing expectations from a user-authored one. */}
+                    <div
+                      className={`font-mono text-[9px] ${asset.source === "ESSP_DERIVED" ? "text-accent/80" : "text-muted-foreground/80"}`}
+                      data-testid="asset-provenance"
+                    >
+                      {asset.source === "ESSP_DERIVED" ? t("formationLibrary.esspDerived") : "USER"}
+                    </div>
                     {asset.tags.length > 0 ? (
                       <div className="truncate font-mono text-[9px] text-muted-foreground/80">
                         {asset.tags.join(" · ")}
