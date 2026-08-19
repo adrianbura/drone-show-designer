@@ -24,7 +24,9 @@ import {
   sceneForClip,
   type SceneEvaluator,
 } from "../scene";
+import { padPoints, resolveClipGeometry } from "./target";
 import { planDynamicPoint } from "../dynamic/plan";
+
 import {
   planFleetParticipation,
   participationTargets,
