@@ -9,7 +9,8 @@
 import { ASSIGNMENT_ALGORITHM_VERSION, type AssignmentStrategyId } from "../assignment";
 import { CONFLICT_DETECTION_VERSION } from "../conflicts";
 import { buildShowPlan } from "../trajectory/schedule";
-import { sampleTrajectorySet, DEFAULT_SAMPLE_RATE } from "../trajectory/sampler";
+import { DEFAULT_SAMPLE_RATE } from "../trajectory/sampler";
+import { sampleEffectiveTrajectorySet } from "./effective";
 import { TRANSITION_OPTIMIZER_VERSION } from "../transition/types";
 import {
   clipPhase,
@@ -82,11 +83,15 @@ export function composeFullShow(
   // [-preShowDuration, showDuration] and SHOW TIME ZERO stays exactly t = 0.
   const preShow = showPlan.preShow;
   const startTime = showPlan.startTime;
-  const trajectorySet = sampleTrajectorySet(showPlan, {
+  // ONE effective authority: reference-owned intervals of an imported layer keep
+  // the imported samples, everything else is planner output. See ./effective.ts.
+  const effective = sampleEffectiveTrajectorySet(showPlan, {
     sampleRate,
     startTime,
-    duration: duration - startTime,
+    endTime: duration,
+    reference: options.reference ?? null,
   });
+  const trajectorySet = effective.set;
   const samplingMs = nowMs() - t1;
 
   // Segments come from the planner itself (drone 0 carries the canonical time
@@ -165,6 +170,7 @@ export function composeFullShow(
     sampleRate,
     assignmentStrategy,
     transitionOverrides: overrides,
+    referenceLayer: options.reference?.layer ?? null,
   });
 
   return {
@@ -175,13 +181,17 @@ export function composeFullShow(
     operationalDuration: duration - startTime,
     showStartOperationalTime: showPlan.showStartOperationalTime,
     preShow,
-    sampleRate,
+    // Honest rate: the effective grid, aligned to the imported clock when spliced.
+    sampleRate: trajectorySet.sampleRate,
     drones: showPlan.drones,
     phases,
     segments,
     transitions,
     holds,
     trajectorySet,
+    plannerTrajectorySet: effective.plannerSet,
+    effectiveAuthority: effective.authority,
+    splice: effective.splice,
     showPlan,
     metadata: {
       generatedAt: Date.now(),

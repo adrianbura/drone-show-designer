@@ -63,11 +63,14 @@ import {
   type FullShowIssue,
   type FullShowPlan,
   type FullShowProgress,
+  sampleEffectiveTrajectorySet,
+  type EffectiveTrajectoryAuthority,
   type FullShowValidationReport,
 } from "../show/fullshow";
 import type {
   Formation,
   FormationKind,
+  RGB,
   SafetyLimits,
   ShowProject,
   TimelineClip,
@@ -280,6 +283,14 @@ interface StudioContextValue {
   project: ShowProject;
   plan: ShowPlan;
   trajectorySet: TrajectorySet;
+  /** Which authority produced which part of `trajectorySet`. */
+  effectiveAuthority: EffectiveTrajectoryAuthority;
+  /**
+   * Original imported RGB for a reference-owned instant, or null when the
+   * authored lighting engine owns the LEDs at `t`. Export uses this so a
+   * reference-owned interval keeps its source colours.
+   */
+  referenceColorsAt: (t: number) => RGB[] | null;
   sampleRate: number;
   setSampleRate: (hz: number) => void;
   safety: SafetyReport;
@@ -894,7 +905,27 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     () => buildShowPlan(project, { assignmentStrategy, transitionOverrides }),
     [project, assignmentStrategy, transitionOverrides],
   );
-  const trajectorySet = useMemo(() => sampleTrajectorySet(plan, { sampleRate }), [plan, sampleRate]);
+  /**
+   * EFFECTIVE TRAJECTORY AUTHORITY. When an imported ESSP layer is present the
+   * canonical set is SPLICED (imported samples on reference-owned intervals,
+   * planner output elsewhere), so safety, simulation and export all judge what
+   * actually flies rather than a planner-only approximation.
+   */
+  const effective = useMemo(
+    () =>
+      sampleEffectiveTrajectorySet(plan, {
+        sampleRate,
+        startTime: plan.startTime ?? 0,
+        endTime: plan.duration,
+        reference:
+          referenceLayer && referenceLayerShow
+            ? { layer: referenceLayer, show: referenceLayerShow }
+            : null,
+      }),
+    [plan, sampleRate, referenceLayer, referenceLayerShow],
+  );
+  const trajectorySet = effective.set;
+  const effectiveAuthority = effective.authority;
   const safety = useMemo(
     () => validateShow(project, trajectorySet, plan.drones),
     [project, trajectorySet, plan.drones],
@@ -938,8 +969,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   // Deterministic revision of everything the full-show analysis depends on.
   const analysisRevision = useMemo(
-    () => computeAnalysisRevision(project, { sampleRate, assignmentStrategy, transitionOverrides }),
-    [project, sampleRate, assignmentStrategy, transitionOverrides],
+    () =>
+      computeAnalysisRevision(project, {
+        sampleRate,
+        assignmentStrategy,
+        transitionOverrides,
+        referenceLayer,
+      }),
+    [project, sampleRate, assignmentStrategy, transitionOverrides, referenceLayer],
   );
   const fullShowStale = !!fullShow && fullShow.report.analysisRevision !== analysisRevision;
 
@@ -2189,6 +2226,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           unresolvedClipIds,
           onProgress: setFullShowProgress,
           isCancelled: () => cancelFullShow.current,
+          reference:
+            referenceLayerRef.current && referenceLayerShow
+              ? { layer: referenceLayerRef.current, show: referenceLayerShow }
+              : null,
         });
         setFullShow(result);
       } catch (err) {
@@ -2212,6 +2253,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     assignmentStrategy,
     transitionOverrides,
     transitionAnalysis,
+    referenceLayerShow,
   ]);
 
   const cancelFullShowAnalysis = useCallback(() => {
@@ -3400,6 +3442,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [editLighting],
   );
 
+  /**
+   * LED AUTHORITY of a reference-owned instant: the original RGB byte triplets.
+   * Returns null when the authored lighting engine owns the LEDs at `t`.
+   */
+  const referenceColorsAt = useCallback(
+    (t: number): RGB[] | null => {
+      if (!referenceLayerShow || !referenceLayer) return null;
+      if (intervalAtTime(referenceLayer, t)?.owner !== "REFERENCE") return null;
+      return referenceLightStates(referenceLayerShow, t, project.droneCount).map(
+        (s) => [s.r, s.g, s.b] as RGB,
+      );
+    },
+    [referenceLayer, referenceLayerShow, project.droneCount],
+  );
+
   const lightingStatesAtTime = useCallback(
     (t: number): DroneLightState[] => {
       // An imported reference-owned interval owns its LEDs too: the displayed
@@ -3426,6 +3483,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       project,
       plan,
       trajectorySet,
+      effectiveAuthority,
+      referenceColorsAt,
       sampleRate,
       setSampleRate,
       safety,
@@ -3734,6 +3793,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       project,
       plan,
       trajectorySet,
+      effectiveAuthority,
+      referenceColorsAt,
       sampleRate,
       safety,
       beatGrid,

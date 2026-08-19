@@ -178,6 +178,26 @@ export function analyzeFullShow(
     });
   }
 
+  // SPLICE BOUNDARIES. Where the imported authority hands over to the planner
+  // (or back), both must agree on position AND velocity: otherwise the show
+  // teleports or snaps speed at that instant, which blocks export.
+  for (const boundary of plan.splice?.boundaries ?? []) {
+    if (boundary.ok) continue;
+    add({
+      severity: "error",
+      category: "continuity",
+      code: "SPLICE_DISCONTINUITY",
+      message: `Imported/planned handover at ${boundary.time.toFixed(2)}s disagrees by ${boundary.maxPositionDeltaMeters.toFixed(2)} m and ${boundary.maxVelocityDeltaMps.toFixed(2)} m/s (tolerances ${plan.splice!.positionToleranceMeters.toFixed(2)} m / ${plan.splice!.velocityToleranceMps.toFixed(2)} m/s) between clips "${boundary.leftClipId}" and "${boundary.rightClipId}".`,
+      time: boundary.time,
+      clipId: boundary.rightClipId,
+      value: boundary.maxPositionDeltaMeters,
+      limit: plan.splice!.positionToleranceMeters,
+      ...(boundary.worstPositionDroneIndex >= 0
+        ? { droneIndices: [boundary.worstPositionDroneIndex] }
+        : {}),
+    });
+  }
+
   for (const issue of safety.issues.slice(0, 200)) {
     const seg = segmentAt(plan, issue.time);
     add({
@@ -311,6 +331,8 @@ export function analyzeFullShow(
     contextualConflicts,
     safety,
     continuity,
+    effectiveAuthority: plan.effectiveAuthority,
+    splice: plan.splice,
     timeline,
     homePads,
     lighting,
