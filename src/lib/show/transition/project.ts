@@ -2,14 +2,22 @@
  * Bridge from the creative model (ShowProject + timeline clip) to a
  * TransitionInput. Pure: it reads a project and a plan, and returns data.
  *
- * Only SHOW -> SHOW clip transitions are analysed here. TAKEOFF and LANDING
- * keep their existing behaviour and are intentionally not optimised in this
- * sprint (they have vertical semantics and deserve dedicated planners).
+ * CANONICAL TARGET AUTHORITY: the target geometry comes from
+ * `canonicalClipTarget()` (trajectory/target.ts) — the exact resolver
+ * `buildShowPlan()` uses — so the optimiser can never analyse a transition the
+ * scheduler would not fly. No scene/dynamic/participation logic is duplicated
+ * here.
+ *
+ * Only SHOW clips whose target is representable as a fleet-indexed permutation
+ * are optimizable (see `clipOptimizability`): TAKEOFF/LANDING keep their
+ * dedicated vertical planners, and partial-fleet participation clips are
+ * explicitly rejected instead of being optimised against base formation points.
  */
 import type { AssignmentStrategyId } from "../assignment";
 import type { ShowPlan } from "../trajectory/schedule";
 import { positionsAt } from "../trajectory/schedule";
-import { clipPhase, type ShowProject, type Vector3Tuple } from "../types";
+import { canonicalClipTarget, clipOptimizability } from "../trajectory/target";
+import type { ShowProject, Vector3Tuple } from "../types";
 import type { TransitionInput } from "./types";
 import { TransitionOptimizationError } from "./types";
 
@@ -20,9 +28,27 @@ export interface ClipTransitionOptions {
   readonly duration?: number;
 }
 
-export function isOptimizableClip(project: ShowProject, clipId: string): boolean {
-  const clip = project.timeline.find((c) => c.id === clipId);
-  return !!clip && clipPhase(clip) === "SHOW";
+/** Home/pad positions as the plan resolved them (pads when a pre-show exists). */
+function planHome(plan: ShowPlan): Vector3Tuple[] {
+  return plan.drones.map((d) => d.homePosition);
+}
+
+export function isOptimizableClip(
+  project: ShowProject,
+  clipId: string,
+  plan?: ShowPlan,
+): boolean {
+  const home = plan ? planHome(plan) : project.formations.length ? [] : [];
+  return clipOptimizability(project, clipId, home).optimizable;
+}
+
+/** Structured reason, for UI messaging. */
+export function clipOptimizabilityReason(
+  project: ShowProject,
+  clipId: string,
+  plan?: ShowPlan,
+) {
+  return clipOptimizability(project, clipId, plan ? planHome(plan) : []);
 }
 
 export function transitionInputForClip(
@@ -35,20 +61,23 @@ export function transitionInputForClip(
   if (!clip) {
     throw new TransitionOptimizationError("INVALID_TARGET_FORMATION", `Clip ${clipId} not found`);
   }
-  const formation = project.formations.find((f) => f.id === clip.formationId);
-  if (!formation || formation.points.length === 0) {
-    throw new TransitionOptimizationError(
-      "INVALID_TARGET_FORMATION",
-      `Clip ${clipId} has no usable target formation`,
-      { formationId: clip.formationId },
-    );
+  const home = planHome(plan);
+  const eligibility = clipOptimizability(project, clipId, home);
+  if (!eligibility.optimizable) {
+    throw new TransitionOptimizationError("INVALID_TARGET_FORMATION", eligibility.message, {
+      clipId,
+      code: eligibility.code,
+    });
   }
+  const resolved = canonicalClipTarget(project, clip, home);
   // Source = where the fleet actually is when this clip's transition begins.
-  const source: Vector3Tuple[] = positionsAt(plan, Math.max(0, clip.start - 1e-4));
+  const source: Vector3Tuple[] = positionsAt(plan, Math.max(plan.startTime, clip.start - 1e-4));
   return {
     drones: plan.drones,
     source,
-    target: formation.points as Vector3Tuple[],
+    // Fleet-indexed canonical target: `targetPointIndex` produced by the
+    // optimiser indexes THIS list, which is exactly what the scheduler assigns.
+    target: resolved.rawTarget as Vector3Tuple[],
     duration: Math.max(0.1, options.duration ?? clip.transition),
     limits: project.limits,
     strategy: options.strategy,
