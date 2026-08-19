@@ -57,6 +57,8 @@ import {
   type ReferenceExtractionDiagnostic,
   type ReferenceExtractionResult,
   type ReferenceExtractedSceneSnapshot,
+  type ReferenceTrajectoryLayer,
+
   type ReferenceSceneObjectDiagnostic,
 
   type ReferenceSceneRepresentation,
