@@ -47,6 +47,8 @@ export function isTextEntryTarget(target: ShortcutTarget | null | undefined): bo
 
 export function resolveShortcut(event: ShortcutEventLike): ShortcutAction | null {
   if (isTextEntryTarget(event.target)) return null;
+  // Ctrl is the documented Windows-first modifier. Meta remains supported
+  // internally for macOS users without leaking platform-specific labels into UI.
   const mod = event.ctrlKey === true || event.metaKey === true;
 
   if (mod) {
@@ -97,11 +99,11 @@ export const SHORTCUT_HELP: readonly { readonly keys: string; readonly labelKey:
   { keys: "← / →", labelKey: "shortcuts.seek1" },
   { keys: "Shift + ← / →", labelKey: "shortcuts.seek5" },
   { keys: "Home / End", labelKey: "shortcuts.seekEnds" },
-  { keys: "Ctrl/⌘ + Z", labelKey: "shortcuts.undo" },
-  { keys: "Ctrl/⌘ + Shift + Z", labelKey: "shortcuts.redo" },
+  { keys: "Ctrl + Z", labelKey: "shortcuts.undo" },
+  { keys: "Ctrl + Y", labelKey: "shortcuts.redo" },
   { keys: "W / E / R", labelKey: "shortcuts.gizmoMode" },
-  { keys: "Ctrl/⌘ + A", labelKey: "shortcuts.selectAll" },
-  { keys: "Ctrl/⌘ + D", labelKey: "shortcuts.duplicate" },
+  { keys: "Ctrl + A", labelKey: "shortcuts.selectAll" },
+  { keys: "Ctrl + D", labelKey: "shortcuts.duplicate" },
   { keys: "Delete", labelKey: "shortcuts.delete" },
   { keys: "Esc", labelKey: "shortcuts.clear" },
 ];
