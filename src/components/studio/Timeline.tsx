@@ -43,6 +43,7 @@ import {
   type SnapMode,
   type SnapResult,
 } from "@/lib/studio/timelineEdit";
+import { packTimelineClipLanes } from "@/lib/studio/timelineLayout";
 import { useStudio } from "@/lib/studio/store";
 import AudioWaveformTrack from "./AudioWaveformTrack";
 import LightingTrack from "./LightingTrack";
@@ -124,6 +125,7 @@ export default function Timeline() {
     setFollowPlayhead,
     setTimelineZoom,
     setTimelineScroll,
+    fitTimeline,
     commitClipTiming,
     undoTimeline,
     redoTimeline,
@@ -150,6 +152,10 @@ export default function Timeline() {
   const widthPct = useCallback((v: number) => `${(v / span) * 100}%`, [span]);
 
   const snapTargets = useMemo(() => markerTimes(markers), [markers]);
+
+  /** ADAPTIVE VERTICAL LANES — deterministic packing, no fixed 3-row reuse. */
+  const laneLayout = useMemo(() => packTimelineClipLanes(project.timeline), [project.timeline]);
+  const trackMinHeight = 16 + laneLayout.laneCount * 34;
 
   /** Snap context for the current gesture — pixel-aware, Alt bypasses it. */
   const snapContext = useCallback(
@@ -384,6 +390,14 @@ export default function Timeline() {
             <ZoomIn className="size-4" />
           </button>
           <button
+            onClick={fitTimeline}
+            className="control-btn px-1.5 text-[10px] uppercase tracking-[0.18em]"
+            aria-label={t("timeline.fit")}
+            title={t("timeline.fit")}
+          >
+            {t("timeline.fitShort")}
+          </button>
+          <button
             onClick={() => setFollowPlayhead(!followPlayhead)}
             className={`control-btn ${followPlayhead ? "text-accent" : ""}`}
             aria-label={t("timeline.follow")}
@@ -467,7 +481,8 @@ export default function Timeline() {
             if (gestureRef.current) return;
             if (e.currentTarget.hasPointerCapture(e.pointerId)) scrub(e.clientX);
           }}
-          className="relative min-h-20 flex-1 cursor-ew-resize touch-none rounded-md border border-border bg-surface-sunken"
+          style={{ minHeight: `${Math.max(80, trackMinHeight)}px` }}
+          className="relative flex-1 cursor-ew-resize touch-none rounded-md border border-border bg-surface-sunken"
         >
           {/* PRE-SHOW region: negative show time, launch + staging */}
           {preShowPlan ? (
@@ -553,7 +568,7 @@ export default function Timeline() {
           ))}
 
           {/* Clips — body drags, edges resize transition / hold. */}
-          {project.timeline.map((clip, row) => {
+          {project.timeline.map((clip) => {
             const formation = project.formations.find((f) => f.id === clip.formationId);
             const d = draftedClip(clip.id);
             const start = d?.start ?? clip.start;
@@ -572,7 +587,7 @@ export default function Timeline() {
                 style={{
                   left: pct(start),
                   width: widthPct(total),
-                  top: `${8 + (row % 3) * 34}px`,
+                  top: `${8 + (laneLayout.laneByClipId[clip.id] ?? 0) * 34}px`,
                   borderColor: rgbToHex(clip.color),
                   background: `linear-gradient(90deg, ${rgbToHex(clip.color)}33, ${rgbToHex(clip.color)}12)`,
                 }}

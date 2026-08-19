@@ -321,6 +321,8 @@ export const ro: Dictionary = {
   "timeline.redo": "Reface editarea",
   "timeline.zoomIn": "Mărește",
   "timeline.zoomOut": "Micșorează",
+  "timeline.fit": "Încadrează conținutul",
+  "timeline.fitShort": "Încadr.",
   "timeline.scroll": "Derulează cronologia",
   "timeline.follow": "Urmărește cursorul",
   "timeline.dragHint": "trage pentru mutare, marginile redimensionează tranziția și menținerea (Alt = fără aliniere, Esc = anulare)",

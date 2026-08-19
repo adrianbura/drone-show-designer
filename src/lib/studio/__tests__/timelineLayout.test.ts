@@ -87,10 +87,10 @@ describe("adaptive timeline lane packing", () => {
       clip("d", 10, 1, 1),
     ]);
     expect(layout.laneCount).toBe(3);
-    expect(layout.laneByClipId.a).toBe(0);
-    expect(layout.laneByClipId.b).toBe(1);
-    expect(layout.laneByClipId.c).toBe(2);
-    expect(layout.laneByClipId.d).toBe(0);
+    expect(layout.laneByClipId['a']).toBe(0);
+    expect(layout.laneByClipId['b']).toBe(1);
+    expect(layout.laneByClipId['c']).toBe(2);
+    expect(layout.laneByClipId['d']).toBe(0);
   });
 
   it("is deterministic regardless of input order", () => {
