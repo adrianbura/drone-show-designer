@@ -80,7 +80,7 @@ describe("canonical target agreement", () => {
 
   it("agrees for a dynamic clip and uses its hold-start state, not the base points", () => {
     const f = grid("f-dyn", 24, 40);
-    const dynamic = applyPreset(dynamicFromFormation("dyn-1", "Dyn", f), "ORBIT");
+    const dynamic = applyPreset(dynamicFromFormation(f, { id: "dyn-1", name: "Dyn" }), "ORBIT");
     const project: ShowProject = {
       ...projectWith(24, [f], showClip(f.id, { dynamicFormationId: dynamic.id })),
       dynamicFormations: [dynamic],
@@ -97,11 +97,14 @@ describe("canonical target agreement", () => {
     const a = grid("f-a", 12, 40);
     const b = grid("f-b", 12, 60);
     let project = projectWith(24, [a, b], showClip(a.id));
-    let scene = addObject(emptyScene(CLIP, "Scene"), {
+    let scene = addObject(project, emptyScene(CLIP, "Scene"), {
       source: { kind: "STATIC", formationId: a.id },
       name: "A",
-    });
-    scene = addObject(scene, { source: { kind: "STATIC", formationId: b.id }, name: "B" });
+    }).scene;
+    scene = addObject(project, scene, {
+      source: { kind: "STATIC", formationId: b.id },
+      name: "B",
+    }).scene;
     project = upsertScene(project, scene);
 
     const before = optimizerTarget(project);
@@ -154,11 +157,14 @@ describe("override basis invalidation", () => {
     const a = grid("f-a2", 12, 40);
     const b = grid("f-b2", 12, 60);
     let project = projectWith(24, [a, b], showClip(a.id));
-    let scene = addObject(emptyScene(CLIP, "Scene"), {
+    let scene = addObject(project, emptyScene(CLIP, "Scene"), {
       source: { kind: "STATIC", formationId: a.id },
       name: "A",
-    });
-    scene = addObject(scene, { source: { kind: "STATIC", formationId: b.id }, name: "B" });
+    }).scene;
+    scene = addObject(project, scene, {
+      source: { kind: "STATIC", formationId: b.id },
+      name: "B",
+    }).scene;
     project = upsertScene(project, scene);
     const before = overrideBasis(project, CLIP);
     const after = overrideBasis(
