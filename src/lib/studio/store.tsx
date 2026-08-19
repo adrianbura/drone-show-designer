@@ -2499,14 +2499,36 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       const error = toProjectFileError(err);
       setProjectFileError({ code: error.code, message: error.message });
     }
-  }, [project, selectedClipId, sampleRate, assignmentStrategy, projectFileName, markSaved]);
+  }, [project, buildProjectFile, projectFileName, markSaved]);
 
   /** Replaces every derived/analysis result after the project is replaced. */
-  const adoptProject = useCallback((next: ShowProject, fileName: string) => {
+  const adoptProject = useCallback((
+    next: ShowProject,
+    fileName: string,
+    restore?: {
+      planning?: ProjectPlanningState;
+      selectedClipId?: string | null;
+      sampleRate?: number;
+    },
+  ) => {
     setProject(next);
-    setSelectedClipId(next.timeline[0]?.id ?? null);
+    // selectedClipId is only restored when that clip still exists; otherwise the
+    // deterministic fallback is the first clip of the reopened timeline.
+    const requested = restore?.selectedClipId;
+    const restoredClipId =
+      typeof requested === "string" && next.timeline.some((c) => c.id === requested)
+        ? requested
+        : (next.timeline[0]?.id ?? null);
+    setSelectedClipId(restoredClipId);
     setExplicitDynamicId(null);
-    setTransitionOverrides({});
+    // PLANNING AUTHORITY: applied transition overrides and the assignment
+    // strategy are canonical planning inputs, so a reopened project must not
+    // silently revert to unoptimized planning.
+    setAssignmentStrategy(restore?.planning?.assignmentStrategy ?? "nearestNeighbor");
+    setTransitionOverrides(restore?.planning?.transitionOverrides ?? {});
+    if (typeof restore?.sampleRate === "number" && Number.isFinite(restore.sampleRate)) {
+      setSampleRate(restore.sampleRate);
+    }
     setTransitionAnalysis(null);
     setAssignmentComparison(null);
     setOptimization(null);
