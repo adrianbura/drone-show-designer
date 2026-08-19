@@ -66,22 +66,51 @@ function isFiniteNumberArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((n) => typeof n === "number" && Number.isFinite(n));
 }
 
+/** A strategy id is only adopted when this build can actually select it. */
+function selectableStrategy(value: unknown): AssignmentStrategyId | null {
+  return typeof value === "string" &&
+    (SELECTABLE_ASSIGNMENT_STRATEGIES as readonly string[]).includes(value)
+    ? (value as AssignmentStrategyId)
+    : null;
+}
+
+export interface PlanningMigrationContext {
+  /**
+   * LEGACY STRATEGY (schema <= 1). Older files stored the selected assignment
+   * strategy in `editor.assignmentStrategy`. Ignoring it would silently change
+   * the flown trajectory of an old project, so it is migrated into planning —
+   * but only when the file predates v2 and carries no planning section. It is
+   * never authoritative for v2 files.
+   */
+  readonly legacyStrategy?: unknown;
+  /**
+   * The already-migrated project. Persisted overrides are validated against it:
+   * an override that no longer resolves is a hard error, never a silent drop.
+   */
+  readonly project?: ShowProject;
+}
+
 /**
  * PLANNING MIGRATION. Unknown/legacy strategy ids degrade to the default
- * (never blindly cast), while a structurally broken override is a hard project
- * file error: silently dropping it would change the flown trajectory.
+ * (never blindly cast), while a structurally or semantically broken override is
+ * a hard project file error: silently dropping or truncating it would change
+ * the flown trajectory.
  */
-export function migratePlanningState(raw: unknown): ProjectPlanningState {
-  if (raw === undefined || raw === null) return defaultPlanningState();
+export function migratePlanningState(
+  raw: unknown,
+  context: PlanningMigrationContext = {},
+): ProjectPlanningState {
+  if (raw === undefined || raw === null) {
+    return {
+      assignmentStrategy: selectableStrategy(context.legacyStrategy) ?? DEFAULT_PLANNING_STRATEGY,
+      transitionOverrides: {},
+    };
+  }
   if (typeof raw !== "object") {
     throw new ProjectFileError("MALFORMED_PLANNING", "The planning section is malformed.");
   }
   const candidate = raw as { assignmentStrategy?: unknown; transitionOverrides?: unknown };
-  const strategy =
-    typeof candidate.assignmentStrategy === "string" &&
-    (SELECTABLE_ASSIGNMENT_STRATEGIES as readonly string[]).includes(candidate.assignmentStrategy)
-      ? (candidate.assignmentStrategy as AssignmentStrategyId)
-      : DEFAULT_PLANNING_STRATEGY;
+  const strategy = selectableStrategy(candidate.assignmentStrategy) ?? DEFAULT_PLANNING_STRATEGY;
 
   const overrides: Record<string, ClipTransitionOverride> = {};
   const rawOverrides = candidate.transitionOverrides;
