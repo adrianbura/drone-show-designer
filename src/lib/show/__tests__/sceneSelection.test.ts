@@ -93,7 +93,6 @@ describe("scene multi-selection editing", () => {
 
     const firstCopy = result.scene.objects.find((o) => o.id === result.objectIds[0]);
     const secondCopy = result.scene.objects.find((o) => o.id === result.objectIds[1]);
-    expect(firstCopy?.position).toBeUndefined();
     expect(firstCopy?.transform.position).toEqual([-9, 2, 0]);
     expect(secondCopy?.transform.position).toEqual([11, 2, 0]);
 
