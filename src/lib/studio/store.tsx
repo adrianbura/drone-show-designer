@@ -227,6 +227,8 @@ import {
   toProjectFileError,
   writeAutosave,
   type ProjectAutosaveSnapshot,
+  type ProjectFile,
+  type ProjectPlanningState,
 } from "../project";
 import {
   buildProposalContent,
@@ -661,6 +663,8 @@ interface StudioContextValue {
   clearProjectFileError: () => void;
   /** Writes the project file to disk (browser download). */
   saveProjectFile: () => void;
+  /** Canonical project envelope (project + planning + editor prefs). */
+  buildProjectFile: () => ProjectFile;
   /** Loads a project file, replacing the open show only when it is valid. */
   openProjectFile: (file: File) => Promise<void>;
   /** Autosaved snapshot found at startup and not yet accepted or dismissed. */
@@ -2468,11 +2472,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     if (snapshotName) setProjectFileNameState(ensureProjectExtension(snapshotName));
   }, [project]);
 
+  // CANONICAL PROJECT ENVELOPE. Every writer (TopBar save, autosave, Inspector
+  // "Studio project file") goes through this so they cannot drift apart: the
+  // planning section carries the applied optimization that changes flight output.
+  const buildProjectFile = useCallback(
+    (): ProjectFile =>
+      serializeProject(project, {
+        planning: { assignmentStrategy, transitionOverrides },
+        editor: { selectedClipId, sampleRate },
+      }),
+    [project, assignmentStrategy, transitionOverrides, selectedClipId, sampleRate],
+  );
+
   const saveProjectFile = useCallback(() => {
     try {
-      const file = serializeProject(project, {
-        editor: { selectedClipId, sampleRate, assignmentStrategy },
-      });
+      const file = buildProjectFile();
       const name = ensureProjectExtension(projectFileName || suggestedProjectFileName(project.name));
       const blob = new Blob([projectFileToJson(file)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -2487,14 +2501,36 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       const error = toProjectFileError(err);
       setProjectFileError({ code: error.code, message: error.message });
     }
-  }, [project, selectedClipId, sampleRate, assignmentStrategy, projectFileName, markSaved]);
+  }, [project, buildProjectFile, projectFileName, markSaved]);
 
   /** Replaces every derived/analysis result after the project is replaced. */
-  const adoptProject = useCallback((next: ShowProject, fileName: string) => {
+  const adoptProject = useCallback((
+    next: ShowProject,
+    fileName: string,
+    restore?: {
+      planning?: ProjectPlanningState;
+      selectedClipId?: string | null;
+      sampleRate?: number;
+    },
+  ) => {
     setProject(next);
-    setSelectedClipId(next.timeline[0]?.id ?? null);
+    // selectedClipId is only restored when that clip still exists; otherwise the
+    // deterministic fallback is the first clip of the reopened timeline.
+    const requested = restore?.selectedClipId;
+    const restoredClipId =
+      typeof requested === "string" && next.timeline.some((c) => c.id === requested)
+        ? requested
+        : (next.timeline[0]?.id ?? null);
+    setSelectedClipId(restoredClipId);
     setExplicitDynamicId(null);
-    setTransitionOverrides({});
+    // PLANNING AUTHORITY: applied transition overrides and the assignment
+    // strategy are canonical planning inputs, so a reopened project must not
+    // silently revert to unoptimized planning.
+    setAssignmentStrategy(restore?.planning?.assignmentStrategy ?? "nearestNeighbor");
+    setTransitionOverrides(restore?.planning?.transitionOverrides ?? {});
+    if (typeof restore?.sampleRate === "number" && Number.isFinite(restore.sampleRate)) {
+      setSampleRate(restore.sampleRate);
+    }
     setTransitionAnalysis(null);
     setAssignmentComparison(null);
     setOptimization(null);
@@ -2516,12 +2552,25 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setProjectFileNameState(ensureProjectExtension(fileName || suggestedProjectFileName(next.name)));
   }, []);
 
+  /** Adopts a parsed/migrated envelope with its planning state and editor prefs. */
+  const adoptProjectFile = useCallback(
+    (file: ProjectFile, fileName: string) => {
+      adoptProject(file.project, fileName, {
+        ...(file.planning ? { planning: file.planning } : {}),
+        selectedClipId: file.editor?.selectedClipId ?? null,
+        ...(typeof file.editor?.sampleRate === "number"
+          ? { sampleRate: file.editor.sampleRate }
+          : {}),
+      });
+    },
+    [adoptProject],
+  );
+
   const openProjectFile = useCallback(
     async (file: File) => {
       try {
         const parsed = parseProjectFile(await file.text());
-        adoptProject(parsed.project, file.name);
-        if (typeof parsed.editor?.sampleRate === "number") setSampleRate(parsed.editor.sampleRate);
+        adoptProjectFile(parsed, file.name);
         setProjectSavedAt(parsed.savedAt);
         setProjectFileError(null);
       } catch (err) {
@@ -2530,7 +2579,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         setProjectFileError({ code: error.code, message: error.message });
       }
     },
-    [adoptProject],
+    [adoptProjectFile],
   );
 
   // Startup recovery offer — never applied automatically.
@@ -2558,20 +2607,36 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       void writeAutosave(store, {
         savedAt,
         fileName: projectFileName,
-        file: serializeProject(project, { savedAt }),
+        file: serializeProject(project, {
+          savedAt,
+          planning: { assignmentStrategy, transitionOverrides },
+          editor: { selectedClipId, sampleRate },
+        }),
       }).then(() => setProjectAutosavedAt(savedAt));
     }, delay);
     return () => clearTimeout(timer);
-  }, [project, projectFileName, getAutosaveStore]);
+  }, [
+    project,
+    projectFileName,
+    getAutosaveStore,
+    assignmentStrategy,
+    transitionOverrides,
+    selectedClipId,
+    sampleRate,
+  ]);
 
   const restoreAutosave = useCallback(() => {
     const snapshot = autosaveRecovery;
     if (!snapshot) return;
-    adoptProject(snapshot.file.project, snapshot.fileName || suggestedProjectFileName(snapshot.file.project.name));
+    // Recovery restores planning state and editor prefs exactly like an open.
+    adoptProjectFile(
+      snapshot.file,
+      snapshot.fileName || suggestedProjectFileName(snapshot.file.project.name),
+    );
     setProjectSavedAt(null);
     setProjectDirty(true);
     setAutosaveRecovery(null);
-  }, [autosaveRecovery, adoptProject]);
+  }, [autosaveRecovery, adoptProjectFile]);
 
   const dismissAutosave = useCallback(() => {
     setAutosaveRecovery(null);
@@ -3211,6 +3276,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       projectFileError,
       clearProjectFileError,
       saveProjectFile,
+      buildProjectFile,
       openProjectFile,
       autosaveRecovery,
       restoreAutosave,
@@ -3448,6 +3514,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       projectFileError,
       clearProjectFileError,
       saveProjectFile,
+      buildProjectFile,
       openProjectFile,
       autosaveRecovery,
       restoreAutosave,

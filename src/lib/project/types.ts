@@ -6,10 +6,17 @@
  * export. Everything required to reopen a show for editing is stored here;
  * transient editor state (dialogs, hover, busy flags, AI drafts) is not.
  */
+import type { AssignmentStrategyId } from "../show/assignment";
+import type { ClipTransitionOverride } from "../show/trajectory/schedule";
 import type { ShowProject } from "../show/types";
 
 export const PROJECT_FILE_KIND = "DroneShowStudioProject";
-export const PROJECT_SCHEMA_VERSION = 1;
+/**
+ * v2 adds the optional `planning` section (assignment strategy + applied
+ * transition overrides). v1 files remain openable and migrate to planning
+ * defaults.
+ */
+export const PROJECT_SCHEMA_VERSION = 2;
 export const PROJECT_FILE_EXTENSION = ".droneshow.json";
 export const PROJECT_ENGINE_NAME = "Drone Show Studio";
 
@@ -17,8 +24,23 @@ export const PROJECT_ENGINE_NAME = "Drone Show Studio";
 export interface ProjectEditorPreferences {
   readonly selectedClipId?: string | null;
   readonly sampleRate?: number;
+  /** @deprecated planning authority moved to `ProjectFile.planning`. */
   readonly assignmentStrategy?: string;
 }
+
+/**
+ * CANONICAL PLANNING STATE. Unlike editor preferences this section CHANGES
+ * FLIGHT OUTPUT: it selects the assignment strategy and carries the applied
+ * per-clip transition overrides, so a reopened project plans and flies exactly
+ * the show that was saved. Derived reports (full-show, safety, optimization
+ * diagnostics, simulation history) are never stored here.
+ */
+export interface ProjectPlanningState {
+  readonly assignmentStrategy: AssignmentStrategyId;
+  readonly transitionOverrides: Record<string, ClipTransitionOverride>;
+}
+
+export const DEFAULT_PLANNING_STRATEGY: AssignmentStrategyId = "nearestNeighbor";
 
 export interface ProjectFile {
   readonly kind: typeof PROJECT_FILE_KIND;
@@ -27,6 +49,8 @@ export interface ProjectFile {
   readonly savedAt: string;
   readonly app: { readonly name: string; readonly schemaVersion: string };
   readonly project: ShowProject;
+  /** Present from schema v2 on; v1 files migrate to planning defaults. */
+  readonly planning?: ProjectPlanningState;
   readonly editor?: ProjectEditorPreferences;
 }
 
@@ -35,6 +59,7 @@ export type ProjectFileErrorCode =
   | "INVALID_KIND"
   | "UNSUPPORTED_VERSION"
   | "MALFORMED_PROJECT"
+  | "MALFORMED_PLANNING"
   | "FORMATION_INTEGRITY"
   | "DYNAMIC_INTEGRITY";
 

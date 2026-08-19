@@ -7,9 +7,12 @@
  * replace the open project, and every accepted file is normalised through the
  * canonical project migration.
  */
+import { SELECTABLE_ASSIGNMENT_STRATEGIES, type AssignmentStrategyId } from "../show/assignment";
 import { migrateProject } from "../show/defaultProject";
+import type { ClipTransitionOverride } from "../show/trajectory/schedule";
 import { SCHEMA_VERSION, type ShowProject } from "../show/types";
 import {
+  DEFAULT_PLANNING_STRATEGY,
   PROJECT_ENGINE_NAME,
   PROJECT_FILE_EXTENSION,
   PROJECT_FILE_KIND,
@@ -17,6 +20,7 @@ import {
   ProjectFileError,
   type ProjectEditorPreferences,
   type ProjectFile,
+  type ProjectPlanningState,
 } from "./types";
 
 function plainClone<T>(value: T): T {
@@ -37,7 +41,11 @@ function withDetachedAudio(project: ShowProject): ShowProject {
 /** Builds the versioned envelope around the current editable project. */
 export function serializeProject(
   project: ShowProject,
-  options: { editor?: ProjectEditorPreferences; savedAt?: string } = {},
+  options: {
+    editor?: ProjectEditorPreferences;
+    planning?: ProjectPlanningState;
+    savedAt?: string;
+  } = {},
 ): ProjectFile {
   return {
     kind: PROJECT_FILE_KIND,
@@ -45,8 +53,67 @@ export function serializeProject(
     savedAt: options.savedAt ?? new Date().toISOString(),
     app: { name: PROJECT_ENGINE_NAME, schemaVersion: SCHEMA_VERSION },
     project: withDetachedAudio(plainClone(project)),
+    planning: plainClone(options.planning ?? defaultPlanningState()),
     ...(options.editor ? { editor: options.editor } : {}),
   };
+}
+
+export function defaultPlanningState(): ProjectPlanningState {
+  return { assignmentStrategy: DEFAULT_PLANNING_STRATEGY, transitionOverrides: {} };
+}
+
+function isFiniteNumberArray(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every((n) => typeof n === "number" && Number.isFinite(n));
+}
+
+/**
+ * PLANNING MIGRATION. Unknown/legacy strategy ids degrade to the default
+ * (never blindly cast), while a structurally broken override is a hard project
+ * file error: silently dropping it would change the flown trajectory.
+ */
+export function migratePlanningState(raw: unknown): ProjectPlanningState {
+  if (raw === undefined || raw === null) return defaultPlanningState();
+  if (typeof raw !== "object") {
+    throw new ProjectFileError("MALFORMED_PLANNING", "The planning section is malformed.");
+  }
+  const candidate = raw as { assignmentStrategy?: unknown; transitionOverrides?: unknown };
+  const strategy =
+    typeof candidate.assignmentStrategy === "string" &&
+    (SELECTABLE_ASSIGNMENT_STRATEGIES as readonly string[]).includes(candidate.assignmentStrategy)
+      ? (candidate.assignmentStrategy as AssignmentStrategyId)
+      : DEFAULT_PLANNING_STRATEGY;
+
+  const overrides: Record<string, ClipTransitionOverride> = {};
+  const rawOverrides = candidate.transitionOverrides;
+  if (rawOverrides !== undefined && rawOverrides !== null) {
+    if (typeof rawOverrides !== "object" || Array.isArray(rawOverrides)) {
+      throw new ProjectFileError("MALFORMED_PLANNING", "Transition overrides are malformed.");
+    }
+    for (const [clipId, value] of Object.entries(rawOverrides as Record<string, unknown>)) {
+      const o = value as Partial<ClipTransitionOverride> | null;
+      if (
+        !o ||
+        typeof o !== "object" ||
+        !isFiniteNumberArray(o.targetPointIndex) ||
+        !isFiniteNumberArray(o.startOffsets) ||
+        !isFiniteNumberArray(o.laneOffsets) ||
+        typeof o.strategy !== "string"
+      ) {
+        throw new ProjectFileError(
+          "MALFORMED_PLANNING",
+          `Transition override for clip ${clipId} is malformed.`,
+          { clipId },
+        );
+      }
+      overrides[clipId] = {
+        targetPointIndex: [...o.targetPointIndex],
+        startOffsets: [...o.startOffsets],
+        laneOffsets: [...o.laneOffsets],
+        strategy: o.strategy,
+      };
+    }
+  }
+  return { assignmentStrategy: strategy, transitionOverrides: overrides };
 }
 
 export function projectFileToJson(file: ProjectFile): string {
@@ -217,6 +284,8 @@ export function migrateProjectFile(raw: unknown): ProjectFile {
     savedAt: typeof candidate.savedAt === "string" ? candidate.savedAt : new Date().toISOString(),
     app: candidate.app ?? { name: PROJECT_ENGINE_NAME, schemaVersion: SCHEMA_VERSION },
     project,
+    // v1 files carry no planning section: they migrate to planning defaults.
+    planning: migratePlanningState((candidate as { planning?: unknown }).planning),
     ...(candidate.editor ? { editor: candidate.editor } : {}),
   };
 }

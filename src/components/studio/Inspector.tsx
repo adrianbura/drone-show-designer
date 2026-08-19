@@ -25,10 +25,9 @@ import { evaluateExportEligibility } from "@/lib/adapters/exportEligibility";
 import {
   downloadText,
   toGenericShowJson,
-  toStudioProject,
   toTrajectoryCsv,
 } from "@/lib/adapters/export";
-import { suggestedProjectFileName } from "@/lib/project";
+import { projectFileToJson, suggestedProjectFileName } from "@/lib/project";
 import {
   assignmentStrategyLabel,
   SELECTABLE_ASSIGNMENT_STRATEGIES,
@@ -110,6 +109,7 @@ export default function Inspector() {
     fullShowStale,
     preShowReport,
     preShowStale,
+    buildProjectFile,
   } = useStudio();
   const exportEligibility = evaluateExportEligibility(fullShowReport, fullShowStale);
   const canExportComputedShow = exportEligibility.canExportComputedShow;
@@ -601,7 +601,9 @@ export default function Inspector() {
           onClick={() =>
             downloadText(
               suggestedProjectFileName(project.name),
-              toStudioProject(project),
+              // SAME canonical serializer as TopBar Save: identical planning
+              // semantics (assignment strategy + applied transition overrides).
+              projectFileToJson(buildProjectFile()),
               "application/json",
             )
           }
