@@ -2470,11 +2470,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     if (snapshotName) setProjectFileNameState(ensureProjectExtension(snapshotName));
   }, [project]);
 
+  // CANONICAL PROJECT ENVELOPE. Every writer (TopBar save, autosave, Inspector
+  // "Studio project file") goes through this so they cannot drift apart: the
+  // planning section carries the applied optimization that changes flight output.
+  const buildProjectFile = useCallback(
+    (): ProjectFile =>
+      serializeProject(project, {
+        planning: { assignmentStrategy, transitionOverrides },
+        editor: { selectedClipId, sampleRate },
+      }),
+    [project, assignmentStrategy, transitionOverrides, selectedClipId, sampleRate],
+  );
+
   const saveProjectFile = useCallback(() => {
     try {
-      const file = serializeProject(project, {
-        editor: { selectedClipId, sampleRate, assignmentStrategy },
-      });
+      const file = buildProjectFile();
       const name = ensureProjectExtension(projectFileName || suggestedProjectFileName(project.name));
       const blob = new Blob([projectFileToJson(file)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
