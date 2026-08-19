@@ -200,12 +200,9 @@ describe("deviation metrics", () => {
 });
 
 describe("reset to extracted state", () => {
-  it("restores one object only, and leaves the others untouched", async () => {
-    const { show, project, scene, clip, binding } = await composedFixture();
-    const objectId = scene.objects[0]!.id;
-    expect(canResetSceneObject(scene ? binding && undefined : undefined, clip.id, objectId)).toBe(
-      false,
-    );
+  it("is unavailable without an extraction history", async () => {
+    const { scene, clip } = await composedFixture();
+    expect(canResetSceneObject(null, clip.id, scene.objects[0]!.id)).toBe(false);
   });
 
   it("restores geometry and transform from the extraction history", async () => {
