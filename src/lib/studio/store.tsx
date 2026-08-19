@@ -17,6 +17,7 @@ import {
 } from "react";
 
 import { createDefaultProject } from "../show/defaultProject";
+import { createWeddingStoryProject } from "../show/stories/weddingStory";
 import { generatePoints, makeFormation } from "../show/formations";
 import { buildShowPlan, samplesAt, sampleTrajectorySet, DEFAULT_SAMPLE_RATE } from "../show/trajectory";
 import type { ClipTransitionOverride, ShowPlan, TrajectorySample, TrajectorySet } from "../show/trajectory";
@@ -573,6 +574,8 @@ interface StudioContextValue {
   // ---- Project setup wizard + asset library (Sprint 6B.6) -----------------
   /** Replaces the whole project with a new one built from the wizard draft. */
   createProjectFromDraft: (draft: ProjectSetupDraft) => void;
+  /** Loads the built-in authored story show (wedding narrative). */
+  loadStoryShow: (droneCount?: number) => void;
   /** Applies wizard edits (name / fleet / launch geometry) to the open project. */
   applySetupDraft: (draft: ProjectSetupDraft) => void;
   /** Current project expressed as an editable wizard draft. */
@@ -1392,8 +1395,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const currentSetupDraft = useMemo(() => setupDraftFromProject(project), [project]);
 
-  const createProjectFromDraft = useCallback((draft: ProjectSetupDraft) => {
-    const created = createProjectFromSetup(draft);
+  /**
+   * Replaces the whole open project with an authored one (setup wizard, story
+   * presets). Every derived/cached analysis was computed for the previous
+   * project, so it is dropped in the same commit.
+   */
+  const loadShowProject = useCallback((created: ShowProject) => {
     setProject(created);
     setSelectedClipId(created.timeline[0]?.id ?? null);
     setExplicitDynamicId(null);
@@ -1412,6 +1419,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     timelineHistory.current = { past: [], future: [] };
     setTimelineHistoryDepth({ past: 0, future: 0 });
   }, []);
+
+  const createProjectFromDraft = useCallback(
+    (draft: ProjectSetupDraft) => {
+      loadShowProject(createProjectFromSetup(draft));
+    },
+    [loadShowProject],
+  );
+
+  const loadStoryShow = useCallback(
+    (droneCount?: number) => {
+      loadShowProject(createWeddingStoryProject(droneCount ?? project.droneCount));
+    },
+    [loadShowProject, project.droneCount],
+  );
+
 
   const applySetupDraft = useCallback(
     (draft: ProjectSetupDraft) => {
@@ -4578,6 +4600,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       patchParticipation,
       setClipParticipation,
       createProjectFromDraft,
+      loadStoryShow,
       applySetupDraft,
       currentSetupDraft,
       addLibraryFormation,
