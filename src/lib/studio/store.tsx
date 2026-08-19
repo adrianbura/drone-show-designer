@@ -861,6 +861,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   // Clean startup: nothing is selected because nothing is authored yet.
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [selectedSceneObjectId, setSelectedSceneObjectId] = useState<string | null>(null);
+  /** Reference-assisted editing (design aid only, never persisted). */
+  const [sceneReferenceGhost, setSceneReferenceGhost] = useState(false);
+  const [sceneComparisonFrame, setSceneComparisonFrame] = useState<SceneComparisonFrame>("EXTRACTED");
+
   const [sampleRate, setSampleRate] = useState<number>(DEFAULT_SAMPLE_RATE);
   const [svgAssets, setSvgAssets] = useState<Record<string, SvgAsset>>({});
   const [svgDraft, setSvgDraft] = useState<SvgDraft | null>(null);
