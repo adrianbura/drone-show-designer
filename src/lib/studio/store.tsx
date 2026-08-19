@@ -875,16 +875,20 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }
     return Math.max(showDuration(project), 1);
   }, [project, referencePlayback, referenceShow]);
-  // Editor range: an attached track is auditionable even with an empty timeline.
+  // ADAPTIVE AUTHORED RANGE — one canonical layout engine (timelineLayout.ts).
+  // Reference playback keeps its dedicated reference-duration path.
+  const contentRange = useMemo(
+    () => timelineContentRange(project, plan.startTime),
+    [project, plan.startTime],
+  );
   const viewEnd = useMemo(() => {
     if (referencePlayback && referenceShow) return duration;
-    const audioEnd = project.audio.attached ? project.audio.offset + project.audio.duration : 0;
-    return Math.max(duration, audioEnd, 1);
-  }, [duration, project.audio, referencePlayback, referenceShow]);
+    return Math.max(contentRange.end, 1);
+  }, [duration, contentRange, referencePlayback, referenceShow]);
   // PRE-SHOW extends playback into negative show time; SHOW TIME ZERO is fixed.
   const clock = useShowClock(viewEnd, referencePlayback && referenceShow ? 0 : plan.startTime);
 
-  const timelineFullStart = referencePlayback && referenceShow ? 0 : plan.startTime;
+  const timelineFullStart = referencePlayback && referenceShow ? 0 : contentRange.start;
   const timelineView = useMemo(
     () =>
       computeTimelineView({
@@ -895,6 +899,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       }),
     [timelineFullStart, viewEnd, timelineZoom, timelineScroll],
   );
+
+  /** FIT — restore the complete authored range (editor state only). */
+  const fitTimeline = useCallback(() => {
+    setTimelineZoomState(1);
+    setTimelineScrollState(0);
+  }, []);
 
   const setTimelineZoom = useCallback(
     (zoom: number, anchorTime?: number) => {
