@@ -53,6 +53,11 @@ import {
   optimizeTransition as optimizeTransitionCore,
   transitionInputForClip,
   DEFAULT_OPTIMIZATION_SETTINGS,
+  buildDesignOverride,
+  DEFAULT_TRANSITION_DESIGN,
+  deriveTransitionMode,
+  normalizeTransitionDesign,
+  type TransitionDesignState,
   type TransitionAnalysis,
   type TransitionOptimizationResult,
 } from "../show/transition";
@@ -628,6 +633,21 @@ interface StudioContextValue {
   clearTransitionAnalysis: () => void;
   /** Applies the estimated minimum duration to the analysed clip. */
   applySuggestedDuration: () => void;
+  // ---- Transition design (mode + stagger over the SAME override) ---------
+  /** Authored design intent per clip; persisted with the planning state. */
+  transitionDesigns: Record<string, TransitionDesignState>;
+  /** Authored design of a clip, or the mode derived from its override data. */
+  transitionDesignFor: (clipId: string) => TransitionDesignState;
+  /** True when the authored design lost its override (semantic invalidation). */
+  transitionDesignNeedsRecalculation: (clipId: string) => boolean;
+  /** One designer change = one undo entry; rebuilds the canonical override. */
+  setTransitionDesign: (clipId: string, patch: Partial<TransitionDesignState>) => void;
+  /** MANUAL mode: edits the existing per-drone start/lane offset data. */
+  patchTransitionDroneOffset: (
+    clipId: string,
+    index: number,
+    patch: { startOffset?: number; laneOffset?: number },
+  ) => void;
   canAnalyzeSelectedClip: boolean;
   showPaths: boolean;
   setShowPaths: (v: boolean) => void;
@@ -1001,6 +1021,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [svgError, setSvgError] = useState<SvgFormationError | null>(null);
   const [assignmentStrategy, setAssignmentStrategy] = useState<AssignmentStrategyId>("nearestNeighbor");
   const [transitionOverrides, setTransitionOverrides] = useState<Record<string, ClipTransitionOverride>>({});
+  /**
+   * AUTHORED TRANSITION DESIGN per clip (mode + stagger pattern). Intent only:
+   * the flown data always lives in `transitionOverrides`, which this state
+   * produces through the existing optimizer/analyzer.
+   */
+  const [transitionDesigns, setTransitionDesigns] = useState<Record<string, TransitionDesignState>>({});
   const [transitionAnalysis, setTransitionAnalysis] = useState<
     { clipId: string; analysis: TransitionAnalysis } | null
   >(null);
@@ -1125,6 +1151,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const overrideBasisRef = useRef<OverrideBasisMap>({});
   const transitionOverridesRef = useRef<Record<string, ClipTransitionOverride>>({});
   transitionOverridesRef.current = transitionOverrides;
+  const transitionDesignsRef = useRef<Record<string, TransitionDesignState>>({});
+  transitionDesignsRef.current = transitionDesigns;
   const projectRef = useRef(project);
   projectRef.current = project;
 
@@ -1371,6 +1399,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setExplicitDynamicId(null);
     overrideBasisRef.current = {};
     setTransitionOverrides({});
+    setTransitionDesigns({});
     setTransitionAnalysis(null);
     setAssignmentComparison(null);
     setOptimization(null);
@@ -1573,6 +1602,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     (): TimelineHistorySnapshot => ({
       project: projectRef.current,
       transitionOverrides: { ...transitionOverridesRef.current },
+      transitionDesigns: { ...transitionDesignsRef.current },
     }),
     [],
   );
@@ -1586,6 +1616,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     timelineHistory.current.past.push({
       project,
       transitionOverrides: { ...transitionOverridesRef.current },
+      transitionDesigns: { ...transitionDesignsRef.current },
     });
     timelineHistory.current.future = [];
     setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
@@ -1626,6 +1657,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     // does not treat a faithfully restored override as stale.
     overrideBasisRef.current = computeOverrideBasis(snapshot.project, overrides);
     setTransitionOverrides(overrides);
+    setTransitionDesigns({ ...(snapshot.transitionDesigns ?? {}) });
     setProject(snapshot.project);
     const previous = selectedClipIdRef.current;
     const restoredClip =
@@ -2791,7 +2823,149 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setTransitionError(null);
     overrideBasisRef.current = {};
     setTransitionOverrides({});
+    setTransitionDesigns({});
   }, []);
+
+  // ---- Transition design (designer-facing mode over the SAME override) ----
+  //
+  // No second scheduler and no parallel offset storage: a design is translated
+  // by `buildDesignOverride` into the existing `ClipTransitionOverride`, using
+  // the canonical assignment of the existing analyzer. The 3D preview, the
+  // full-show analysis and the export therefore all read one authority.
+
+  /** Design of a clip: authored, else derived from its override data. */
+  const transitionDesignFor = useCallback(
+    (clipId: string): TransitionDesignState =>
+      transitionDesigns[clipId] ??
+      normalizeTransitionDesign({
+        ...DEFAULT_TRANSITION_DESIGN,
+        mode: deriveTransitionMode(transitionOverrides[clipId]),
+      }),
+    [transitionDesigns, transitionOverrides],
+  );
+
+  /**
+   * True when an authored design no longer has the override it produced —
+   * exactly the semantic invalidation of `pruneTransitionOverrides` (geometry,
+   * timing, fleet or limits moved). Hold-only edits keep the override, so they
+   * never raise this flag.
+   */
+  const transitionDesignNeedsRecalculation = useCallback(
+    (clipId: string): boolean => {
+      const design = transitionDesigns[clipId];
+      if (!design || design.mode === "AUTO") return false;
+      return !transitionOverrides[clipId];
+    },
+    [transitionDesigns, transitionOverrides],
+  );
+
+  /** ONE designer change = ONE undo entry (project + overrides + designs). */
+  const setTransitionDesign = useCallback(
+    (clipId: string, patch: Partial<TransitionDesignState>) => {
+      if (!isOptimizableClip(project, clipId, plan)) return;
+      const current =
+        transitionDesignsRef.current[clipId] ??
+        normalizeTransitionDesign({
+          ...DEFAULT_TRANSITION_DESIGN,
+          mode: deriveTransitionMode(transitionOverridesRef.current[clipId]),
+        });
+      const design = normalizeTransitionDesign({ ...current, ...patch });
+      setTransitionError(null);
+      try {
+        let nextOverride: ClipTransitionOverride | null = null;
+        if (design.mode !== "AUTO") {
+          const input = transitionInputForClip(project, plan, clipId, {
+            strategy: assignmentStrategy,
+            sampleRate,
+          });
+          if (design.mode === "MANUAL") {
+            // MANUAL edits the CURRENT offset data; seed it from the canonical
+            // analysis when the clip has no override yet.
+            nextOverride =
+              transitionOverridesRef.current[clipId] ??
+              overrideFromAnalysis(
+                clipId,
+                analyzeTransitionCore(input, DEFAULT_OPTIMIZATION_SETTINGS),
+              );
+          } else {
+            nextOverride = buildDesignOverride(
+              analyzeTransitionCore(input, DEFAULT_OPTIMIZATION_SETTINGS),
+              design,
+              input.duration,
+            );
+          }
+        }
+        pushSnapshot(projectRef.current);
+        setTransitionOverrides((prev) => {
+          const next = { ...prev };
+          const basis = { ...overrideBasisRef.current };
+          if (nextOverride) {
+            next[clipId] = nextOverride;
+            Object.assign(basis, computeOverrideBasis(project, { [clipId]: nextOverride }));
+          } else {
+            delete next[clipId];
+            delete basis[clipId];
+          }
+          overrideBasisRef.current = basis;
+          return next;
+        });
+        setTransitionDesigns((prev) => ({ ...prev, [clipId]: design }));
+      } catch (err) {
+        setTransitionError(describeTransitionError(err));
+      }
+    },
+    [project, plan, assignmentStrategy, sampleRate, overrideFromAnalysis, pushSnapshot],
+  );
+
+  /**
+   * MANUAL per-drone editing of the EXISTING override arrays. Bounds follow the
+   * scheduler contract (start offset <= transition * 0.5) and the optimiser's
+   * vertical lane bound.
+   */
+  const patchTransitionDroneOffset = useCallback(
+    (
+      clipId: string,
+      index: number,
+      patch: { startOffset?: number; laneOffset?: number },
+    ) => {
+      const override = transitionOverridesRef.current[clipId];
+      const clip = projectRef.current.timeline.find((c) => c.id === clipId);
+      if (!override || !clip) return;
+      if (index < 0 || index >= override.startOffsets.length) return;
+      const startCap = Math.max(0, clip.transition * 0.5);
+      const laneCap = DEFAULT_OPTIMIZATION_SETTINGS.maxVerticalOffset;
+      const startOffsets = [...override.startOffsets];
+      const laneOffsets = [...override.laneOffsets];
+      if (patch.startOffset !== undefined && Number.isFinite(patch.startOffset)) {
+        startOffsets[index] = Number(
+          Math.max(0, Math.min(startCap, patch.startOffset)).toFixed(4),
+        );
+      }
+      if (patch.laneOffset !== undefined && Number.isFinite(patch.laneOffset)) {
+        laneOffsets[index] = Number(
+          Math.max(-laneCap, Math.min(laneCap, patch.laneOffset)).toFixed(4),
+        );
+      }
+      const next: ClipTransitionOverride = {
+        targetPointIndex: [...override.targetPointIndex],
+        startOffsets,
+        laneOffsets,
+        strategy: override.strategy.includes("+manual")
+          ? override.strategy
+          : `${override.strategy}+manual`,
+      };
+      pushSnapshot(projectRef.current);
+      setTransitionOverrides((prev) => ({ ...prev, [clipId]: next }));
+      setTransitionDesigns((prev) => ({
+        ...prev,
+        [clipId]: normalizeTransitionDesign({
+          ...(prev[clipId] ?? DEFAULT_TRANSITION_DESIGN),
+          mode: "MANUAL",
+        }),
+      }));
+    },
+    [pushSnapshot],
+  );
 
   const applySuggestedDuration = useCallback(() => {
     if (!transitionAnalysis) return;
@@ -3296,6 +3470,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         pushSnapshot(previous);
         overrideBasisRef.current = computeOverrideBasis(next, {});
         setTransitionOverrides({});
+        setTransitionDesigns({});
         setProject(next);
         setReferenceLayer(layer);
         setReferenceLayerShow(show);
@@ -3459,13 +3634,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const buildProjectFile = useCallback(
     (): ProjectFile =>
       serializeProject(project, {
-        planning: { assignmentStrategy, transitionOverrides },
+        planning: { assignmentStrategy, transitionOverrides, transitionDesigns },
         // LOSSLESS: the imported payload is written verbatim, so reopening the
         // saved project reproduces the imported playback exactly.
         referenceLayer,
         editor: { selectedClipId, sampleRate },
       }),
-    [project, assignmentStrategy, transitionOverrides, referenceLayer, selectedClipId, sampleRate],
+    [
+      project,
+      assignmentStrategy,
+      transitionOverrides,
+      transitionDesigns,
+      referenceLayer,
+      selectedClipId,
+      sampleRate,
+    ],
   );
 
   const saveProjectFile = useCallback(() => {
@@ -3540,6 +3723,20 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       const restored = restore?.planning?.transitionOverrides ?? {};
       overrideBasisRef.current = computeOverrideBasis(next, restored);
       setTransitionOverrides({ ...restored });
+      // Legacy files (v1/v2/v3 without designs) derive the mode from the
+      // override data itself, so a reopened project never claims a mode it
+      // cannot support.
+      const restoredDesigns: Record<string, TransitionDesignState> = {};
+      for (const clipId of Object.keys(restored)) {
+        restoredDesigns[clipId] = normalizeTransitionDesign({
+          ...DEFAULT_TRANSITION_DESIGN,
+          mode: deriveTransitionMode(restored[clipId]),
+        });
+      }
+      for (const [clipId, design] of Object.entries(restore?.planning?.transitionDesigns ?? {})) {
+        restoredDesigns[clipId] = normalizeTransitionDesign(design);
+      }
+      setTransitionDesigns(restoredDesigns);
     }
     if (typeof restore?.sampleRate === "number" && Number.isFinite(restore.sampleRate)) {
       setSampleRate(restore.sampleRate);
@@ -4183,6 +4380,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           overrideBasisRef.current = basis;
           return rest;
         });
+        setTransitionDesigns((current) => {
+          if (!Object.prototype.hasOwnProperty.call(current, id)) return current;
+          const rest = { ...current };
+          delete rest[id];
+          return rest;
+        });
         return next;
       });
     },
@@ -4408,6 +4611,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       optimizeSelectedTransition,
       clearTransitionAnalysis,
       applySuggestedDuration,
+      transitionDesigns,
+      transitionDesignFor,
+      transitionDesignNeedsRecalculation,
+      setTransitionDesign,
+      patchTransitionDroneOffset,
       canAnalyzeSelectedClip,
       showPaths,
       setShowPaths,
@@ -4726,6 +4934,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       optimizeSelectedTransition,
       clearTransitionAnalysis,
       applySuggestedDuration,
+      transitionDesigns,
+      transitionDesignFor,
+      transitionDesignNeedsRecalculation,
+      setTransitionDesign,
+      patchTransitionDroneOffset,
       canAnalyzeSelectedClip,
       showPaths,
       showConflicts,

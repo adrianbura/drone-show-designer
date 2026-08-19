@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import FullShowPanel from "./FullShowPanel";
+import TransitionDesignPanel from "./TransitionDesignPanel";
 import LaunchPanel from "./LaunchPanel";
 import ParticipationPanel from "./ParticipationPanel";
 import SceneObjectsPanel from "./SceneObjectsPanel";
@@ -273,6 +274,8 @@ export default function Inspector() {
           </div>
         )}
       </section>
+
+      <TransitionDesignPanel />
 
       <section className="panel-card">
         <h2 className="panel-title">
