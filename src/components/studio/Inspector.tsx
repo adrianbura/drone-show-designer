@@ -115,7 +115,6 @@ export default function Inspector() {
     canEditClipAsScene,
     editClipAsScene,
     duplicateClipForDesign,
-    projectScenes,
   } = useStudio();
   const exportEligibility = evaluateExportEligibility(fullShowReport, fullShowStale);
   const canExportComputedShow = exportEligibility.canExportComputedShow;
@@ -130,7 +129,7 @@ export default function Inspector() {
       : null;
   const optimizationResult =
     optimization && optimization.clipId === selectedClipId ? optimization.result : null;
-  const hasAuthoredScene = !!clip && projectScenes.some((sc) => sc.id === clip.id);
+  const hasAuthoredScene = !!clip && (project.scenes ?? []).some((sc) => sc.id === clip.id);
   const isOptimized = !!selectedClipId && !!transitionOverrides[selectedClipId];
 
   return (
