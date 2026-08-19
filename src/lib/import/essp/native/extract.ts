@@ -56,7 +56,9 @@ import {
   type ReferenceClipKind,
   type ReferenceExtractionDiagnostic,
   type ReferenceExtractionResult,
+  type ReferenceExtractedSceneSnapshot,
   type ReferenceSceneObjectDiagnostic,
+
   type ReferenceSceneRepresentation,
 } from "./types";
 
