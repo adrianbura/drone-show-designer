@@ -144,18 +144,28 @@ const AXIS_OF: Record<SceneAlignMode, 0 | 1 | 2> = {
  * Object membership is never changed: only the translation of already-selected
  * objects moves, and the result is stable for identical input (ties break on the
  * scene object order, never on iteration order of a map).
+ *
+ * MATCH_ALTITUDE is reference-based: when `primaryObjectId` resolves inside the
+ * selection, that object's altitude is the target and the primary itself stays
+ * fixed. If callers do not provide a primary id, the first selected scene object
+ * is used as the deterministic compatibility fallback.
  */
 export function alignSceneObjectsBy(
   project: ShowProject,
   scene: FormationScene,
   objectIds: readonly string[],
   mode: SceneAlignMode,
+  primaryObjectId: string | null = null,
 ): FormationScene {
   const objects = selected(scene, objectIds);
   if (objects.length < 2) return scene;
   const axis = AXIS_OF[mode];
   const centres = objects.map((o) => objectCentre(project, o));
   const values = centres.map((c) => c[axis]);
+  const primaryIndex = Math.max(
+    0,
+    primaryObjectId ? objects.findIndex((object) => object.id === primaryObjectId) : 0,
+  );
 
   const targetOf = (index: number): number => {
     switch (mode) {
@@ -167,8 +177,9 @@ export function alignSceneObjectsBy(
         return Math.max(...values);
       case "ALIGN_CENTER_X":
       case "ALIGN_CENTER_Z":
-      case "MATCH_ALTITUDE":
         return values.reduce((s, v) => s + v, 0) / values.length;
+      case "MATCH_ALTITUDE":
+        return values[primaryIndex]!;
       default: {
         // DISTRIBUTE: evenly spaced between the extremes, order preserved.
         const order = values.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v || a.i - b.i);
