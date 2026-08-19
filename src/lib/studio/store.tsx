@@ -2569,11 +2569,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const restoreAutosave = useCallback(() => {
     const snapshot = autosaveRecovery;
     if (!snapshot) return;
-    adoptProject(snapshot.file.project, snapshot.fileName || suggestedProjectFileName(snapshot.file.project.name));
+    // Recovery restores planning state and editor prefs exactly like an open.
+    adoptProjectFile(
+      snapshot.file,
+      snapshot.fileName || suggestedProjectFileName(snapshot.file.project.name),
+    );
     setProjectSavedAt(null);
     setProjectDirty(true);
     setAutosaveRecovery(null);
-  }, [autosaveRecovery, adoptProject]);
+  }, [autosaveRecovery, adoptProjectFile]);
 
   const dismissAutosave = useCallback(() => {
     setAutosaveRecovery(null);
