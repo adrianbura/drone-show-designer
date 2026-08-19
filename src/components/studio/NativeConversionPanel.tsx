@@ -16,6 +16,7 @@ export default function NativeConversionPanel() {
   const {
     referenceShow,
     forensicsReport,
+    forensicsBusy,
     referenceLayer,
     referenceOwnership,
     referenceOwnedNow,
