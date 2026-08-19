@@ -283,26 +283,69 @@ export default function Timeline() {
     nudge(kind, clipId, step);
   };
 
-  // Ctrl/Cmd + wheel zooms at the cursor; plain wheel scrolls the window.
+  /**
+   * MOUSE NAVIGATION (VIEW STATE ONLY).
+   * Ctrl/Cmd + wheel zooms at the cursor; native deltaX pans; a plain (or
+   * Shift-accelerated) vertical wheel pans horizontally. Never mutates clips.
+   */
   useEffect(() => {
     const el = trackRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 100 : 1);
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
+      const width = el.getBoundingClientRect().width;
+      const intent = resolveTimelineWheel(e, { zoom: timelineZoom, trackWidth: width });
+      if (intent.kind === "NONE") return;
+      e.preventDefault();
+      if (intent.kind === "ZOOM") {
         const anchor = timeFromPixel(e.clientX, el.getBoundingClientRect(), timelineView);
-        setTimelineZoom(timelineZoom * Math.exp(-dy * 0.0015), anchor);
+        setTimelineZoom(timelineZoom * intent.zoomFactor, anchor);
         return;
       }
-      const dx = e.deltaX * (e.deltaMode === 1 ? 16 : 1);
-      if (Math.abs(dx) < 1) return;
-      e.preventDefault();
-      setTimelineScroll(timelineScroll + dx / Math.max(1, el.getBoundingClientRect().width * 4));
+      setTimelineScroll(timelineScroll + intent.scrollDelta);
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, [timelineView, timelineZoom, timelineScroll, setTimelineZoom, setTimelineScroll]);
+
+  /**
+   * MIDDLE-MOUSE GRAB PAN — pointer capture on the track, view state only:
+   * no project mutation, no history entry, no clip movement, no scrub.
+   */
+  const panRef = useRef<MiddlePanSession | null>(null);
+  const [panning, setPanning] = useState(false);
+
+  const onTrackPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (e.button !== 1) return;
+      const el = trackRef.current;
+      if (!el || timelineZoom <= MIN_ZOOM) return;
+      e.preventDefault();
+      e.stopPropagation();
+      panRef.current = { startX: e.clientX, startScroll: timelineScroll };
+      setPanning(true);
+      el.setPointerCapture?.(e.pointerId);
+    },
+    [timelineZoom, timelineScroll],
+  );
+
+  const onTrackPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      const session = panRef.current;
+      const el = trackRef.current;
+      if (!session || !el) return;
+      e.preventDefault();
+      setTimelineScroll(middlePanScroll(session, e.clientX, el.getBoundingClientRect().width));
+    },
+    [setTimelineScroll],
+  );
+
+  const endPan = useCallback((e: React.PointerEvent) => {
+    if (!panRef.current) return;
+    panRef.current = null;
+    setPanning(false);
+    trackRef.current?.releasePointerCapture?.(e.pointerId);
+  }, []);
+
 
   const draftedClip = (clipId: string) => (draft?.id === clipId ? draft : null);
 
