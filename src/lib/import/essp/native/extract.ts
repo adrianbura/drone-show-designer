@@ -320,6 +320,43 @@ export function extractReferenceTimeline(
       }));
     }
 
+    /* ------------------------------------- immutable extracted-state history */
+    // Recorded for EVERY clip so "reset object to extracted state" works for a
+    // single-object clip as well as for a decomposed composition. Deep copied:
+    // the project may edit its own copy freely without touching this history.
+    const historyScene: FormationScene =
+      composition ??
+      ({
+        id: clipId,
+        name: args.label,
+        schemaVersion: SCENE_SCHEMA_VERSION,
+        objects: [
+          {
+            id: `${clipId}-obj-1`,
+            name: args.label,
+            source: args.dynamic
+              ? { kind: "DYNAMIC", dynamicFormationId: args.dynamic.id }
+              : { kind: "STATIC", formationId: formation.id },
+            transform: IDENTITY_INSTANCE_TRANSFORM,
+          },
+        ],
+        transform: IDENTITY_INSTANCE_TRANSFORM,
+      } satisfies FormationScene);
+    extractedScenes.push(
+      deepCopy({
+        clipId,
+        scene: historyScene,
+        formations: composition ? composed.map((o) => o.formation) : [formation],
+        dynamicFormations: composition
+          ? composed.flatMap((o) => (o.dynamic ? [o.dynamic] : []))
+          : args.dynamic
+            ? [args.dynamic]
+            : [],
+      }),
+    );
+
+
+
     bindings.push({
       clipId,
       order: index,
