@@ -111,3 +111,13 @@ export function pruneTransitionOverrides(
     changed: invalidated.length > 0,
   };
 }
+
+/**
+ * One undoable timeline revision. Contains every canonical authoring/planning
+ * state a timeline command can change; transient analysis reports are excluded
+ * on purpose (they are derived and recomputed from these two).
+ */
+export interface TimelineHistorySnapshot {
+  readonly project: ShowProject;
+  readonly transitionOverrides: Readonly<Record<string, ClipTransitionOverride>>;
+}
