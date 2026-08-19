@@ -123,7 +123,7 @@ describe("ESSP scene decomposition", () => {
     for (const object of composed.objects) {
       const formation = result.formations.find((f) => f.id === object.formationId)!;
       expect(formation.points.length).toBe(object.droneCount);
-      expect(String(formation.params.sourceDroneIds).split(" ").length).toBe(object.droneCount);
+      expect(String(formation.params['sourceDroneIds']).split(" ").length).toBe(object.droneCount);
       if (object.dynamicFormationId) {
         const dynamic = result.dynamicFormations.find((d) => d.id === object.dynamicFormationId)!;
         expect(dynamic.points.length).toBe(object.droneCount);
@@ -145,12 +145,11 @@ describe("ESSP scene decomposition", () => {
     expect(copy.scene.objects.length).toBe(draft.scene.objects.length);
     expect(copy.scene.objects.map((o) => o.name)).toEqual(draft.scene.objects.map((o) => o.name));
     for (const object of copy.scene.objects) {
+      const src = object.source;
       const bundled =
-        object.source.kind === "STATIC"
-          ? copy.formations.some((f) => f.id === object.source.formationId)
-          : copy.dynamicFormations.some(
-              (d) => object.source.kind === "DYNAMIC" && d.id === object.source.dynamicFormationId,
-            );
+        src.kind === "STATIC"
+          ? copy.formations.some((f) => f.id === src.formationId)
+          : copy.dynamicFormations.some((d) => d.id === src.dynamicFormationId);
       expect(bundled).toBe(true);
     }
   });
