@@ -2550,12 +2550,23 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setProjectFileNameState(ensureProjectExtension(fileName || suggestedProjectFileName(next.name)));
   }, []);
 
+  /** Adopts a parsed/migrated envelope with its planning state and editor prefs. */
+  const adoptProjectFile = useCallback(
+    (file: ProjectFile, fileName: string) => {
+      adoptProject(file.project, fileName, {
+        planning: file.planning,
+        selectedClipId: file.editor?.selectedClipId ?? null,
+        sampleRate: file.editor?.sampleRate,
+      });
+    },
+    [adoptProject],
+  );
+
   const openProjectFile = useCallback(
     async (file: File) => {
       try {
         const parsed = parseProjectFile(await file.text());
-        adoptProject(parsed.project, file.name);
-        if (typeof parsed.editor?.sampleRate === "number") setSampleRate(parsed.editor.sampleRate);
+        adoptProjectFile(parsed, file.name);
         setProjectSavedAt(parsed.savedAt);
         setProjectFileError(null);
       } catch (err) {
@@ -2564,7 +2575,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         setProjectFileError({ code: error.code, message: error.message });
       }
     },
-    [adoptProject],
+    [adoptProjectFile],
   );
 
   // Startup recovery offer — never applied automatically.
