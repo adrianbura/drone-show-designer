@@ -202,6 +202,20 @@ import {
   type RotationFitMode,
 } from "../import/essp/conversion";
 import {
+  canResetSceneObject,
+  correspondenceLines,
+  duplicateSceneAsEditableCopy,
+  referenceGhostFrame,
+  resetSceneObjectToExtracted,
+  sceneDeviationReport,
+  type CorrespondenceLine,
+  type ReferenceClipBinding,
+  type ReferenceGhostFrame,
+  type SceneComparisonFrame,
+  type SceneDeviationReport,
+} from "../import/essp/native";
+import {
+
   clipOutputSignature,
   extractReferenceTimeline,
   intervalAtTime,
