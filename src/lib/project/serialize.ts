@@ -66,6 +66,51 @@ function isFiniteNumberArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((n) => typeof n === "number" && Number.isFinite(n));
 }
 
+/**
+ * OVERRIDE SEMANTIC INTEGRITY. A persisted override is a full drone -> target
+ * mapping for one SHOW clip. If it no longer resolves against the migrated
+ * project the file is rejected: dropping or truncating it would change the
+ * flown trajectory of a project the operator believes is optimised.
+ */
+function assertOverrideResolves(
+  project: ShowProject,
+  clipId: string,
+  override: ClipTransitionOverride,
+): void {
+  const fail = (message: string, details: Record<string, unknown> = {}): never => {
+    throw new ProjectFileError("MALFORMED_PLANNING", message, { clipId, ...details });
+  };
+  const clip = project.timeline.find((c) => c.id === clipId);
+  if (!clip) fail(`Transition override references unknown clip ${clipId}.`);
+  if (clipPhase(clip!) !== "SHOW") {
+    fail(`Transition override targets non-SHOW clip ${clipId}.`, { phase: clipPhase(clip!) });
+  }
+  const n = project.droneCount;
+  for (const key of ["targetPointIndex", "startOffsets", "laneOffsets"] as const) {
+    if (override[key].length !== n) {
+      fail(`Transition override ${key} for clip ${clipId} does not cover the fleet.`, {
+        expected: n,
+        actual: override[key].length,
+      });
+    }
+  }
+  // The scheduler resolves an override index into the clip's target formation
+  // points (padded to the fleet when the formation is missing).
+  const points = project.formations.find((f) => f.id === clip!.formationId)?.points ?? [];
+  const limit = points.length || n;
+  for (const index of override.targetPointIndex) {
+    if (!Number.isInteger(index)) {
+      fail(`Transition override for clip ${clipId} has a non-integer target index.`, { index });
+    }
+    if (index < 0 || index >= limit) {
+      fail(`Transition override for clip ${clipId} has an out-of-range target index.`, {
+        index,
+        limit,
+      });
+    }
+  }
+}
+
 /** A strategy id is only adopted when this build can actually select it. */
 function selectableStrategy(value: unknown): AssignmentStrategyId | null {
   return typeof value === "string" &&
