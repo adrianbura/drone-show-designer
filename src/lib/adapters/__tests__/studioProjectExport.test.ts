@@ -11,7 +11,7 @@ describe("Studio project export", () => {
     const raw = JSON.parse(text) as { kind?: string; schemaVersion?: number };
 
     expect(raw.kind).toBe("DroneShowStudioProject");
-    expect(raw.schemaVersion).toBe(2);
+    expect(raw.schemaVersion).toBe(3);
 
     const reopened = parseProjectFile(text);
     expect(reopened.project.droneCount).toBe(137);
