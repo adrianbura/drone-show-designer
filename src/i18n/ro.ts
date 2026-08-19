@@ -197,6 +197,21 @@ export const ro: Dictionary = {
   "scene.disclaimer":
     "Compozitia este doar artistica. Alocarea dronelor, coliziunile si validarea ramin la motorul de zbor.",
   "scene.addToScene": "Adauga in scena",
+  "scene.reference.title": "Referinta importata",
+  "scene.reference.show": "Arata referinta",
+  "scene.reference.frame": "Compara la",
+  "scene.reference.frame.CURRENT": "Timpul curent",
+  "scene.reference.frame.EXTRACTED": "Cadrul extras",
+  "scene.reference.rms": "Abatere scena RMS {rms} m · max {max} m ({count} drone)",
+  "scene.reference.objectRms": "RMS {rms} m · max {max} m · centru {centroid} m · scara {scale}x",
+  "scene.reference.rotation": "rotatie {deg}°",
+  "scene.reference.membershipUnknown":
+    "Apartenenta nu a fost inregistrata — se afiseaza toata flota importata.",
+  "scene.reference.reset": "Reseteaza obiectul la starea extrasa",
+  "scene.reference.duplicate": "Duplica scena ca copie editabila",
+  "scene.reference.note":
+    "Comparatia este doar un ajutor de design. Nu schimba proprietatea traiectoriei, planificarea sau exportul.",
+
   "formations.title": "Formații",
   "formations.addClip": "Adaugă clip",
   "dynamic.title": "Formație dinamică",

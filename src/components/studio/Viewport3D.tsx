@@ -15,6 +15,7 @@ import PreShowOverlay from "./PreShowOverlay";
 import TransitionOverlay from "./TransitionOverlay";
 import ReferenceSwarm from "./ReferenceSwarm";
 import ConversionOverlay from "./ConversionOverlay";
+import ReferenceGhostSwarm from "./ReferenceGhostSwarm";
 
 /**
  * Instanced drone swarm. One InstancedMesh + per-instance colour keeps draw
@@ -195,6 +196,9 @@ export default function Viewport3D() {
     pointIdForDrone,
     togglePointSelection,
     setSelectedPointIds,
+    sceneGhostFrame,
+    selectedSceneObjectId,
+    sceneCorrespondence,
   } = useStudio();
   const handleSelectDrone = useCallback(
     (index: number, additive: boolean) => {
@@ -260,6 +264,14 @@ export default function Viewport3D() {
           vectorScale={errorVectorScale}
         />
       ) : null}
+      {sceneGhostFrame && !reference ? (
+        <ReferenceGhostSwarm
+          frame={sceneGhostFrame}
+          selectedObjectId={selectedSceneObjectId}
+          correspondence={sceneCorrespondence}
+        />
+      ) : null}
+
       {reference ? null : <ShowVolume {...project.area} />}
       {reference ? (
         <ReferenceSwarm

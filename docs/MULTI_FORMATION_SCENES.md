@@ -34,3 +34,29 @@ single object — the importer never invents structure it cannot measure.
 Each accepted object is an ordinary `SceneFormationInstance`, so it can be
 selected, transformed, relit and promoted to planner ownership independently;
 untouched objects of the same scene stay reference-exact.
+
+## Reference-assisted scene editing
+
+For a clip that came from an ESSP extraction the Scene panel offers a
+comparison surface. It is a DESIGN aid only: it never changes trajectory
+ownership, promotion, planning, validation or export.
+
+- **Reference ghost** (`comparison.ts`) draws the ORIGINAL imported positions of
+  the clip behind the editable geometry. Membership comes from the stored
+  `sourceDroneIds` provenance, so selecting one scene object highlights exactly
+  that object's source drones and dims the rest. Membership is never re-inferred.
+- **One comparison clock.** Every object of a composed scene is compared at the
+  SAME absolute reference time: either the extraction frame (mid-hold of the
+  reference interval, the default) or the current playhead clamped to the
+  binding.
+- **Deviation metrics** report per object RMS, max, centroid shift, scale change
+  and best-fit rotation about +Y, plus a whole-scene RMS/max. A freshly
+  extracted, unedited scene reads ~0.
+- **Reset object to extracted state** (`sceneEditing.ts`) restores geometry and
+  transform for ONE object from an immutable extraction snapshot stored on the
+  reference layer (`extractedScenes`). Siblings, lighting and all timings are
+  untouched, and it is a single undo entry. Restoring never reclaims REFERENCE
+  ownership.
+- **Duplicate scene as editable copy** creates a planner-owned copy of the whole
+  composition under fresh ids using ordinary timeline semantics (LANDING stays
+  last). The reference-owned source clip is left byte-identical.

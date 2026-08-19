@@ -202,6 +202,20 @@ import {
   type RotationFitMode,
 } from "../import/essp/conversion";
 import {
+  canResetSceneObject,
+  correspondenceLines,
+  duplicateSceneAsEditableCopy,
+  referenceGhostFrame,
+  resetSceneObjectToExtracted,
+  sceneDeviationReport,
+  type CorrespondenceLine,
+  type ReferenceClipBinding,
+  type ReferenceGhostFrame,
+  type SceneComparisonFrame,
+  type SceneDeviationReport,
+} from "../import/essp/native";
+import {
+
   clipOutputSignature,
   extractReferenceTimeline,
   intervalAtTime,
@@ -414,6 +428,27 @@ interface StudioContextValue {
   mirrorSceneObject: (clipId: string, objectId: string) => void;
   alignSceneObjects: (clipId: string, alignment: SceneAlignment) => void;
   patchSceneTransform: (clipId: string, patch: Partial<InstanceTransform>) => void;
+
+  // ---- Reference-assisted scene editing (design aid only) -----------------
+  /** Imported-reference binding of the selected clip (null when authored). */
+  selectedClipBinding: ReferenceClipBinding | null;
+  /** Reference ghost overlay of the selected ESSP-derived scene. */
+  sceneReferenceGhost: boolean;
+  setSceneReferenceGhost: (enabled: boolean) => void;
+  /** Shared comparison clock for the whole scene. */
+  sceneComparisonFrame: SceneComparisonFrame;
+  setSceneComparisonFrame: (frame: SceneComparisonFrame) => void;
+  sceneGhostFrame: ReferenceGhostFrame | null;
+  /** DESIGN deviation of editable geometry vs imported geometry. */
+  sceneDeviation: SceneDeviationReport | null;
+  /** Correspondence lines for the selected object only. */
+  sceneCorrespondence: CorrespondenceLine[];
+  canResetSelectedSceneObject: boolean;
+  /** Restores ONE object to the extracted state (single undo entry). */
+  resetSceneObject: (clipId: string, objectId: string) => void;
+  /** Planner-owned editable copy of the whole scene; returns the new clip id. */
+  duplicateSceneAsEditable: (clipId: string) => string | null;
+
 
   // ---- Lighting, reveal & colour effects (Sprint 7.4) ---------------------
   /** Lighting effects of the selected clip, in evaluation order. */
@@ -847,6 +882,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   // Clean startup: nothing is selected because nothing is authored yet.
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [selectedSceneObjectId, setSelectedSceneObjectId] = useState<string | null>(null);
+  /** Reference-assisted editing (design aid only, never persisted). */
+  const [sceneReferenceGhost, setSceneReferenceGhost] = useState(false);
+  const [sceneComparisonFrame, setSceneComparisonFrame] = useState<SceneComparisonFrame>("EXTRACTED");
+
   const [sampleRate, setSampleRate] = useState<number>(DEFAULT_SAMPLE_RATE);
   const [svgAssets, setSvgAssets] = useState<Record<string, SvgAsset>>({});
   const [svgDraft, setSvgDraft] = useState<SvgDraft | null>(null);
@@ -1761,6 +1800,129 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     },
     [editScene],
   );
+
+  /* ---------------- reference-assisted scene editing (design only) --------- */
+  /**
+   * The comparison surface is PURELY a design aid: it reads the imported
+   * reference show and the resolved editable scene, and never influences
+   * ownership, promotion, planning or export.
+   */
+  const selectedClipBinding = useMemo<ReferenceClipBinding | null>(
+    () =>
+      selectedClipId
+        ? (referenceLayer?.bindings.find((b) => b.clipId === selectedClipId) ?? null)
+        : null,
+    [referenceLayer, selectedClipId],
+  );
+
+  const sceneGhostFrame = useMemo<ReferenceGhostFrame | null>(() => {
+    if (!sceneReferenceGhost) return null;
+    if (!referenceLayerShow || !selectedClip || !selectedScene || !selectedClipBinding) return null;
+    return referenceGhostFrame({
+      show: referenceLayerShow,
+      project,
+      scene: selectedScene,
+      clip: selectedClip,
+      binding: selectedClipBinding,
+      frame: sceneComparisonFrame,
+      currentTime: clock.time,
+    });
+  }, [
+    sceneReferenceGhost,
+    sceneComparisonFrame,
+    referenceLayerShow,
+    project,
+    selectedScene,
+    selectedClip,
+    selectedClipBinding,
+    clock.time,
+  ]);
+
+  const sceneDeviation = useMemo<SceneDeviationReport | null>(() => {
+    if (!referenceLayerShow || !selectedClip || !selectedScene || !selectedClipBinding) return null;
+    return sceneDeviationReport({
+      show: referenceLayerShow,
+      project,
+      scene: selectedScene,
+      clip: selectedClip,
+      binding: selectedClipBinding,
+      frame: sceneComparisonFrame,
+      currentTime: clock.time,
+    });
+  }, [
+    sceneComparisonFrame,
+    referenceLayerShow,
+    project,
+    selectedScene,
+    selectedClip,
+    selectedClipBinding,
+    clock.time,
+  ]);
+
+  const sceneCorrespondence = useMemo<CorrespondenceLine[]>(() => {
+    if (!sceneReferenceGhost || !resolvedSceneObjectId) return [];
+    if (!referenceLayerShow || !selectedClip || !selectedScene || !selectedClipBinding) return [];
+    return correspondenceLines({
+      show: referenceLayerShow,
+      project,
+      scene: selectedScene,
+      clip: selectedClip,
+      binding: selectedClipBinding,
+      frame: sceneComparisonFrame,
+      currentTime: clock.time,
+      objectId: resolvedSceneObjectId,
+    });
+  }, [
+    sceneReferenceGhost,
+    sceneComparisonFrame,
+    resolvedSceneObjectId,
+    referenceLayerShow,
+    project,
+    selectedScene,
+    selectedClip,
+    selectedClipBinding,
+    clock.time,
+  ]);
+
+  const canResetSelectedSceneObject = useMemo(
+    () =>
+      !!selectedClipId &&
+      !!resolvedSceneObjectId &&
+      canResetSceneObject(referenceLayer, selectedClipId, resolvedSceneObjectId),
+    [referenceLayer, selectedClipId, resolvedSceneObjectId],
+  );
+
+  /** ONE undo entry; restores geometry + transform of a single object. */
+  const resetSceneObject = useCallback(
+    (clipId: string, objectId: string) => {
+      const layer = referenceLayerRef.current;
+      const next = resetSceneObjectToExtracted(projectRef.current, layer, clipId, objectId);
+      if (!next) return;
+      pushTimelineHistory();
+      setProject(next);
+    },
+    [pushTimelineHistory],
+  );
+
+  /** Planner-owned experiment copy; the reference-owned clip is untouched. */
+  const duplicateSceneAsEditable = useCallback(
+    (clipId: string) => {
+      const newClipId = nextId("clip");
+      const result = duplicateSceneAsEditableCopy(projectRef.current, clipId, {
+        clipId: newClipId,
+        formationId: () => nextId("f"),
+        dynamicFormationId: () => nextId("dyn"),
+      });
+      if (!result) return null;
+      pushTimelineHistory();
+      setProject(result.project);
+      setSelectedClipId(result.clipId);
+      setSelectedSceneObjectId(null);
+      return result.clipId;
+    },
+    [pushTimelineHistory],
+  );
+
 
   const addLibraryFormation = useCallback((formation: Formation) => {
     // A library asset is a template: the project always gets a fresh id so the
@@ -3672,6 +3834,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       mirrorSceneObject,
       alignSceneObjects,
       patchSceneTransform,
+      selectedClipBinding,
+      sceneReferenceGhost,
+      setSceneReferenceGhost,
+      sceneComparisonFrame,
+      setSceneComparisonFrame,
+      sceneGhostFrame,
+      sceneDeviation,
+      sceneCorrespondence,
+      canResetSelectedSceneObject,
+      resetSceneObject,
+      duplicateSceneAsEditable,
+
       lightingEffects,
       lightingReport,
       selectedLightingEffectId,
@@ -3972,6 +4146,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       mirrorSceneObject,
       alignSceneObjects,
       patchSceneTransform,
+      selectedClipBinding,
+      sceneReferenceGhost,
+      sceneComparisonFrame,
+      sceneGhostFrame,
+      sceneDeviation,
+      sceneCorrespondence,
+      canResetSelectedSceneObject,
+      resetSceneObject,
+      duplicateSceneAsEditable,
+
       lightingEffects,
       lightingReport,
       selectedLightingEffectId,

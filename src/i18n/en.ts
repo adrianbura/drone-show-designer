@@ -190,6 +190,20 @@ export const en = {
   "scene.disclaimer":
     "Composition is artistic only. Drone allocation, collision checks and validation stay with the flight engine.",
   "scene.addToScene": "Add to scene",
+  "scene.reference.title": "Imported reference",
+  "scene.reference.show": "Show reference",
+  "scene.reference.frame": "Compare at",
+  "scene.reference.frame.CURRENT": "Current time",
+  "scene.reference.frame.EXTRACTED": "Extracted frame",
+  "scene.reference.rms": "Scene deviation RMS {rms} m · max {max} m ({count} drones)",
+  "scene.reference.objectRms": "RMS {rms} m · max {max} m · centroid {centroid} m · scale {scale}x",
+  "scene.reference.rotation": "rotation {deg}°",
+  "scene.reference.membershipUnknown": "Membership not recorded — whole imported fleet shown.",
+  "scene.reference.reset": "Reset object to extracted state",
+  "scene.reference.duplicate": "Duplicate scene as editable copy",
+  "scene.reference.note":
+    "Comparison is a design aid only. It never changes trajectory ownership, planning or export.",
+
 
   "formations.title": "Formations",
   "formations.addClip": "Add clip",

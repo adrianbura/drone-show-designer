@@ -17,15 +17,48 @@ import {
   type ReferenceDrone,
   type ReferenceShow,
 } from "../types";
+import { sanitizeScenes } from "../../../show/scene/migrate";
+import type { Formation } from "../../../show/types";
+import type { DynamicFormation } from "../../../show/dynamic/types";
 import {
   REFERENCE_EXTRACTION_ALGORITHM_VERSION,
   REFERENCE_LAYER_KIND,
   REFERENCE_LAYER_SCHEMA_VERSION,
   ReferenceLayerError,
   type ReferenceClipBinding,
+  type ReferenceExtractedSceneSnapshot,
   type ReferenceLayerDrone,
   type ReferenceTrajectoryLayer,
 } from "./types";
+
+/**
+ * Defensive read of the extracted-state history. It is authoring convenience
+ * only, so a malformed entry is DROPPED (the reset button then simply stops
+ * offering that clip) instead of failing a lossless playback layer.
+ */
+function sanitizeExtractedScenes(raw: unknown): ReferenceExtractedSceneSnapshot[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ReferenceExtractedSceneSnapshot[] = [];
+  for (const value of raw) {
+    const entry = value as Partial<ReferenceExtractedSceneSnapshot> | null;
+    if (!entry || typeof entry.clipId !== "string") continue;
+    const [scene] = sanitizeScenes([entry.scene]);
+    if (!scene) continue;
+    const formations = Array.isArray(entry.formations)
+      ? (entry.formations.filter(
+          (f) => f && typeof f.id === "string" && Array.isArray(f.points),
+        ) as Formation[])
+      : [];
+    const dynamicFormations = Array.isArray(entry.dynamicFormations)
+      ? (entry.dynamicFormations.filter(
+          (d) => d && typeof d.id === "string" && Array.isArray(d.points),
+        ) as DynamicFormation[])
+      : [];
+    out.push({ clipId: entry.clipId, scene, formations, dynamicFormations });
+  }
+  return out;
+}
+
 
 /* ------------------------------------------------------------------ base64 */
 
@@ -258,6 +291,11 @@ export function migrateReferenceLayer(raw: unknown): ReferenceTrajectoryLayer {
       fileBase64: d.fileBase64,
     })),
     bindings: c.bindings.map((b) => ({ ...b })),
+    ...(() => {
+      const extractedScenes = sanitizeExtractedScenes(c.extractedScenes);
+      return extractedScenes.length > 0 ? { extractedScenes } : {};
+    })(),
+
     experimental: typeof c.experimental === "string" ? c.experimental : ESSP_EXPERIMENTAL_LABEL,
   };
 }

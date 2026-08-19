@@ -56,7 +56,11 @@ import {
   type ReferenceClipKind,
   type ReferenceExtractionDiagnostic,
   type ReferenceExtractionResult,
+  type ReferenceExtractedSceneSnapshot,
+  type ReferenceTrajectoryLayer,
+
   type ReferenceSceneObjectDiagnostic,
+
   type ReferenceSceneRepresentation,
 } from "./types";
 
@@ -103,7 +107,13 @@ const ANIMATED_CLASSES = new Set([
   "DYNAMIC_DEFORMATION",
 ]);
 
+/** Structural deep copy of plain extracted data (history must not alias). */
+function deepCopy<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 function round(value: number, digits = 3): number {
+
   const f = 10 ** digits;
   return Math.round(value * f) / f;
 }
@@ -209,6 +219,9 @@ export function extractReferenceTimeline(
   const formations: Formation[] = [];
   const dynamicFormations: DynamicFormation[] = [];
   const sceneCompositions: FormationScene[] = [];
+  /** Immutable extracted-state history, one entry per extracted clip. */
+  const extractedScenes: ReferenceExtractedSceneSnapshot[] = [];
+
   const timeline: TimelineClip[] = [];
   const bindings: ReferenceClipBinding[] = [];
   const assets: ReferenceAssetDraft[] = [];
@@ -314,6 +327,43 @@ export function extractReferenceTimeline(
         dynamicFormationId: object.dynamic?.id ?? null,
       }));
     }
+
+    /* ------------------------------------- immutable extracted-state history */
+    // Recorded for EVERY clip so "reset object to extracted state" works for a
+    // single-object clip as well as for a decomposed composition. Deep copied:
+    // the project may edit its own copy freely without touching this history.
+    const historyScene: FormationScene =
+      composition ??
+      ({
+        id: clipId,
+        name: args.label,
+        schemaVersion: SCENE_SCHEMA_VERSION,
+        objects: [
+          {
+            id: `${clipId}-obj-1`,
+            name: args.label,
+            source: args.dynamic
+              ? { kind: "DYNAMIC", dynamicFormationId: args.dynamic.id }
+              : { kind: "STATIC", formationId: formation.id },
+            transform: IDENTITY_INSTANCE_TRANSFORM,
+          },
+        ],
+        transform: IDENTITY_INSTANCE_TRANSFORM,
+      } satisfies FormationScene);
+    extractedScenes.push(
+      deepCopy({
+        clipId,
+        scene: historyScene,
+        formations: composition ? composed.map((o) => o.formation) : [formation],
+        dynamicFormations: composition
+          ? composed.flatMap((o) => (o.dynamic ? [o.dynamic] : []))
+          : args.dynamic
+            ? [args.dynamic]
+            : [],
+      }),
+    );
+
+
 
     bindings.push({
       clipId,
@@ -593,7 +643,11 @@ export function extractReferenceTimeline(
   }
 
   const lighting: LightingProgram = { schemaVersion: LIGHTING_SCHEMA_VERSION, effects };
-  const layer = buildReferenceLayer(show, bindings, options.extractedAt ? { extractedAt: options.extractedAt } : {});
+  const layer: ReferenceTrajectoryLayer = {
+    ...buildReferenceLayer(show, bindings, options.extractedAt ? { extractedAt: options.extractedAt } : {}),
+    extractedScenes,
+  };
+
 
   return {
     formations,

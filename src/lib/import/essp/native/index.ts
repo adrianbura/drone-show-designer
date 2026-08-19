@@ -9,3 +9,6 @@ export * from "./intervals";
 export * from "./extract";
 export * from "./splice";
 export * from "./derivatives";
+export * from "./comparison";
+export * from "./sceneEditing";
+

@@ -94,6 +94,21 @@ export interface ReferenceClipBinding {
   readonly promotionReason?: PromotionReason;
 }
 
+/**
+ * IMMUTABLE EXTRACTED STATE of one clip's composition.
+ *
+ * Written once by the extractor and never touched again. It exists only so a
+ * single scene OBJECT can be reset to exactly what extraction produced, without
+ * re-running the forensic pipeline. It is authoring history, not a playback or
+ * ownership authority: restoring it never reclaims REFERENCE ownership.
+ */
+export interface ReferenceExtractedSceneSnapshot {
+  readonly clipId: string;
+  readonly scene: FormationScene;
+  readonly formations: readonly Formation[];
+  readonly dynamicFormations: readonly DynamicFormation[];
+}
+
 export interface ReferenceTrajectoryLayer {
   readonly kind: typeof REFERENCE_LAYER_KIND;
   readonly schemaVersion: number;
@@ -114,6 +129,9 @@ export interface ReferenceTrajectoryLayer {
   readonly axisMapping: Readonly<Record<string, string>>;
   readonly drones: readonly ReferenceLayerDrone[];
   readonly bindings: readonly ReferenceClipBinding[];
+  /** Extracted-state history per clip; used ONLY by "reset to extracted state". */
+  readonly extractedScenes?: readonly ReferenceExtractedSceneSnapshot[];
+
   /** Reverse-engineering disclaimer, carried with the data. */
   readonly experimental: string;
 }
