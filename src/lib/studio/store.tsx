@@ -663,6 +663,8 @@ interface StudioContextValue {
   clearProjectFileError: () => void;
   /** Writes the project file to disk (browser download). */
   saveProjectFile: () => void;
+  /** Canonical project envelope (project + planning + editor prefs). */
+  buildProjectFile: () => ProjectFile;
   /** Loads a project file, replacing the open show only when it is valid. */
   openProjectFile: (file: File) => Promise<void>;
   /** Autosaved snapshot found at startup and not yet accepted or dismissed. */
@@ -3274,6 +3276,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       projectFileError,
       clearProjectFileError,
       saveProjectFile,
+      buildProjectFile,
       openProjectFile,
       autosaveRecovery,
       restoreAutosave,
@@ -3511,6 +3514,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       projectFileError,
       clearProjectFileError,
       saveProjectFile,
+      buildProjectFile,
       openProjectFile,
       autosaveRecovery,
       restoreAutosave,
