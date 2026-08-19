@@ -41,7 +41,8 @@
 import type { LightingProgram } from "../../../show/lighting/types";
 import type { Formation, TimelineClip } from "../../../show/types";
 import type { DynamicFormation } from "../../../show/dynamic/types";
-import type { AssetSaveInput } from "../../../library/types";
+import type { AssetSaveInput, SceneAssetDependencies } from "../../../library/types";
+import type { FormationScene } from "../../../show/scene/types";
 import type { ReferenceSegmentClassification } from "../forensics/types";
 
 export const REFERENCE_LAYER_KIND = "ESSP_IMPORTED_TRAJECTORY_LAYER";
