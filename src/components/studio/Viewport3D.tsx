@@ -16,6 +16,8 @@ import TransitionOverlay from "./TransitionOverlay";
 import ReferenceSwarm from "./ReferenceSwarm";
 import ConversionOverlay from "./ConversionOverlay";
 import ReferenceGhostSwarm from "./ReferenceGhostSwarm";
+import SceneGizmo from "./SceneGizmo";
+import SceneGizmoPreview from "./SceneGizmoPreview";
 
 /**
  * Instanced drone swarm. One InstancedMesh + per-instance colour keeps draw
@@ -199,15 +201,39 @@ export default function Viewport3D() {
     sceneGhostFrame,
     selectedSceneObjectId,
     sceneCorrespondence,
+    selectedSceneObjectIds,
+    selectSceneObject,
+    sceneObjectIdForDrone,
+    gizmoMode,
+    gizmoTranslateSnap,
+    gizmoRotateSnap,
+    sceneGizmoPivot,
+    sceneGizmoPreviewPoints,
+    beginSceneGizmo,
+    updateSceneGizmo,
+    commitSceneGizmo,
   } = useStudio();
   const handleSelectDrone = useCallback(
     (index: number, additive: boolean) => {
+      // SCENE-FIRST PICKING: clicking a drone selects the SCENE OBJECT whose
+      // resolved points that drone flies. Ctrl/Shift toggles membership.
+      const sceneObjectId = sceneObjectIdForDrone(index);
+      if (sceneObjectId) {
+        selectSceneObject(sceneObjectId, additive ? "TOGGLE" : "REPLACE");
+        return;
+      }
       const id = pointIdForDrone(index);
       if (!id) return;
       if (additive) togglePointSelection(id);
       else setSelectedPointIds([id]);
     },
-    [pointIdForDrone, setSelectedPointIds, togglePointSelection],
+    [
+      pointIdForDrone,
+      sceneObjectIdForDrone,
+      selectSceneObject,
+      setSelectedPointIds,
+      togglePointSelection,
+    ],
   );
 
   // Reference playback replaces the designed swarm — the two are never mixed.
@@ -227,6 +253,18 @@ export default function Viewport3D() {
     ],
     [safety.issues, time, highlightedDrones],
   );
+
+  /** Drones flying the selected scene objects — highlight only, never flight. */
+  const sceneSelectedDrones = useMemo(() => {
+    if (selectedSceneObjectIds.length === 0) return [];
+    const wanted = new Set(selectedSceneObjectIds);
+    const indices: number[] = [];
+    for (let i = 0; i < project.droneCount; i++) {
+      const id = sceneObjectIdForDrone(i);
+      if (id && wanted.has(id)) indices.push(i);
+    }
+    return indices;
+  }, [project.droneCount, sceneObjectIdForDrone, selectedSceneObjectIds]);
 
   const groupRgbByDrone = useMemo(() => {
     const map = new Map<number, [number, number, number]>();
@@ -293,7 +331,9 @@ export default function Viewport3D() {
         groupIdByDrone={preShowOverlay?.groupIdByDrone ?? []}
         groupRgbByDrone={groupRgbByDrone}
         selectedGroupId={selectedLaunchGroupId}
-        dynamicSelected={selectedDroneIndices}
+        dynamicSelected={
+          sceneSelectedDrones.length > 0 ? sceneSelectedDrones : selectedDroneIndices
+        }
         dynamicGroupRgbByDrone={dynamicGroupRgbByDrone}
         lightingStatesAt={lightingStatesAt}
         onSelectDrone={handleSelectDrone}
@@ -319,7 +359,22 @@ export default function Viewport3D() {
           conflicts={showConflicts}
         />
       ) : null}
+      {!reference && sceneGizmoPivot ? (
+        <>
+          <SceneGizmoPreview points={sceneGizmoPreviewPoints} />
+          <SceneGizmo
+            pivot={sceneGizmoPivot}
+            mode={gizmoMode}
+            translateSnap={gizmoTranslateSnap}
+            rotateSnap={gizmoRotateSnap}
+            onBegin={beginSceneGizmo}
+            onUpdate={updateSceneGizmo}
+            onCommit={commitSceneGizmo}
+          />
+        </>
+      ) : null}
       <OrbitControls
+        makeDefault
         enableDamping
         dampingFactor={0.08}
         maxPolarAngle={Math.PI / 2.05}

@@ -74,6 +74,7 @@ import type {
   SafetyLimits,
   ShowProject,
   TimelineClip,
+  Vector3Tuple,
 } from "../show/types";
 import { showDuration } from "../show/types";
 import { nextSelectedClipId, removeTimelineClipReferences } from "../show/timeline";
@@ -249,23 +250,38 @@ import {
 import {
   addObject,
   alignObjects,
+  applySceneClick,
+  EMPTY_SCENE_SELECTION,
+  applySceneGroupDelta,
   duplicateObject,
+  duplicateSceneObjects,
   mirrorObjectX,
+  mirrorSceneObjects,
+  mixedTransformFlags,
+  normalizeSceneSelection,
   objectProximityWarnings,
   patchObject,
   patchObjectTransform,
   removeObject,
+  removeSceneObjects,
   resolveSceneAt,
   sceneBudget,
   sceneForClip,
+  sceneGroupPivot,
+  selectAllSceneObjects,
   projectScene,
   upsertScene,
   type FormationScene,
   type InstanceTransform,
+  type MixedTransformFlags,
   type ObjectProximityWarning,
   type SceneAlignment,
   type SceneBudget,
+  type SceneClickMode,
   type SceneFormationInstance,
+  type SceneGizmoMode,
+  type SceneSelection,
+  type SceneGroupDelta,
   type SceneObjectSource,
 } from "../show/scene";
 import {
@@ -401,8 +417,47 @@ interface StudioContextValue {
   selectedSceneBudget: SceneBudget | null;
   /** Advisory footprint proximity warnings of the selected scene. */
   selectedSceneWarnings: ObjectProximityWarning[];
+  /** COMPATIBILITY value: always equals `primarySceneObjectId`. */
   selectedSceneObjectId: string | null;
-  selectSceneObject: (objectId: string | null) => void;
+  /** Canonical multi-selection of the selected scene (always reconciled). */
+  selectedSceneObjectIds: string[];
+  /** Primary object; always a member of a non-empty selection. */
+  primarySceneObjectId: string | null;
+  /** Plain click (REPLACE) or Ctrl/Shift click (TOGGLE). Null clears. */
+  selectSceneObject: (objectId: string | null, mode?: SceneClickMode) => void;
+  setSelectedSceneObjectIds: (ids: readonly string[], primaryId?: string | null) => void;
+  /** Ctrl+A inside the Scene editor. */
+  selectAllSceneObjectsInScene: () => void;
+  /** Per-field mixed-value flags across the current selection. */
+  sceneSelectionMixed: MixedTransformFlags;
+  /** Scene object owning the resolved points a drone flies (viewport picking). */
+  sceneObjectIdForDrone: (droneIndex: number) => string | null;
+
+  // ---- Batch scene gestures (ONE mutation, ONE undo entry) ----------------
+  transformSceneObjects: (clipId: string, objectIds: readonly string[], delta: SceneGroupDelta) => void;
+  mirrorSceneObjectsBatch: (clipId: string, objectIds: readonly string[]) => void;
+  duplicateSceneObjectsBatch: (clipId: string, objectIds: readonly string[]) => void;
+  removeSceneObjectsBatch: (clipId: string, objectIds: readonly string[]) => void;
+
+  // ---- Viewport transform gizmo ------------------------------------------
+  gizmoMode: SceneGizmoMode;
+  setGizmoMode: (mode: SceneGizmoMode) => void;
+  gizmoTranslateSnap: number;
+  setGizmoTranslateSnap: (increment: number) => void;
+  gizmoRotateSnap: number;
+  setGizmoRotateSnap: (increment: number) => void;
+  /** Deterministic pivot of the current selection (single or group centroid). */
+  sceneGizmoPivot: Vector3Tuple | null;
+  /** Live, history-free gesture preview. Null when no gesture is running. */
+  sceneGizmoDraft: SceneGroupDelta | null;
+  /** Preview points of the drafted scene — diagnostics only, never planned. */
+  sceneGizmoPreviewPoints: Vector3Tuple[];
+  beginSceneGizmo: () => void;
+  updateSceneGizmo: (delta: SceneGroupDelta) => void;
+  /** Commits exactly one canonical mutation (one undo entry). */
+  commitSceneGizmo: () => void;
+  /** Escape: restores the initial transforms, leaves no history entry. */
+  cancelSceneGizmo: () => void;
   /** Adds one formation instance to a clip's scene and selects it. */
   addSceneObject: (
     clipId: string,
@@ -881,7 +936,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [project, setProject] = useState<ShowProject>(() => createDefaultProject());
   // Clean startup: nothing is selected because nothing is authored yet.
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
-  const [selectedSceneObjectId, setSelectedSceneObjectId] = useState<string | null>(null);
+  /**
+   * CANONICAL SCENE SELECTION. Multi-selection is the normal case; the primary
+   * object is the one single-object controls edit. Editor state only: selecting
+   * never mutates the project and never promotes a reference-owned clip.
+   */
+  const [sceneSelectionState, setSceneSelectionState] = useState<SceneSelection>(
+    EMPTY_SCENE_SELECTION,
+  );
   /** Reference-assisted editing (design aid only, never persisted). */
   const [sceneReferenceGhost, setSceneReferenceGhost] = useState(false);
   const [sceneComparisonFrame, setSceneComparisonFrame] = useState<SceneComparisonFrame>("EXTRACTED");
@@ -1650,15 +1712,53 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     return clip ? sceneForClip(project, clip) : null;
   }, [project, selectedClipId]);
 
+  /** Latest selected scene, so selection callbacks stay dependency-free. */
+  const sceneRef = useRef<FormationScene | null>(null);
+  sceneRef.current = selectedScene;
+
   /**
-   * DERIVED SELECTION SAFETY: a scene-object id is only ever exposed while it
-   * still resolves inside the currently selected scene. Stale ids left behind
-   * by a clip/object deletion can never leak to the UI.
+   * DERIVED SELECTION SAFETY: the exposed selection is always reconciled against
+   * the currently selected scene, so a clip change or an object deletion can
+   * never leak stale ids, and the primary always belongs to the selection.
    */
-  const resolvedSceneObjectId = useMemo<string | null>(() => {
-    if (!selectedSceneObjectId) return null;
-    return selectedScene?.objects.some((o) => o.id === selectedSceneObjectId) ? selectedSceneObjectId : null;
-  }, [selectedScene, selectedSceneObjectId]);
+  const sceneSelection = useMemo<SceneSelection>(
+    () =>
+      normalizeSceneSelection(selectedScene, sceneSelectionState.ids, sceneSelectionState.primaryId),
+    [selectedScene, sceneSelectionState],
+  );
+  const resolvedSceneObjectId = sceneSelection.primaryId;
+  const selectedSceneObjectIds = useMemo(() => [...sceneSelection.ids], [sceneSelection]);
+
+  const setSelectedSceneObjectIds = useCallback(
+    (ids: readonly string[], primaryId: string | null = null) => {
+      setSceneSelectionState({ ids: [...ids], primaryId });
+    },
+    [],
+  );
+  /** Compatibility helper for the single-object call sites. */
+  const setSelectedSceneObjectId = useCallback((id: string | null) => {
+    setSceneSelectionState(id ? { ids: [id], primaryId: id } : EMPTY_SCENE_SELECTION);
+  }, []);
+  const selectSceneObject = useCallback(
+    (objectId: string | null, mode: SceneClickMode = "REPLACE") => {
+      if (!objectId) {
+        setSceneSelectionState(EMPTY_SCENE_SELECTION);
+        return;
+      }
+      setSceneSelectionState((current) => applySceneClick(sceneRef.current, current, objectId, mode));
+    },
+    [],
+  );
+  const selectAllSceneObjectsInScene = useCallback(() => {
+    setSceneSelectionState((current) => selectAllSceneObjects(sceneRef.current, current.primaryId));
+  }, []);
+  const sceneSelectionMixed = useMemo<MixedTransformFlags>(
+    () =>
+      selectedScene
+        ? mixedTransformFlags(selectedScene, sceneSelection.ids)
+        : { position: false, rotationDeg: false, scale: false, mirrorX: false },
+    [selectedScene, sceneSelection],
+  );
 
 
   const selectedSceneBudget = useMemo<SceneBudget | null>(
@@ -1710,14 +1810,168 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * insert that adds a formation and composes it in the same tick still sees it.
    */
   const editScene = useCallback(
-    (clipId: string, fn: (scene: FormationScene, p: ShowProject) => FormationScene) => {
+    (
+      clipId: string,
+      fn: (scene: FormationScene, p: ShowProject) => FormationScene,
+      options: { readonly history?: boolean } = {},
+    ) => {
+      const history = options.history !== false;
       setProject((p) => {
         const clip = p.timeline.find((c) => c.id === clipId);
         if (!clip) return p;
-        return upsertScene(p, fn(sceneForClip(p, clip), p));
+        const next = upsertScene(p, fn(sceneForClip(p, clip), p));
+        if (next === p) return p;
+        // ATOMIC SCENE EDIT COMMAND: exactly one project mutation, so the
+        // promotion guard, the planning invalidation and undo all see ONE step,
+        // however many objects the gesture touched.
+        if (history) pushSnapshot(p);
+        return next;
       });
     },
-    [],
+    [pushSnapshot],
+  );
+
+  /** ONE canonical batch gesture on N selected objects. */
+  const transformSceneObjects = useCallback(
+    (clipId: string, objectIds: readonly string[], delta: SceneGroupDelta) => {
+      if (objectIds.length === 0) return;
+      editScene(clipId, (scene, p) => applySceneGroupDelta(p, scene, objectIds, delta));
+    },
+    [editScene],
+  );
+
+  const mirrorSceneObjectsBatch = useCallback(
+    (clipId: string, objectIds: readonly string[]) => {
+      if (objectIds.length === 0) return;
+      editScene(clipId, (scene) => mirrorSceneObjects(scene, objectIds));
+    },
+    [editScene],
+  );
+
+  const duplicateSceneObjectsBatch = useCallback(
+    (clipId: string, objectIds: readonly string[]) => {
+      if (objectIds.length === 0) return;
+      let created: readonly string[] = [];
+      editScene(clipId, (scene) => {
+        const result = duplicateSceneObjects(scene, objectIds);
+        created = result.objectIds;
+        return result.scene;
+      });
+      if (created.length > 0) setSelectedSceneObjectIds(created, created[created.length - 1] ?? null);
+    },
+    [editScene, setSelectedSceneObjectIds],
+  );
+
+  const removeSceneObjectsBatch = useCallback(
+    (clipId: string, objectIds: readonly string[]) => {
+      if (objectIds.length === 0) return;
+      editScene(clipId, (scene) => removeSceneObjects(scene, objectIds));
+      setSceneSelectionState(EMPTY_SCENE_SELECTION);
+    },
+    [editScene],
+  );
+
+  /* ------------------------------------------- viewport transform gizmo ---- */
+  const [gizmoMode, setGizmoMode] = useState<SceneGizmoMode>("MOVE");
+  const [gizmoTranslateSnap, setGizmoTranslateSnap] = useState(0);
+  const [gizmoRotateSnap, setGizmoRotateSnap] = useState(0);
+  const [sceneGizmoDraft, setSceneGizmoDraft] = useState<SceneGroupDelta | null>(null);
+  /** Ids captured at pointer-down, so a mid-gesture selection change is inert. */
+  const gizmoIdsRef = useRef<readonly string[]>([]);
+
+  const sceneGizmoPivot = useMemo<Vector3Tuple | null>(() => {
+    if (!selectedScene || sceneSelection.ids.length === 0) return null;
+    try {
+      return sceneGroupPivot(project, selectedScene, sceneSelection.ids);
+    } catch {
+      return null;
+    }
+  }, [project, selectedScene, sceneSelection]);
+
+  /** DRAFT PREVIEW: pure scene resolution, never a plan and never persisted. */
+  const sceneGizmoPreviewPoints = useMemo<Vector3Tuple[]>(() => {
+    if (!sceneGizmoDraft || !selectedScene || gizmoIdsRef.current.length === 0) return [];
+    try {
+      const drafted = applySceneGroupDelta(
+        project,
+        selectedScene,
+        gizmoIdsRef.current,
+        sceneGizmoDraft,
+      );
+      const resolved = resolveSceneAt(project, drafted, 0);
+      const wanted = new Set(gizmoIdsRef.current);
+      const points: Vector3Tuple[] = [];
+      for (const group of resolved.groups) {
+        if (!wanted.has(group.instanceId)) continue;
+        for (let i = 0; i < group.pointCount; i++) {
+          const p = resolved.points[group.offset + i];
+          if (p) points.push(p);
+        }
+      }
+      return points;
+    } catch {
+      return [];
+    }
+  }, [project, selectedScene, sceneGizmoDraft]);
+
+  const beginSceneGizmo = useCallback(() => {
+    gizmoIdsRef.current = sceneSelection.ids;
+    setSceneGizmoDraft({});
+  }, [sceneSelection]);
+
+  const updateSceneGizmo = useCallback((delta: SceneGroupDelta) => {
+    if (gizmoIdsRef.current.length === 0) return;
+    setSceneGizmoDraft(delta);
+  }, []);
+
+  const commitSceneGizmo = useCallback(() => {
+    const ids = gizmoIdsRef.current;
+    const delta = sceneGizmoDraft;
+    gizmoIdsRef.current = [];
+    setSceneGizmoDraft(null);
+    if (!delta || ids.length === 0 || !selectedClipId) return;
+    const moved =
+      (delta.position && (delta.position[0] || delta.position[1] || delta.position[2])) ||
+      (delta.rotationDeg &&
+        (delta.rotationDeg[0] || delta.rotationDeg[1] || delta.rotationDeg[2])) ||
+      (delta.scaleFactor !== undefined && delta.scaleFactor !== 1);
+    if (!moved) return;
+    transformSceneObjects(selectedClipId, ids, delta);
+  }, [sceneGizmoDraft, selectedClipId, transformSceneObjects]);
+
+  /** Escape: the draft is discarded, so the scene is byte-identical again. */
+  const cancelSceneGizmo = useCallback(() => {
+    gizmoIdsRef.current = [];
+    setSceneGizmoDraft(null);
+  }, []);
+
+  /**
+   * VIEWPORT PICKING: drone index -> scene object. The drone flies the target
+   * point its ASSIGNMENT maps to, and `ResolvedSceneGroup` owns which object a
+   * combined point index belongs to. No new identity mapping is invented, and
+   * padded (non-participating) drones resolve to null.
+   */
+  const sceneObjectIdByDrone = useMemo<(string | null)[]>(() => {
+    if (!selectedScene || !selectedClipId) return [];
+    let resolved;
+    try {
+      resolved = resolveSceneAt(project, selectedScene, 0);
+    } catch {
+      return [];
+    }
+    const clipAssignment = plan.assignments.find((a) => a.clipId === selectedClipId);
+    return Array.from({ length: project.droneCount }, (_, i) => {
+      const target = clipAssignment?.assignments[i]?.targetPointIndex ?? i;
+      const group = resolved.groups.find(
+        (g) => target >= g.offset && target < g.offset + g.pointCount,
+      );
+      return group?.instanceId ?? null;
+    });
+  }, [plan, project, selectedClipId, selectedScene]);
+
+  const sceneObjectIdForDrone = useCallback(
+    (droneIndex: number) => sceneObjectIdByDrone[droneIndex] ?? null,
+    [sceneObjectIdByDrone],
   );
 
   const addSceneObject = useCallback(
@@ -1772,7 +2026,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const removeSceneObject = useCallback(
     (clipId: string, objectId: string) => {
       editScene(clipId, (scene) => removeObject(scene, objectId));
-      setSelectedSceneObjectId((current) => (current === objectId ? null : current));
+      setSceneSelectionState((current) =>
+        current.ids.includes(objectId)
+          ? {
+              ids: current.ids.filter((id) => id !== objectId),
+              primaryId: current.primaryId === objectId ? null : current.primaryId,
+            }
+          : current,
+      );
     },
     [editScene],
   );
@@ -3566,12 +3827,45 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         case "clearSelection":
           setSelectedPointIdsState([]);
           setSelectedMotionGroupId(null);
+          // Escape aborts a running gizmo gesture and leaves NO history entry.
+          cancelSceneGizmo();
+          setSceneSelectionState(EMPTY_SCENE_SELECTION);
+          break;
+        case "gizmoMode":
+          setGizmoMode(action.mode);
+          break;
+        case "selectAll":
+          selectAllSceneObjectsInScene();
+          break;
+        case "duplicateSelection":
+          if (selectedClipId && sceneSelection.ids.length > 0) {
+            duplicateSceneObjectsBatch(selectedClipId, sceneSelection.ids);
+          }
+          break;
+        case "deleteSelection":
+          if (selectedClipId && sceneSelection.ids.length > 0) {
+            removeSceneObjectsBatch(selectedClipId, sceneSelection.ids);
+          }
           break;
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [clock, duration, plan.startTime, undoDynamic, redoDynamic, undoTimeline, redoTimeline]);
+  }, [
+    clock,
+    duration,
+    plan.startTime,
+    undoDynamic,
+    redoDynamic,
+    undoTimeline,
+    redoTimeline,
+    cancelSceneGizmo,
+    selectAllSceneObjectsInScene,
+    duplicateSceneObjectsBatch,
+    removeSceneObjectsBatch,
+    selectedClipId,
+    sceneSelection,
+  ]);
 
   // FOLLOW PLAYHEAD — pure editor navigation: keeps the playhead visible during
   // playback without ever touching project state.
@@ -3825,7 +4119,30 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectedSceneBudget,
       selectedSceneWarnings,
       selectedSceneObjectId: resolvedSceneObjectId,
-      selectSceneObject: setSelectedSceneObjectId,
+      selectedSceneObjectIds,
+      primarySceneObjectId: resolvedSceneObjectId,
+      selectSceneObject,
+      setSelectedSceneObjectIds,
+      selectAllSceneObjectsInScene,
+      sceneSelectionMixed,
+      sceneObjectIdForDrone,
+      transformSceneObjects,
+      mirrorSceneObjectsBatch,
+      duplicateSceneObjectsBatch,
+      removeSceneObjectsBatch,
+      gizmoMode,
+      setGizmoMode,
+      gizmoTranslateSnap,
+      setGizmoTranslateSnap,
+      gizmoRotateSnap,
+      setGizmoRotateSnap,
+      sceneGizmoPivot,
+      sceneGizmoDraft,
+      sceneGizmoPreviewPoints,
+      beginSceneGizmo,
+      updateSceneGizmo,
+      commitSceneGizmo,
+      cancelSceneGizmo,
       addSceneObject,
       patchSceneObject,
       patchSceneObjectTransform,
@@ -4138,6 +4455,26 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectedSceneBudget,
       selectedSceneWarnings,
       resolvedSceneObjectId,
+      selectedSceneObjectIds,
+      selectSceneObject,
+      setSelectedSceneObjectIds,
+      selectAllSceneObjectsInScene,
+      sceneSelectionMixed,
+      sceneObjectIdForDrone,
+      transformSceneObjects,
+      mirrorSceneObjectsBatch,
+      duplicateSceneObjectsBatch,
+      removeSceneObjectsBatch,
+      gizmoMode,
+      gizmoTranslateSnap,
+      gizmoRotateSnap,
+      sceneGizmoPivot,
+      sceneGizmoDraft,
+      sceneGizmoPreviewPoints,
+      beginSceneGizmo,
+      updateSceneGizmo,
+      commitSceneGizmo,
+      cancelSceneGizmo,
       addSceneObject,
       patchSceneObject,
       patchSceneObjectTransform,

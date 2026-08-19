@@ -8,6 +8,7 @@
  * planner and validator stay fully authoritative.
  */
 import { Copy, CopyPlus, FlipHorizontal2, Layers, RotateCcw, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
@@ -51,8 +52,14 @@ function AxisRow({
   );
 }
 
+const GIZMO_MODES = ["MOVE", "ROTATE", "SCALE"] as const;
+
 export default function SceneObjectsPanel() {
   const { t } = useI18n();
+  /** Local NUDGE amounts. Deltas are relative, so mixed values stay untouched. */
+  const [nudge, setNudge] = useState(1);
+  const [spin, setSpin] = useState(15);
+  const [scaleStep, setScaleStep] = useState(1.1);
   const {
     project,
     selectedClipId,
@@ -60,7 +67,19 @@ export default function SceneObjectsPanel() {
     selectedSceneBudget,
     selectedSceneWarnings,
     selectedSceneObjectId,
+    selectedSceneObjectIds,
     selectSceneObject,
+    sceneSelectionMixed,
+    transformSceneObjects,
+    mirrorSceneObjectsBatch,
+    duplicateSceneObjectsBatch,
+    removeSceneObjectsBatch,
+    gizmoMode,
+    setGizmoMode,
+    gizmoTranslateSnap,
+    setGizmoTranslateSnap,
+    gizmoRotateSnap,
+    setGizmoRotateSnap,
     patchSceneObject,
     patchSceneObjectTransform,
     duplicateSceneObject,
@@ -135,7 +154,7 @@ export default function SceneObjectsPanel() {
       <ul className="mt-2 space-y-1">
         {selectedScene.objects.map((object) => {
           const count = budget?.objects.find((o) => o.instanceId === object.id)?.count ?? 0;
-          const active = object.id === selected?.id;
+          const active = selectedSceneObjectIds.includes(object.id) || object.id === selected?.id;
           return (
             <li key={object.id}>
               <div
@@ -145,7 +164,9 @@ export default function SceneObjectsPanel() {
               >
                 <button
                   type="button"
-                  onClick={() => selectSceneObject(object.id)}
+                  onClick={(e) =>
+                    selectSceneObject(object.id, e.ctrlKey || e.metaKey || e.shiftKey ? "TOGGLE" : "REPLACE")
+                  }
                   className="min-w-0 flex-1 truncate text-left font-mono text-[10px] text-foreground"
                 >
                   {object.name}
@@ -198,6 +219,197 @@ export default function SceneObjectsPanel() {
               {t(`scene.align.${alignment}`)}
             </Button>
           ))}
+        </div>
+      )}
+
+      {selectedSceneObjectIds.length > 0 && (
+        <div className="mt-2 space-y-1.5 border-t border-border pt-2">
+          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+            {t("scene.batch.title", { count: selectedSceneObjectIds.length })}
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {GIZMO_MODES.map((mode) => (
+              <Button
+                key={mode}
+                type="button"
+                size="sm"
+                variant={gizmoMode === mode ? "default" : "outline"}
+                className="h-6 px-1.5 font-mono text-[9px] uppercase tracking-[0.14em]"
+                onClick={() => setGizmoMode(mode)}
+              >
+                {t(`scene.gizmo.${mode}`)}
+              </Button>
+            ))}
+          </div>
+          <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span className="uppercase tracking-[0.14em]">{t("scene.snapMove")}</span>
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              value={gizmoTranslateSnap}
+              onChange={(e) => setGizmoTranslateSnap(Math.max(0, Number(e.target.value)))}
+              className="studio-input w-20 text-right font-mono"
+            />
+          </label>
+          <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span className="uppercase tracking-[0.14em]">{t("scene.snapRotate")}</span>
+            <input
+              type="number"
+              min={0}
+              step={5}
+              value={gizmoRotateSnap}
+              onChange={(e) => setGizmoRotateSnap(Math.max(0, Number(e.target.value)))}
+              className="studio-input w-20 text-right font-mono"
+            />
+          </label>
+
+          <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span className="uppercase tracking-[0.14em]">{t("scene.batch.move")}</span>
+            <input
+              type="number"
+              step={0.5}
+              value={nudge}
+              onChange={(e) => setNudge(Number(e.target.value))}
+              className="studio-input w-16 text-right font-mono"
+            />
+          </label>
+          <div className="flex flex-wrap gap-1">
+            {(
+              [
+                ["X-", [-nudge, 0, 0]],
+                ["X+", [nudge, 0, 0]],
+                ["Y-", [0, -nudge, 0]],
+                ["Y+", [0, nudge, 0]],
+                ["Z-", [0, 0, -nudge]],
+                ["Z+", [0, 0, nudge]],
+              ] as const
+            ).map(([label, position]) => (
+              <Button
+                key={label}
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-6 px-1.5 font-mono text-[9px]"
+                onClick={() =>
+                  transformSceneObjects(clipId, selectedSceneObjectIds, {
+                    position: [position[0], position[1], position[2]],
+                  })
+                }
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+
+          <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span className="uppercase tracking-[0.14em]">{t("scene.batch.rotate")}</span>
+            <input
+              type="number"
+              step={5}
+              value={spin}
+              onChange={(e) => setSpin(Number(e.target.value))}
+              className="studio-input w-16 text-right font-mono"
+            />
+          </label>
+          <div className="flex flex-wrap gap-1">
+            {(
+              [
+                ["Y-", [0, -spin, 0]],
+                ["Y+", [0, spin, 0]],
+                ["Z-", [0, 0, -spin]],
+                ["Z+", [0, 0, spin]],
+              ] as const
+            ).map(([label, rotationDeg]) => (
+              <Button
+                key={`rot-${label}`}
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-6 px-1.5 font-mono text-[9px]"
+                onClick={() =>
+                  transformSceneObjects(clipId, selectedSceneObjectIds, {
+                    rotationDeg: [rotationDeg[0], rotationDeg[1], rotationDeg[2]],
+                  })
+                }
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+
+          <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span className="uppercase tracking-[0.14em]">{t("scene.batch.scale")}</span>
+            <input
+              type="number"
+              min={0.05}
+              step={0.05}
+              value={scaleStep}
+              onChange={(e) => setScaleStep(Math.max(0.05, Number(e.target.value)))}
+              className="studio-input w-16 text-right font-mono"
+            />
+          </label>
+          <div className="flex flex-wrap gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-6 px-1.5 font-mono text-[9px]"
+              onClick={() =>
+                transformSceneObjects(clipId, selectedSceneObjectIds, { scaleFactor: scaleStep })
+              }
+            >
+              ×{scaleStep.toFixed(2)}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-6 px-1.5 font-mono text-[9px]"
+              onClick={() =>
+                transformSceneObjects(clipId, selectedSceneObjectIds, {
+                  scaleFactor: 1 / scaleStep,
+                })
+              }
+            >
+              ÷{scaleStep.toFixed(2)}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-6 px-1.5 font-mono text-[9px] uppercase tracking-[0.14em]"
+              onClick={() => mirrorSceneObjectsBatch(clipId, selectedSceneObjectIds)}
+            >
+              {t("scene.mirror")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-6 px-1.5 font-mono text-[9px] uppercase tracking-[0.14em]"
+              onClick={() => duplicateSceneObjectsBatch(clipId, selectedSceneObjectIds)}
+            >
+              {t("scene.duplicate")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={selectedScene.objects.length <= selectedSceneObjectIds.length}
+              className="h-6 px-1.5 font-mono text-[9px] uppercase tracking-[0.14em]"
+              onClick={() => removeSceneObjectsBatch(clipId, selectedSceneObjectIds)}
+            >
+              {t("common.delete")}
+            </Button>
+          </div>
+          {(sceneSelectionMixed.position ||
+            sceneSelectionMixed.rotationDeg ||
+            sceneSelectionMixed.scale) && (
+            <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+              {t("scene.batch.mixed")}
+            </p>
+          )}
         </div>
       )}
 

@@ -12,7 +12,12 @@ export type ShortcutAction =
   | { readonly type: "seekEnd" }
   | { readonly type: "undo" }
   | { readonly type: "redo" }
-  | { readonly type: "clearSelection" };
+  | { readonly type: "clearSelection" }
+  /** Scene editor: viewport gizmo mode (Windows-first W / E / R). */
+  | { readonly type: "gizmoMode"; readonly mode: "MOVE" | "ROTATE" | "SCALE" }
+  | { readonly type: "selectAll" }
+  | { readonly type: "duplicateSelection" }
+  | { readonly type: "deleteSelection" };
 
 export interface ShortcutTarget {
   readonly tagName?: string;
@@ -48,6 +53,8 @@ export function resolveShortcut(event: ShortcutEventLike): ShortcutAction | null
     const key = event.key.toLowerCase();
     if (key === "z") return event.shiftKey ? { type: "redo" } : { type: "undo" };
     if (key === "y") return { type: "redo" };
+    if (key === "a") return { type: "selectAll" };
+    if (key === "d") return { type: "duplicateSelection" };
     return null;
   }
 
@@ -66,6 +73,17 @@ export function resolveShortcut(event: ShortcutEventLike): ShortcutAction | null
       return { type: "seekStart" };
     case "End":
       return { type: "seekEnd" };
+    case "w":
+    case "W":
+      return { type: "gizmoMode", mode: "MOVE" };
+    case "e":
+    case "E":
+      return { type: "gizmoMode", mode: "ROTATE" };
+    case "r":
+    case "R":
+      return { type: "gizmoMode", mode: "SCALE" };
+    case "Delete":
+      return { type: "deleteSelection" };
     case "Escape":
       return { type: "clearSelection" };
     default:
@@ -81,5 +99,9 @@ export const SHORTCUT_HELP: readonly { readonly keys: string; readonly labelKey:
   { keys: "Home / End", labelKey: "shortcuts.seekEnds" },
   { keys: "Ctrl/⌘ + Z", labelKey: "shortcuts.undo" },
   { keys: "Ctrl/⌘ + Shift + Z", labelKey: "shortcuts.redo" },
+  { keys: "W / E / R", labelKey: "shortcuts.gizmoMode" },
+  { keys: "Ctrl/⌘ + A", labelKey: "shortcuts.selectAll" },
+  { keys: "Ctrl/⌘ + D", labelKey: "shortcuts.duplicate" },
+  { keys: "Delete", labelKey: "shortcuts.delete" },
   { keys: "Esc", labelKey: "shortcuts.clear" },
 ];
