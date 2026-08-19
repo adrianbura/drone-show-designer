@@ -260,6 +260,14 @@ export default function Viewport3D() {
           vectorScale={errorVectorScale}
         />
       ) : null}
+      {sceneGhostFrame && !reference ? (
+        <ReferenceGhostSwarm
+          frame={sceneGhostFrame}
+          selectedObjectId={selectedSceneObjectId}
+          correspondence={sceneCorrespondence}
+        />
+      ) : null}
+
       {reference ? null : <ShowVolume {...project.area} />}
       {reference ? (
         <ReferenceSwarm
