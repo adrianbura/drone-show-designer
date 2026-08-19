@@ -2632,6 +2632,120 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [referenceShow],
   );
 
+  // ---- Imported trajectory layer + editable extraction (A + B) ------------
+  // The layer is the PLAYBACK AUTHORITY for reference-owned intervals; the
+  // extracted clips are ordinary project content. Promotion is decided by the
+  // flight-output signature, never by editor activity.
+  const referenceLayerRef = useRef<ReferenceTrajectoryLayer | null>(null);
+  referenceLayerRef.current = referenceLayer;
+
+  const signatureContext = useMemo(
+    () => ({ assignmentStrategy, transitionOverrides }),
+    [assignmentStrategy, transitionOverrides],
+  );
+
+  const extractReferenceShowToProject = useCallback(() => {
+    const show = referenceShow;
+    const report = forensicsReport;
+    if (!show) {
+      setReferenceExtractionError({
+        code: "NO_REFERENCE_SHOW",
+        message: "Import an ESSP show before extracting it.",
+      });
+      return;
+    }
+    if (!report) {
+      setReferenceExtractionError({
+        code: "NO_FORENSICS_REPORT",
+        message: "Run the reference analysis first: its segmentation decides the scene boundaries.",
+      });
+      return;
+    }
+    try {
+      const result = extractReferenceTimeline(show, report);
+      const previous = projectRef.current;
+      const next: ShowProject = {
+        ...previous,
+        droneCount: result.droneCount,
+        formations: [...result.formations],
+        timeline: [...result.timeline],
+        dynamicFormations: [...result.dynamicFormations],
+        scenes: [],
+        lighting: result.lighting,
+        // The imported takeoff is authored as a clip, so the native pre-show
+        // staging must not also claim the time before show zero.
+        ...(previous.preShow ? { preShow: { ...previous.preShow, enabled: false } } : {}),
+      };
+      // Signatures are seeded against the REAL project (limits, participation,
+      // strategy included), so nothing is promoted by the extraction itself.
+      const layer = reseedReferenceSignatures(next, result.layer, {
+        assignmentStrategy,
+        transitionOverrides: {},
+      });
+      pushSnapshot(previous);
+      overrideBasisRef.current = computeOverrideBasis(next, {});
+      setTransitionOverrides({});
+      setProject(next);
+      setReferenceLayer(layer);
+      setReferenceLayerShow(show);
+      setReferenceExtraction(result.diagnostics);
+      setReferenceAssetDrafts(result.assets);
+      setReferenceExtractionWarnings(result.warnings);
+      setReferenceExtractionError(null);
+      setSelectedClipId(result.timeline[0]?.id ?? null);
+      setReferencePlayback(false);
+    } catch (err) {
+      setReferenceExtractionError({
+        code: err instanceof ReferenceLayerError ? err.code : "EXTRACTION_FAILED",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }, [referenceShow, forensicsReport, assignmentStrategy, pushSnapshot]);
+
+  const promoteReferenceClip = useCallback(
+    (clipId: string) => {
+      const layer = referenceLayerRef.current;
+      if (!layer) return;
+      const signature = clipOutputSignature(projectRef.current, clipId, {
+        assignmentStrategy,
+        transitionOverrides: transitionOverridesRef.current,
+      });
+      const result = promoteReferenceClips(layer, [
+        { clipId, reason: "MANUAL", ...(signature ? { signature } : {}) },
+      ]);
+      if (result.changed) setReferenceLayer(result.layer);
+    },
+    [assignmentStrategy],
+  );
+
+  const clearReferenceLayer = useCallback(() => {
+    setReferenceLayer(null);
+    setReferenceLayerShow(null);
+    setReferenceExtraction([]);
+    setReferenceAssetDrafts([]);
+    setReferenceExtractionWarnings([]);
+  }, []);
+
+  const verifyReferenceSplices = useCallback((): SpliceVerificationReport | null => {
+    const layer = referenceLayerRef.current;
+    if (!layer || !referenceLayerShow) return null;
+    return verifySpliceBoundaries(referenceLayerShow, layer, (t) =>
+      samplesAt(plan, t).map((sample) => sample.position),
+    );
+  }, [plan, referenceLayerShow]);
+
+  /**
+   * PROMOTION GUARD. One pass per canonical change of the project or planning
+   * state: only clips whose flight/LED output signature moved are promoted, so
+   * one edited clip never regenerates the rest of the show.
+   */
+  useEffect(() => {
+    const layer = referenceLayerRef.current;
+    if (!layer) return;
+    const result = reconcileReferenceLayer(project, layer, signatureContext);
+    if (result.changed) setReferenceLayer(result.layer);
+  }, [project, signatureContext]);
+
   // ---- Project persistence (Sprint 7) --------------------------------------
   // Saving is pure serialization of the editable project; autosave stores the
   // SAME envelope locally so a crash recovery is just a reopened project.
@@ -3540,6 +3654,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       clearProjectFileError,
       saveProjectFile,
       buildProjectFile,
+      referenceLayer,
+      referenceOwnership,
+      referenceOwnedNow,
+      referenceExtraction,
+      referenceAssetDrafts,
+      referenceExtractionWarnings,
+      referenceExtractionError,
+      extractReferenceShowToProject,
+      promoteReferenceClip,
+      clearReferenceLayer,
+      verifyReferenceSplices,
+      referenceLayerLimitations: REFERENCE_LAYER_LIMITATIONS,
       openProjectFile,
       autosaveRecovery,
       restoreAutosave,
@@ -3779,6 +3905,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       clearProjectFileError,
       saveProjectFile,
       buildProjectFile,
+      referenceLayer,
+      referenceOwnership,
+      referenceOwnedNow,
+      referenceExtraction,
+      referenceAssetDrafts,
+      referenceExtractionWarnings,
+      referenceExtractionError,
+      extractReferenceShowToProject,
+      promoteReferenceClip,
+      clearReferenceLayer,
+      verifyReferenceSplices,
+      referenceLayerLimitations: REFERENCE_LAYER_LIMITATIONS,
       openProjectFile,
       autosaveRecovery,
       restoreAutosave,
