@@ -22,6 +22,13 @@ import { LIGHTING_SCHEMA_VERSION } from "../../../show/lighting/types";
 import type { DynamicFormation } from "../../../show/dynamic/types";
 import type { Formation, RGB, TimelineClip, Vector3Tuple } from "../../../show/types";
 import { convertReferenceSegmentToDynamicFormation } from "../conversion/convert";
+import { collectSceneDependencies } from "../../../library/sceneAsset";
+import {
+  IDENTITY_INSTANCE_TRANSFORM,
+  SCENE_SCHEMA_VERSION,
+  newSceneObjectId,
+  type FormationScene,
+} from "../../../show/scene/types";
 import { segmentEligibility } from "../conversion/types";
 import type { ReferenceForensicsReport, ReferenceSceneSegment } from "../forensics/types";
 import { colorAt, sampleReferenceShow } from "../playback";
