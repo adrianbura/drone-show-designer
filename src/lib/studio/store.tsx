@@ -1407,6 +1407,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     return clip ? sceneForClip(project, clip) : null;
   }, [project, selectedClipId]);
 
+  /**
+   * DERIVED SELECTION SAFETY: a scene-object id is only ever exposed while it
+   * still resolves inside the currently selected scene. Stale ids left behind
+   * by a clip/object deletion can never leak to the UI.
+   */
+  const resolvedSceneObjectId = useMemo<string | null>(() => {
+    if (!selectedSceneObjectId) return null;
+    return selectedScene?.objects.some((o) => o.id === selectedSceneObjectId) ? selectedSceneObjectId : null;
+  }, [selectedScene, selectedSceneObjectId]);
+
+
   const selectedSceneBudget = useMemo<SceneBudget | null>(
     () => (selectedScene ? sceneBudget(project, selectedScene, project.droneCount) : null),
     [project, selectedScene],
