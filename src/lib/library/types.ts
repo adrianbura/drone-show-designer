@@ -71,6 +71,13 @@ export interface FormationAssetMetadata {
   readonly duration?: number;
   readonly loop?: string;
   readonly algorithmVersion?: string;
+  /** SCENE assets only. */
+  readonly objectCount?: number;
+  readonly staticDependencyCount?: number;
+  readonly dynamicDependencyCount?: number;
+  /** Sum of the per-object requested drone counts of a SCENE asset. */
+  readonly requestedDroneCount?: number;
+  readonly sceneSchemaVersion?: number;
 }
 
 export interface FormationAsset {
@@ -93,11 +100,23 @@ export interface FormationAsset {
   /** Exact engine payload. Dynamic assets keep the FULL animation model. */
   readonly formationData:
     | { readonly kind: "STATIC"; readonly formation: Formation }
-    | { readonly kind: "DYNAMIC"; readonly formation: DynamicFormation };
+    | { readonly kind: "DYNAMIC"; readonly formation: DynamicFormation }
+    | {
+        readonly kind: "SCENE";
+        readonly scene: FormationScene;
+        readonly dependencies: SceneAssetDependencies;
+      };
   readonly metadata: FormationAssetMetadata;
 }
 
-export type LibraryView = "ALL" | "STATIC" | "DYNAMIC" | "FAVORITES" | "RECENT" | "BUILT_IN";
+export type LibraryView =
+  | "ALL"
+  | "STATIC"
+  | "DYNAMIC"
+  | "SCENE"
+  | "FAVORITES"
+  | "RECENT"
+  | "BUILT_IN";
 
 export interface LibraryQuery {
   readonly view: LibraryView;
