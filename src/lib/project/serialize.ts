@@ -284,6 +284,8 @@ export function migrateProjectFile(raw: unknown): ProjectFile {
     savedAt: typeof candidate.savedAt === "string" ? candidate.savedAt : new Date().toISOString(),
     app: candidate.app ?? { name: PROJECT_ENGINE_NAME, schemaVersion: SCHEMA_VERSION },
     project,
+    // v1 files carry no planning section: they migrate to planning defaults.
+    planning: migratePlanningState((candidate as { planning?: unknown }).planning),
     ...(candidate.editor ? { editor: candidate.editor } : {}),
   };
 }
