@@ -1880,6 +1880,72 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [editScene],
   );
 
+  /* ------------------------------------------- fast design actions -------- */
+  const applySceneDesign = useCallback(
+    (
+      clipId: string,
+      objectIds: readonly string[],
+      action: SceneDesignActionKind,
+      options: { readonly altitudeStep?: number } = {},
+    ) => {
+      if (objectIds.length === 0) return;
+      editScene(clipId, (scene, p) =>
+        applySceneDesignAction(p, scene, objectIds, action, options),
+      );
+    },
+    [editScene],
+  );
+
+  const alignSceneObjectsByMode = useCallback(
+    (clipId: string, objectIds: readonly string[], mode: SceneAlignMode) => {
+      if (objectIds.length < 2) return;
+      editScene(clipId, (scene, p) => alignSceneObjectsBy(p, scene, objectIds, mode));
+    },
+    [editScene],
+  );
+
+  /* ------------------------------------------- clip design commands ------- */
+  /** "Edit as Scene": materialises the clip's implicit scene, one undo entry. */
+  const editClipAsScene = useCallback(
+    (clipId: string) => {
+      let created: readonly string[] = [];
+      setProject((p) => {
+        const result = convertClipToScene(p, clipId);
+        if (!result) return p;
+        created = result.sceneObjectIds;
+        pushSnapshot(p);
+        return result.project;
+      });
+      if (created.length > 0) {
+        setSelectedSceneObjectIds(created.slice(0, 1), created[0] ?? null);
+      }
+      return created.length > 0;
+    },
+    [pushSnapshot, setSelectedSceneObjectIds],
+  );
+
+  /** "Duplicate clip": fresh clip/scene/object ids, inserted before LANDING. */
+  const duplicateClipForDesign = useCallback(
+    (clipId: string) => {
+      const newClipId = nextId("clip");
+      let ok = false;
+      setProject((p) => {
+        const result = duplicateShowClip(p, clipId, {
+          clipId: newClipId,
+          lightingEffectId: (index) => `${newClipId}-fx-${index + 1}`,
+        });
+        if (!result) return p;
+        ok = true;
+        pushSnapshot(p);
+        return result.project;
+      });
+      if (ok) selectClip(newClipId);
+      return ok ? newClipId : null;
+    },
+    [pushSnapshot, selectClip],
+  );
+
+
   /* ------------------------------------------- viewport transform gizmo ---- */
   const [gizmoMode, setGizmoMode] = useState<SceneGizmoMode>("MOVE");
   const [gizmoTranslateSnap, setGizmoTranslateSnap] = useState(0);
