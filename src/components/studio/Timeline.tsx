@@ -517,16 +517,33 @@ export default function Timeline() {
         <div
           ref={trackRef}
           onPointerDown={(e) => {
+            if (e.button === 1) {
+              onTrackPointerDown(e);
+              return;
+            }
+            if (e.button !== 0) return;
             e.currentTarget.setPointerCapture(e.pointerId);
             scrub(e.clientX);
           }}
           onPointerMove={(e) => {
+            if (panRef.current) {
+              onTrackPointerMove(e);
+              return;
+            }
             if (gestureRef.current) return;
             if (e.currentTarget.hasPointerCapture(e.pointerId)) scrub(e.clientX);
           }}
+          onPointerUp={endPan}
+          onPointerCancel={endPan}
+          onAuxClick={(e) => {
+            if (e.button === 1) e.preventDefault();
+          }}
           style={{ minHeight: `${Math.max(80, trackMinHeight)}px` }}
-          className="relative flex-1 cursor-ew-resize touch-none rounded-md border border-border bg-surface-sunken"
+          className={`relative flex-1 touch-none rounded-md border border-border bg-surface-sunken ${
+            panning ? "cursor-grabbing" : "cursor-ew-resize"
+          }`}
         >
+
           {/* PRE-SHOW region: negative show time, launch + staging */}
           {preShowPlan ? (
             <>
