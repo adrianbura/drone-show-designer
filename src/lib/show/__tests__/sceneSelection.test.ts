@@ -5,8 +5,12 @@ import {
   canonicalSceneSelection,
   duplicateSceneSelection,
   mirrorSceneSelectionX,
+  reconcileSceneSelection,
+  replaceSceneSelection,
   rotateSceneSelection,
   scaleSceneSelection,
+  selectAllSceneObjects,
+  toggleSceneSelection,
   translateSceneSelection,
   type FormationScene,
   type SceneFormationInstance,
@@ -38,6 +42,31 @@ function scene(): FormationScene {
 describe("scene multi-selection editing", () => {
   it("canonicalises selection to scene order, removes duplicates and ignores unknown ids", () => {
     expect(canonicalSceneSelection(scene(), ["c", "missing", "a", "c"])).toEqual(["a", "c"]);
+  });
+
+  it("implements Windows-first plain click, Ctrl/Shift toggle and Ctrl+A semantics", () => {
+    const source = scene();
+    expect(replaceSceneSelection(source, "b")).toEqual({ objectIds: ["b"], primaryObjectId: "b" });
+
+    const withC = toggleSceneSelection(source, { objectIds: ["b"], primaryObjectId: "b" }, "c");
+    expect(withC).toEqual({ objectIds: ["b", "c"], primaryObjectId: "c" });
+
+    const withoutC = toggleSceneSelection(source, withC, "c");
+    expect(withoutC).toEqual({ objectIds: ["b"], primaryObjectId: "b" });
+
+    expect(selectAllSceneObjects(source)).toEqual({
+      objectIds: ["a", "b", "c"],
+      primaryObjectId: "a",
+    });
+  });
+
+  it("reconciles stale ids and guarantees primary belongs to selection", () => {
+    expect(
+      reconcileSceneSelection(scene(), {
+        objectIds: ["missing", "c", "a"],
+        primaryObjectId: "missing",
+      }),
+    ).toEqual({ objectIds: ["a", "c"], primaryObjectId: "a" });
   });
 
   it("translates only selected objects and keeps unselected object identity", () => {
