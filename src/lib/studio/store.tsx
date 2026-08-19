@@ -2568,7 +2568,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       }).then(() => setProjectAutosavedAt(savedAt));
     }, delay);
     return () => clearTimeout(timer);
-  }, [project, projectFileName, getAutosaveStore]);
+  }, [
+    project,
+    projectFileName,
+    getAutosaveStore,
+    assignmentStrategy,
+    transitionOverrides,
+    selectedClipId,
+    sampleRate,
+  ]);
 
   const restoreAutosave = useCallback(() => {
     const snapshot = autosaveRecovery;
