@@ -3916,7 +3916,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       promoteReferenceClip,
       clearReferenceLayer,
       verifyReferenceSplices,
-      referenceLayerLimitations: REFERENCE_LAYER_LIMITATIONS,
       openProjectFile,
       autosaveRecovery,
       restoreAutosave,
