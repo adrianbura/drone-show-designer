@@ -7,10 +7,11 @@
  * identity — the fleet participation planner, assignment engine, trajectory
  * planner and validator stay fully authoritative.
  */
-import { Copy, FlipHorizontal2, Layers, Trash2 } from "lucide-react";
+import { Copy, CopyPlus, FlipHorizontal2, Layers, RotateCcw, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
+import type { SceneComparisonFrame } from "@/lib/import/essp/native";
 import type { SceneAlignment } from "@/lib/show/scene";
 import { useStudio } from "@/lib/studio/store";
 
@@ -66,6 +67,15 @@ export default function SceneObjectsPanel() {
     removeSceneObject,
     mirrorSceneObject,
     alignSceneObjects,
+    selectedClipBinding,
+    sceneReferenceGhost,
+    setSceneReferenceGhost,
+    sceneComparisonFrame,
+    setSceneComparisonFrame,
+    sceneDeviation,
+    canResetSelectedSceneObject,
+    resetSceneObject,
+    duplicateSceneAsEditable,
   } = useStudio();
 
   if (!selectedClipId || !selectedScene) {
@@ -87,6 +97,9 @@ export default function SceneObjectsPanel() {
     selectedScene.objects.find((o) => o.id === selectedSceneObjectId) ??
     selectedScene.objects[0] ??
     null;
+  const objectDeviation = selected
+    ? (sceneDeviation?.objects.find((o) => o.objectId === selected.id) ?? null)
+    : null;
 
   return (
     <section className="panel-card">
