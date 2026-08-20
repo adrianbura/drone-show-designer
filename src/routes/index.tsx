@@ -50,9 +50,11 @@ function TimelineDock() {
     if (typeof window === "undefined") return 520;
     const h = window.innerHeight;
     const narrow = window.innerWidth < 1024;
-    // The stacked panels below live in their own scrollable region, so they need
-    // no vertical reserve here: only the top bar and the 3D viewport do.
-    const reserve = 64 + VIEWPORT_MIN;
+    // Top bar + 3D viewport always keep their space. Below xl the Inspector
+    // (Lighting panel) lives in the stacked region under the dock, so it needs a
+    // usable reserve too — otherwise it collapses to a few pixels.
+    const stackedPanels = window.innerWidth < 1280 ? PANEL_MIN : 0;
+    const reserve = 64 + VIEWPORT_MIN + stackedPanels;
     return Math.max(DOCK_MIN, Math.min(Math.round(h * (narrow ? 0.45 : 0.6)), h - reserve));
   };
 
