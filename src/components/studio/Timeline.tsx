@@ -101,7 +101,12 @@ interface Draft {
   readonly snap: SnapResult;
 }
 
-export default function Timeline() {
+export default function Timeline({
+  onDesiredHeightChange,
+}: {
+  /** Presentation-only: reports how tall the dock must be for the current content. */
+  onDesiredHeightChange?: (px: number) => void;
+} = {}) {
   const {
     project,
     duration,
@@ -175,7 +180,29 @@ export default function Timeline() {
 
   /** ADAPTIVE VERTICAL LANES — deterministic packing, no fixed 3-row reuse. */
   const laneLayout = useMemo(() => packTimelineClipLanes(project.timeline), [project.timeline]);
-  const trackMinHeight = 16 + laneLayout.laneCount * 34;
+  const LANE_PITCH = 52;
+  const trackMinHeight = 16 + laneLayout.laneCount * LANE_PITCH;
+
+  /**
+   * ADAPTIVE DOCK HEIGHT (presentation only). The dock asks for exactly the room
+   * the current content needs: measured header + lane stack + the fixed tracks.
+   */
+  const headerRef = useRef<HTMLElement | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(44);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => setHeaderHeight(el.getBoundingClientRect().height));
+    observer.observe(el);
+    setHeaderHeight(el.getBoundingClientRect().height);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!onDesiredHeightChange) return;
+    const extras = 40 /* annotations */ + 26 /* scrollbar */ + 44 /* lighting */ + (audioAttached ? 58 : 0) + 24;
+    onDesiredHeightChange(headerHeight + trackMinHeight + extras);
+  }, [onDesiredHeightChange, headerHeight, trackMinHeight, audioAttached]);
+
 
   /** Snap context for the current gesture — pixel-aware, Alt bypasses it. */
   const snapContext = useCallback(
@@ -393,7 +420,10 @@ export default function Timeline() {
 
   return (
     <section className="flex h-full flex-col bg-panel">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-2">
+      <header
+        ref={headerRef}
+        className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-2"
+      >
         <button
           onClick={() => setTime(viewStart)}
           className="control-btn"
@@ -692,7 +722,7 @@ export default function Timeline() {
                 style={{
                   left: pct(start),
                   width: widthPct(total),
-                  top: `${8 + (laneLayout.laneByClipId[clip.id] ?? 0) * 34}px`,
+                  top: `${8 + (laneLayout.laneByClipId[clip.id] ?? 0) * LANE_PITCH}px`,
                   borderColor: rgbToHex(clip.color),
                   background: `linear-gradient(90deg, ${rgbToHex(clip.color)}33, ${rgbToHex(clip.color)}12)`,
                 }}
