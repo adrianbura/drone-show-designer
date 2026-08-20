@@ -696,6 +696,8 @@ export default function Inspector() {
 
       <VerticalStackPanel />
 
+      <AudiencePreview />
+
       <LaunchPanel />
 
       <div id="scene-panel">
