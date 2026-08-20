@@ -8,3 +8,4 @@ export * from "./projectionPreservingGeometry";
 export * from "./geometryProposalOptimizer";
 export * from "./geometryProposalComparison";
 export * from "./geometryConsequencePreflight";
+export * from "./geometryTrajectoryConsequence";
