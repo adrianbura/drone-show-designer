@@ -46,6 +46,7 @@ import {
   type SnapResult,
 } from "@/lib/studio/timelineEdit";
 import { packTimelineClipLanes } from "@/lib/studio/timelineLayout";
+import { rippleClipTiming } from "@/lib/studio/timelineRipple";
 import {
   middlePanScroll,
   resolveTimelineWheel,
@@ -55,6 +56,7 @@ import {
 import { useStudio } from "@/lib/studio/store";
 import AudioWaveformTrack from "./AudioWaveformTrack";
 import LightingTrack from "./LightingTrack";
+import TimelineScrollbar from "./TimelineScrollbar";
 import TimelineAnnotations from "./TimelineAnnotations";
 
 /** Subtle tint per inferred forensic category (semantic tokens only). */
@@ -82,6 +84,12 @@ interface Gesture {
   readonly grabOffset: number;
   readonly orig: { start: number; transition: number; hold: number };
   moved: boolean;
+  /**
+   * RIPPLE vs FREE. Alt already means "bypass snapping", so it is NOT reused
+   * here: Ctrl/Cmd held while resizing commits a FREE (non-ripple) edit that may
+   * intentionally overlap. Plain resize ripples the following clips.
+   */
+  free: boolean;
 }
 
 interface Draft {
@@ -127,6 +135,7 @@ export default function Timeline() {
     timelineView,
     timelineZoom,
     timelineScroll,
+    timelineScrollGeometry,
     snapMode,
     setSnapMode,
     followPlayhead,
@@ -202,6 +211,7 @@ export default function Timeline() {
         grabOffset: pointerTime(clientX) - clip.start,
         orig: { start: clip.start, transition: clip.transition, hold: clip.hold },
         moved: false,
+        free: false,
       };
       setDraft({
         id: clipId,
@@ -217,10 +227,11 @@ export default function Timeline() {
 
   /** Live drafting: no canonical write happens here. */
   const updateGesture = useCallback(
-    (clientX: number, altKey: boolean) => {
+    (clientX: number, altKey: boolean, freeKey = false) => {
       const gesture = gestureRef.current;
       if (!gesture) return;
       if (Math.abs(clientX - gesture.startX) > 2) gesture.moved = true;
+      gesture.free = freeKey;
       const clip = { id: gesture.id, ...gesture.orig } as Parameters<typeof moveClip>[0];
       const ctx = snapContext(altKey);
       const pt = pointerTime(clientX);
@@ -252,11 +263,13 @@ export default function Timeline() {
     ) {
       return;
     }
-    commitClipTiming(gesture.id, {
-      start: current.start,
-      transition: current.transition,
-      hold: current.hold,
-    });
+    // MOVE never ripples (it is a re-placement, not a duration change).
+    const mode = gesture.kind === "MOVE" || gesture.free ? "FREE" : "RIPPLE";
+    commitClipTiming(
+      gesture.id,
+      { start: current.start, transition: current.transition, hold: current.hold },
+      mode,
+    );
   }, [draft, commitClipTiming]);
 
   const cancelGesture = useCallback(() => {
@@ -279,7 +292,7 @@ export default function Timeline() {
     (kind: GestureKind, clipId: string, delta: number) => {
       const clip = project.timeline.find((c) => c.id === clipId);
       if (!clip) return;
-      if (kind === "MOVE") commitClipTiming(clipId, { start: Math.max(0, clip.start + delta) });
+      if (kind === "MOVE") commitClipTiming(clipId, { start: Math.max(0, clip.start + delta) }, "FREE");
       else if (kind === "TRANSITION") commitClipTiming(clipId, { transition: clip.transition + delta });
       else commitClipTiming(clipId, { hold: clip.hold + delta });
     },
@@ -345,9 +358,9 @@ export default function Timeline() {
       const el = trackRef.current;
       if (!session || !el) return;
       e.preventDefault();
-      setTimelineScroll(middlePanScroll(session, e.clientX, el.getBoundingClientRect().width));
+      setTimelineScroll(middlePanScroll(session, e.clientX, el.getBoundingClientRect().width, timelineZoom));
     },
-    [setTimelineScroll],
+    [setTimelineScroll, timelineZoom],
   );
 
   const endPan = useCallback((e: React.PointerEvent) => {
@@ -359,6 +372,24 @@ export default function Timeline() {
 
 
   const draftedClip = (clipId: string) => (draft?.id === clipId ? draft : null);
+
+  /**
+   * LIVE RIPPLE PREVIEW — the same pure domain helper the store commits with, so
+   * what the operator sees during the drag is exactly what lands on release.
+   */
+  const rippleShift = useMemo(() => {
+    if (!draft || draft.kind === "MOVE") return {} as Record<string, number>;
+    const gesture = gestureRef.current;
+    const result = rippleClipTiming(
+      project.timeline,
+      draft.id,
+      { start: draft.start, transition: draft.transition, hold: draft.hold },
+      gesture?.free ? "FREE" : "RIPPLE",
+    );
+    const shift: Record<string, number> = {};
+    for (const clip of result.timeline) shift[clip.id] = clip.start;
+    return shift;
+  }, [draft, project.timeline]);
 
   return (
     <section className="flex h-full flex-col bg-panel">
@@ -525,8 +556,11 @@ export default function Timeline() {
           onRemoveSection={removeMusicSection}
         />
 
+        {/* Lanes scroll vertically so the horizontal scrollbar below is never clipped. */}
+        <div className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         <div
           ref={trackRef}
+          data-testid="timeline-track"
           onPointerDown={(e) => {
             if (e.button === 1) {
               onTrackPointerDown(e);
@@ -550,7 +584,7 @@ export default function Timeline() {
             if (e.button === 1) e.preventDefault();
           }}
           style={{ minHeight: `${Math.max(80, trackMinHeight)}px` }}
-          className={`relative flex-1 touch-none rounded-md border border-border bg-surface-sunken ${
+          className={`relative w-full touch-none rounded-md border border-border bg-surface-sunken ${
             panning ? "cursor-grabbing" : "cursor-ew-resize"
           }`}
         >
@@ -642,7 +676,7 @@ export default function Timeline() {
           {project.timeline.map((clip) => {
             const formation = project.formations.find((f) => f.id === clip.formationId);
             const d = draftedClip(clip.id);
-            const start = d?.start ?? clip.start;
+            const start = d?.start ?? rippleShift[clip.id] ?? clip.start;
             const transition = d?.transition ?? clip.transition;
             const hold = d?.hold ?? clip.hold;
             const total = Math.max(0.01, transition + hold);
@@ -674,7 +708,7 @@ export default function Timeline() {
                   onPointerMove={(e) => {
                     if (!gestureRef.current) return;
                     e.stopPropagation();
-                    updateGesture(e.clientX, e.altKey);
+                    updateGesture(e.clientX, e.altKey, e.ctrlKey || e.metaKey);
                   }}
                   onPointerUp={(e) => {
                     e.stopPropagation();
@@ -733,7 +767,7 @@ export default function Timeline() {
                   onPointerMove={(e) => {
                     if (!gestureRef.current) return;
                     e.stopPropagation();
-                    updateGesture(e.clientX, e.altKey);
+                    updateGesture(e.clientX, e.altKey, e.ctrlKey || e.metaKey);
                   }}
                   onPointerUp={(e) => {
                     e.stopPropagation();
@@ -741,7 +775,7 @@ export default function Timeline() {
                   }}
                   onPointerCancel={cancelGesture}
                   onKeyDown={handleKey("TRANSITION", clip.id)}
-                  title={t("timeline.transitionHandle")}
+                  title={`${t("timeline.transitionHandle")} — ${t("timeline.rippleHint")}`}
                   aria-label={t("timeline.transitionHandle")}
                   className="absolute inset-y-0 w-2 -translate-x-1 cursor-col-resize touch-none bg-accent/0 hover:bg-accent/40"
                   style={{ left: `${(transition / total) * 100}%` }}
@@ -758,7 +792,7 @@ export default function Timeline() {
                   onPointerMove={(e) => {
                     if (!gestureRef.current) return;
                     e.stopPropagation();
-                    updateGesture(e.clientX, e.altKey);
+                    updateGesture(e.clientX, e.altKey, e.ctrlKey || e.metaKey);
                   }}
                   onPointerUp={(e) => {
                     e.stopPropagation();
@@ -766,7 +800,7 @@ export default function Timeline() {
                   }}
                   onPointerCancel={cancelGesture}
                   onKeyDown={handleKey("HOLD", clip.id)}
-                  title={t("timeline.holdHandle")}
+                  title={`${t("timeline.holdHandle")} — ${t("timeline.rippleHint")}`}
                   aria-label={t("timeline.holdHandle")}
                   className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none bg-accent/0 hover:bg-accent/40"
                 />
@@ -805,20 +839,16 @@ export default function Timeline() {
             <div className="absolute -left-[5px] top-0 size-3 rotate-45 bg-accent" />
           </div>
         </div>
+        </div>
 
-        {/* Horizontal navigation of the zoomed window. */}
-        {timelineZoom > MIN_ZOOM && (
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.001}
-            value={timelineScroll}
-            onChange={(e) => setTimelineScroll(Number(e.target.value))}
-            className="w-full"
-            aria-label={t("timeline.scroll")}
-          />
-        )}
+        {/* VIEWPORT SCROLLBAR — track = full authored range, thumb = visible window. */}
+        <TimelineScrollbar
+          geometry={timelineScrollGeometry}
+          scroll={timelineScroll}
+          setScroll={setTimelineScroll}
+          view={timelineView}
+          decimalComma={comma}
+        />
 
         {audioAttached && (
           <AudioWaveformTrack

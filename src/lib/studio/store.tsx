@@ -113,11 +113,15 @@ import {
   clampZoom,
   defaultPhaseForNewClip,
   computeTimelineView,
+  preserveScrollAcrossRange,
   scrollToCenter,
+  timelineScrollGeometry as computeScrollGeometry,
   zoomAtTime,
   type SnapMode,
+  type TimelineScrollGeometry,
   type TimelineView,
 } from "./timelineEdit";
+import { rippleClipTiming, type RippleMode } from "./timelineRipple";
 import {
   defaultFormationName,
   generateSvgFormationPoints,
@@ -377,8 +381,14 @@ interface StudioContextValue {
   setTimelineScroll: (scroll: number) => void;
   /** Restores the full authored content range (zoom 1, scroll 0). */
   fitTimeline: () => void;
-  /** Commits ONE pointer gesture as a single undoable canonical mutation. */
-  commitClipTiming: (id: string, patch: Partial<TimelineClip>) => void;
+  /**
+   * Commits ONE pointer gesture as a single undoable canonical mutation.
+   * `mode` defaults to RIPPLE: following clips are translated so a resize never
+   * creates an overlap. FREE commits the single clip only.
+   */
+  commitClipTiming: (id: string, patch: Partial<TimelineClip>, mode?: RippleMode) => void;
+  /** Live scrollbar geometry (thumb size/position) for the current view. */
+  timelineScrollGeometry: TimelineScrollGeometry;
   /** Gesture-level undo/redo of committed timeline edits. */
   undoTimeline: () => void;
   redoTimeline: () => void;
@@ -1238,6 +1248,38 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [timelineFullStart, viewEnd, timelineZoom, timelineScroll],
   );
 
+  /** Scrollbar geometry — derived from the SAME view authority, never a second one. */
+  const scrollGeometry = useMemo(
+    () =>
+      computeScrollGeometry({
+        start: timelineFullStart,
+        end: viewEnd,
+        zoom: timelineZoom,
+        scroll: timelineScroll,
+      }),
+    [timelineFullStart, viewEnd, timelineZoom, timelineScroll],
+  );
+
+  /**
+   * AUTHORED RANGE CHANGE WHILE ZOOMED — adding a clip, a LANDING shift, audio
+   * or markers growing the range must NOT Fit and must not jump to scroll 0:
+   * zoom is kept and the previously viewed window is re-expressed in the new
+   * range, clamped only when it no longer fits.
+   */
+  const rangeRef = useRef({ start: timelineFullStart, end: viewEnd });
+  useEffect(() => {
+    const previous = rangeRef.current;
+    rangeRef.current = { start: timelineFullStart, end: viewEnd };
+    if (previous.start === timelineFullStart && previous.end === viewEnd) return;
+    if (timelineZoom <= 1) return;
+    setTimelineScrollState((scroll) =>
+      preserveScrollAcrossRange(
+        { start: previous.start, end: previous.end, zoom: timelineZoom, scroll },
+        { start: timelineFullStart, end: viewEnd },
+      ),
+    );
+  }, [timelineFullStart, viewEnd, timelineZoom]);
+
   /** FIT — restore the complete authored range (editor state only). */
   const fitTimeline = useCallback(() => {
     setTimelineZoomState(1);
@@ -1645,24 +1687,40 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
-   * GESTURE COMMIT (Sprint 7.2).
+   * GESTURE COMMIT (Sprint 7.2, ripple since Sprint 8D).
    *
    * pointermove may draft freely in the component; exactly one call here lands
-   * the canonical mutation, pushes one undo entry, marks the project dirty and
-   * lets the existing revision engine mark derived reports stale.
+   * the canonical mutation — including the ENTIRE ripple cascade — pushes one
+   * undo entry, marks the project dirty and lets the existing revision engine
+   * prune exactly the transition overrides whose planning basis changed.
+   * No transient overlapping canonical state is ever written.
    */
-  const commitClipTiming = useCallback((id: string, patch: Partial<TimelineClip>) => {
-    setProject((p) => {
-      const clip = p.timeline.find((c) => c.id === id);
-      if (!clip) return p;
-      const next = { ...clip, ...patch };
-      if (next.start === clip.start && next.transition === clip.transition && next.hold === clip.hold) {
-        return p;
-      }
-      pushSnapshot(p);
-      return { ...p, timeline: p.timeline.map((c) => (c.id === id ? next : c)) };
-    });
-  }, [pushSnapshot]);
+  const commitClipTiming = useCallback(
+    (id: string, patch: Partial<TimelineClip>, mode: RippleMode = "RIPPLE") => {
+      setProject((p) => {
+        const clip = p.timeline.find((c) => c.id === id);
+        if (!clip) return p;
+        const timingOnly = {
+          ...(patch.start === undefined ? {} : { start: patch.start }),
+          ...(patch.transition === undefined ? {} : { transition: patch.transition }),
+          ...(patch.hold === undefined ? {} : { hold: patch.hold }),
+        };
+        const nonTiming = Object.keys(patch).filter(
+          (k) => k !== "start" && k !== "transition" && k !== "hold",
+        );
+        const result = rippleClipTiming(p.timeline, id, timingOnly, mode);
+        if (result.changedClipIds.length === 0 && nonTiming.length === 0) return p;
+        pushSnapshot(p);
+        const timeline = result.timeline.map((c) =>
+          c.id === id && nonTiming.length > 0
+            ? { ...c, ...Object.fromEntries(nonTiming.map((k) => [k, (patch as Record<string, unknown>)[k]])) }
+            : c,
+        );
+        return { ...p, timeline };
+      });
+    },
+    [pushSnapshot],
+  );
 
   /** Snapshot helper for annotation edits — same one-entry-per-action rule. */
   const pushTimelineHistory = useCallback(() => {
@@ -4484,6 +4542,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       timelineView,
       timelineZoom,
       timelineScroll,
+      timelineScrollGeometry: scrollGeometry,
       snapMode,
       followPlayhead,
       setSnapMode,
@@ -4843,6 +4902,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       timelineView,
       timelineZoom,
       timelineScroll,
+      scrollGeometry,
       snapMode,
       followPlayhead,
       setTimelineZoom,

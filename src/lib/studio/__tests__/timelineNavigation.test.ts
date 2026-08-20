@@ -70,14 +70,21 @@ describe("pan clamping", () => {
 
   it("clamps middle-drag pan at both timeline bounds", () => {
     const session = { startX: 500, startScroll: 0.5 };
-    expect(middlePanScroll(session, 500, 1000)).toBeCloseTo(0.5, 12);
-    expect(middlePanScroll(session, -100000, 1000)).toBe(1);
-    expect(middlePanScroll(session, 100000, 1000)).toBe(0);
+    expect(middlePanScroll(session, 500, 1000, 8)).toBeCloseTo(0.5, 12);
+    expect(middlePanScroll(session, -100000, 1000, 8)).toBe(1);
+    expect(middlePanScroll(session, 100000, 1000, 8)).toBe(0);
   });
 
   it("moves the view opposite to the grab direction", () => {
     const session = { startX: 500, startScroll: 0.5 };
-    expect(middlePanScroll(session, 400, 1000)).toBeCloseTo(0.5 + scrollDeltaForPixels(100, 1000), 12);
+    expect(middlePanScroll(session, 400, 1000, 8)).toBeCloseTo(0.5 + scrollDeltaForPixels(100, 1000, 8), 12);
+  });
+
+  it("pans pixel-for-pixel: a full track width of travel moves one window", () => {
+    // At zoom z, one window is 1/(z-1) of the hidden range.
+    expect(scrollDeltaForPixels(1000, 1000, 11)).toBeCloseTo(0.1, 12);
+    expect(scrollDeltaForPixels(1000, 1000, 2)).toBeCloseTo(1, 12);
+    expect(scrollDeltaForPixels(1000, 1000, 1)).toBe(0);
   });
 });
 
@@ -91,6 +98,6 @@ describe("view-only guarantee", () => {
       expect(Object.keys(intent).every((k) => ["kind", "zoomFactor", "scrollDelta"].includes(k))).toBe(true);
     }
     const session = { startX: 0, startScroll: 0 };
-    expect(typeof middlePanScroll(session, 120, 800)).toBe("number");
+    expect(typeof middlePanScroll(session, 120, 800, 8)).toBe("number");
   });
 });

@@ -254,6 +254,83 @@ export function zoomAtTime(
 }
 
 /**
+ * SCROLL GEOMETRY — the single source of truth for the viewport scrollbar.
+ *
+ * `scroll` interpolates across the HIDDEN range only:
+ *   visibleSpan = authoredSpan / zoom
+ *   maxPan      = authoredSpan - visibleSpan
+ *   viewStart   = authoredStart + scroll * maxPan
+ * so scroll = 0 shows the authored start exactly and scroll = 1 shows the
+ * authored end exactly, at any zoom and with a negative PRE_SHOW start.
+ */
+export interface TimelineScrollGeometry {
+  readonly authoredSpan: number;
+  readonly visibleSpan: number;
+  readonly maxPan: number;
+  /** Thumb width as a 0..1 fraction of the track. */
+  readonly thumbSize: number;
+  /** Thumb left edge as a 0..1 fraction of the track. */
+  readonly thumbStart: number;
+  /** False when the whole authored range is visible (nothing to pan). */
+  readonly scrollable: boolean;
+}
+
+export function timelineScrollGeometry(input: TimelineViewInput): TimelineScrollGeometry {
+  const authoredSpan = Math.max(0.001, input.end - input.start);
+  const zoom = clampZoom(input.zoom);
+  const visibleSpan = authoredSpan / zoom;
+  const maxPan = Math.max(0, authoredSpan - visibleSpan);
+  const thumbSize = Math.min(1, visibleSpan / authoredSpan);
+  const scroll = Math.min(1, Math.max(0, safeTime(input.scroll)));
+  return {
+    authoredSpan,
+    visibleSpan,
+    maxPan,
+    thumbSize,
+    thumbStart: maxPan <= 0 ? 0 : scroll * (1 - thumbSize),
+    scrollable: maxPan > 0,
+  };
+}
+
+/** Scroll fraction whose visible window starts exactly at `viewStart`. */
+export function scrollForViewStart(viewStart: number, input: TimelineViewInput): number {
+  const { maxPan } = timelineScrollGeometry(input);
+  if (maxPan <= 0) return 0;
+  return Math.min(1, Math.max(0, (safeTime(viewStart) - input.start) / maxPan));
+}
+
+/**
+ * Track-relative click/drag position (0..1) -> scroll fraction, accounting for
+ * the thumb width so the thumb centre lands under the pointer.
+ */
+export function scrollFromThumbPosition(trackFraction: number, input: TimelineViewInput): number {
+  const { thumbSize } = timelineScrollGeometry(input);
+  const usable = Math.max(1e-6, 1 - thumbSize);
+  return Math.min(1, Math.max(0, (safeTime(trackFraction) - thumbSize / 2) / usable));
+}
+
+/**
+ * CONTENT RANGE CHANGE WHILE ZOOMED.
+ *
+ * Adding a clip, shifting LANDING or extending audio/markers grows the authored
+ * range. The operator keeps their zoom and their approximate viewed window: the
+ * previous view start is re-expressed in the new range and only clamped when it
+ * no longer fits. Never a silent Fit, never a jump to scroll = 0.
+ */
+export function preserveScrollAcrossRange(
+  previous: TimelineViewInput,
+  next: { readonly start: number; readonly end: number },
+): number {
+  const previousView = computeTimelineView(previous);
+  return scrollForViewStart(previousView.start, {
+    start: next.start,
+    end: next.end,
+    zoom: previous.zoom,
+    scroll: previous.scroll,
+  });
+}
+
+/**
  * PHASES AUTHORABLE FROM THE TIMELINE UI.
  *
  * PRE_SHOW is deliberately absent: it belongs to the dedicated pre-show system

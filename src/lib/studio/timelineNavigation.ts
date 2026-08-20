@@ -15,8 +15,6 @@ export function normalizeWheelDelta(delta: number, deltaMode: number): number {
 export const HORIZONTAL_DELTA_EPSILON = 1;
 /** Bounded acceleration for Shift + vertical wheel. */
 export const SHIFT_PAN_MULTIPLIER = 3;
-/** Pixels of pointer travel that equal a full-window pan (matches drag feel). */
-const PAN_PIXELS_PER_VIEWPORT = 4;
 
 export interface WheelInputLike {
   readonly deltaX: number;
@@ -33,11 +31,21 @@ export type TimelineWheelIntent =
   | { readonly kind: "NONE" };
 
 /**
- * Fraction of the full range covered by `pixels` of pointer/wheel travel at the
- * current track width. Independent of zoom, exactly like the existing deltaX pan.
+ * PIXEL-ACCURATE PAN. `pixels` of pointer/wheel travel move the view by the
+ * same number of pixels of show time, expressed in the ONLY view authority
+ * (the 0..1 scroll fraction of the hidden range):
+ *
+ *   scrollDelta = pixels / (trackWidth * (zoom - 1))
+ *
+ * because the hidden range is `authoredSpan * (1 - 1/zoom)` while one pixel is
+ * `authoredSpan / (zoom * trackWidth)`. Zoom-independent scaling used to make a
+ * single wheel tick jump multiple windows at high zoom, which is what made
+ * content feel unreachable.
  */
-export function scrollDeltaForPixels(pixels: number, trackWidth: number): number {
-  return pixels / Math.max(1, trackWidth * PAN_PIXELS_PER_VIEWPORT);
+export function scrollDeltaForPixels(pixels: number, trackWidth: number, zoom: number): number {
+  const z = Number.isFinite(zoom) ? zoom : 1;
+  if (z <= 1) return 0;
+  return pixels / Math.max(1, trackWidth) / (z - 1);
 }
 
 /**
@@ -57,12 +65,12 @@ export function resolveTimelineWheel(
   const dx = normalizeWheelDelta(input.deltaX, input.deltaMode);
   if (Math.abs(dx) >= HORIZONTAL_DELTA_EPSILON) {
     if (view.zoom <= 1) return { kind: "NONE" };
-    return { kind: "PAN", scrollDelta: scrollDeltaForPixels(dx, view.trackWidth) };
+    return { kind: "PAN", scrollDelta: scrollDeltaForPixels(dx, view.trackWidth, view.zoom) };
   }
 
   if (Math.abs(dy) < HORIZONTAL_DELTA_EPSILON || view.zoom <= 1) return { kind: "NONE" };
   const pixels = dy * (input.shiftKey ? SHIFT_PAN_MULTIPLIER : 1);
-  return { kind: "PAN", scrollDelta: scrollDeltaForPixels(pixels, view.trackWidth) };
+  return { kind: "PAN", scrollDelta: scrollDeltaForPixels(pixels, view.trackWidth, view.zoom) };
 }
 
 /** Clamped view scroll fraction — the only value a navigation gesture writes. */
@@ -76,6 +84,13 @@ export interface MiddlePanSession {
 }
 
 /** Grab-pan: dragging left shows later time, exactly like a hand tool. */
-export function middlePanScroll(session: MiddlePanSession, clientX: number, trackWidth: number): number {
-  return clampScroll(session.startScroll - scrollDeltaForPixels(clientX - session.startX, trackWidth));
+export function middlePanScroll(
+  session: MiddlePanSession,
+  clientX: number,
+  trackWidth: number,
+  zoom: number,
+): number {
+  return clampScroll(
+    session.startScroll - scrollDeltaForPixels(clientX - session.startX, trackWidth, zoom),
+  );
 }

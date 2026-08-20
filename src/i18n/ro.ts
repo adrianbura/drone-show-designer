@@ -363,6 +363,7 @@ export const ro: Dictionary = {
   "timeline.follow": "Urmărește cursorul",
   "timeline.dragHint": "trage pentru mutare, marginile redimensionează tranziția și menținerea (Alt = fără aliniere, Esc = anulare)",
   "timeline.transitionHandle": "Redimensionează tranziția (momentul formației complete)",
+  "timeline.rippleHint": "Ripple: scenele următoare se deplasează — ține Ctrl/Cmd pentru redimensionare liberă",
   "timeline.holdHandle": "Redimensionează menținerea (finalul clipului)",
   "timeline.ready": "gata",
   "audio.track": "Pistă audio",
