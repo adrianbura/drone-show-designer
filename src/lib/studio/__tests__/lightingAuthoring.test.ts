@@ -19,7 +19,7 @@ import {
 } from "@/lib/show/lighting";
 import { addObject, emptyScene, patchObjectTransform } from "@/lib/show/scene";
 import { buildShowPlan, positionsAt } from "@/lib/show/trajectory/schedule";
-import type { ShowProject } from "@/lib/show/types";
+import { clipPhase, type ShowProject } from "@/lib/show/types";
 import {
   QUICK_LIGHTING_PRESET_IDS,
   effectSwatch,
@@ -37,7 +37,7 @@ function twoObjectProject(): { project: ShowProject; clipId: string; a: string; 
   const fa = makeFormation("f-a", "Left Wing", "grid", 24, base.area);
   const fb = makeFormation("f-b", "Right Wing", "circle", 24, base.area);
   const withAssets: ShowProject = { ...base, formations: [...base.formations, fa, fb] };
-  const clip = withAssets.timeline.find((c) => c.phase !== "TAKEOFF" && c.phase !== "LANDING")!;
+  const clip = withAssets.timeline.find((c) => clipPhase(c) === "SHOW") ?? withAssets.timeline[0]!;
   let scene = emptyScene(clip.id, "Wings");
   const first = addObject(withAssets, scene, {
     source: { kind: "STATIC", formationId: fa.id },
