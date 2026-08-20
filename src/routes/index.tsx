@@ -121,11 +121,11 @@ function StudioPage() {
       <main className="flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">
         <h1 className="sr-only">Drone Show Studio — drone light show design and simulation</h1>
         <TopBar />
-        <div className="flex min-h-0 flex-1">
-          <aside className="hidden w-[300px] shrink-0 border-r border-border bg-panel lg:block">
+        <div className="flex min-h-[200px] flex-1 shrink-0">
+          <aside className="hidden w-[300px] shrink-0 overflow-y-auto border-r border-border bg-panel lg:block">
             <LeftPanel />
           </aside>
-          <div className="relative min-w-0 flex-1 bg-surface-sunken">
+          <div className="relative min-h-[200px] min-w-0 flex-1 bg-surface-sunken">
             <ClientOnly fallback={<ViewportFallback />}>
               <Suspense fallback={<ViewportFallback />}>
                 <Viewport3D />
@@ -135,12 +135,13 @@ function StudioPage() {
               show frame · metres · +Y up
             </div>
           </div>
-          <aside className="hidden w-[320px] shrink-0 border-l border-border bg-panel xl:block">
+          <aside className="hidden w-[320px] shrink-0 overflow-y-auto border-l border-border bg-panel xl:block">
             <Inspector />
           </aside>
         </div>
         <TimelineDock />
-        <div className="max-h-[45vh] overflow-y-auto border-t border-border lg:hidden">
+        <div className="max-h-[30vh] shrink-0 overflow-y-auto border-t border-border lg:hidden">
+
           <LeftPanel />
           <Inspector />
         </div>
