@@ -37,6 +37,8 @@ export const Route = createFileRoute("/")({
  */
 const DOCK_MIN = 176;
 const VIEWPORT_MIN = 200;
+/** Reserve for the stacked panel region shown below xl (Inspector + Lighting). */
+const PANEL_MIN = 140;
 
 
 function TimelineDock() {
