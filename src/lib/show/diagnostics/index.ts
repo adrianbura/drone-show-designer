@@ -5,3 +5,4 @@
 export * from "./verticalStack";
 export * from "./audienceProjection";
 export * from "./projectionPreservingGeometry";
+export * from "./geometryProposalOptimizer";
