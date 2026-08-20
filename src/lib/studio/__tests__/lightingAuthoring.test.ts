@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { createDefaultProject } from "@/lib/show/defaultProject";
+import { createDemoProject } from "@/lib/show/defaultProject";
 import { makeFormation } from "@/lib/show/formations";
 import {
   createEffectFromPreset,
@@ -33,7 +33,7 @@ import {
 } from "../lightingAuthoring";
 
 function twoObjectProject(): { project: ShowProject; clipId: string; a: string; b: string } {
-  const base = createDefaultProject(48);
+  const base = createDemoProject(48);
   const fa = makeFormation("f-a", "Left Wing", "grid", 24, base.area);
   const fb = makeFormation("f-b", "Right Wing", "circle", 24, base.area);
   const withAssets: ShowProject = { ...base, formations: [...base.formations, fa, fb] };
