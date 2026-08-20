@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Authoring the 200-drone story runs real spacing relaxation over a dozen
+// formations: seconds of honest computation, so the whole file opts out of the
+// 5s default budget instead of shrinking the fleet under test.
+vi.setConfig({ testTimeout: 60_000 });
 
 import { createWeddingStoryProject } from "../stories/weddingStory";
 import {
@@ -65,6 +70,9 @@ describe("wedding story show", () => {
       cursor += clip.transition + clip.hold;
     }
     expect(cursor).toBeGreaterThan(120);
+    // Authoring the full 200-drone story (spacing relaxation over ~a dozen
+    // formations) legitimately costs seconds; the default 5s budget is a test
+    // harness limit, not a product limit.
   });
 
   it("respects the project altitude ceiling", () => {

@@ -83,10 +83,15 @@ const B64_INDEX: Record<string, number> = {};
 for (let i = 0; i < B64.length; i += 1) B64_INDEX[B64[i]!] = i;
 
 export function base64ToBytes(text: string): Uint8Array {
+  // `clean` already excludes '=' padding, so the byte count follows from the
+  // remaining character count alone: a 4-char group carries 3 bytes, a trailing
+  // group of 3 chars carries 2 and of 2 chars carries 1. Subtracting the pad a
+  // second time here truncated every reopened file whose length was not a
+  // multiple of 3 — i.e. most real ESSP imports.
   const clean = text.replace(/[^A-Za-z0-9+/]/g, "");
-  const pad = text.endsWith("==") ? 2 : text.endsWith("=") ? 1 : 0;
-  const size = Math.floor((clean.length * 3) / 4) - pad;
+  const size = Math.floor((clean.length * 3) / 4);
   const out = new Uint8Array(Math.max(0, size));
+
   let o = 0;
   for (let i = 0; i < clean.length; i += 4) {
     const c0 = B64_INDEX[clean[i]!] ?? 0;

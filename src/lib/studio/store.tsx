@@ -239,6 +239,7 @@ import {
   intervalAtTime,
   promoteReferenceClips,
   reconcileReferenceLayer,
+  referenceColorsAt as referenceColorsAtTime,
   referenceLightStates,
   referenceOwnershipSummary,
   referenceShowFromLayer,
@@ -1679,6 +1680,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       project: projectRef.current,
       transitionOverrides: { ...transitionOverridesRef.current },
       transitionDesigns: { ...transitionDesignsRef.current },
+      referenceLayer: referenceLayerRef.current,
     }),
     [],
   );
@@ -1693,6 +1695,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       project,
       transitionOverrides: { ...transitionOverridesRef.current },
       transitionDesigns: { ...transitionDesignsRef.current },
+      // Ownership of imported intervals is canonical state of the SAME action:
+      // an undone lighting edit must give the imported RGB back, so the layer
+      // travels with the snapshot instead of staying promoted forever.
+      referenceLayer: referenceLayerRef.current,
     });
     timelineHistory.current.future = [];
     setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
@@ -1750,6 +1756,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     overrideBasisRef.current = computeOverrideBasis(snapshot.project, overrides);
     setTransitionOverrides(overrides);
     setTransitionDesigns({ ...(snapshot.transitionDesigns ?? {}) });
+    // Restore ownership BEFORE the project so the promotion guard reconciles the
+    // restored project against the restored signatures (no phantom promotion).
+    if (snapshot.referenceLayer !== undefined && referenceLayerRef.current) {
+      referenceLayerRef.current = snapshot.referenceLayer;
+      setReferenceLayer(snapshot.referenceLayer);
+    }
     setProject(snapshot.project);
     const previous = selectedClipIdRef.current;
     const restoredClip =
@@ -4528,13 +4540,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * Returns null when the authored lighting engine owns the LEDs at `t`.
    */
   const referenceColorsAt = useCallback(
-    (t: number): RGB[] | null => {
-      if (!referenceLayerShow || !referenceLayer) return null;
-      if (intervalAtTime(referenceLayer, t)?.owner !== "REFERENCE") return null;
-      return referenceLightStates(referenceLayerShow, t, project.droneCount).map(
-        (s) => [s.r, s.g, s.b] as RGB,
-      );
-    },
+    (t: number): RGB[] | null =>
+      referenceColorsAtTime(referenceLayerShow, referenceLayer, t, project.droneCount),
     [referenceLayer, referenceLayerShow, project.droneCount],
   );
 
