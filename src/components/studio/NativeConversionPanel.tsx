@@ -1,5 +1,5 @@
 import { Layers, Library, ShieldCheck, Trash2, Wand2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useLibrary } from "@/lib/library/provider";
 import { useStudio } from "@/lib/studio/store";
@@ -35,19 +35,43 @@ export default function NativeConversionPanel() {
   } = useStudio();
   const library = useLibrary();
   const [splices, setSplices] = useState<SpliceVerificationReport | null>(null);
-  const [saved, setSaved] = useState<number | null>(null);
-  const sceneDrafts = referenceAssetDrafts.filter((d) => d.kind === "SCENE");
+  const [saved, setSaved] = useState<{ total: number; static: number; dynamic: number; scene: number } | null>(null);
+
+  const assetCounts = useMemo(
+    () =>
+      referenceAssetDrafts.reduce(
+        (counts, draft) => {
+          counts.total += 1;
+          if (draft.kind === "STATIC") counts.static += 1;
+          else if (draft.kind === "DYNAMIC") counts.dynamic += 1;
+          else counts.scene += 1;
+          return counts;
+        },
+        { total: 0, static: 0, dynamic: 0, scene: 0 },
+      ),
+    [referenceAssetDrafts],
+  );
 
   /**
-   * Saves the extracted compositions as reusable SCENE assets. Metadata only:
-   * provenance stays ESSP_DERIVED and no clip is promoted by saving.
+   * Saves EVERY reusable asset draft emitted by ESSP extraction. The draft kind
+   * is the single routing authority: STATIC -> formation, DYNAMIC -> dynamic,
+   * SCENE -> self-contained composition. This is metadata-only library work and
+   * deliberately does not promote reference-owned clips.
    */
-  const saveScenesToLibrary = async () => {
-    let count = 0;
-    for (const draft of sceneDrafts) {
-      if (draft.kind !== "SCENE") continue;
-      const asset = await library.saveScene(draft.scene, draft.dependencies, draft.input);
-      if (asset) count += 1;
+  const saveExtractedAssetsToLibrary = async () => {
+    const count = { total: 0, static: 0, dynamic: 0, scene: 0 };
+    for (const draft of referenceAssetDrafts) {
+      const asset =
+        draft.kind === "STATIC"
+          ? await library.saveFormation(draft.formation, draft.input)
+          : draft.kind === "DYNAMIC"
+            ? await library.saveDynamicFormation(draft.formation, draft.input)
+            : await library.saveScene(draft.scene, draft.dependencies, draft.input);
+      if (!asset) continue;
+      count.total += 1;
+      if (draft.kind === "STATIC") count.static += 1;
+      else if (draft.kind === "DYNAMIC") count.dynamic += 1;
+      else count.scene += 1;
     }
     setSaved(count);
   };
@@ -84,6 +108,7 @@ export default function NativeConversionPanel() {
           onClick={() => {
             clearReferenceLayer();
             setSplices(null);
+            setSaved(null);
           }}
           disabled={!referenceLayer}
           className="chip-btn justify-center disabled:opacity-40"
@@ -120,22 +145,25 @@ export default function NativeConversionPanel() {
               {referenceOwnedNow ? "IMPORTED" : "PLANNER"}
             </dd>
             <dt>assets ready</dt>
-            <dd className="text-right text-foreground">{referenceAssetDrafts.length}</dd>
-            <dt>scene assets</dt>
-            <dd className="text-right text-foreground">{sceneDrafts.length}</dd>
+            <dd className="text-right text-foreground">{assetCounts.total}</dd>
+            <dt>asset mix</dt>
+            <dd className="text-right text-foreground">
+              {assetCounts.static} static · {assetCounts.dynamic} dynamic · {assetCounts.scene} scene
+            </dd>
           </dl>
 
           <button
-            onClick={() => void saveScenesToLibrary()}
-            disabled={sceneDrafts.length === 0 || library.busy}
+            onClick={() => void saveExtractedAssetsToLibrary()}
+            disabled={assetCounts.total === 0 || library.busy}
             className="chip-btn w-full justify-center disabled:opacity-40"
-            title="Save every extracted scene as a reusable library asset (does not promote any clip)"
+            title="Save every extracted STATIC, DYNAMIC and SCENE asset to the Library without promoting any clip"
           >
-            <Library className="size-3" /> Save scenes to library
+            <Library className="size-3" /> Save extracted assets to library
           </button>
           {saved !== null && (
             <p className="text-[10px] leading-relaxed text-success">
-              {saved} scene assets saved — reuse them from the Library panel.
+              {saved.total} assets saved — {saved.static} static · {saved.dynamic} dynamic · {saved.scene} scene.
+              Reuse them from the Library panel.
             </p>
           )}
 
@@ -212,7 +240,6 @@ export default function NativeConversionPanel() {
                       {w}
                     </p>
                   ))}
-
                 </li>
               );
             })}
