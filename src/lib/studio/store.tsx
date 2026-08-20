@@ -569,7 +569,19 @@ interface StudioContextValue {
     clipId: string,
     presetId: string,
     target?: LightingTarget,
+    parameters?: Partial<LightingEffectParameters>,
   ) => string | null;
+  /**
+   * Creates ONE effect per canonical target in a SINGLE undoable revision, so
+   * authoring on a multi-selection is exactly one history entry.
+   */
+  addLightingEffectsFromPreset: (
+    clipId: string,
+    presetId: string,
+    targets: readonly LightingTarget[],
+    parameters?: Partial<LightingEffectParameters>,
+  ) => string[];
+
   patchLightingEffect: (id: string, patch: Partial<Omit<LightingEffectInstance, "id">>) => void;
   patchLightingParameters: (id: string, patch: Partial<LightingEffectParameters>) => void;
   removeLightingEffect: (id: string) => void;
