@@ -419,7 +419,10 @@ export default function Timeline({
 
   return (
     <section className="flex h-full flex-col bg-panel">
-      <header className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-2">
+      <header
+        ref={headerRef}
+        className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-2"
+      >
         <button
           onClick={() => setTime(viewStart)}
           className="control-btn"
