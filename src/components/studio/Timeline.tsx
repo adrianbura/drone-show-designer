@@ -45,8 +45,17 @@ import {
   type SnapMode,
   type SnapResult,
 } from "@/lib/studio/timelineEdit";
+import {
+  clipDensity,
+  clipIssueSeverity,
+  clipWidthPx,
+  formatRippleDelta,
+  phaseStyle,
+  showsThumbnail,
+} from "@/lib/studio/clipPresentation";
 import { packTimelineClipLanes } from "@/lib/studio/timelineLayout";
 import { rippleClipTiming } from "@/lib/studio/timelineRipple";
+
 import {
   middlePanScroll,
   resolveTimelineWheel,
@@ -400,23 +409,43 @@ export default function Timeline({
 
   const draftedClip = (clipId: string) => (draft?.id === clipId ? draft : null);
 
+  /** Rendered track width — the only input the zoom-adaptive clip labels need. */
+  const [trackWidth, setTrackWidth] = useState(1200);
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => setTrackWidth(el.getBoundingClientRect().width));
+    observer.observe(el);
+    setTrackWidth(el.getBoundingClientRect().width);
+    return () => observer.disconnect();
+  }, []);
+
   /**
    * LIVE RIPPLE PREVIEW — the same pure domain helper the store commits with, so
    * what the operator sees during the drag is exactly what lands on release.
    */
-  const rippleShift = useMemo(() => {
-    if (!draft || draft.kind === "MOVE") return {} as Record<string, number>;
+  const ripple = useMemo(() => {
+    const empty = { starts: {} as Record<string, number>, shifted: new Set<string>(), delta: 0, free: false };
+    if (!draft || draft.kind === "MOVE") return empty;
     const gesture = gestureRef.current;
+    const free = !!gesture?.free;
     const result = rippleClipTiming(
       project.timeline,
       draft.id,
       { start: draft.start, transition: draft.transition, hold: draft.hold },
-      gesture?.free ? "FREE" : "RIPPLE",
+      free ? "FREE" : "RIPPLE",
     );
-    const shift: Record<string, number> = {};
-    for (const clip of result.timeline) shift[clip.id] = clip.start;
-    return shift;
+    const starts: Record<string, number> = {};
+    const shifted = new Set<string>();
+    for (const clip of result.timeline) {
+      starts[clip.id] = clip.start;
+      const original = project.timeline.find((c) => c.id === clip.id);
+      if (original && clip.id !== draft.id && original.start !== clip.start) shifted.add(clip.id);
+    }
+    return { starts, shifted, delta: result.delta, free };
   }, [draft, project.timeline]);
+  const rippleShift = ripple.starts;
+
 
   return (
     <section className="flex h-full flex-col bg-panel">
@@ -574,7 +603,7 @@ export default function Timeline({
         </div>
       </header>
 
-      <div className="relative flex flex-1 flex-col gap-1 overflow-hidden px-4 pb-3 pt-2">
+      <div className="relative flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-4 pb-3 pt-2">
         <TimelineAnnotations
           markers={markers}
           sections={musicSections}
@@ -587,7 +616,7 @@ export default function Timeline({
         />
 
         {/* Lanes scroll vertically so the horizontal scrollbar below is never clipped. */}
-        <div className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="relative min-h-[68px] flex-1 shrink-0 overflow-y-auto overflow-x-hidden">
         <div
           ref={trackRef}
           data-testid="timeline-track"
@@ -715,10 +744,31 @@ export default function Timeline({
               project.dynamicFormations?.find((x) => x.id === clip.dynamicFormationId)?.name ??
               formation?.name ??
               "Missing formation";
+            const phase = clipPhase(clip);
+            const style = phaseStyle(phase);
+            const widthPx = clipWidthPx(total, timelineView, trackWidth);
+            const density = clipDensity(widthPx);
+            const severity = clipIssueSeverity(fullShowReport?.issues, clip.id);
+            const shifted = ripple.shifted.has(clip.id);
+            const designed = phase === "SHOW" ? describeTransitionDesign(transitionDesignFor(clip.id)) : "";
+            const needsRecalc = phase === "SHOW" && transitionDesignNeedsRecalculation(clip.id);
+            const timing = `T ${formatSeconds(transition, comma)} · H ${formatSeconds(hold, comma)}`;
             return (
               <div
                 key={clip.id}
-                className={`clip-block ${selected ? "clip-block-selected" : ""} ${d ? "z-20 ring-1 ring-accent" : ""}`}
+                data-testid={`clip-${clip.id}`}
+                data-density={density}
+                data-phase={phase}
+                data-shifted={shifted ? "true" : undefined}
+                className={`clip-block ${style.blockClass} ${selected ? "clip-block-selected" : ""} ${
+                  d ? "z-20 ring-1 ring-accent" : ""
+                } ${shifted ? "z-10 ring-1 ring-dashed ring-accent/70 opacity-90" : ""} ${
+                  severity === "error"
+                    ? "outline outline-1 outline-destructive"
+                    : severity === "warning"
+                      ? "outline outline-1 outline-warning"
+                      : ""
+                }`}
                 style={{
                   left: pct(start),
                   width: widthPct(total),
@@ -727,6 +777,25 @@ export default function Timeline({
                   background: `linear-gradient(90deg, ${rgbToHex(clip.color)}33, ${rgbToHex(clip.color)}12)`,
                 }}
               >
+                {/* PHASE STRIPE — phase readable without any text. */}
+                <span
+                  aria-hidden
+                  className={`pointer-events-none absolute inset-y-0 left-0 w-1 ${style.stripeClass}`}
+                />
+
+                {/* TRANSITION PROPORTION — the morph part of the clip, shaded. */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-y-0 left-0 bg-foreground/10"
+                  style={{ width: `${(transition / total) * 100}%` }}
+                />
+                {/* Transition / hold boundary = formation-ready moment */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-y-0 left-0 border-r border-dashed opacity-70"
+                  style={{ width: `${(transition / total) * 100}%`, borderColor: rgbToHex(clip.color) }}
+                />
+
                 {/* BODY — move gesture */}
                 <button
                   onPointerDown={(e) => {
@@ -746,45 +815,53 @@ export default function Timeline({
                   }}
                   onPointerCancel={cancelGesture}
                   onKeyDown={handleKey("MOVE", clip.id)}
-                  title={`${name} · T ${formatSeconds(transition, comma)} · H ${formatSeconds(hold, comma)} — ${t(
-                    "timeline.dragHint",
-                  )}`}
-                  className="absolute inset-0 cursor-grab touch-none px-1.5 text-left active:cursor-grabbing"
+                  title={`${style.glyph} ${phase} · ${name} · ${timing}${
+                    designed ? ` · ${designed}` : ""
+                  } — ${t("timeline.dragHint")}`}
+                  aria-label={`${phase} · ${name} · ${timing}`}
+                  className="absolute inset-0 cursor-grab touch-none pl-2.5 pr-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent active:cursor-grabbing"
                 >
-                  <span className="block truncate">
+                  <span className="block truncate font-medium">
+                    <span aria-hidden className="mr-1 opacity-80">
+                      {style.glyph}
+                    </span>
                     {clip.dynamicFormationId ? "◈ " : ""}
-                    {name}
+                    {density === "COMPACT" ? name.slice(0, 10) : name}
                   </span>
-                  <span className="block truncate font-mono text-[9px] text-muted-foreground">
-                    T {formatSeconds(transition, comma)} · H {formatSeconds(hold, comma)}
-                  </span>
-                  {/* TRANSITION DESIGN — compact read-only summary. */}
-                  {clipPhase(clip) === "SHOW" && (
+                  {density !== "COMPACT" && (
+                    <span className="block truncate font-mono text-[9px] text-muted-foreground">
+                      {timing}
+                      {density === "RICH" ? ` · ${t("timeline.ready")} ${formatShowTime(start + transition, comma)}` : ""}
+                    </span>
+                  )}
+                  {/* TRANSITION DESIGN — badge only where it stays readable. */}
+                  {designed && density !== "COMPACT" && (
                     <span
                       data-testid={`clip-transition-summary-${clip.id}`}
                       className={`block truncate font-mono text-[9px] ${
-                        transitionDesignNeedsRecalculation(clip.id)
-                          ? "text-warning"
-                          : "text-muted-foreground/80"
+                        needsRecalc ? "text-warning" : "text-muted-foreground/80"
                       }`}
                     >
-                      {describeTransitionDesign(transitionDesignFor(clip.id))}
-                      {transitionDesignNeedsRecalculation(clip.id) ? " · recalc" : ""}
+                      {density === "RICH" ? designed : designed.split(" ")[0]}
+                      {needsRecalc ? " · recalc" : ""}
                     </span>
                   )}
                 </button>
 
                 {/* THUMBNAIL — front-elevation identification glyph, inert. */}
-                <ClipThumbnail points={clipThumbnails[clip.id] ?? []} color={rgbToHex(clip.color)} />
+                {showsThumbnail(widthPx) && (
+                  <ClipThumbnail points={clipThumbnails[clip.id] ?? []} color={rgbToHex(clip.color)} />
+                )}
 
-                {/* Transition / hold boundary = formation-ready moment */}
-                <span
-                  className="pointer-events-none absolute inset-y-0 left-0 border-r border-dashed opacity-60"
-                  style={{
-                    width: `${(transition / total) * 100}%`,
-                    borderColor: rgbToHex(clip.color),
-                  }}
-                />
+                {/* RIPPLE FEEDBACK — signed shift on every follower that moves. */}
+                {shifted && ripple.delta !== 0 && (
+                  <span className="pointer-events-none absolute -top-3 left-0 rounded bg-accent px-1 font-mono text-[9px] text-accent-foreground">
+                    {formatRippleDelta(ripple.delta, comma)}
+                  </span>
+                )}
+
+
+
 
                 {/* TRANSITION handle — drags the formation-ready boundary */}
                 <button
@@ -807,7 +884,7 @@ export default function Timeline({
                   onKeyDown={handleKey("TRANSITION", clip.id)}
                   title={`${t("timeline.transitionHandle")} — ${t("timeline.rippleHint")}`}
                   aria-label={t("timeline.transitionHandle")}
-                  className="absolute inset-y-0 w-2 -translate-x-1 cursor-col-resize touch-none bg-accent/0 hover:bg-accent/40"
+                  className="absolute inset-y-0 w-3 -translate-x-1.5 cursor-col-resize touch-none bg-accent/0 hover:bg-accent/50 focus-visible:bg-accent/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                   style={{ left: `${(transition / total) * 100}%` }}
                 />
 
@@ -832,7 +909,7 @@ export default function Timeline({
                   onKeyDown={handleKey("HOLD", clip.id)}
                   title={`${t("timeline.holdHandle")} — ${t("timeline.rippleHint")}`}
                   aria-label={t("timeline.holdHandle")}
-                  className="absolute inset-y-0 right-0 w-2 cursor-col-resize touch-none bg-accent/0 hover:bg-accent/40"
+                  className="absolute inset-y-0 right-0 w-3 cursor-col-resize touch-none bg-accent/0 hover:bg-accent/50 focus-visible:bg-accent/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
                 />
               </div>
             );
@@ -850,6 +927,17 @@ export default function Timeline({
                 <span className="ml-1 text-accent">
                   ⟶ {t(`timeline.snapKind.${draft.snap.kind}` as "timeline.snapKind.GRID")}
                 </span>
+              ) : null}
+              {draft.kind !== "MOVE" ? (
+                ripple.free ? (
+                  <span data-testid="ripple-mode" className="ml-1 text-warning">
+                    {t("timeline.freeMode")}
+                  </span>
+                ) : (
+                  <span data-testid="ripple-mode" className="ml-1 text-accent">
+                    {t("timeline.rippleMode")} {formatRippleDelta(ripple.delta, comma)}
+                  </span>
+                )
               ) : null}
             </div>
           )}

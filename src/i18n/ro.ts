@@ -365,6 +365,8 @@ export const ro: Dictionary = {
   "timeline.transitionHandle": "Redimensionează tranziția (momentul formației complete)",
   "timeline.rippleHint": "Ripple: scenele următoare se deplasează — ține Ctrl/Cmd pentru redimensionare liberă",
   "timeline.holdHandle": "Redimensionează menținerea (finalul clipului)",
+  "timeline.rippleMode": "Ripple",
+  "timeline.freeMode": "Redimensionare liberă · fără ripple",
   "timeline.ready": "gata",
   "audio.track": "Pistă audio",
   "audio.mute": "Oprește sunetul",

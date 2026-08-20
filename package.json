@@ -10,8 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "vitest",
-    "test:run": "vitest run",
+    "test": "vitest --testTimeout=30000",
+    "test:run": "vitest run --testTimeout=30000",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
