@@ -18,6 +18,9 @@ import ConversionOverlay from "./ConversionOverlay";
 import ReferenceGhostSwarm from "./ReferenceGhostSwarm";
 import SceneGizmo from "./SceneGizmo";
 import SceneGizmoPreview from "./SceneGizmoPreview";
+import AudienceCameraRig from "./AudienceCameraRig";
+import AudienceDepthGuides from "./AudienceDepthGuides";
+import { useAudienceView } from "@/lib/studio/audienceView";
 
 /**
  * Instanced drone swarm. One InstancedMesh + per-instance colour keeps draw
