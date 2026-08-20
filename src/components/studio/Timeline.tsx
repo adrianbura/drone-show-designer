@@ -180,7 +180,8 @@ export default function Timeline({
 
   /** ADAPTIVE VERTICAL LANES — deterministic packing, no fixed 3-row reuse. */
   const laneLayout = useMemo(() => packTimelineClipLanes(project.timeline), [project.timeline]);
-  const trackMinHeight = 16 + laneLayout.laneCount * 34;
+  const LANE_PITCH = 52;
+  const trackMinHeight = 16 + laneLayout.laneCount * LANE_PITCH;
 
   /**
    * ADAPTIVE DOCK HEIGHT (presentation only). The dock asks for exactly the room
@@ -721,7 +722,7 @@ export default function Timeline({
                 style={{
                   left: pct(start),
                   width: widthPct(total),
-                  top: `${8 + (laneLayout.laneByClipId[clip.id] ?? 0) * 34}px`,
+                  top: `${8 + (laneLayout.laneByClipId[clip.id] ?? 0) * LANE_PITCH}px`,
                   borderColor: rgbToHex(clip.color),
                   background: `linear-gradient(90deg, ${rgbToHex(clip.color)}33, ${rgbToHex(clip.color)}12)`,
                 }}
