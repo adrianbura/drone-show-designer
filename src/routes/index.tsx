@@ -53,8 +53,7 @@ function TimelineDock() {
     // Top bar + 3D viewport always keep their space. Below xl the Inspector
     // (Lighting panel) lives in the stacked region under the dock, so it needs a
     // usable reserve too — otherwise it collapses to a few pixels.
-    const stackedPanels = 0;
-    const reserve = 64 + VIEWPORT_MIN + stackedPanels;
+    const reserve = 64 + VIEWPORT_MIN;
     return Math.max(DOCK_MIN, Math.min(Math.round(h * (narrow ? 0.45 : 0.6)), h - reserve));
   };
 
