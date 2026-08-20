@@ -101,7 +101,12 @@ interface Draft {
   readonly snap: SnapResult;
 }
 
-export default function Timeline() {
+export default function Timeline({
+  onDesiredHeightChange,
+}: {
+  /** Presentation-only: reports how tall the dock must be for the current content. */
+  onDesiredHeightChange?: (px: number) => void;
+} = {}) {
   const {
     project,
     duration,
