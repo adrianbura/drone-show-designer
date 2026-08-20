@@ -26,6 +26,7 @@ import { useState } from "react";
 
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
 import type { EsspExportResult } from "@/lib/adapters/esspExport";
+import type { EsspSourceRecoveryResult } from "@/lib/adapters/esspSourceRecovery";
 import { evaluateExportEligibility } from "@/lib/adapters/exportEligibility";
 import {
   downloadBytes,
@@ -104,12 +105,18 @@ function EsspPackageExport({
 
   return (
     <div className="space-y-2 rounded border border-border/70 p-2" data-testid="essp-export">
+      <p
+        className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+        data-testid="essp-export-kind"
+      >
+        Generated output — requires validation
+      </p>
       <button
         onClick={run}
         className="chip-btn w-full justify-center"
         data-testid="essp-export-button"
       >
-        ESSP per-drone package (.zip)
+        Export ESSP per-drone package (.zip)
       </button>
       <p className="font-mono text-[10px] leading-relaxed text-warning">
         EXPERIMENTAL — REVERSE-ENGINEERED FORMAT. Not vendor certified and not
@@ -146,6 +153,65 @@ function EsspPackageExport({
             </p>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * ORIGINAL ESSP SOURCE RECOVERY — deliberately NOT an export.
+ *
+ * Returns the imported .essp files byte-for-byte and makes no validation claim,
+ * so it stays available even when full-show validation is BLOCKED.
+ */
+function EsspSourceRecovery({
+  buildOriginalEsspPackage,
+  hasEsspSourceFiles,
+}: {
+  buildOriginalEsspPackage: () => EsspSourceRecoveryResult;
+  hasEsspSourceFiles: boolean;
+}) {
+  const [result, setResult] = useState<EsspSourceRecoveryResult | null>(null);
+  if (!hasEsspSourceFiles) return null;
+
+  const run = () => {
+    const built = buildOriginalEsspPackage();
+    setResult(built);
+    if (built.ok && built.zip) {
+      downloadBytes(built.zipFileName, built.zip, "application/zip");
+    }
+  };
+
+  return (
+    <div
+      className="space-y-2 rounded border border-border/70 p-2"
+      data-testid="essp-source-recovery"
+    >
+      <p
+        className="font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+        data-testid="essp-source-recovery-kind"
+      >
+        Source recovery — exact imported bytes, no validation claim
+      </p>
+      <button
+        onClick={run}
+        className="chip-btn w-full justify-center"
+        data-testid="essp-source-recovery-button"
+      >
+        Download original ESSP files (.zip)
+      </button>
+      <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+        Returns the files you imported, unchanged. This is not generated flight
+        output and it is not an export of the current show.
+      </p>
+      {result?.ok && (
+        <p
+          className="font-mono text-[10px] text-success"
+          data-testid="essp-source-recovery-ok"
+        >
+          {result.files.length} original file(s) · show hash{" "}
+          {result.referenceShowHash?.slice(0, 12) ?? "-"}
+        </p>
       )}
     </div>
   );
@@ -188,6 +254,8 @@ export default function Inspector() {
     preShowStale,
     buildProjectFile,
     buildEsspPackage,
+    buildOriginalEsspPackage,
+    hasEsspSourceFiles,
     canEditClipAsScene,
     editClipAsScene,
     duplicateClipForDesign,
@@ -701,6 +769,10 @@ export default function Inspector() {
           Trajectory + light CSV
         </button>
         <EsspPackageExport buildEsspPackage={buildEsspPackage} />
+        <EsspSourceRecovery
+          buildOriginalEsspPackage={buildOriginalEsspPackage}
+          hasEsspSourceFiles={hasEsspSourceFiles}
+        />
         <button
           onClick={() =>
             downloadText(

@@ -325,6 +325,11 @@ import {
 } from "../project";
 import { buildEsspExportPackage, type EsspExportResult } from "../adapters/esspExport";
 import {
+  buildOriginalEsspDownload,
+  hasEsspSourceBytes,
+  type EsspSourceRecoveryResult,
+} from "../adapters/esspSourceRecovery";
+import {
   buildProposalContent,
   mockChoreographyProvider,
   validateProposal,
@@ -791,6 +796,12 @@ interface StudioContextValue {
    * canonical effective show + the same export gate as every computed export.
    */
   buildEsspPackage: () => EsspExportResult;
+  /**
+   * SOURCE RECOVERY (not an export): returns the originally imported .essp
+   * files byte-for-byte. Never gated by validation.
+   */
+  buildOriginalEsspPackage: () => EsspSourceRecoveryResult;
+  hasEsspSourceFiles: boolean;
 
   // ---- Reference forensics (Sprint 6A.5, analysis only) ------------------
   /** Derived motion analysis of the imported reference show. Never mutates it. */
@@ -4562,6 +4573,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   /**
+   * ORIGINAL ESSP SOURCE RECOVERY. Returns the imported bytes verbatim; it is
+   * NOT an export and is intentionally independent from the validation gate.
+   */
+  const buildOriginalEsspPackage = useCallback(
+    (): EsspSourceRecoveryResult =>
+      buildOriginalEsspDownload({ projectName: project.name, layer: referenceLayer }),
+    [project.name, referenceLayer],
+  );
+  const hasEsspSourceFiles = hasEsspSourceBytes(referenceLayer);
+
+  /**
    * LED AUTHORITY of a reference-owned instant: the original RGB byte triplets.
    * Returns null when the authored lighting engine owns the LEDs at `t`.
    */
@@ -4932,6 +4954,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       verifyReferenceSplices,
       referenceLayerLimitations: REFERENCE_LAYER_LIMITATIONS,
       buildEsspPackage,
+      buildOriginalEsspPackage,
+      hasEsspSourceFiles,
       openProjectFile,
       autosaveRecovery,
       restoreAutosave,
@@ -5229,6 +5253,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       clearReferenceLayer,
       verifyReferenceSplices,
       buildEsspPackage,
+      buildOriginalEsspPackage,
+      hasEsspSourceFiles,
 
       openProjectFile,
       autosaveRecovery,
