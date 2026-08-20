@@ -4670,6 +4670,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectedLightingEffect,
       selectLightingEffect: setSelectedLightingEffectId,
       addLightingEffectFromPreset,
+      addLightingEffectsFromPreset,
+
       patchLightingEffect,
       patchLightingParameters,
       removeLightingEffect,
@@ -5013,6 +5015,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectedLightingEffectId,
       selectedLightingEffect,
       addLightingEffectFromPreset,
+      addLightingEffectsFromPreset,
+
       patchLightingEffect,
       patchLightingParameters,
       removeLightingEffect,
