@@ -281,15 +281,15 @@ export function snapEffectTime(absolute: number, ctx: EffectSnapContext): SnapRe
     mode: "MARKER",
     pixelsPerSecond: ctx.pixelsPerSecond,
     markers: [...ctx.guides, ...(ctx.markers ?? [])],
-    disabled: ctx.disabled,
+    ...(ctx.disabled === undefined ? {} : { disabled: ctx.disabled }),
   });
   if (guideHit.snapped) return guideHit;
   return snapTimelineTime(absolute, {
     mode: ctx.mode,
     pixelsPerSecond: ctx.pixelsPerSecond,
-    beatGrid: ctx.beatGrid,
-    markers: ctx.markers,
-    disabled: ctx.disabled,
+    ...(ctx.beatGrid ? { beatGrid: ctx.beatGrid } : {}),
+    ...(ctx.markers ? { markers: ctx.markers } : {}),
+    ...(ctx.disabled === undefined ? {} : { disabled: ctx.disabled }),
   });
 }
 
