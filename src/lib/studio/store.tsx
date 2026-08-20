@@ -569,7 +569,19 @@ interface StudioContextValue {
     clipId: string,
     presetId: string,
     target?: LightingTarget,
+    parameters?: Partial<LightingEffectParameters>,
   ) => string | null;
+  /**
+   * Creates ONE effect per canonical target in a SINGLE undoable revision, so
+   * authoring on a multi-selection is exactly one history entry.
+   */
+  addLightingEffectsFromPreset: (
+    clipId: string,
+    presetId: string,
+    targets: readonly LightingTarget[],
+    parameters?: Partial<LightingEffectParameters>,
+  ) => string[];
+
   patchLightingEffect: (id: string, patch: Partial<Omit<LightingEffectInstance, "id">>) => void;
   patchLightingParameters: (id: string, patch: Partial<LightingEffectParameters>) => void;
   removeLightingEffect: (id: string) => void;
@@ -4388,21 +4400,43 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [pushTimelineHistory],
   );
 
-  const addLightingEffectFromPreset = useCallback(
-    (clipId: string, presetId: string, target?: LightingTarget) => {
+  const addLightingEffectsFromPreset = useCallback(
+    (
+      clipId: string,
+      presetId: string,
+      targets: readonly LightingTarget[],
+      parameters?: Partial<LightingEffectParameters>,
+    ): string[] => {
       const preset = findLightingPreset(presetId);
-      if (!preset) return null;
-      const id = newLightingEffectId(Date.now() + lightingSeed.current++);
-      const created: LightingEffectInstance = {
-        ...createEffectFromPreset(preset, target ?? { kind: "SCENE", clipId }),
-        id,
-      };
-      editLighting((list) => [...list, created]);
-      setSelectedLightingEffectId(id);
-      return id;
+      if (!preset || targets.length === 0) return [];
+      const created: LightingEffectInstance[] = targets.map((target) => ({
+        ...createEffectFromPreset(preset, target, parameters ? { parameters } : {}),
+        id: newLightingEffectId(Date.now() + lightingSeed.current++),
+      }));
+      // ONE revision for the whole multi-selection = ONE undo entry.
+      editLighting((list) => [...list, ...created]);
+      setSelectedLightingEffectId(created[0]!.id);
+      return created.map((e) => e.id);
     },
     [editLighting],
   );
+
+  const addLightingEffectFromPreset = useCallback(
+    (
+      clipId: string,
+      presetId: string,
+      target?: LightingTarget,
+      parameters?: Partial<LightingEffectParameters>,
+    ) =>
+      addLightingEffectsFromPreset(
+        clipId,
+        presetId,
+        [target ?? { kind: "SCENE", clipId }],
+        parameters,
+      )[0] ?? null,
+    [addLightingEffectsFromPreset],
+  );
+
 
   const patchLightingEffect = useCallback(
     (id: string, patch: Partial<Omit<LightingEffectInstance, "id">>) => {
@@ -4636,6 +4670,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectedLightingEffect,
       selectLightingEffect: setSelectedLightingEffectId,
       addLightingEffectFromPreset,
+      addLightingEffectsFromPreset,
+
       patchLightingEffect,
       patchLightingParameters,
       removeLightingEffect,
@@ -4979,6 +5015,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectedLightingEffectId,
       selectedLightingEffect,
       addLightingEffectFromPreset,
+      addLightingEffectsFromPreset,
+
       patchLightingEffect,
       patchLightingParameters,
       removeLightingEffect,
