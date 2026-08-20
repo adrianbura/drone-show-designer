@@ -3,3 +3,4 @@
  * Three.js, no mutation, and never an input to planning, safety or export.
  */
 export * from "./verticalStack";
+export * from "./audienceProjection";
