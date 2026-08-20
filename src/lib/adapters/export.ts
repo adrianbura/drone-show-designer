@@ -288,3 +288,15 @@ export function downloadText(filename: string, contents: string, mime: string) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+/** Binary download (ESSP package ZIP). Same one-shot object-URL pattern. */
+export function downloadBytes(filename: string, bytes: Uint8Array, mime: string) {
+  const copy = new Uint8Array(bytes);
+  const blob = new Blob([copy.buffer as ArrayBuffer], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}

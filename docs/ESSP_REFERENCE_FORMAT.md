@@ -139,3 +139,29 @@ transition metrics), the simulation package and both exports read this same set.
 The analysis revision includes the layer identity (`showHash`, clocks) and every
 clip's ownership and signature, so promoting a clip makes an existing report
 stale.
+
+## Per-drone ESSP export (experimental)
+
+`src/lib/adapters/esspExport.ts` writes one `<n>.essp` per drone plus
+`manifest.json` into a deterministic ZIP (level 0, fixed timestamp). It is an
+export of a REVERSE-ENGINEERED format: no vendor certification, and the manifest
+carries that warning verbatim.
+
+Two modes, chosen automatically:
+
+- **PRESERVED_PAYLOAD** — the project came from an imported archive, every
+  interval is still REFERENCE-owned and the fleet still matches the archive. The
+  archived source bytes are written back verbatim, so the round trip is
+  byte-exact. This is the only documented exemption from a BLOCKED full-show
+  readiness (the studio computed nothing; the findings become warnings). A
+  missing or stale analysis still blocks.
+- **SAMPLED** — anything else. Positions come from the canonical effective
+  trajectory set on the ESSP position clock, LEDs from the canonical lighting on
+  the independent RGB clock. Frame counts and clocks follow the source archive
+  when one exists, otherwise the observed 8 Hz / 12 Hz profile is used and the
+  package is labelled `EXPERIMENTAL_PROFILE`.
+
+Header profile bytes (`opaqueProfileBytes`, version, unknown uint16) are copied
+from the source file when available. Positions convert through
+`studioToEssp` (half-away-from-zero rounding); a value outside int16 or a
+non-byte RGB channel is a hard `EsspRangeError`, never a silent wrap.

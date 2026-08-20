@@ -22,9 +22,13 @@ import ForensicsPanel from "./ForensicsPanel";
 import ConversionPanel from "./ConversionPanel";
 import NativeConversionPanel from "./NativeConversionPanel";
 
+import { useState } from "react";
+
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
+import type { EsspExportResult } from "@/lib/adapters/esspExport";
 import { evaluateExportEligibility } from "@/lib/adapters/exportEligibility";
 import {
+  downloadBytes,
   downloadText,
   toGenericShowJson,
   toTrajectoryCsv,
@@ -77,6 +81,76 @@ function NumberRow({
   );
 }
 
+/**
+ * PRODUCTION ESSP PER-DRONE PACKAGE (experimental, reverse-engineered format).
+ *
+ * The reverse-engineered warning and the profile status are always visible: an
+ * operator must never believe this package is vendor certified.
+ */
+function EsspPackageExport({
+  buildEsspPackage,
+}: {
+  buildEsspPackage: () => EsspExportResult;
+}) {
+  const [result, setResult] = useState<EsspExportResult | null>(null);
+
+  const run = () => {
+    const built = buildEsspPackage();
+    setResult(built);
+    if (built.ok && built.zip) {
+      downloadBytes(built.zipFileName, built.zip, "application/zip");
+    }
+  };
+
+  return (
+    <div className="space-y-2 rounded border border-border/70 p-2" data-testid="essp-export">
+      <button
+        onClick={run}
+        className="chip-btn w-full justify-center"
+        data-testid="essp-export-button"
+      >
+        ESSP per-drone package (.zip)
+      </button>
+      <p className="font-mono text-[10px] leading-relaxed text-warning">
+        EXPERIMENTAL — REVERSE-ENGINEERED FORMAT. Not vendor certified and not
+        verified against flight hardware.
+      </p>
+      {result && (
+        <div className="space-y-1 font-mono text-[10px] leading-relaxed">
+          <p data-testid="essp-export-profile" className="text-muted-foreground">
+            {result.profileStatus === "SOURCE_PROFILE"
+              ? "SOURCE PROFILE — original header bytes and clocks reused."
+              : "EXPERIMENTAL PROFILE — observed header profile, 8 Hz / 12 Hz, unverified."}
+            {result.mode ? ` · ${result.mode}` : ""}
+          </p>
+          {result.ok ? (
+            <p className="text-success" data-testid="essp-export-ok">
+              {result.files.length} file(s) · {result.manifest?.positionSampleCount ?? 0} position
+              samples @ {result.manifest?.positionRateHz ?? 0} Hz ·{" "}
+              {result.manifest?.rgbSampleCount ?? 0} RGB samples @{" "}
+              {result.manifest?.rgbRateHz ?? 0} Hz
+            </p>
+          ) : (
+            <ul
+              data-testid="essp-export-blocked"
+              className="list-disc space-y-0.5 pl-4 text-destructive"
+            >
+              {result.blockers.map((b) => (
+                <li key={b}>{b}</li>
+              ))}
+            </ul>
+          )}
+          {result.warnings.slice(0, 4).map((w) => (
+            <p key={w} className="text-warning">
+              {w}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Inspector() {
   const {
     project,
@@ -113,6 +187,7 @@ export default function Inspector() {
     preShowReport,
     preShowStale,
     buildProjectFile,
+    buildEsspPackage,
     canEditClipAsScene,
     editClipAsScene,
     duplicateClipForDesign,
@@ -625,6 +700,7 @@ export default function Inspector() {
         >
           Trajectory + light CSV
         </button>
+        <EsspPackageExport buildEsspPackage={buildEsspPackage} />
         <button
           onClick={() =>
             downloadText(
