@@ -92,7 +92,7 @@ describe("overlap layout", () => {
       view: { start: 0, end: 40 },
       trackWidthPx: 800,
     });
-    const lanesOf = (l: typeof forward) => l.blocks.map((x) => [x.id, x.lane]);
+    const lanesOf = (l: typeof forward) => l.blocks.map((x) => [x.id, x.lane] as [string, number]);
     expect(lanesOf(forward)).toEqual(lanesOf(reversed));
     expect(forward.laneCount).toBe(2);
     expect(new Map(lanesOf(forward)).get("b")).toBe(1);
