@@ -185,22 +185,16 @@ export function buildEsspExportPackage(input: EsspExportInput): EsspExportResult
 
   // ---- Gate: the SAME eligibility as every other computed show export.
   //
-  // PRESERVED_PAYLOAD is the one documented exemption from a BLOCKED readiness:
-  // the studio computed no geometry and no LEDs, it writes the operator's own
-  // imported bytes back unchanged. Blocking there would only mean "we refuse to
-  // give you back the file you gave us". The findings are still surfaced as
-  // warnings, and a missing or stale analysis remains a hard blocker.
+  // NO EXEMPTION. "Export ESSP" is generated output, so a BLOCKED, stale or
+  // missing full-show analysis always blocks it — PRESERVED_PAYLOAD remains an
+  // internal byte-reuse optimisation only, never a gate bypass. Recovering the
+  // operator's own imported bytes is a separate action
+  // (`buildOriginalEsspDownload`), which makes no validation claim.
   if (!eligibility.canExportComputedShow) {
-    if (preserved && eligibility.reason === "BLOCKED") {
-      warnings.push(
-        "Full-show validation is BLOCKED, but this package is a verbatim copy of the imported archive (no computed geometry or LEDs).",
-      );
-      warnings.push(...eligibility.blockers);
-    } else {
-      blockers.push(gateMessage(eligibility));
-      blockers.push(...eligibility.blockers);
-    }
+    blockers.push(gateMessage(eligibility));
+    blockers.push(...eligibility.blockers);
   }
+
   const splice = input.fullShow?.splice ?? null;
   if (splice && splice.ok === false) {
     blockers.push("Splice safety check failed — reference/planner handover is discontinuous.");
