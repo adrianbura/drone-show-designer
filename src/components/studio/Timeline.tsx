@@ -618,8 +618,12 @@ export default function Timeline({
           onRemoveSection={removeMusicSection}
         />
 
-        {/* Lanes scroll vertically so the horizontal scrollbar below is never clipped. */}
-        <div className="relative min-h-[68px] flex-1 shrink-0 overflow-y-auto overflow-x-hidden">
+        {/*
+          Lanes scroll vertically so the horizontal scrollbar below is never
+          clipped. The bottom padding keeps clips clear of the pinned track
+          footer (scrollbar + audio + lighting) in short windows.
+        */}
+        <div className="relative min-h-[68px] flex-1 shrink-0 overflow-y-auto overflow-x-hidden pb-3">
         <div
           ref={trackRef}
           data-testid="timeline-track"
@@ -979,39 +983,52 @@ export default function Timeline({
         </div>
         </div>
 
-        {/* VIEWPORT SCROLLBAR — track = full authored range, thumb = visible window. */}
-        <TimelineScrollbar
-          geometry={timelineScrollGeometry}
-          scroll={timelineScroll}
-          setScroll={setTimelineScroll}
-          view={timelineView}
-          decimalComma={comma}
-        />
-
-        {audioAttached && (
-          <AudioWaveformTrack
-            peaks={audioPeaks}
-            startTime={viewStart}
-            endTime={viewEndTime}
-            offset={project.audio.offset}
-            audioDuration={project.audio.duration}
-            time={time}
-            label={project.audio.name || t("audio.track")}
-            onSeek={setTime}
+        {/*
+          FIXED TRACK FOOTER. The clip lanes above scroll vertically; horizontal
+          navigation, audio and the lighting lane stay pinned to the bottom of
+          the dock so they are reachable at 900x600 without resizing anything
+          and without taking height from the 3D viewport.
+        */}
+        <div
+          data-testid="timeline-track-footer"
+          className="sticky bottom-0 z-20 shrink-0 space-y-1 bg-panel pt-1"
+        >
+          {/* VIEWPORT SCROLLBAR — track = full authored range, thumb = visible window. */}
+          <TimelineScrollbar
+            geometry={timelineScrollGeometry}
+            scroll={timelineScroll}
+            setScroll={setTimelineScroll}
+            view={timelineView}
+            decimalComma={comma}
           />
-        )}
 
-        {/* LIGHTING TRACK — effects of the selected scene, in show time. */}
-        <LightingTrack viewStart={viewStart} viewEnd={viewEndTime} />
+          {audioAttached && (
+            <AudioWaveformTrack
+              peaks={audioPeaks}
+              startTime={viewStart}
+              endTime={viewEndTime}
+              offset={project.audio.offset}
+              audioDuration={project.audio.duration}
+              time={time}
+              label={project.audio.name || t("audio.track")}
+              onSeek={setTime}
+            />
+          )}
 
-        {selectedClipId && (
-          <button
-            onClick={() => removeClip(selectedClipId)}
-            className="absolute bottom-4 right-6 flex items-center gap-1.5 rounded border border-border bg-panel px-2 py-1 text-[11px] uppercase tracking-widest text-destructive hover:border-destructive"
-          >
-            <Trash2 className="size-3" /> Delete clip
-          </button>
-        )}
+          {/* LIGHTING TRACK — effects of the selected scene, in show time. */}
+          <LightingTrack viewStart={viewStart} viewEnd={viewEndTime} />
+
+          {selectedClipId && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => removeClip(selectedClipId)}
+                className="flex items-center gap-1.5 rounded border border-border bg-panel px-2 py-1 text-[11px] uppercase tracking-widest text-destructive hover:border-destructive"
+              >
+                <Trash2 className="size-3" /> Delete clip
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );

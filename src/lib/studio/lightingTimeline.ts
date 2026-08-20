@@ -251,6 +251,38 @@ export function clipLightingSummary(
 }
 
 // ---------------------------------------------------------------------------
+// VERTICAL ACCESSIBILITY (pure: no DOM, no timeline TIME/ZOOM involvement)
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimal vertical scroll offset that brings one lane fully into the visible
+ * lane window. Never changes horizontal time mapping: this is scrollTop only.
+ * Returns the CURRENT offset when the lane is already visible.
+ */
+export function laneScrollTop(input: {
+  readonly laneIndex: number;
+  readonly laneHeight: number;
+  readonly scrollTop: number;
+  readonly viewportHeight: number;
+  readonly padding?: number;
+}): number {
+  const { laneIndex, laneHeight, scrollTop, viewportHeight } = input;
+  const pad = input.padding ?? 0;
+  if (!Number.isFinite(laneIndex) || laneHeight <= 0 || viewportHeight <= 0) return scrollTop;
+  const top = Math.max(0, laneIndex) * laneHeight;
+  const bottom = top + laneHeight + pad;
+  if (top < scrollTop) return top;
+  if (bottom > scrollTop + viewportHeight) return Math.max(0, bottom - viewportHeight);
+  return scrollTop;
+}
+
+/** How many lanes exist below the visible lane window (0 when all are shown). */
+export function hiddenLaneCount(laneCount: number, visibleLanes: number): number {
+  if (!Number.isFinite(laneCount) || !Number.isFinite(visibleLanes)) return 0;
+  return Math.max(0, Math.ceil(laneCount) - Math.max(0, Math.floor(visibleLanes)));
+}
+
+// ---------------------------------------------------------------------------
 // GESTURE MATH (anchor-preserving; results go to canonical store actions)
 // ---------------------------------------------------------------------------
 

@@ -391,6 +391,7 @@ export const ro: Dictionary = {
   "lighting.preview": "Afișează culorile LED în vizor",
   "lighting.resize": "Redimensionează durata efectului",
   "lighting.resizeStart": "Redimensionează începutul efectului (păstrează sfârșitul)",
+  "lighting.moreLanes": "Mai multe benzi de lumini mai jos — derulează banda",
   "lighting.referenceLed": "LED REFERINȚĂ",
   "lighting.noClip": "Selectează un clip din timeline pentru a-l ilumina.",
   "lighting.noEffects": "Scena nu are efecte de lumină. Alege un preset mai sus.",
