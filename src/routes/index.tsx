@@ -42,9 +42,17 @@ function TimelineDock() {
   const [manual, setManual] = useState<number | null>(null);
   const dragRef = useRef<{ y: number; height: number } | null>(null);
 
-  const maxHeight = () =>
-    typeof window === "undefined" ? 520 : Math.max(DOCK_MIN, Math.round(window.innerHeight * 0.6));
+  // The 3D viewport must never be squeezed out: cap the dock so at least
+  // VIEWPORT_MIN px of viewport (plus the top bar) always remain visible.
+  const maxHeight = () => {
+    if (typeof window === "undefined") return 520;
+    const h = window.innerHeight;
+    const narrow = window.innerWidth < 1024;
+    const reserve = 64 + VIEWPORT_MIN + (narrow ? Math.round(h * 0.3) : 0);
+    return Math.max(DOCK_MIN, Math.min(Math.round(h * (narrow ? 0.35 : 0.6)), h - reserve));
+  };
   const height = Math.min(Math.max(manual ?? desired, DOCK_MIN), maxHeight());
+
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
