@@ -140,7 +140,7 @@ function StudioPage() {
           </aside>
         </div>
         <TimelineDock />
-        <div className="max-h-[30vh] shrink-0 overflow-y-auto border-t border-border lg:hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto border-t border-border lg:hidden">
 
           <LeftPanel />
           <Inspector />
