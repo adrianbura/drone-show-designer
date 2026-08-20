@@ -618,8 +618,12 @@ export default function Timeline({
           onRemoveSection={removeMusicSection}
         />
 
-        {/* Lanes scroll vertically so the horizontal scrollbar below is never clipped. */}
-        <div className="relative min-h-[68px] flex-1 shrink-0 overflow-y-auto overflow-x-hidden">
+        {/*
+          Lanes scroll vertically so the horizontal scrollbar below is never
+          clipped. The bottom padding keeps clips clear of the pinned track
+          footer (scrollbar + audio + lighting) in short windows.
+        */}
+        <div className="relative min-h-[68px] flex-1 shrink-0 overflow-y-auto overflow-x-hidden pb-3">
         <div
           ref={trackRef}
           data-testid="timeline-track"
