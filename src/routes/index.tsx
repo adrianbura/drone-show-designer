@@ -50,9 +50,12 @@ function TimelineDock() {
     if (typeof window === "undefined") return 520;
     const h = window.innerHeight;
     const narrow = window.innerWidth < 1024;
-    const reserve = 64 + VIEWPORT_MIN + (narrow ? Math.round(h * 0.3) : 0);
-    return Math.max(DOCK_MIN, Math.min(Math.round(h * (narrow ? 0.35 : 0.6)), h - reserve));
+    // The stacked panels below live in their own scrollable region, so they need
+    // no vertical reserve here: only the top bar and the 3D viewport do.
+    const reserve = 64 + VIEWPORT_MIN;
+    return Math.max(DOCK_MIN, Math.min(Math.round(h * (narrow ? 0.45 : 0.6)), h - reserve));
   };
+
   const height = Math.min(Math.max(manual ?? desired, DOCK_MIN), maxHeight());
 
 

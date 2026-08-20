@@ -358,6 +358,8 @@ export const en = {
   "timeline.transitionHandle": "Resize transition (formation-ready moment)",
   "timeline.rippleHint": "Ripple: following scenes shift — hold Ctrl/Cmd for a free resize",
   "timeline.holdHandle": "Resize hold (clip end)",
+  "timeline.rippleMode": "Ripple",
+  "timeline.freeMode": "Free resize · ripple off",
   "timeline.ready": "ready",
   "audio.track": "Audio track",
   "audio.mute": "Mute audio",

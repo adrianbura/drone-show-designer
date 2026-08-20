@@ -74,28 +74,41 @@ export default function TimelineScrollbar({ geometry, scroll, setScroll, view, d
   );
 
   return (
-    <div
-      ref={trackRef}
-      onPointerDown={onTrackPointerDown}
-      className="relative mx-1 h-3 min-h-3 shrink-0 cursor-pointer rounded-full bg-muted/40"
-      role="scrollbar"
-      aria-orientation="horizontal"
-      aria-label={t("timeline.scroll")}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={Math.round(scroll * 100)}
-      data-testid="timeline-scrollbar"
-    >
+    <div className="mx-1 flex shrink-0 items-center gap-2">
+      <span className="shrink-0 font-mono text-[9px] tabular-nums text-muted-foreground">
+        {formatShowTime(view.start, decimalComma)}
+      </span>
       <div
-        onPointerDown={onThumbPointerDown}
-        title={`${formatShowTime(view.start, decimalComma)} – ${formatShowTime(view.end, decimalComma)}`}
-        data-testid="timeline-scrollbar-thumb"
-        className="absolute inset-y-0 min-w-[18px] touch-none rounded-full border border-border bg-accent/50 hover:bg-accent/70 active:bg-accent"
-        style={{
-          left: `${geometry.thumbStart * 100}%`,
-          width: `${geometry.thumbSize * 100}%`,
-        }}
-      />
+        ref={trackRef}
+        onPointerDown={onTrackPointerDown}
+        className="relative h-3.5 min-h-3.5 flex-1 cursor-pointer rounded-full border border-border/70 bg-surface-sunken"
+        role="scrollbar"
+        aria-orientation="horizontal"
+        aria-label={t("timeline.scroll")}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(scroll * 100)}
+        aria-valuetext={`${formatShowTime(view.start, decimalComma)} – ${formatShowTime(view.end, decimalComma)}`}
+        data-testid="timeline-scrollbar"
+      >
+        {/* Visible bounds of the whole authored range. */}
+        <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-px bg-border" />
+        <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-px bg-border" />
+        <div
+          onPointerDown={onThumbPointerDown}
+          title={`${formatShowTime(view.start, decimalComma)} – ${formatShowTime(view.end, decimalComma)}`}
+          data-testid="timeline-scrollbar-thumb"
+          className="absolute inset-y-0 min-w-[24px] touch-none rounded-full border border-accent/60 bg-accent/60 shadow-sm transition-colors hover:bg-accent/80 active:bg-accent"
+          style={{
+            left: `${geometry.thumbStart * 100}%`,
+            width: `${geometry.thumbSize * 100}%`,
+          }}
+        />
+      </div>
+      <span className="shrink-0 font-mono text-[9px] tabular-nums text-muted-foreground">
+        {formatShowTime(view.end, decimalComma)}
+      </span>
     </div>
   );
 }
+
