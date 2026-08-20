@@ -124,7 +124,7 @@ function StudioPage() {
       <main className="flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">
         <h1 className="sr-only">Drone Show Studio — drone light show design and simulation</h1>
         <TopBar />
-        <div className="flex min-h-[200px] flex-1 shrink-0">
+        <div className="flex min-h-[200px] flex-1">
           <aside className="hidden w-[300px] shrink-0 overflow-y-auto border-r border-border bg-panel lg:block">
             <LeftPanel />
           </aside>
@@ -143,9 +143,16 @@ function StudioPage() {
           </aside>
         </div>
         <TimelineDock />
-        <div className="min-h-0 flex-1 overflow-y-auto border-t border-border lg:hidden">
-
-          <LeftPanel />
+        {/*
+          NARROW-WINDOW PANEL FALLBACK. The Inspector (which owns the Lighting
+          panel) only docks at xl, so it must stay reachable below that width —
+          the left panel only needs the fallback below lg. Internally scrollable
+          so the 3D viewport and timeline never lose height.
+        */}
+        <div className="min-h-0 flex-1 overflow-y-auto border-t border-border xl:hidden">
+          <div className="lg:hidden">
+            <LeftPanel />
+          </div>
           <Inspector />
         </div>
       </main>

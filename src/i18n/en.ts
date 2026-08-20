@@ -383,6 +383,7 @@ export const en = {
   "lighting.preview": "Show LED colours in the viewport",
   "lighting.resize": "Resize effect duration",
   "lighting.resizeStart": "Resize effect start (keeps its end)",
+  "lighting.moreLanes": "More lighting lanes below — scroll the lane",
   "lighting.referenceLed": "REFERENCE LED",
   "lighting.noClip": "Select a timeline clip to light it.",
   "lighting.noEffects": "This scene has no lighting effect. Pick a preset above.",

@@ -12,7 +12,7 @@
  *   - No LED colour is ever evaluated here: swatches show authored PARAMETERS,
  *     the viewport stays the source of truth for actual drone colour.
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useI18n } from "@/i18n";
 import { emittedColor } from "@/lib/show/lighting";
@@ -23,6 +23,8 @@ import { useStudio } from "@/lib/studio/store";
 import type { TimelineClip } from "@/lib/show/types";
 import {
   dragEffectStart,
+  hiddenLaneCount,
+  laneScrollTop,
   layoutLightingEffects,
   lightingGuideTimes,
   resizeEffectDuration,
@@ -169,6 +171,34 @@ export default function LightingTrack({
     [lightingEffects, clip, view, trackWidth, objects, time, draft],
   );
 
+  /**
+   * VERTICAL ACCESSIBILITY — when a lighting effect becomes selected (from the
+   * panel OR from the timeline) its lane is scrolled into the visible lane
+   * window and the whole lane is scrolled into the timeline body. Only vertical
+   * offsets change: never the timeline time or zoom.
+   */
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selectedLightingEffectId) return;
+    const block = layout.blocks.find((b) => b.id === selectedLightingEffectId);
+    if (!block) return;
+    rootRef.current?.scrollIntoView({ block: "nearest" });
+    const lane = laneRef.current;
+    if (!lane) return;
+    lane.scrollTop = laneScrollTop({
+      laneIndex: block.lane,
+      laneHeight: LANE_HEIGHT,
+      scrollTop: lane.scrollTop,
+      viewportHeight: lane.clientHeight,
+      padding: 4,
+    });
+    // Layout identity changes every frame during a gesture; only react to the
+    // selected id so a drag never fights the operator's own scrolling.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLightingEffectId]);
+
+
+
   const snapContext = useCallback(
     (altKey: boolean): EffectSnapContext => ({
       mode: snapMode,
@@ -244,15 +274,25 @@ export default function LightingTrack({
   if (!clip) return null;
 
   const visibleLanes = Math.min(Math.max(1, layout.laneCount), MAX_VISIBLE_LANES);
+  const hidden = hiddenLaneCount(layout.laneCount, visibleLanes);
 
   return (
-    <div className="mt-1">
+    <div ref={rootRef} className="mt-1 shrink-0">
       <div className="mb-0.5 flex items-center justify-between px-1">
         <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
           {t("lighting.track")}
           {layout.blocks.length > 0 ? ` · ${layout.blocks.length}` : ""}
         </span>
         <span className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          {hidden > 0 ? (
+            <span
+              data-testid="lighting-hidden-lanes"
+              className="rounded border border-border bg-panel px-1 font-mono text-[9px] text-muted-foreground"
+              title={t("lighting.moreLanes")}
+            >
+              ↓ {hidden}
+            </span>
+          ) : null}
           {referenceOwnedNow ? (
             <span
               data-testid="reference-led-badge"
