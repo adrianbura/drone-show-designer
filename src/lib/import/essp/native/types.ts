@@ -189,14 +189,24 @@ export interface ReferenceLayerReconciliation {
 /**
  * Library asset draft produced by the extractor (never saved by itself).
  *
+ * The union is deliberately FULLY discriminated by `kind`: callers can route
+ * STATIC / DYNAMIC / SCENE drafts to the matching library save authority without
+ * casting or probing the payload shape. Saving a draft is metadata only — it
+ * never promotes a reference-owned clip.
+ *
  * A SCENE draft carries the WHOLE extracted composition of one clip plus the
  * dependencies it references, so an imported scene can be reused exactly like an
- * authored one. Saving a draft is metadata only — it never promotes a clip.
+ * authored one.
  */
 export type ReferenceAssetDraft =
   | {
-      readonly kind: "STATIC" | "DYNAMIC";
-      readonly formation: Formation | DynamicFormation;
+      readonly kind: "STATIC";
+      readonly formation: Formation;
+      readonly input: AssetSaveInput;
+    }
+  | {
+      readonly kind: "DYNAMIC";
+      readonly formation: DynamicFormation;
       readonly input: AssetSaveInput;
     }
   | {
@@ -229,14 +239,11 @@ export interface ReferenceExtractionDiagnostic {
   readonly referenceStart: number;
   readonly referenceHoldStart: number;
   readonly referenceEnd: number;
-  /** Conversion fidelity of the animated extraction, when one was produced. */
   readonly fidelityRmsMeters: number | null;
   readonly fidelityStatus: string | null;
   readonly dynamic: boolean;
-  /** STATIC / DYNAMIC / COMPOSED_SCENE for scene clips; STATIC otherwise. */
   readonly representation: ReferenceSceneRepresentation;
   readonly objects: readonly ReferenceSceneObjectDiagnostic[];
-  /** Decomposition evidence: confidence and why the decision was taken. */
   readonly decompositionConfidence: number | null;
   readonly decompositionSource: string | null;
   readonly decompositionReasons: readonly string[];
@@ -246,7 +253,6 @@ export interface ReferenceExtractionDiagnostic {
 export interface ReferenceExtractionResult {
   readonly formations: readonly Formation[];
   readonly dynamicFormations: readonly DynamicFormation[];
-  /** Multi-object compositions, one per decomposed scene clip (`scene.id === clip.id`). */
   readonly scenes: readonly FormationScene[];
   readonly timeline: readonly TimelineClip[];
   readonly lighting: LightingProgram;
@@ -262,12 +268,13 @@ export type ReferenceLayerErrorCode =
   | "NO_REFERENCE_SHOW"
   | "NO_FORENSICS_REPORT"
   | "NO_SCENES"
-  | "MALFORMED_LAYER"
-  | "SHOW_MISMATCH";
+  | "MISMATCHED_REPORT"
+  | "MALFORMED_LAYER";
 
 export class ReferenceLayerError extends Error {
   readonly code: ReferenceLayerErrorCode;
-  readonly details: Record<string, unknown>;
+  readonly details: Readonly<Record<string, unknown>>;
+
   constructor(code: ReferenceLayerErrorCode, message: string, details: Record<string, unknown> = {}) {
     super(message);
     this.name = "ReferenceLayerError";
@@ -277,9 +284,8 @@ export class ReferenceLayerError extends Error {
 }
 
 export const REFERENCE_LAYER_LIMITATIONS = [
-  "The imported trajectory layer is a byte copy of a REVERSE-ENGINEERED format. Nothing about it is vendor confirmed.",
-  "Reference-owned intervals are played back, not planned: they carry no velocity/acceleration/jerk profile and are never validated against the studio flight envelope.",
-  "Promotion is irreversible for the affected interval: once an interval is planner-owned, its trajectory is generated, not reference-exact.",
-  "Position (8 Hz) and colour (12 Hz) clocks are independent; the resulting duration mismatch is preserved, not hidden.",
-  "Extraction is an authoring convenience. A native clip is an approximation of the reference interval it was derived from, with the measured fidelity reported per clip.",
-];
+  "Imported ESSP parsing is reverse-engineered and must be treated as experimental.",
+  "Reference playback is authoritative only while the corresponding clip interval remains unedited.",
+  "Editing a clip promotes its hold and the adjacent transition closure to planner ownership.",
+  "The extracted editable representation is a measured reconstruction, not a byte-exact inverse of the source format.",
+] as const;
