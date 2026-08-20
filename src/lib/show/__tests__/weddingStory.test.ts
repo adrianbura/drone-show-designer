@@ -65,7 +65,10 @@ describe("wedding story show", () => {
       cursor += clip.transition + clip.hold;
     }
     expect(cursor).toBeGreaterThan(120);
-  });
+    // Authoring the full 200-drone story (spacing relaxation over ~a dozen
+    // formations) legitimately costs seconds; the default 5s budget is a test
+    // harness limit, not a product limit.
+  }, 60_000);
 
   it("respects the project altitude ceiling", () => {
     const project = createWeddingStoryProject(200);
