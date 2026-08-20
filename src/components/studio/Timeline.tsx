@@ -9,6 +9,7 @@
 import {
   Bookmark,
   Crosshair,
+  Lightbulb,
   Pause,
   Play,
   Plus,
@@ -53,6 +54,7 @@ import {
   phaseStyle,
   showsThumbnail,
 } from "@/lib/studio/clipPresentation";
+import { clipLightingSummary } from "@/lib/studio/lightingTimeline";
 import { packTimelineClipLanes } from "@/lib/studio/timelineLayout";
 import { rippleClipTiming } from "@/lib/studio/timelineRipple";
 
@@ -132,6 +134,7 @@ export default function Timeline({
     selectClip,
     removeClip,
     beatGrid,
+    lightingEffects,
     addClip,
     fullShowReport,
     focusIssue,
@@ -777,6 +780,23 @@ export default function Timeline({
                   background: `linear-gradient(90deg, ${rgbToHex(clip.color)}33, ${rgbToHex(clip.color)}12)`,
                 }}
               >
+                {/* AUTHORED LIGHTING INDICATOR — reference LEDs are not effects. */}
+                {(() => {
+                  const lit = clipLightingSummary(lightingEffects, clip.id);
+                  if (!lit.hasLighting) return null;
+                  return (
+                    <span
+                      aria-hidden
+                      data-testid={`clip-lighting-badge-${clip.id}`}
+                      title={`${t("lighting.track")} · ${lit.count}`}
+                      className="pointer-events-none absolute right-1 top-1 z-20 flex items-center gap-0.5 rounded bg-panel/80 px-1 font-mono text-[9px] text-accent"
+                    >
+                      <Lightbulb className="size-2.5" />
+                      {density !== "COMPACT" ? lit.count : ""}
+                    </span>
+                  );
+                })()}
+
                 {/* PHASE STRIPE — phase readable without any text. */}
                 <span
                   aria-hidden

@@ -382,6 +382,8 @@ export const en = {
   "lighting.previewOff": "LED preview off",
   "lighting.preview": "Show LED colours in the viewport",
   "lighting.resize": "Resize effect duration",
+  "lighting.resizeStart": "Resize effect start (keeps its end)",
+  "lighting.referenceLed": "REFERENCE LED",
   "lighting.noClip": "Select a timeline clip to light it.",
   "lighting.noEffects": "This scene has no lighting effect. Pick a preset above.",
   "lighting.addPreset": "Add effect",
