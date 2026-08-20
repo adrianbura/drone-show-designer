@@ -29,6 +29,61 @@ export const Route = createFileRoute("/")({
   component: StudioPage,
 });
 
+/**
+ * TIMELINE DOCK — presentation-only vertical sizing. The timeline reports the
+ * height its current content needs (header wrap + clip lanes + tracks) and the
+ * dock grows to it, clamped to the window. Dragging the top edge overrides the
+ * automatic height until the operator double-clicks the handle to release it.
+ */
+const DOCK_MIN = 176;
+
+function TimelineDock() {
+  const [desired, setDesired] = useState(DOCK_MIN);
+  const [manual, setManual] = useState<number | null>(null);
+  const dragRef = useRef<{ y: number; height: number } | null>(null);
+
+  const maxHeight = () =>
+    typeof window === "undefined" ? 520 : Math.max(DOCK_MIN, Math.round(window.innerHeight * 0.6));
+  const height = Math.min(Math.max(manual ?? desired, DOCK_MIN), maxHeight());
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      setManual(Math.min(Math.max(drag.height + (drag.y - e.clientY), DOCK_MIN), maxHeight()));
+    };
+    const onUp = () => {
+      dragRef.current = null;
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, []);
+
+  return (
+    <div className="shrink-0 border-t border-border" style={{ height }}>
+      <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize timeline"
+        title="Drag to resize · double-click to auto-fit"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          dragRef.current = { y: e.clientY, height };
+        }}
+        onDoubleClick={() => setManual(null)}
+        className="h-1.5 w-full cursor-row-resize bg-border/40 hover:bg-accent/60"
+      />
+      <div className="h-[calc(100%-0.375rem)]">
+        <Timeline onDesiredHeightChange={setDesired} />
+      </div>
+    </div>
+  );
+}
+
 function ViewportFallback() {
   return (
     <div className="flex h-full items-center justify-center bg-surface-sunken">
