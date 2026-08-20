@@ -36,6 +36,8 @@ export const Route = createFileRoute("/")({
  * automatic height until the operator double-clicks the handle to release it.
  */
 const DOCK_MIN = 176;
+const VIEWPORT_MIN = 200;
+
 
 function TimelineDock() {
   const [desired, setDesired] = useState(DOCK_MIN);
