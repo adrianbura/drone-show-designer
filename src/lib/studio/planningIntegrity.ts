@@ -21,6 +21,7 @@
  * `overrideBasis` captures exactly those inputs. When the basis of a clip
  * changes, its override is stale and must be dropped — but only that clip's.
  */
+import type { ReferenceTrajectoryLayer } from "../import/essp/native/types";
 import type { ShowProject, Vector3Tuple } from "../show/types";
 import { clipPhase } from "../show/types";
 import type { ClipTransitionOverride } from "../show/trajectory/schedule";
@@ -143,4 +144,10 @@ export interface TimelineHistorySnapshot {
    * the overrides above. Optional so pre-existing snapshots stay valid.
    */
   readonly transitionDesigns?: Readonly<Record<string, TransitionDesignState>>;
+  /**
+   * Imported-layer ownership at the time of the action. Undo/redo must restore
+   * it atomically with the project: a promotion caused by an authored edit is
+   * part of that edit, not a separate irreversible fact.
+   */
+  readonly referenceLayer?: ReferenceTrajectoryLayer | null;
 }

@@ -180,6 +180,23 @@ export function splicedTrajectorySamples<
   return { samples, owner: "REFERENCE" };
 }
 
+/**
+ * LED AUTHORITY of one instant, as a fleet colour array: the imported RGB bytes
+ * while the owning interval is still reference-owned, `null` when the authored
+ * lighting engine owns time `time`. ONE implementation, shared by the viewport
+ * preview and by every export path, so preview and file can never disagree.
+ */
+export function referenceColorsAt(
+  show: ReferenceShow | null,
+  layer: ReferenceTrajectoryLayer | null,
+  time: number,
+  fleetSize: number,
+): RGB[] | null {
+  if (!show || !layer) return null;
+  if (intervalAtTime(layer, time)?.owner !== "REFERENCE") return null;
+  return referenceLightStates(show, time, fleetSize).map((s) => [s.r, s.g, s.b] as RGB);
+}
+
 /** LED output of a reference-owned instant: the original RGB bytes. */
 export function referenceLightStates(
   show: ReferenceShow,
