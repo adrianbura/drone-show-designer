@@ -9,4 +9,5 @@ export * from "./field";
 export * from "./evaluate";
 export * from "./engine";
 export * from "./presets";
+export * from "./authoring";
 export * from "./validate";
