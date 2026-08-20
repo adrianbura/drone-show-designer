@@ -18,6 +18,9 @@ import ConversionOverlay from "./ConversionOverlay";
 import ReferenceGhostSwarm from "./ReferenceGhostSwarm";
 import SceneGizmo from "./SceneGizmo";
 import SceneGizmoPreview from "./SceneGizmoPreview";
+import AudienceCameraRig from "./AudienceCameraRig";
+import AudienceDepthGuides from "./AudienceDepthGuides";
+import { useAudienceView } from "@/lib/studio/audienceView";
 
 /**
  * Instanced drone swarm. One InstancedMesh + per-instance colour keeps draw
@@ -219,6 +222,7 @@ export default function Viewport3D() {
     updateSceneGizmo,
     commitSceneGizmo,
   } = useStudio();
+  const { audienceCamera, showDepth, view: audienceView } = useAudienceView();
   const handleSelectDrone = useCallback(
     (index: number, additive: boolean) => {
       // SCENE-FIRST PICKING: clicking a drone selects the SCENE OBJECT whose
@@ -379,6 +383,13 @@ export default function Viewport3D() {
           />
         </>
       ) : null}
+      {!reference && showDepth ? (
+        <AudienceDepthGuides
+          count={project.droneCount}
+          time={time}
+          samplesAtTime={samplesAtTime}
+        />
+      ) : null}
       <OrbitControls
         makeDefault
         enableDamping
@@ -387,6 +398,11 @@ export default function Viewport3D() {
         target={[0, project.area.height * 0.35, 0]}
         minDistance={20}
         maxDistance={600}
+      />
+      <AudienceCameraRig
+        enabled={audienceCamera}
+        viewer={audienceView.viewer}
+        target={audienceView.target}
       />
     </Canvas>
   );
