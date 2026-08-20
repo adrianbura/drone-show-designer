@@ -56,7 +56,16 @@ function TimelineDock() {
   const height = Math.min(Math.max(manual ?? desired, DOCK_MIN), maxHeight());
 
 
+  // Re-clamp when the window (or preview pane) is resized.
+  const [, bumpResize] = useState(0);
   useEffect(() => {
+    const onResize = () => bumpResize((n) => n + 1);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
+
     const onMove = (e: PointerEvent) => {
       const drag = dragRef.current;
       if (!drag) return;
