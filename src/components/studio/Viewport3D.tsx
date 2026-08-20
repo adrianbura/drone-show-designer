@@ -383,6 +383,13 @@ export default function Viewport3D() {
           />
         </>
       ) : null}
+      {!reference && showDepth ? (
+        <AudienceDepthGuides
+          count={project.droneCount}
+          time={time}
+          samplesAtTime={samplesAtTime}
+        />
+      ) : null}
       <OrbitControls
         makeDefault
         enableDamping
@@ -391,6 +398,11 @@ export default function Viewport3D() {
         target={[0, project.area.height * 0.35, 0]}
         minDistance={20}
         maxDistance={600}
+      />
+      <AudienceCameraRig
+        enabled={audienceCamera}
+        viewer={audienceView.viewer}
+        target={audienceView.target}
       />
     </Canvas>
   );
