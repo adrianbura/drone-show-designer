@@ -134,6 +134,7 @@ export default function Timeline({
     selectClip,
     removeClip,
     beatGrid,
+    lightingEffects,
     addClip,
     fullShowReport,
     focusIssue,
