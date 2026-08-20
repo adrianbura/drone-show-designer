@@ -61,10 +61,10 @@ export default function GeometryProposalPanel() {
   const [distance, setDistance] = useState(150);
   const [eyeHeight, setEyeHeight] = useState(1.7);
   const [targetHeight, setTargetHeight] = useState(60);
-  const [horizontal, setHorizontal] = useState(
+  const [horizontal, setHorizontal] = useState<number>(
     VERTICAL_STACK_ANALYSIS_DEFAULTS.horizontalThresholdMeters,
   );
-  const [vertical, setVertical] = useState(
+  const [vertical, setVertical] = useState<number>(
     VERTICAL_STACK_ANALYSIS_DEFAULTS.minVerticalDifferenceMeters,
   );
   const [cap, setCap] = useState<number>(GEOMETRY_PROPOSAL_DEFAULTS.maxDisplacementMeters);
