@@ -47,8 +47,9 @@ export interface GeometryTrajectoryConsequenceReport {
   /** True only when the canonical AFTER report is not FAIL/BLOCKED. */
   readonly canonicalProfilePass: boolean;
   /**
-   * False when the candidate is entirely reference-owned. In that case the
-   * changed project geometry may not have been exercised by the effective set.
+   * True when at least some candidate time is planner-owned. A caller evaluating
+   * an imported proposal must still ensure the intended edited interval is the
+   * planner-owned one; this function never promotes reference ownership itself.
    */
   readonly candidateGeometryExercisedByPlanner: boolean;
   readonly note: string;
@@ -94,7 +95,8 @@ export function evaluateGeometryTrajectoryConsequence(
 ): GeometryTrajectoryConsequenceReport {
   const before = snapshot(analyzeFullShow(beforeProject, options));
   const after = snapshot(analyzeFullShow(afterProject, options));
-  const candidateGeometryExercisedByPlanner = after.plannerSeconds > 1e-9 || after.effectiveAuthorityKind === "PLANNER_ONLY";
+  const candidateGeometryExercisedByPlanner =
+    after.effectiveAuthorityKind === "PLANNER_ONLY" || after.plannerSeconds > 1e-9;
   return {
     before,
     after,
@@ -111,7 +113,7 @@ export function evaluateGeometryTrajectoryConsequence(
     canonicalProfilePass: after.status !== "FAIL" && after.exportReadiness !== "BLOCKED",
     candidateGeometryExercisedByPlanner,
     note:
-      "CANONICAL PIPELINE COMPARISON ONLY. The AFTER project was replanned and validated using the existing full-show authorities. A passing result is not a certification or authorisation to fly.",
+      "CANONICAL PIPELINE COMPARISON ONLY. The AFTER project was replanned and validated using the existing full-show authorities. Imported proposals must be evaluated with the intended edited interval promoted to planner ownership. A passing result is not a certification or authorisation to fly.",
   };
 }
 
