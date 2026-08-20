@@ -4573,6 +4573,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   /**
+   * ORIGINAL ESSP SOURCE RECOVERY. Returns the imported bytes verbatim; it is
+   * NOT an export and is intentionally independent from the validation gate.
+   */
+  const buildOriginalEsspPackage = useCallback(
+    (): EsspSourceRecoveryResult =>
+      buildOriginalEsspDownload({ projectName: project.name, layer: referenceLayer }),
+    [project.name, referenceLayer],
+  );
+  const hasEsspSourceFiles = hasEsspSourceBytes(referenceLayer);
+
+  /**
    * LED AUTHORITY of a reference-owned instant: the original RGB byte triplets.
    * Returns null when the authored lighting engine owns the LEDs at `t`.
    */
@@ -4943,6 +4954,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       verifyReferenceSplices,
       referenceLayerLimitations: REFERENCE_LAYER_LIMITATIONS,
       buildEsspPackage,
+      buildOriginalEsspPackage,
+      hasEsspSourceFiles,
       openProjectFile,
       autosaveRecovery,
       restoreAutosave,
@@ -5240,6 +5253,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       clearReferenceLayer,
       verifyReferenceSplices,
       buildEsspPackage,
+      buildOriginalEsspPackage,
+      hasEsspSourceFiles,
 
       openProjectFile,
       autosaveRecovery,
