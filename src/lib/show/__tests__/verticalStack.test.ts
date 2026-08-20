@@ -98,9 +98,7 @@ describe("point cloud geometry — depth / tilt evidence", () => {
     const pts: Vector3Tuple[] = [];
     for (let x = -5; x <= 5; x++) for (let y = 10; y <= 20; y += 2) pts.push(P(x, y, 0));
     const g = analyzePointCloudGeometry(pts);
-    expect(Math.abs(g.depthHeightCorrelation)).toBeLessThan 
-      ? expect(Math.abs(g.depthHeightCorrelation)).toBeLessThan(1e-6)
-      : undefined;
+    expect(Math.abs(g.depthHeightCorrelation)).toBeLessThan(1e-6);
     expect(g.planeNormal).not.toBeNull();
     expect(g.planeResidualRms!).toBeLessThan(1e-9);
   });
