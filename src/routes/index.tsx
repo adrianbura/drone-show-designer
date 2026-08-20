@@ -37,8 +37,6 @@ export const Route = createFileRoute("/")({
  */
 const DOCK_MIN = 176;
 const VIEWPORT_MIN = 200;
-/** Reserve for the stacked panel region shown below xl (Inspector + Lighting). */
-const PANEL_MIN = 140;
 
 
 function TimelineDock() {
@@ -55,7 +53,7 @@ function TimelineDock() {
     // Top bar + 3D viewport always keep their space. Below xl the Inspector
     // (Lighting panel) lives in the stacked region under the dock, so it needs a
     // usable reserve too — otherwise it collapses to a few pixels.
-    const stackedPanels = window.innerWidth < 1280 ? PANEL_MIN : 0;
+    const stackedPanels = 0;
     const reserve = 64 + VIEWPORT_MIN + stackedPanels;
     return Math.max(DOCK_MIN, Math.min(Math.round(h * (narrow ? 0.45 : 0.6)), h - reserve));
   };
@@ -153,7 +151,7 @@ function StudioPage() {
           the left panel only needs the fallback below lg. Internally scrollable
           so the 3D viewport and timeline never lose height.
         */}
-        <div className="min-h-[140px] flex-1 overflow-y-auto border-t border-border xl:hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto border-t border-border xl:hidden">
           <div className="lg:hidden">
             <LeftPanel />
           </div>
