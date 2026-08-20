@@ -222,6 +222,7 @@ export default function Viewport3D() {
     updateSceneGizmo,
     commitSceneGizmo,
   } = useStudio();
+  const { audienceCamera, showDepth, view: audienceView } = useAudienceView();
   const handleSelectDrone = useCallback(
     (index: number, additive: boolean) => {
       // SCENE-FIRST PICKING: clicking a drone selects the SCENE OBJECT whose
