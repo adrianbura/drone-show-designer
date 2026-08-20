@@ -28,10 +28,10 @@ function Row({ label, value, tone }: { label: string; value: string; tone?: stri
 
 export default function VerticalStackPanel() {
   const { trajectorySet, samplesAtTime, time, setTime } = useStudio();
-  const [horizontal, setHorizontal] = useState(
+  const [horizontal, setHorizontal] = useState<number>(
     VERTICAL_STACK_ANALYSIS_DEFAULTS.horizontalThresholdMeters,
   );
-  const [vertical, setVertical] = useState(
+  const [vertical, setVertical] = useState<number>(
     VERTICAL_STACK_ANALYSIS_DEFAULTS.minVerticalDifferenceMeters,
   );
   const [showShow, setShowShow] = useState(false);
