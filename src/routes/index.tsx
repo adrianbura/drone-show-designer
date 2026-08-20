@@ -153,7 +153,7 @@ function StudioPage() {
           the left panel only needs the fallback below lg. Internally scrollable
           so the 3D viewport and timeline never lose height.
         */}
-        <div className="min-h-0 flex-1 overflow-y-auto border-t border-border xl:hidden">
+        <div className="min-h-[140px] flex-1 overflow-y-auto border-t border-border xl:hidden">
           <div className="lg:hidden">
             <LeftPanel />
           </div>
