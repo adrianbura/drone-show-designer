@@ -182,6 +182,22 @@ export default function Timeline({
   const laneLayout = useMemo(() => packTimelineClipLanes(project.timeline), [project.timeline]);
   const trackMinHeight = 16 + laneLayout.laneCount * 34;
 
+  /**
+   * ADAPTIVE DOCK HEIGHT (presentation only). The dock asks for exactly the room
+   * the current content needs: measured header + lane stack + the fixed tracks.
+   */
+  const headerRef = useRef<HTMLElement | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(44);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => setHeaderHeight(el.getBoundingClientRect().height));
+    observer.observe(el);
+    setHeaderHeight(el.getBoundingClientRect().height);
+    return () => observer.disconnect();
+  }, []);
+
+
   /** Snap context for the current gesture — pixel-aware, Alt bypasses it. */
   const snapContext = useCallback(
     (altKey: boolean) => ({
