@@ -18,6 +18,7 @@ import LightingEffectsPanel from "./LightingEffectsPanel";
 import SimulationPanel from "./SimulationPanel";
 import DynamicPanel from "./DynamicPanel";
 import EsspPanel from "./EsspPanel";
+import ExportPreflight from "./ExportPreflight";
 import ForensicsPanel from "./ForensicsPanel";
 import ConversionPanel from "./ConversionPanel";
 import NativeConversionPanel from "./NativeConversionPanel";
@@ -28,6 +29,7 @@ import { ADAPTER_REGISTRY } from "@/lib/adapters";
 import type { EsspExportResult } from "@/lib/adapters/esspExport";
 import type { EsspSourceRecoveryResult } from "@/lib/adapters/esspSourceRecovery";
 import { evaluateExportEligibility } from "@/lib/adapters/exportEligibility";
+import { buildExportPreflight } from "@/lib/adapters/exportPreflight";
 import {
   downloadBytes,
   downloadText,
@@ -90,8 +92,13 @@ function NumberRow({
  */
 function EsspPackageExport({
   buildEsspPackage,
+  canExport,
+  blockedReason,
 }: {
   buildEsspPackage: () => EsspExportResult;
+  /** Canonical eligibility — mirrored, never re-derived here. */
+  canExport: boolean;
+  blockedReason: string | null;
 }) {
   const [result, setResult] = useState<EsspExportResult | null>(null);
 
@@ -113,11 +120,20 @@ function EsspPackageExport({
       </p>
       <button
         onClick={run}
-        className="chip-btn w-full justify-center"
+        disabled={!canExport}
+        className="chip-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-40"
         data-testid="essp-export-button"
       >
         Export ESSP per-drone package (.zip)
       </button>
+      {!canExport && blockedReason && (
+        <p
+          className="font-mono text-[10px] leading-relaxed text-destructive"
+          data-testid="essp-export-prevented"
+        >
+          {blockedReason}
+        </p>
+      )}
       <p className="font-mono text-[10px] leading-relaxed text-warning">
         EXPERIMENTAL — REVERSE-ENGINEERED FORMAT. Not vendor certified and not
         verified against flight hardware.
@@ -259,7 +275,21 @@ export default function Inspector() {
     canEditClipAsScene,
     editClipAsScene,
     duplicateClipForDesign,
+    analysisRevision,
+    referenceOwnership,
+    esspPreflightSource,
   } = useStudio();
+  // SAME pure model as the preflight panel — the action state mirrors it.
+  const preflight = buildExportPreflight({
+    droneCount: project.droneCount,
+    showDuration: plan.duration,
+    report: fullShowReport,
+    stale: fullShowStale,
+    currentRevision: analysisRevision,
+    referenceSource: esspPreflightSource,
+    ownership: referenceOwnership,
+    hasSourceFiles: hasEsspSourceFiles,
+  });
   const exportEligibility = evaluateExportEligibility(fullShowReport, fullShowStale);
   const canExportComputedShow = exportEligibility.canExportComputedShow;
   const clip = project.timeline.find((c) => c.id === selectedClipId);
@@ -768,7 +798,20 @@ export default function Inspector() {
         >
           Trajectory + light CSV
         </button>
-        <EsspPackageExport buildEsspPackage={buildEsspPackage} />
+        <p className="pt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Generated flight output
+        </p>
+        <ExportPreflight />
+        <EsspPackageExport
+          buildEsspPackage={buildEsspPackage}
+          canExport={preflight.canExportGenerated}
+          blockedReason={preflight.generatedBlockedReason}
+        />
+        {hasEsspSourceFiles && (
+          <p className="pt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Source recovery
+          </p>
+        )}
         <EsspSourceRecovery
           buildOriginalEsspPackage={buildOriginalEsspPackage}
           hasEsspSourceFiles={hasEsspSourceFiles}
