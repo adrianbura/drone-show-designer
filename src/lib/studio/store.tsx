@@ -323,6 +323,7 @@ import {
   type ProjectFile,
   type ProjectPlanningState,
 } from "../project";
+import { buildEsspExportPackage, type EsspExportResult } from "../adapters/esspExport";
 import {
   buildProposalContent,
   mockChoreographyProvider,
@@ -785,6 +786,11 @@ interface StudioContextValue {
   /** Boundary agreement between reference and planner at ownership switches. */
   verifyReferenceSplices: () => SpliceVerificationReport | null;
   referenceLayerLimitations: readonly string[];
+  /**
+   * PRODUCTION ESSP PER-DRONE EXPORT (experimental target format). Reads the
+   * canonical effective show + the same export gate as every computed export.
+   */
+  buildEsspPackage: () => EsspExportResult;
 
   // ---- Reference forensics (Sprint 6A.5, analysis only) ------------------
   /** Derived motion analysis of the imported reference show. Never mutates it. */
@@ -4536,6 +4542,26 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   /**
+   * ESSP PER-DRONE PACKAGE. Pure read of canonical state: project, canonical
+   * plan, imported layer and the current full-show report (the single safety
+   * authority). No UI state and no clip geometry are read here.
+   */
+  const buildEsspPackage = useCallback(
+    (): EsspExportResult =>
+      buildEsspExportPackage({
+        project,
+        plan,
+        reference:
+          referenceLayer && referenceLayerShow
+            ? { show: referenceLayerShow, layer: referenceLayer }
+            : null,
+        fullShow: fullShow?.report ?? null,
+        fullShowStale,
+      }),
+    [project, plan, referenceLayer, referenceLayerShow, fullShow, fullShowStale],
+  );
+
+  /**
    * LED AUTHORITY of a reference-owned instant: the original RGB byte triplets.
    * Returns null when the authored lighting engine owns the LEDs at `t`.
    */
@@ -4905,6 +4931,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       clearReferenceLayer,
       verifyReferenceSplices,
       referenceLayerLimitations: REFERENCE_LAYER_LIMITATIONS,
+      buildEsspPackage,
       openProjectFile,
       autosaveRecovery,
       restoreAutosave,
@@ -5201,6 +5228,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       promoteReferenceClip,
       clearReferenceLayer,
       verifyReferenceSplices,
+      buildEsspPackage,
+
       openProjectFile,
       autosaveRecovery,
       restoreAutosave,
