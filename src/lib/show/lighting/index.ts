@@ -10,3 +10,4 @@ export * from "./evaluate";
 export * from "./engine";
 export * from "./presets";
 export * from "./validate";
+export * from "./authoring";
