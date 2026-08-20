@@ -109,7 +109,7 @@ export interface ProposalSummaryRow {
   readonly label: string;
   readonly value: string;
   /** Diagnostic emphasis only — never a safety verdict. */
-  readonly emphasis?: "good" | "warn";
+  readonly emphasis?: "good" | "warn" | undefined;
 }
 
 const m = (v: number) => `${v.toFixed(2)} m`;

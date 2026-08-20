@@ -129,7 +129,7 @@ export function optimizeProjectionPreservingStackProposal(
     minVerticalDifferenceMeters:
       options.minVerticalDifferenceMeters ?? VERTICAL_STACK_ANALYSIS_DEFAULTS.minVerticalDifferenceMeters,
     maxReportedPairs: options.maxReportedPairs ?? Math.max(200, points.length * 4),
-    labels: options.labels,
+    ...(options.labels ? { labels: options.labels } : {}),
   };
   const before = analyzeVerticalStackRisk(points, stackOptions);
   if (before.candidatePairCount === 0) {
