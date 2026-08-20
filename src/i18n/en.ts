@@ -356,6 +356,7 @@ export const en = {
   "timeline.follow": "Follow playhead",
   "timeline.dragHint": "drag to move, edges resize transition and hold (Alt = no snap, Esc = cancel)",
   "timeline.transitionHandle": "Resize transition (formation-ready moment)",
+  "timeline.rippleHint": "Ripple: following scenes shift — hold Ctrl/Cmd for a free resize",
   "timeline.holdHandle": "Resize hold (clip end)",
   "timeline.ready": "ready",
   "audio.track": "Audio track",
