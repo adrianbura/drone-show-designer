@@ -20,6 +20,7 @@ import DynamicPanel from "./DynamicPanel";
 import EsspPanel from "./EsspPanel";
 import ExportPreflight from "./ExportPreflight";
 import ForensicsPanel from "./ForensicsPanel";
+import VerticalStackPanel from "./VerticalStackPanel";
 import ConversionPanel from "./ConversionPanel";
 import NativeConversionPanel from "./NativeConversionPanel";
 
@@ -692,6 +693,8 @@ export default function Inspector() {
           ))}
         </ul>
       </section>
+
+      <VerticalStackPanel />
 
       <LaunchPanel />
 
