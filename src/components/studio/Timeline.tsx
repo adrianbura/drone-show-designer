@@ -196,6 +196,11 @@ export default function Timeline({
     setHeaderHeight(el.getBoundingClientRect().height);
     return () => observer.disconnect();
   }, []);
+  useEffect(() => {
+    if (!onDesiredHeightChange) return;
+    const extras = 40 /* annotations */ + 26 /* scrollbar */ + 44 /* lighting */ + (audioAttached ? 58 : 0) + 24;
+    onDesiredHeightChange(headerHeight + trackMinHeight + extras);
+  }, [onDesiredHeightChange, headerHeight, trackMinHeight, audioAttached]);
 
 
   /** Snap context for the current gesture — pixel-aware, Alt bypasses it. */
