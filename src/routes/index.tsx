@@ -65,9 +65,7 @@ function StudioPage() {
             <Inspector />
           </aside>
         </div>
-        <div className="h-52 shrink-0 border-t border-border">
-          <Timeline />
-        </div>
+        <TimelineDock />
         <div className="max-h-[45vh] overflow-y-auto border-t border-border lg:hidden">
           <LeftPanel />
           <Inspector />
