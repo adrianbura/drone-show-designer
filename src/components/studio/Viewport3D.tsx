@@ -105,8 +105,12 @@ function Swarm({
       const group = groupRgbByDrone?.get(i);
       const motionGroup = dynamicGroupRgbByDrone?.get(i);
       const dimmed = !!selectedGroupId && groupIdByDrone?.[i] !== selectedGroupId;
+      const selected = selectedSet.has(i);
+      // SELECTION IS NEVER A COLOUR HACK: when the canonical lighting engine
+      // owns the LED at this instant the body keeps its real LED colour and the
+      // selection is communicated by the halo ring only.
       if (highlightSet.has(i)) color.setRGB(1, 0.25, 0.25);
-      else if (selectedSet.has(i)) color.setRGB(1, 0.95, 0.55);
+      else if (selected && !light) color.setRGB(1, 0.95, 0.55);
       else if (dimmed) color.setRGB(0.16, 0.21, 0.28);
       else if (showGroups && group) color.setRGB(group[0], group[1], group[2]);
       else if (motionGroup) color.setRGB(motionGroup[0], motionGroup[1], motionGroup[2]);
@@ -115,6 +119,8 @@ function Swarm({
         color.setRGB(s[0], s[1], s[2]);
       } else color.setRGB(c[0] / 255, c[1] / 255, c[2] / 255);
       bodyMesh.setColorAt(i, color);
+      if (selected && !highlightSet.has(i)) color.setRGB(1, 0.95, 0.55);
+
       haloMesh.setColorAt(i, color);
     });
     bodyMesh.instanceMatrix.needsUpdate = true;
