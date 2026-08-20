@@ -40,6 +40,7 @@ import { createDefaultProject } from "../../show/defaultProject";
 import type { ShowProject } from "../../show/types";
 import { EMPTY_LIGHTING_PROGRAM, type LightingEffectInstance } from "../../show/lighting/types";
 import { buildEsspExportPackage } from "../esspExport";
+import { buildOriginalEsspDownload, hasEsspSourceBytes } from "../esspSourceRecovery";
 
 const RATE = 8;
 const RGB_RATE = 12;
@@ -155,6 +156,18 @@ function exportOf(fixture: Fixture, report: FullShowValidationReport, stale = fa
 
 let fixture: Fixture;
 let report: FullShowValidationReport;
+
+/**
+ * The real analysis of the fixture, forced to a READY readiness. "Export ESSP"
+ * is generated output with NO exemption, so a preserved-payload export needs a
+ * passing gate exactly like a sampled one.
+ */
+function allowed(): FullShowValidationReport {
+  return {
+    ...report,
+    exportReadiness: { status: "READY", blockers: [], warnings: [] },
+  } as unknown as FullShowValidationReport;
+}
 
 beforeAll(async () => {
   fixture = await fixtureShow();
@@ -274,13 +287,9 @@ describe("production ESSP writer", () => {
 
 describe("unedited imported show — byte-exact per-drone round trip", () => {
   it("exports the source bytes verbatim, one file per drone", () => {
-    const result = exportOf(fixture, report);
+    const result = exportOf(fixture, allowed());
     expect(result.blockers).toEqual([]);
     expect(result.ok).toBe(true);
-    // Findings of the imported flight data are reported, never silently dropped.
-    if (report.exportReadiness.status === "BLOCKED") {
-      expect(result.warnings.join(" ")).toMatch(/verbatim copy of the imported archive/);
-    }
     expect(result.mode).toBe("PRESERVED_PAYLOAD");
     expect(result.profileStatus).toBe("SOURCE_PROFILE");
     expect(result.files).toHaveLength(DRONES);
@@ -291,7 +300,7 @@ describe("unedited imported show — byte-exact per-drone round trip", () => {
   });
 
   it("keeps the source clocks and last-sample semantics in the manifest", () => {
-    const { manifest } = exportOf(fixture, report);
+    const { manifest } = exportOf(fixture, allowed());
     expect(manifest?.positionRateHz).toBe(RATE);
     expect(manifest?.rgbRateHz).toBe(RGB_RATE);
     expect(manifest?.positionSampleCount).toBe(fixture.show.timing.positionSampleCount);
@@ -309,8 +318,8 @@ describe("unedited imported show — byte-exact per-drone round trip", () => {
   });
 
   it("packages a deterministic ZIP with the manifest and no drone-name collision", () => {
-    const a = exportOf(fixture, report);
-    const b = exportOf(fixture, report);
+    const a = exportOf(fixture, allowed());
+    const b = exportOf(fixture, allowed());
     expect(Array.from(a.zip!)).toEqual(Array.from(b.zip!));
     const entries = unzipSync(a.zip!);
     expect(Object.keys(entries).sort()).toEqual(
@@ -334,7 +343,7 @@ describe("unedited imported show — byte-exact per-drone round trip", () => {
       project: fixture.project,
       plan,
       reference: { show: rehydrated, layer: fixture.layer },
-      fullShow: report,
+      fullShow: allowed(),
     });
     expect(result.ok).toBe(true);
     result.files.forEach((file, i) => {
@@ -512,7 +521,7 @@ describe("export gate", () => {
       project: fixture.project,
       plan,
       reference: { show: mismatched, layer: fixture.layer },
-      fullShow: report,
+      fullShow: allowed(),
     });
     expect(result.ok).toBe(false);
     expect(result.blockers.join(" ")).toMatch(/disagree on the position rate/);
@@ -526,5 +535,108 @@ describe("reference drone file bytes helper", () => {
         Array.from(fixture.sourceBytes[i]!),
       );
     });
+  });
+});
+
+/* ------------------------------------------ policy: no preserved-payload exemption */
+
+describe("Export ESSP policy — generated output, no exemption", () => {
+  const blockedReport = () =>
+    ({
+      ...readyReport(),
+      exportReadiness: { status: "BLOCKED", blockers: ["separation violation"], warnings: [] },
+    }) as unknown as FullShowValidationReport;
+
+  it("BLOCKED blocks even a fully reference-owned (preserved) show", () => {
+    const result = exportOf(fixture, blockedReport());
+    expect(result.ok).toBe(false);
+    expect(result.zip).toBeNull();
+    expect(result.files).toEqual([]);
+    expect(result.blockers).toContain("separation violation");
+    expect(result.warnings.join(" ")).not.toMatch(/verbatim copy of the imported archive/);
+  });
+
+  it("stale and missing analyses block a preserved show too", () => {
+    expect(exportOf(fixture, readyReport(), true).ok).toBe(false);
+    const plan = buildShowPlan(fixture.project, { assignmentStrategy: STRATEGY });
+    const missing = buildEsspExportPackage({
+      project: fixture.project,
+      plan,
+      reference: { show: fixture.show, layer: fixture.layer },
+      fullShow: null,
+    });
+    expect(missing.ok).toBe(false);
+  });
+
+  it("a passing gate still reuses the original bytes (PRESERVED_PAYLOAD kept)", () => {
+    const result = exportOf(fixture, allowed());
+    expect(result.ok).toBe(true);
+    expect(result.mode).toBe("PRESERVED_PAYLOAD");
+  });
+});
+
+/* -------------------------------------------------------- source recovery */
+
+describe("original ESSP source recovery", () => {
+  it("returns byte-identical original files while validation is BLOCKED", () => {
+    const blocked = exportOf(fixture, {
+      ...readyReport(),
+      exportReadiness: { status: "BLOCKED", blockers: ["x"], warnings: [] },
+    } as unknown as FullShowValidationReport);
+    expect(blocked.ok).toBe(false);
+
+    const recovery = buildOriginalEsspDownload({
+      projectName: "My Show",
+      layer: fixture.layer,
+    });
+    expect(recovery.ok).toBe(true);
+    expect(recovery.reason).toBe("OK");
+    expect(recovery.files).toHaveLength(DRONES);
+    recovery.files.forEach((file, i) => {
+      expect(Array.from(file.bytes)).toEqual(Array.from(fixture.sourceBytes[i]!));
+    });
+    expect(recovery.zipFileName).toBe("my-show.original-essp.zip");
+    expect(recovery.referenceShowHash).toBe(fixture.layer.showHash);
+  });
+
+  it("is deterministic, named from the source and never mutates the layer", () => {
+    const before = JSON.stringify(fixture.layer);
+    const a = buildOriginalEsspDownload({ projectName: "p", layer: fixture.layer });
+    const b = buildOriginalEsspDownload({ projectName: "p", layer: fixture.layer });
+    expect(JSON.stringify(fixture.layer)).toBe(before);
+    expect(Array.from(a.zip!)).toEqual(Array.from(b.zip!));
+    expect(a.files.map((f) => f.name)).toEqual(
+      fixture.layer.drones.map((d) => d.sourceFile),
+    );
+    expect(a.files.every((f) => f.nameFromSource)).toBe(true);
+    const entries = unzipSync(a.zip!);
+    expect(Object.keys(entries)).toContain("source-recovery.json");
+    const manifest = JSON.parse(
+      new TextDecoder().decode(entries["source-recovery.json"]!),
+    ) as { kind: string; description: string };
+    expect(manifest.kind).toBe("SOURCE_RECOVERY");
+    expect(manifest.description).toMatch(/byte-for-byte/);
+    expect(Array.from(entries[a.files[0]!.name]!)).toEqual(
+      Array.from(fixture.sourceBytes[0]!),
+    );
+  });
+
+  it("falls back to deterministic names and reports missing source bytes", () => {
+    const noNames: ReferenceTrajectoryLayer = {
+      ...fixture.layer,
+      drones: fixture.layer.drones.map((d) => ({ ...d, sourceFile: "" })),
+    };
+    const named = buildOriginalEsspDownload({ projectName: "p", layer: noNames });
+    expect(named.files.map((f) => f.name)).toEqual(
+      fixture.layer.drones.map((d) => `${d.numericSourceId}.essp`),
+    );
+    expect(named.files.every((f) => f.nameFromSource)).toBe(false);
+
+    expect(hasEsspSourceBytes(null)).toBe(false);
+    const empty = buildOriginalEsspDownload({ projectName: "p", layer: null });
+    expect(empty.ok).toBe(false);
+    expect(empty.reason).toBe("NO_SOURCE");
+    expect(empty.zip).toBeNull();
+    expect(empty.zipFileName).toBe("p.original-essp.zip");
   });
 });
