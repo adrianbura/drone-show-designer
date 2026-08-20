@@ -325,6 +325,11 @@ import {
 } from "../project";
 import { buildEsspExportPackage, type EsspExportResult } from "../adapters/esspExport";
 import {
+  buildOriginalEsspDownload,
+  hasEsspSourceBytes,
+  type EsspSourceRecoveryResult,
+} from "../adapters/esspSourceRecovery";
+import {
   buildProposalContent,
   mockChoreographyProvider,
   validateProposal,
@@ -791,6 +796,12 @@ interface StudioContextValue {
    * canonical effective show + the same export gate as every computed export.
    */
   buildEsspPackage: () => EsspExportResult;
+  /**
+   * SOURCE RECOVERY (not an export): returns the originally imported .essp
+   * files byte-for-byte. Never gated by validation.
+   */
+  buildOriginalEsspPackage: () => EsspSourceRecoveryResult;
+  hasEsspSourceFiles: boolean;
 
   // ---- Reference forensics (Sprint 6A.5, analysis only) ------------------
   /** Derived motion analysis of the imported reference show. Never mutates it. */
