@@ -1,0 +1,5 @@
+/**
+ * READ-ONLY FLIGHT GEOMETRY DIAGNOSTICS. Pure domain code: no React, no
+ * Three.js, no mutation, and never an input to planning, safety or export.
+ */
+export * from "./verticalStack";
