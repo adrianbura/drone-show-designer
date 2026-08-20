@@ -323,6 +323,7 @@ import {
   type ProjectFile,
   type ProjectPlanningState,
 } from "../project";
+import type { PreflightReferenceSource } from "@/lib/adapters/exportPreflight";
 import { buildEsspExportPackage, type EsspExportResult } from "../adapters/esspExport";
 import {
   buildOriginalEsspDownload,
@@ -802,6 +803,12 @@ interface StudioContextValue {
    */
   buildOriginalEsspPackage: () => EsspSourceRecoveryResult;
   hasEsspSourceFiles: boolean;
+  /**
+   * Clocks + fleet size of the imported ESSP archive that owns the reference
+   * intervals (null when the show is authored from scratch). Read-only input
+   * for the export preflight summary.
+   */
+  esspPreflightSource: PreflightReferenceSource | null;
 
   // ---- Reference forensics (Sprint 6A.5, analysis only) ------------------
   /** Derived motion analysis of the imported reference show. Never mutates it. */
@@ -4583,6 +4590,19 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
   const hasEsspSourceFiles = hasEsspSourceBytes(referenceLayer);
 
+  /** Canonical ESSP source clocks for the export preflight (no recomputation). */
+  const esspPreflightSource = useMemo<PreflightReferenceSource | null>(
+    () =>
+      referenceLayer && referenceLayerShow
+        ? {
+            positionRateHz: referenceLayerShow.timing.positionRateHz,
+            rgbRateHz: referenceLayerShow.timing.rgbRateHz,
+            droneFileCount: referenceLayerShow.drones.length,
+          }
+        : null,
+    [referenceLayer, referenceLayerShow],
+  );
+
   /**
    * LED AUTHORITY of a reference-owned instant: the original RGB byte triplets.
    * Returns null when the authored lighting engine owns the LEDs at `t`.
@@ -4956,6 +4976,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       buildEsspPackage,
       buildOriginalEsspPackage,
       hasEsspSourceFiles,
+      esspPreflightSource,
       openProjectFile,
       autosaveRecovery,
       restoreAutosave,
@@ -5255,6 +5276,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       buildEsspPackage,
       buildOriginalEsspPackage,
       hasEsspSourceFiles,
+      esspPreflightSource,
 
       openProjectFile,
       autosaveRecovery,
