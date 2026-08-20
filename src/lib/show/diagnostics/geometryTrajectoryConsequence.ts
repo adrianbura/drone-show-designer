@@ -1,3 +1,4 @@
+import { reconcileReferenceLayer } from "../../import/essp/native/intervals";
 import type { AnalyzeFullShowOptions, FullShowStatus } from "../fullshow/types";
 import { analyzeFullShow } from "../fullshow/validator";
 import type { ShowProject, Vector3Tuple } from "../types";
@@ -10,6 +11,8 @@ import type { ShowProject, Vector3Tuple } from "../types";
  * pipeline and reports the deltas. PASS means only that the configured simulation
  * and safety profile did not detect a blocking issue; it is not flight approval.
  */
+
+const PREVIEW_PROMOTION_TIME = "1970-01-01T00:00:00.000Z";
 
 export interface GeometryTrajectorySnapshot {
   readonly status: FullShowStatus;
@@ -27,6 +30,7 @@ export interface GeometryTrajectorySnapshot {
   readonly referenceSeconds: number;
   readonly blockingIssueCount: number;
   readonly warningCount: number;
+  readonly promotedClipIds: readonly string[];
 }
 
 export interface GeometryTrajectoryDelta {
@@ -46,12 +50,10 @@ export interface GeometryTrajectoryConsequenceReport {
   readonly delta: GeometryTrajectoryDelta;
   /** True only when the canonical AFTER report is not FAIL/BLOCKED. */
   readonly canonicalProfilePass: boolean;
-  /**
-   * True when at least some candidate time is planner-owned. A caller evaluating
-   * an imported proposal must still ensure the intended edited interval is the
-   * planner-owned one; this function never promotes reference ownership itself.
-   */
+  /** True when the candidate effective show contains planner-owned time. */
   readonly candidateGeometryExercisedByPlanner: boolean;
+  /** New hypothetical promotions caused by the candidate project. */
+  readonly newlyPromotedClipIds: readonly string[];
   readonly note: string;
 }
 
@@ -73,6 +75,7 @@ function snapshot(result: ReturnType<typeof analyzeFullShow>): GeometryTrajector
     referenceSeconds: plan.effectiveAuthority.referenceSeconds,
     blockingIssueCount: report.errors.length,
     warningCount: report.warnings.length,
+    promotedClipIds: [...plan.effectiveAuthority.promotedClipIds],
   };
 }
 
@@ -82,19 +85,51 @@ const delta = (after: number, before: number): number => {
   return after - before;
 };
 
+function reconciledOptions(
+  project: ShowProject,
+  options: AnalyzeFullShowOptions,
+): AnalyzeFullShowOptions {
+  if (!options.reference) return options;
+  const context = {
+    assignmentStrategy: options.assignmentStrategy ?? "nearestNeighbor",
+    transitionOverrides: options.transitionOverrides ?? {},
+  };
+  const reconciled = reconcileReferenceLayer(
+    project,
+    options.reference.layer,
+    context,
+    PREVIEW_PROMOTION_TIME,
+  );
+  return {
+    ...options,
+    reference: {
+      show: options.reference.show,
+      layer: reconciled.layer,
+    },
+  };
+}
+
 /**
  * Runs two project states through the SAME canonical full-show validation path.
- * The inputs are never mutated. Callers are responsible for preparing the
- * candidate project/reference ownership that represents the proposed authoring
- * result; this function deliberately does not promote ESSP intervals itself.
+ * The inputs are never mutated.
+ *
+ * Imported ESSP projects are previewed honestly: their reference layer is
+ * reconciled independently against BEFORE and AFTER output signatures. A geometry
+ * change therefore hypothetically promotes exactly the same clip closure that a
+ * real authoring edit would promote, and the AFTER analysis judges that mixed
+ * effective show rather than accidentally hiding the proposal behind REFERENCE.
  */
 export function evaluateGeometryTrajectoryConsequence(
   beforeProject: ShowProject,
   afterProject: ShowProject,
   options: AnalyzeFullShowOptions = {},
 ): GeometryTrajectoryConsequenceReport {
-  const before = snapshot(analyzeFullShow(beforeProject, options));
-  const after = snapshot(analyzeFullShow(afterProject, options));
+  const beforeOptions = reconciledOptions(beforeProject, options);
+  const afterOptions = reconciledOptions(afterProject, options);
+  const before = snapshot(analyzeFullShow(beforeProject, beforeOptions));
+  const after = snapshot(analyzeFullShow(afterProject, afterOptions));
+  const prior = new Set(before.promotedClipIds);
+  const newlyPromotedClipIds = after.promotedClipIds.filter((id) => !prior.has(id));
   const candidateGeometryExercisedByPlanner =
     after.effectiveAuthorityKind === "PLANNER_ONLY" || after.plannerSeconds > 1e-9;
   return {
@@ -112,8 +147,9 @@ export function evaluateGeometryTrajectoryConsequence(
     },
     canonicalProfilePass: after.status !== "FAIL" && after.exportReadiness !== "BLOCKED",
     candidateGeometryExercisedByPlanner,
+    newlyPromotedClipIds,
     note:
-      "CANONICAL PIPELINE COMPARISON ONLY. The AFTER project was replanned and validated using the existing full-show authorities. Imported proposals must be evaluated with the intended edited interval promoted to planner ownership. A passing result is not a certification or authorisation to fly.",
+      "CANONICAL PIPELINE COMPARISON ONLY. Imported reference ownership is reconciled hypothetically from output signatures before each analysis, so edited intervals are judged by the same planner/reference rules as real authoring. A passing result is not a certification or authorisation to fly.",
   };
 }
 
