@@ -34,8 +34,8 @@ import {
 
 function twoObjectProject(): { project: ShowProject; clipId: string; a: string; b: string } {
   const base = createDemoProject(48);
-  const fa = makeFormation("f-a", "Left Wing", "grid", 24, base.area);
-  const fb = makeFormation("f-b", "Right Wing", "circle", 24, base.area);
+  const fa = makeFormation("f-a", "Left Wing", "grid", 12, base.area);
+  const fb = makeFormation("f-b", "Right Wing", "circle", 12, base.area);
   const withAssets: ShowProject = { ...base, formations: [...base.formations, fa, fb] };
   const clip = withAssets.timeline.find((c) => clipPhase(c) === "SHOW") ?? withAssets.timeline[0]!;
   let scene = emptyScene(clip.id, "Wings");
