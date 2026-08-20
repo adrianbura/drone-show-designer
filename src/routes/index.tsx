@@ -36,17 +36,36 @@ export const Route = createFileRoute("/")({
  * automatic height until the operator double-clicks the handle to release it.
  */
 const DOCK_MIN = 176;
+const VIEWPORT_MIN = 200;
+
 
 function TimelineDock() {
   const [desired, setDesired] = useState(DOCK_MIN);
   const [manual, setManual] = useState<number | null>(null);
   const dragRef = useRef<{ y: number; height: number } | null>(null);
 
-  const maxHeight = () =>
-    typeof window === "undefined" ? 520 : Math.max(DOCK_MIN, Math.round(window.innerHeight * 0.6));
+  // The 3D viewport must never be squeezed out: cap the dock so at least
+  // VIEWPORT_MIN px of viewport (plus the top bar) always remain visible.
+  const maxHeight = () => {
+    if (typeof window === "undefined") return 520;
+    const h = window.innerHeight;
+    const narrow = window.innerWidth < 1024;
+    const reserve = 64 + VIEWPORT_MIN + (narrow ? Math.round(h * 0.3) : 0);
+    return Math.max(DOCK_MIN, Math.min(Math.round(h * (narrow ? 0.35 : 0.6)), h - reserve));
+  };
   const height = Math.min(Math.max(manual ?? desired, DOCK_MIN), maxHeight());
 
+
+  // Re-clamp when the window (or preview pane) is resized.
+  const [, bumpResize] = useState(0);
   useEffect(() => {
+    const onResize = () => bumpResize((n) => n + 1);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
+
     const onMove = (e: PointerEvent) => {
       const drag = dragRef.current;
       if (!drag) return;
@@ -102,11 +121,11 @@ function StudioPage() {
       <main className="flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">
         <h1 className="sr-only">Drone Show Studio — drone light show design and simulation</h1>
         <TopBar />
-        <div className="flex min-h-0 flex-1">
-          <aside className="hidden w-[300px] shrink-0 border-r border-border bg-panel lg:block">
+        <div className="flex min-h-[200px] flex-1 shrink-0">
+          <aside className="hidden w-[300px] shrink-0 overflow-y-auto border-r border-border bg-panel lg:block">
             <LeftPanel />
           </aside>
-          <div className="relative min-w-0 flex-1 bg-surface-sunken">
+          <div className="relative min-h-[200px] min-w-0 flex-1 bg-surface-sunken">
             <ClientOnly fallback={<ViewportFallback />}>
               <Suspense fallback={<ViewportFallback />}>
                 <Viewport3D />
@@ -116,12 +135,13 @@ function StudioPage() {
               show frame · metres · +Y up
             </div>
           </div>
-          <aside className="hidden w-[320px] shrink-0 border-l border-border bg-panel xl:block">
+          <aside className="hidden w-[320px] shrink-0 overflow-y-auto border-l border-border bg-panel xl:block">
             <Inspector />
           </aside>
         </div>
         <TimelineDock />
-        <div className="max-h-[45vh] overflow-y-auto border-t border-border lg:hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto border-t border-border lg:hidden">
+
           <LeftPanel />
           <Inspector />
         </div>
