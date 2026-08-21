@@ -1,27 +1,47 @@
 /**
- * GEOMETRY PROPOSAL — BEFORE / AFTER REVIEW UI. DESIGN PREVIEW ONLY.
+ * GEOMETRY PROPOSAL — BEFORE / AFTER + CANONICAL CONSEQUENCE REVIEW UI.
  *
- * Consumes the canonical read-only optimizer (`optimizeProjectionPreservingStackProposal`)
- * and comparison model. No staggering logic lives in React, nothing is written
- * to project state, and there is intentionally NO apply command.
+ * Every number shown here comes from a canonical read-only authority:
+ * `optimizeProjectionPreservingStackProposal`, `compareGeometryProposal`,
+ * `analyzeGeometryProposalConsequences`, `evaluateGeometryTrajectoryConsequence`
+ * and `evaluateGeometryApplyReadiness`. No geometry, safety or readiness policy
+ * is re-implemented in React, the viewpoint comes from the SHARED Audience View
+ * authority, and there is intentionally NO apply mutation in this pass.
  */
 import { useEffect, useMemo, useState } from "react";
 import { Info, Sparkles } from "lucide-react";
 
 import {
+  CONSEQUENCE_WORDING,
   GEOMETRY_PROPOSAL_DEFAULTS,
   GEOMETRY_PROPOSAL_WORDING,
+  SCENE_MATERIALISER_MISSING_MESSAGE,
   VERTICAL_STACK_ANALYSIS_DEFAULTS,
+  analyzeGeometryProposalConsequences,
+  applyActionMessage,
   buildGeometryProposalPreview,
   buildGeometryProposalSummary,
+  buildStaticPreflightRows,
+  buildTrajectoryConsequenceRows,
   compareGeometryProposal,
+  evaluateGeometryApplyReadiness,
+  evaluateGeometryTrajectoryConsequence,
   explainProposalCandidates,
   optimizeProjectionPreservingStackProposal,
+  projectWithFormationPoints,
   proposedPointsOf,
-  type AudienceView,
+  resolveProposalMaterialisation,
+  staticPreflightVerdict,
+  type ConsequenceRow,
+  type GeometryTrajectoryConsequenceReport,
   type ProposalPreviewMode,
 } from "@/lib/show/diagnostics";
 import type { Vector3Tuple } from "@/lib/show/types";
+import {
+  audienceViewOf,
+  setAudienceViewSettings,
+  useAudienceViewSettings,
+} from "@/lib/studio/audienceView";
 import { setGeometryProposalPreview } from "@/lib/studio/geometryProposalPreview";
 import { useStudio } from "@/lib/studio/store";
 
@@ -55,12 +75,39 @@ function NumberField({
   );
 }
 
-export default function GeometryProposalPanel() {
-  const { samplesAtTime, time } = useStudio();
+function EvidenceRows({ rows, testId }: { rows: readonly ConsequenceRow[]; testId: string }) {
+  return (
+    <ul className="space-y-[2px] pt-1 font-mono text-[10px]" data-testid={testId}>
+      {rows.map((row) => (
+        <li key={row.label} className="grid grid-cols-[1fr_auto_auto] items-baseline gap-x-2">
+          <span className="uppercase tracking-[0.12em] text-muted-foreground">{row.label}</span>
+          <span className="text-right text-muted-foreground">{row.before} →</span>
+          <span
+            className={`text-right ${
+              row.emphasis === "bad"
+                ? "text-destructive"
+                : row.emphasis === "warn"
+                  ? "text-warning"
+                  : row.emphasis === "good"
+                    ? "text-foreground"
+                    : "text-muted-foreground"
+            }`}
+          >
+            {row.after}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
-  const [distance, setDistance] = useState(150);
-  const [eyeHeight, setEyeHeight] = useState(1.7);
-  const [targetHeight, setTargetHeight] = useState(60);
+export default function GeometryProposalPanel() {
+  const { samplesAtTime, time, project, fullShowAnalysisOptions, analysisRevision } = useStudio();
+
+  // SHARED viewpoint authority — no local distance/eye/target state here.
+  const audience = useAudienceViewSettings();
+
+  // Proposal-specific settings stay local by design.
   const [horizontal, setHorizontal] = useState<number>(
     VERTICAL_STACK_ANALYSIS_DEFAULTS.horizontalThresholdMeters,
   );
@@ -71,18 +118,15 @@ export default function GeometryProposalPanel() {
   const [mode, setMode] = useState<ProposalPreviewMode>("OVERLAY");
   const [ghost, setGhost] = useState(false);
   const [showCandidates, setShowCandidates] = useState(false);
+  const [acknowledgePromotion, setAcknowledgePromotion] = useState(false);
 
   const points = useMemo<Vector3Tuple[]>(
     () => samplesAtTime(time).map((s) => s.position as Vector3Tuple),
     [samplesAtTime, time],
   );
 
-  const view = useMemo<AudienceView>(
-    () => ({ viewer: [0, eyeHeight, -Math.abs(distance)], target: [0, targetHeight, 0] }),
-    [distance, eyeHeight, targetHeight],
-  );
+  const view = useMemo(() => audienceViewOf(audience), [audience]);
 
-  // Memoised by points + viewpoint + thresholds + proposal options.
   const result = useMemo(() => {
     if (points.length < 2) return null;
     try {
@@ -119,6 +163,87 @@ export default function GeometryProposalPanel() {
   );
   const candidates = useMemo(() => (result ? explainProposalCandidates(result) : []), [result]);
 
+  // STATIC preflight is cheap and stays instant.
+  const staticPreflight = useMemo(
+    () =>
+      proposed.length
+        ? analyzeGeometryProposalConsequences({
+            before: points,
+            after: proposed,
+            area: project.area,
+            limits: project.limits,
+          })
+        : null,
+    [points, proposed, project.area, project.limits],
+  );
+
+  // Which hypothetical project can honestly be materialised for this proposal.
+  const materialisation = useMemo(
+    () => (proposed.length ? resolveProposalMaterialisation(project, time, proposed.length) : null),
+    [project, time, proposed.length],
+  );
+
+  /**
+   * STALE-EVIDENCE KEY. Any change to viewpoint, proposal settings, frame or the
+   * canonical analysis inputs invalidates previously computed trajectory
+   * evidence, so an old READY can never be shown as current.
+   */
+  const evidenceKey = useMemo(
+    () =>
+      [
+        analysisRevision,
+        time.toFixed(3),
+        audience.distanceMeters,
+        audience.eyeHeightMeters,
+        audience.targetHeightMeters,
+        horizontal,
+        vertical,
+        cap,
+      ].join("|"),
+    [analysisRevision, time, audience, horizontal, vertical, cap],
+  );
+
+  const [evidence, setEvidence] = useState<{
+    key: string;
+    report: GeometryTrajectoryConsequenceReport | null;
+    error: string | null;
+  } | null>(null);
+  const [evaluating, setEvaluating] = useState(false);
+
+  const stale = !!evidence && evidence.key !== evidenceKey;
+  const trajectory = evidence && !stale ? evidence.report : null;
+
+  const readiness = useMemo(
+    () =>
+      evaluateGeometryApplyReadiness({
+        staticPreflight,
+        trajectory,
+        importedPromotionAcknowledged: acknowledgePromotion,
+      }),
+    [staticPreflight, trajectory, acknowledgePromotion],
+  );
+
+  // Explicit evaluation only: the canonical full-show path is expensive and must
+  // never run per render or per animation frame.
+  const evaluate = () => {
+    if (!materialisation || materialisation.kind !== "FORMATION" || !proposed.length) return;
+    setEvaluating(true);
+    const key = evidenceKey;
+    try {
+      const hypothetical = projectWithFormationPoints(project, materialisation.formationId, proposed);
+      const report = evaluateGeometryTrajectoryConsequence(
+        project,
+        hypothetical,
+        fullShowAnalysisOptions,
+      );
+      setEvidence({ key, report, error: null });
+    } catch (err) {
+      setEvidence({ key, report: null, error: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setEvaluating(false);
+    }
+  };
+
   // Ghost preview is ephemeral diagnostic state, never project state.
   useEffect(() => {
     setGeometryProposalPreview(
@@ -128,6 +253,7 @@ export default function GeometryProposalPanel() {
   }, [ghost, points, proposed]);
 
   const scale = preview ? 260 / Math.max(preview.box.width, preview.box.height) : 1;
+  const promoted = trajectory?.newlyPromotedClipIds ?? [];
 
   return (
     <section className="panel-card" data-testid="geometry-proposal">
@@ -144,14 +270,29 @@ export default function GeometryProposalPanel() {
         untouched.
       </p>
 
+      <p className="pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        Shared representative viewpoint
+      </p>
       <div className="grid grid-cols-3 gap-2 pb-2">
-        <NumberField label="dist (m)" value={distance} step={10} onChange={setDistance} testId="gp-distance" />
-        <NumberField label="eye (m)" value={eyeHeight} step={0.1} onChange={setEyeHeight} testId="gp-eye" />
+        <NumberField
+          label="dist (m)"
+          value={audience.distanceMeters}
+          step={10}
+          onChange={(v) => setAudienceViewSettings({ distanceMeters: v })}
+          testId="gp-distance"
+        />
+        <NumberField
+          label="eye (m)"
+          value={audience.eyeHeightMeters}
+          step={0.1}
+          onChange={(v) => setAudienceViewSettings({ eyeHeightMeters: v })}
+          testId="gp-eye"
+        />
         <NumberField
           label="target Y (m)"
-          value={targetHeight}
+          value={audience.targetHeightMeters}
           step={5}
-          onChange={setTargetHeight}
+          onChange={(v) => setAudienceViewSettings({ targetHeightMeters: v })}
           testId="gp-target"
         />
         <NumberField
@@ -215,24 +356,17 @@ export default function GeometryProposalPanel() {
             {comparison.candidatePairsAfter} candidate pairs at this frame. Canonical
             SafetyValidator is untouched and unchanged by this preview.
           </p>
-          <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground" data-testid="gp-silhouette">
-            {GEOMETRY_PROPOSAL_WORDING.silhouette} — viewer [{view.viewer.map((v) => v.toFixed(1)).join(", ")}]
-            → target [{view.target.map((v) => v.toFixed(1)).join(", ")}]. Max apparent error{" "}
-            {comparison.maxAudienceImageDriftMeters.toFixed(3)} m, RMS{" "}
-            {comparison.rmsAudienceImageDriftMeters.toFixed(3)} m. Other audience positions are not
-            evaluated.
-          </p>
 
-          <div className="flex gap-1 pt-2" role="group" aria-label="Proposal preview mode">
-            {MODES.map((mo) => (
+          <div className="flex gap-1 pt-2">
+            {MODES.map((m) => (
               <button
-                key={mo}
-                onClick={() => setMode(mo)}
-                aria-pressed={mode === mo}
-                className={`chip-btn flex-1 justify-center ${mode === mo ? "chip-btn-active" : ""}`}
-                data-testid={`gp-mode-${mo.toLowerCase()}`}
+                key={m}
+                onClick={() => setMode(m)}
+                className={`chip-btn flex-1 justify-center ${mode === m ? "chip-btn-active" : ""}`}
+                aria-pressed={mode === m}
+                data-testid={`gp-mode-${m.toLowerCase()}`}
               >
-                {mo}
+                {m}
               </button>
             ))}
           </div>
@@ -240,11 +374,9 @@ export default function GeometryProposalPanel() {
           {preview ? (
             <svg
               viewBox={`${preview.box.minX} ${-(preview.box.minY + preview.box.height)} ${preview.box.width} ${preview.box.height}`}
-              className="mt-2 w-full rounded border border-border/60 bg-background/60"
+              className="mt-2 w-full rounded-sm bg-black/30"
               style={{ aspectRatio: `${preview.box.width} / ${preview.box.height}` }}
-              data-testid="geometry-proposal-preview"
-              role="img"
-              aria-label={`Audience-viewpoint ${mode} preview of the geometry proposal`}
+              data-testid="gp-preview"
             >
               <g transform="scale(1,-1)">
                 {mode !== "AFTER" &&
@@ -327,6 +459,130 @@ export default function GeometryProposalPanel() {
             </ul>
           ) : null}
 
+          {/* ---- STATIC PREFLIGHT ---- */}
+          {staticPreflight ? (
+            <div className="mt-3 border-t border-border/60 pt-2" data-testid="gp-static-preflight">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground">
+                {CONSEQUENCE_WORDING.staticHeader}
+              </p>
+              <EvidenceRows rows={buildStaticPreflightRows(staticPreflight)} testId="gp-static-rows" />
+              <p
+                className={`pt-1 font-mono text-[10px] font-semibold ${
+                  staticPreflightVerdict(staticPreflight) === "PASS" ? "text-foreground" : "text-destructive"
+                }`}
+                data-testid="gp-static-verdict"
+              >
+                {staticPreflightVerdict(staticPreflight)}
+              </p>
+              <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground">
+                {CONSEQUENCE_WORDING.staticScope}
+              </p>
+            </div>
+          ) : null}
+
+          {/* ---- TRAJECTORY CONSEQUENCE ---- */}
+          <div className="mt-3 border-t border-border/60 pt-2" data-testid="gp-trajectory">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground">
+              {CONSEQUENCE_WORDING.trajectoryHeader}
+            </p>
+            {materialisation && materialisation.kind === "UNAVAILABLE" ? (
+              <p className="pt-1 text-[10px] leading-relaxed text-warning" data-testid="gp-trajectory-unavailable">
+                {SCENE_MATERIALISER_MISSING_MESSAGE}. {materialisation.reason}
+              </p>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={evaluate}
+                  disabled={evaluating}
+                  className="chip-btn mt-1 w-full justify-center"
+                  data-testid="gp-evaluate"
+                >
+                  {evaluating ? "Evaluating…" : "Evaluate trajectory consequences"}
+                </button>
+                {stale ? (
+                  <p className="pt-1 text-[10px] leading-relaxed text-warning" data-testid="gp-stale">
+                    {CONSEQUENCE_WORDING.staleEvidence}
+                  </p>
+                ) : null}
+                {evidence && !stale && evidence.error ? (
+                  <p className="pt-1 font-mono text-[10px] text-destructive" data-testid="gp-trajectory-error">
+                    {evidence.error}
+                  </p>
+                ) : null}
+                {trajectory ? (
+                  <>
+                    <EvidenceRows
+                      rows={buildTrajectoryConsequenceRows(trajectory)}
+                      testId="gp-trajectory-rows"
+                    />
+                    <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground">
+                      {CONSEQUENCE_WORDING.trajectoryScope}
+                    </p>
+                  </>
+                ) : null}
+              </>
+            )}
+          </div>
+
+          {/* ---- IMPORTED OWNERSHIP CHANGE ---- */}
+          {promoted.length ? (
+            <div className="mt-3 border-t border-border/60 pt-2" data-testid="gp-ownership">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-warning">
+                {CONSEQUENCE_WORDING.ownershipHeader}
+              </p>
+              <p className="pt-1 font-mono text-[10px] text-foreground">
+                REFERENCE → PLANNER: {promoted.join(", ")}
+              </p>
+              <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground">
+                {CONSEQUENCE_WORDING.ownershipExplain}
+              </p>
+              <label className="flex items-center gap-2 pt-1 text-[10px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={acknowledgePromotion}
+                  onChange={(e) => setAcknowledgePromotion(e.target.checked)}
+                  data-testid="gp-ack-promotion"
+                />
+                Acknowledge imported output ownership change
+              </label>
+            </div>
+          ) : null}
+
+          {/* ---- APPLY READINESS ---- */}
+          <div className="mt-3 border-t border-border/60 pt-2" data-testid="gp-readiness">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground">
+              {CONSEQUENCE_WORDING.readinessHeader}
+            </p>
+            <p
+              className={`pt-1 font-mono text-[10px] font-semibold ${
+                readiness.status === "READY"
+                  ? "text-foreground"
+                  : readiness.status === "WARNING"
+                    ? "text-warning"
+                    : "text-destructive"
+              }`}
+              data-testid="gp-readiness-status"
+            >
+              {readiness.status}
+            </p>
+            {readiness.blockers.length ? (
+              <ul className="pt-1 text-[10px] leading-relaxed text-destructive" data-testid="gp-blockers">
+                {readiness.blockers.map((b) => (
+                  <li key={b}>• {b}</li>
+                ))}
+              </ul>
+            ) : null}
+            {readiness.warnings.length ? (
+              <ul className="pt-1 text-[10px] leading-relaxed text-warning" data-testid="gp-warnings">
+                {readiness.warnings.map((w) => (
+                  <li key={w}>• {w}</li>
+                ))}
+              </ul>
+            ) : null}
+            <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground">{readiness.note}</p>
+          </div>
+
           <button
             type="button"
             disabled
@@ -334,7 +590,7 @@ export default function GeometryProposalPanel() {
             className="chip-btn mt-2 w-full cursor-not-allowed justify-center opacity-50"
             data-testid="gp-apply-disabled"
           >
-            {GEOMETRY_PROPOSAL_WORDING.applyDisabled}
+            {applyActionMessage(readiness)}
           </button>
         </>
       ) : null}
