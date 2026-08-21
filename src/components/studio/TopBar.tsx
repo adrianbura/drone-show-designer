@@ -1,4 +1,4 @@
-import { Activity, FolderOpen, Heart, Keyboard, Radio, Save, Settings2, Sparkles } from "lucide-react";
+import { Activity, FolderOpen, Keyboard, Radio, Save, Settings2, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { useI18n } from "@/i18n";
@@ -31,7 +31,6 @@ export default function TopBar() {
     autosaveRecovery,
     restoreAutosave,
     dismissAutosave,
-    loadStoryShow,
   } = useStudio();
   const { t, language, setLanguage } = useI18n();
   const [wizard, setWizard] = useState<"CREATE" | "EDIT" | null>(null);
@@ -73,14 +72,6 @@ export default function TopBar() {
           className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
         >
           <Settings2 className="size-3" /> {t("topBar.showSetup")}
-        </button>
-        <button
-          type="button"
-          onClick={() => loadStoryShow()}
-          title="Load the authored wedding story show (Two Hearts, One Sky)"
-          className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
-        >
-          <Heart className="size-3" /> Story show
         </button>
         <button
           type="button"
