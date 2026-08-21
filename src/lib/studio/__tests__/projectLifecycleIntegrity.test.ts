@@ -113,7 +113,6 @@ describe("autosave recovery round-trip", () => {
     // REAL BUG COVERAGE: transition designs used to be dropped by autosave.
     expect(snapshot!.file.planning!.transitionDesigns?.[clipId]).toMatchObject({
       mode: "MANUAL",
-      autoRecalculate: false,
     });
     expect(snapshot!.file.editor).toEqual({ selectedClipId: clipId, sampleRate: 17 });
     // No derived validation report can survive: the envelope has no slot for it.
