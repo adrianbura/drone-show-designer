@@ -143,6 +143,67 @@ describe("scene geometry proposal materialization", () => {
     resolved.forEach((point, index) => expectPointClose(point, proposed[index]!, 7));
   });
 
+  it("reuses an unshared scene-owned derived id on repeated proposals and keeps root provenance", () => {
+    const { project, scene } = sceneProject();
+    const originalSourceId =
+      scene.objects[0]!.source.kind === "STATIC" ? scene.objects[0]!.source.formationId : "";
+    const firstProposal = proposal(resolveSceneAt(project, scene).points);
+    const first = materializeStaticSceneGeometryProposal(project, scene.id, firstProposal);
+    expect(first.ok).toBe(true);
+    const firstId = first.derivedFormationId!;
+    const firstCount = first.project.formations.length;
+    const firstScene = first.project.scenes!.find((candidate) => candidate.id === scene.id)!;
+
+    const secondProposal = proposal(resolveSceneAt(first.project, firstScene).points);
+    const second = materializeStaticSceneGeometryProposal(first.project, scene.id, secondProposal);
+    expect(second.ok).toBe(true);
+    expect(second.derivedFormationId).toBe(firstId);
+    expect(second.project.formations).toHaveLength(firstCount);
+
+    const derived = second.project.formations.find((formation) => formation.id === firstId)!;
+    expect(derived.params?.derivedFromFormationId).toBe(originalSourceId);
+    expect(derived.params?.rootFormationId).toBe(originalSourceId);
+    expect(derived.params?.derivedForSceneId).toBe(scene.id);
+    expect(derived.params?.derivedForObjectId).toBe(scene.objects[0]!.id);
+    expect(derived.name.match(/geometry proposal/g)).toHaveLength(1);
+
+    const secondScene = second.project.scenes!.find((candidate) => candidate.id === scene.id)!;
+    const resolved = resolveSceneAt(second.project, secondScene).points;
+    resolved.forEach((point, index) => expectPointClose(point, secondProposal[index]!, 7));
+  });
+
+  it("does not reuse a derived id that another scene references", () => {
+    const { project, scene } = sceneProject();
+    const first = materializeStaticSceneGeometryProposal(
+      project,
+      scene.id,
+      proposal(resolveSceneAt(project, scene).points),
+    );
+    expect(first.ok).toBe(true);
+    const sharedId = first.derivedFormationId!;
+    const firstScene = first.project.scenes!.find((candidate) => candidate.id === scene.id)!;
+    const shadowScene: FormationScene = {
+      ...firstScene,
+      id: `${scene.id}-shadow`,
+      objects: firstScene.objects.map((object, index) => ({
+        ...object,
+        id: `${object.id}-shadow-${index}`,
+      })),
+    };
+    const shared: ShowProject = {
+      ...first.project,
+      scenes: [...(first.project.scenes ?? []), shadowScene],
+    };
+    const nextProposal = proposal(resolveSceneAt(shared, firstScene).points);
+    const second = materializeStaticSceneGeometryProposal(shared, scene.id, nextProposal);
+    expect(second.ok).toBe(true);
+    expect(second.derivedFormationId).not.toBe(sharedId);
+    expect(second.project.formations.some((formation) => formation.id === sharedId)).toBe(true);
+    expect(
+      second.project.scenes!.find((candidate) => candidate.id === shadowScene.id)!.objects[0]!.source,
+    ).toEqual({ kind: "STATIC", formationId: sharedId });
+  });
+
   it("blocks dynamic objects and point-count mismatch", () => {
     const { project, scene } = sceneProject();
     const dynamicScene: FormationScene = {
