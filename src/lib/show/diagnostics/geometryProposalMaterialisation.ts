@@ -10,7 +10,8 @@
  *
  * This module never mutates the project and never applies anything.
  */
-import { isCompositeScene } from "../scene/migrate";
+import { isCompositeScene, projectScene } from "../scene/migrate";
+import { resolveSceneAt } from "../scene/resolve";
 import { activeClipAt } from "../timeline";
 import type { ShowProject } from "../types";
 
@@ -21,10 +22,26 @@ export type ProposalMaterialisation =
       readonly formationId: string;
       readonly pointCount: number;
     }
+  | {
+      readonly kind: "SCENE";
+      readonly clipId: string;
+      readonly sceneId: string;
+      readonly objectCount: number;
+      readonly pointCount: number;
+    }
   | { readonly kind: "UNAVAILABLE"; readonly reason: string };
 
 export const SCENE_MATERIALISER_MISSING_MESSAGE =
   "Full trajectory consequence preview unavailable for this scene representation";
+
+export const DYNAMIC_SCENE_UNAVAILABLE_MESSAGE =
+  "Trajectory consequence preview unavailable: dynamic scene geometry requires time-aware materialisation.";
+
+export const DERIVED_ASSET_DISCLOSURE =
+  "Preview creates derived project-owned geometry for this scene only. Reusable source formation assets remain unchanged.";
+
+export const SUBSAMPLED_DISCLOSURE =
+  "Only the points participating in this scene are materialised into the derived geometry.";
 
 export function resolveProposalMaterialisation(
   project: ShowProject,
@@ -42,17 +59,46 @@ export function resolveProposalMaterialisation(
     };
   }
   if (clip.dynamicFormationId) {
-    return {
-      kind: "UNAVAILABLE",
-      reason: `${SCENE_MATERIALISER_MISSING_MESSAGE} (dynamic formation hold).`,
-    };
+    return { kind: "UNAVAILABLE", reason: DYNAMIC_SCENE_UNAVAILABLE_MESSAGE };
   }
+
+  // Authored composite scene: the canonical static scene materialiser can honestly
+  // round-trip world-space geometry when EVERY object is STATIC.
   if (isCompositeScene(project, clip)) {
+    const scene = projectScene(project, clip.id);
+    if (!scene) {
+      return {
+        kind: "UNAVAILABLE",
+        reason: `${SCENE_MATERIALISER_MISSING_MESSAGE} (scene not found).`,
+      };
+    }
+    if (scene.objects.some((object) => object.source.kind !== "STATIC")) {
+      return { kind: "UNAVAILABLE", reason: DYNAMIC_SCENE_UNAVAILABLE_MESSAGE };
+    }
+    let resolvedCount: number;
+    try {
+      resolvedCount = resolveSceneAt(project, scene).points.length;
+    } catch {
+      return {
+        kind: "UNAVAILABLE",
+        reason: `${SCENE_MATERIALISER_MISSING_MESSAGE} (scene geometry could not be resolved).`,
+      };
+    }
+    if (resolvedCount !== proposedPointCount) {
+      return {
+        kind: "UNAVAILABLE",
+        reason: `Proposal covers ${proposedPointCount} point(s) but the scene resolves ${resolvedCount}.`,
+      };
+    }
     return {
-      kind: "UNAVAILABLE",
-      reason: `${SCENE_MATERIALISER_MISSING_MESSAGE} (composed multi-object scene).`,
+      kind: "SCENE",
+      clipId: clip.id,
+      sceneId: scene.id,
+      objectCount: scene.objects.length,
+      pointCount: proposedPointCount,
     };
   }
+
   const formation = project.formations.find((f) => f.id === clip.formationId);
   if (!formation) {
     return { kind: "UNAVAILABLE", reason: "The clip's formation could not be resolved." };
@@ -70,3 +116,4 @@ export function resolveProposalMaterialisation(
     pointCount: proposedPointCount,
   };
 }
+
