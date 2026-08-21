@@ -19,6 +19,11 @@ import {
 import { createDefaultProject } from "../show/defaultProject";
 import { invalidateDerivedAnalysis, type DerivedAnalysisSetters } from "./derivedAnalysis";
 import {
+  createAsyncJobAuthority,
+  createProjectSessionAuthority,
+  invalidateProjectSessionJobs,
+} from "./asyncJobAuthority";
+import {
   resetProjectSessionState,
   type ProjectSessionResetSetters,
 } from "./projectLifecycle";
@@ -1233,7 +1238,22 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
   const [selectedForensicSegmentId, setSelectedForensicSegmentId] = useState<string | null>(null);
   const [showForensicActiveDrones, setShowForensicActiveDrones] = useState(true);
-  const forensicsRunRef = useRef(0);
+  /**
+   * PROJECT-SESSION ASYNC AUTHORITY (see ./asyncJobAuthority).
+   *
+   * One session generation for the whole Studio, advanced ONLY by a successful
+   * project adoption, plus one authority per async subsystem so "newest request
+   * wins" and "still the current document" are decided in one place. Refs, not
+   * state: no rerender is caused by async bookkeeping.
+   */
+  const projectSession = useRef(createProjectSessionAuthority());
+  const forensicsJobs = useRef(createAsyncJobAuthority());
+  const audioJobs = useRef(createAsyncJobAuthority());
+  const svgJobs = useRef(createAsyncJobAuthority());
+  const esspJobs = useRef(createAsyncJobAuthority());
+  const aiJobs = useRef(createAsyncJobAuthority());
+  /** Session-only scope (identity of the open document, nothing else). */
+  const sessionScope = useCallback(() => projectSession.current.scope(), []);
 
   // Pure engine pipeline: formations -> assignment -> planning -> sampling -> safety.
   const plan = useMemo(
@@ -1446,11 +1466,19 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     muted: audioMuted,
   });
 
+  /**
+   * SESSION-SCOPED DECODE. The decoded buffer, peaks and audio metadata may only
+   * be installed when this decode is still the newest one AND the document it
+   * started under is still open. A late failure is rejected on the same terms,
+   * and busy is only released by the decode that currently owns it.
+   */
   const attachAudioFile = useCallback(async (file: File) => {
+    const token = audioJobs.current.begin(sessionScope());
     setAudioBusy(true);
     setAudioError(null);
     try {
       const decoded = await decodeAudioFile(file);
+      if (!audioJobs.current.accepts(token, sessionScope())) return;
       audioBufferRef.current = decoded.buffer;
       setAudioPeaks(decoded.peaks);
       setProject((p) => ({
@@ -1458,15 +1486,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         audio: { ...p.audio, name: decoded.name, duration: decoded.duration, attached: true },
       }));
     } catch (err) {
+      if (!audioJobs.current.accepts(token, sessionScope())) return;
       audioBufferRef.current = null;
       setAudioPeaks(null);
       setAudioError(err instanceof Error ? err.message : String(err));
     } finally {
-      setAudioBusy(false);
+      if (audioJobs.current.isCurrent(token)) setAudioBusy(false);
     }
-  }, []);
+  }, [sessionScope]);
 
   const detachAudioFile = useCallback(() => {
+    audioJobs.current.invalidate();
     audioBufferRef.current = null;
     setAudioPeaks(null);
     setAudioError(null);
@@ -1677,10 +1707,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const importSvg = useCallback(
     async (file: File) => {
+      const token = svgJobs.current.begin(sessionScope());
       setSvgBusy(true);
       setSvgError(null);
       try {
         const asset = await importSvgFile(file, { assetId: nextId("svg") });
+        if (!svgJobs.current.accepts(token, sessionScope())) return;
         setSvgAssets((m) => ({ ...m, [asset.id]: asset }));
         const params = resolveSvgParams(project.droneCount, {
           altitude: Math.min(project.area.height * 0.55, 60),
@@ -1688,13 +1720,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         });
         setSvgDraft(regenerateDraft(asset, params, project));
       } catch (err) {
+        if (!svgJobs.current.accepts(token, sessionScope())) return;
         setSvgError(toSvgFormationError(err));
         setSvgDraft(null);
       } finally {
-        setSvgBusy(false);
+        if (svgJobs.current.isCurrent(token)) setSvgBusy(false);
       }
     },
-    [project, regenerateDraft],
+    [project, regenerateDraft, sessionScope],
   );
 
   const updateSvgDraft = useCallback(
@@ -3371,7 +3404,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
 
   // ---- ESSP reference import (read-only) --------------------------------
+  /**
+   * SESSION-SCOPED ESSP IMPORT. Reading bytes, unzipping and building the
+   * reference show are all async, so nothing this run produces — show, playback
+   * authority, forensics reset, diagnostics or the failure — may be installed
+   * once another document has been adopted. The import never adopts a project
+   * itself: extraction into the timeline is a separate, synchronous authored
+   * action performed afterwards, so the token can never cancel valid work.
+   */
   const importEsspFiles = useCallback(async (files: File[]) => {
+    const token = esspJobs.current.begin(sessionScope());
     setReferenceBusy(true);
     setReferenceError(null);
     try {
@@ -3386,7 +3428,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         }
       }
       const show = await buildReferenceShow(sources);
-      forensicsRunRef.current += 1;
+      if (!esspJobs.current.accepts(token, sessionScope())) return;
+      forensicsJobs.current.invalidate();
       setForensicsReport(null);
       setForensicsError(null);
       setSelectedForensicSegmentId(null);
@@ -3394,6 +3437,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setReferencePlayback(true);
       setSelectedReferenceDroneId(show.drones[0]?.sourceId ?? null);
     } catch (err) {
+      if (!esspJobs.current.accepts(token, sessionScope())) return;
       setReferenceShow(null);
       setReferencePlayback(false);
       setReferenceError({
@@ -3401,16 +3445,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         message: err instanceof Error ? err.message : String(err),
       });
     } finally {
-      setReferenceBusy(false);
+      if (esspJobs.current.isCurrent(token)) setReferenceBusy(false);
     }
-  }, []);
+  }, [sessionScope]);
 
   const clearReferenceShow = useCallback(() => {
+    esspJobs.current.invalidate();
     setReferenceShow(null);
     setReferencePlayback(false);
     setReferenceError(null);
     setSelectedReferenceDroneId(null);
-    forensicsRunRef.current += 1;
+    forensicsJobs.current.invalidate();
     setForensicsReport(null);
     setForensicsError(null);
     setSelectedForensicSegmentId(null);
@@ -3418,7 +3463,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   // ---- Reference forensics (derived, read-only) --------------------------
   const clearForensics = useCallback(() => {
-    forensicsRunRef.current += 1;
+    forensicsJobs.current.invalidate();
     setForensicsReport(null);
     setForensicsError(null);
     setForensicsBusy(false);
@@ -3437,14 +3482,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   const cancelReferenceAnalysis = useCallback(() => {
-    forensicsRunRef.current += 1;
+    forensicsJobs.current.invalidate();
     setForensicsBusy(false);
   }, []);
 
   const analyzeReferenceMotion = useCallback(() => {
     const show = referenceShow;
     if (!show) return;
-    const run = ++forensicsRunRef.current;
+    const token = forensicsJobs.current.begin(sessionScope());
     setForensicsBusy(true);
     setForensicsError(null);
     // Deferred so the busy state paints before the (pure, synchronous) analysis.
@@ -3453,16 +3498,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         const report = analyzeReferenceShow(show, {
           preset: forensicsPreset,
           thresholds: forensicsThresholds,
-          shouldCancel: () => forensicsRunRef.current !== run,
+          shouldCancel: () => !forensicsJobs.current.isCurrent(token),
         });
-        if (forensicsRunRef.current !== run) return;
+        if (!forensicsJobs.current.accepts(token, sessionScope())) return;
         setForensicsReport(report);
         setSelectedForensicSegmentId(report.segments[0]?.id ?? null);
       } catch (err) {
-        if (forensicsRunRef.current !== run) return;
+        if (!forensicsJobs.current.accepts(token, sessionScope())) return;
         setForensicsError(err instanceof Error ? err.message : String(err));
       } finally {
-        if (forensicsRunRef.current === run) setForensicsBusy(false);
+        if (forensicsJobs.current.isCurrent(token)) setForensicsBusy(false);
       }
     }, 30);
   }, [referenceShow, forensicsPreset, forensicsThresholds]);
@@ -3833,7 +3878,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       applyReferenceExtraction(show, forensicsReport);
       return;
     }
-    const run = ++forensicsRunRef.current;
+    const token = forensicsJobs.current.begin(sessionScope());
     setForensicsBusy(true);
     setForensicsError(null);
     setTimeout(() => {
@@ -3841,19 +3886,19 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         const report = analyzeReferenceShow(show, {
           preset: forensicsPreset,
           thresholds: forensicsThresholds,
-          shouldCancel: () => forensicsRunRef.current !== run,
+          shouldCancel: () => !forensicsJobs.current.isCurrent(token),
         });
-        if (forensicsRunRef.current !== run) return;
+        if (!forensicsJobs.current.accepts(token, sessionScope())) return;
         setForensicsReport(report);
         setSelectedForensicSegmentId(report.segments[0]?.id ?? null);
         applyReferenceExtraction(show, report);
       } catch (err) {
-        if (forensicsRunRef.current !== run) return;
+        if (!forensicsJobs.current.accepts(token, sessionScope())) return;
         const message = err instanceof Error ? err.message : String(err);
         setForensicsError(message);
         setReferenceExtractionError({ code: "ANALYSIS_FAILED", message });
       } finally {
-        if (forensicsRunRef.current === run) setForensicsBusy(false);
+        if (forensicsJobs.current.isCurrent(token)) setForensicsBusy(false);
       }
     }, 30);
   }, [
@@ -4061,6 +4106,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         };
       }
     }
+    // ONE PLACE: the successful adoption advances the project-session generation
+    // and cancels every subsystem authority, so no in-flight audio decode, SVG
+    // import, ESSP import, forensics run or AI request from the replaced
+    // document can install state (or an error) into the new one.
+    invalidateProjectSessionJobs(projectSession.current, [
+      audioJobs.current,
+      svgJobs.current,
+      esspJobs.current,
+      forensicsJobs.current,
+      aiJobs.current,
+    ]);
     setProject(next);
     sessionResetRef.current();
     setReferenceExtractionError(null);
@@ -4335,8 +4391,26 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [project.droneCount],
   );
 
+  /**
+   * AI SCOPE. A proposal depends on the open document AND on the design inputs
+   * it was generated for (fleet count, area, seed). Revalidating an old answer
+   * against different inputs and calling it current would be a lie, so those
+   * inputs are part of the acceptance scope.
+   */
+  const aiScope = useCallback(
+    () =>
+      projectSession.current.scope(
+        project.droneCount,
+        project.area.width,
+        project.area.height,
+        project.seed,
+      ),
+    [project.droneCount, project.area.width, project.area.height, project.seed],
+  );
+
   const generateAiProposal = useCallback(
     async (prompt: string) => {
+      const token = aiJobs.current.begin(aiScope());
       setAiBusy(true);
       setAiError(null);
       try {
@@ -4346,41 +4420,46 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           area: project.area,
           seed: project.seed,
         });
+        if (!aiJobs.current.accepts(token, aiScope())) return;
         setAiHistory([]);
         acceptProposal(proposal);
       } catch (err) {
+        if (!aiJobs.current.accepts(token, aiScope())) return;
         setAiProposal(null);
         setAiError({
           code: (err as { code?: string }).code ?? "PROVIDER_UNAVAILABLE",
           message: err instanceof Error ? err.message : String(err),
         });
       } finally {
-        setAiBusy(false);
+        if (aiJobs.current.isCurrent(token)) setAiBusy(false);
       }
     },
-    [project.droneCount, project.area, project.seed, acceptProposal],
+    [project.droneCount, project.area, project.seed, acceptProposal, aiScope],
   );
 
   const refineAiProposal = useCallback(
     async (instruction: string) => {
       const base = aiProposal;
       if (!base) return;
+      const token = aiJobs.current.begin(aiScope());
       setAiBusy(true);
       setAiError(null);
       try {
         const next = await aiProvider.current.refineProposal({ proposal: base, instruction });
+        if (!aiJobs.current.accepts(token, aiScope())) return;
         setAiHistory((h) => [...h, base].slice(-20));
         acceptProposal(next);
       } catch (err) {
+        if (!aiJobs.current.accepts(token, aiScope())) return;
         setAiError({
           code: (err as { code?: string }).code ?? "PROVIDER_UNAVAILABLE",
           message: err instanceof Error ? err.message : String(err),
         });
       } finally {
-        setAiBusy(false);
+        if (aiJobs.current.isCurrent(token)) setAiBusy(false);
       }
     },
-    [aiProposal, acceptProposal],
+    [aiProposal, acceptProposal, aiScope],
   );
 
   const revertAiProposal = useCallback(() => {
