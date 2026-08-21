@@ -4166,13 +4166,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const restoreAutosave = useCallback(() => {
     const snapshot = autosaveRecovery;
     if (!snapshot) return;
-    // Recovery restores planning state and editor prefs exactly like an open.
+    // Recovery restores planning state and editor prefs exactly like an open,
+    // but the recovered content was never written to a file: it stays dirty.
     adoptProjectFile(
       snapshot.file,
       snapshot.fileName || suggestedProjectFileName(snapshot.file.project.name),
+      "RECOVERED",
     );
-    setProjectSavedAt(null);
-    setProjectDirty(true);
     setAutosaveRecovery(null);
   }, [autosaveRecovery, adoptProjectFile]);
 
