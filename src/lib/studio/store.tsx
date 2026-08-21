@@ -4189,11 +4189,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     if (!snapshot) return;
     // Recovery restores planning state and editor prefs exactly like an open,
     // but the recovered content was never written to a file: it stays dirty.
-    adoptProjectFile(
+    const outcome = adoptProjectFile(
       snapshot.file,
       snapshot.fileName || suggestedProjectFileName(snapshot.file.project.name),
       "RECOVERED",
     );
+    if (!outcome.ok) {
+      // A recovery that cannot be rehydrated leaves the open project untouched.
+      setProjectFileError(outcome.error);
+      return;
+    }
     setAutosaveRecovery(null);
   }, [autosaveRecovery, adoptProjectFile]);
 
