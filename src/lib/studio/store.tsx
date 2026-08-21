@@ -22,6 +22,7 @@ import {
   resetProjectSessionState,
   type ProjectSessionResetSetters,
 } from "./projectLifecycle";
+import { isAutosaveWriteAuthorized, isRecoveryOfferable } from "./autosaveAuthority";
 import { projectPersistenceOptions } from "./projectPersistence";
 import { createAnalysisRunAuthority } from "./analysisRunAuthority";
 import { findSampleShow } from "../show/stories/samples";
@@ -3924,12 +3925,34 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const savedSignature = useRef<string | null>(null);
   const autosaveStore = useRef<KeyValueStore | null>(null);
   const lastAutosaveAt = useRef(0);
+  /**
+   * AUTOSAVE GENERATION. Bumped by every explicit lifecycle action that makes a
+   * pending/persisted snapshot obsolete, so a debounce timer scheduled before
+   * the action can never write after it (Save race, Project A -> Open B race).
+   */
+  const autosaveGeneration = useRef(0);
 
   const getAutosaveStore = useCallback((): KeyValueStore | null => {
     if (typeof window === "undefined") return null;
     autosaveStore.current ??= createBrowserKeyValueStore();
     return autosaveStore.current;
   }, []);
+
+  /**
+   * CONSUME OBSOLETE RECOVERY. Invalidates in-flight autosave timers, clears the
+   * persisted snapshot and drops the UI offer. Idempotent, and it never disables
+   * future autosaves: the next project mutation reschedules with the new
+   * generation.
+   */
+  const consumeAutosaveRecovery = useCallback(() => {
+    autosaveGeneration.current += 1;
+    setAutosaveRecovery(null);
+    setProjectAutosavedAt(null);
+    const store = getAutosaveStore();
+    if (store) void clearAutosave(store);
+  }, [getAutosaveStore]);
+  const consumeAutosaveRecoveryRef = useRef(consumeAutosaveRecovery);
+  consumeAutosaveRecoveryRef.current = consumeAutosaveRecovery;
 
   const setProjectFileName = useCallback((name: string) => {
     setProjectFileNameState(ensureProjectExtension(name));
@@ -3999,6 +4022,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       URL.revokeObjectURL(url);
       setProjectFileError(null);
       markSaved(name);
+      // SUCCESS BOUNDARY ONLY: the bytes reached the download, so any autosave
+      // snapshot (and any pending debounce timer) is now obsolete work.
+      consumeAutosaveRecoveryRef.current();
     } catch (err) {
       const error = toProjectFileError(err);
       setProjectFileError({ code: error.code, message: error.message });
@@ -4102,8 +4128,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setProjectDirty(false);
       setProjectSavedAt(null);
     }
-    setProjectAutosavedAt(null);
     setProjectFileNameState(ensureProjectExtension(fileName || suggestedProjectFileName(next.name)));
+    // RECOVERY PRECEDENCE: a successful, deliberate replacement (Open, New,
+    // Sample, consumed Restore) makes the previous session's snapshot obsolete.
+    // Runs only on the success path, so a failed adoption keeps recovery intact.
+    consumeAutosaveRecoveryRef.current();
     return { ok: true };
   }, [derivedAnalysisSetters]);
   adoptProjectRef.current = adoptProject;
@@ -4156,8 +4185,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     const store = getAutosaveStore();
     if (!store) return;
     let active = true;
+    const generation = autosaveGeneration.current;
     void readAutosave(store).then((snapshot) => {
-      if (active && snapshot) setAutosaveRecovery(snapshot);
+      // A lifecycle action that landed while the read was in flight already
+      // consumed this snapshot: never resurrect the offer.
+      if (!active || autosaveGeneration.current !== generation) return;
+      if (isRecoveryOfferable(snapshot)) setAutosaveRecovery(snapshot);
     });
     return () => {
       active = false;
@@ -4170,7 +4203,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     const store = getAutosaveStore();
     if (!store) return;
     const delay = Math.max(0, AUTOSAVE_DEBOUNCE_MS - (Date.now() - lastAutosaveAt.current));
+    const generation = autosaveGeneration.current;
     const timer = setTimeout(() => {
+      // GENERATION AUTHORITY: a Save / Open / New that happened after this timer
+      // was scheduled already consumed the snapshot slot for this state.
+      if (!isAutosaveWriteAuthorized(generation, autosaveGeneration.current)) return;
       lastAutosaveAt.current = Date.now();
       const savedAt = new Date().toISOString();
       void writeAutosave(store, {
@@ -4179,7 +4216,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         // SAME options as a manual save (planning incl. transition designs,
         // reference layer, editor prefs) so a recovery is a reopened project.
         file: serializeProject(project, { savedAt, ...persistenceOptions }),
-      }).then(() => setProjectAutosavedAt(savedAt));
+      }).then(() => {
+        if (!isAutosaveWriteAuthorized(generation, autosaveGeneration.current)) return;
+        setProjectAutosavedAt(savedAt);
+      });
     }, delay);
     return () => clearTimeout(timer);
   }, [project, projectFileName, getAutosaveStore, persistenceOptions]);
@@ -4199,14 +4239,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setProjectFileError(outcome.error);
       return;
     }
-    setAutosaveRecovery(null);
-  }, [autosaveRecovery, adoptProjectFile]);
+    // Adoption already consumed the persisted snapshot on its success path; the
+    // restored project stays DIRTY, so its next edit autosaves normally.
+    consumeAutosaveRecovery();
+  }, [autosaveRecovery, adoptProjectFile, consumeAutosaveRecovery]);
 
-  const dismissAutosave = useCallback(() => {
-    setAutosaveRecovery(null);
-    const store = getAutosaveStore();
-    if (store) void clearAutosave(store);
-  }, [getAutosaveStore]);
+  // Idempotent by construction: consuming twice is a no-op beyond bumping the
+  // generation.
+  const dismissAutosave = consumeAutosaveRecovery;
 
   // ---- AI choreography assistant (Sprint 7) -------------------------------
   // The provider only ever returns STRUCTURED DESIGN INTENT. Geometry comes from
