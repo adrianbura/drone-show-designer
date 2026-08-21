@@ -13,7 +13,6 @@ import {
   projectWithFormationPoints,
   DYNAMIC_SCENE_UNAVAILABLE_MESSAGE,
   resolveProposalMaterialisation,
-  SCENE_MATERIALISER_MISSING_MESSAGE,
   staticPreflightVerdict,
 } from "../diagnostics";
 import { materializeStaticSceneGeometryProposal, resolveSceneAt } from "../scene";
