@@ -30,6 +30,7 @@ import {
   evaluateGeometryApplyReadiness,
   evaluateGeometryTrajectoryConsequence,
   explainProposalCandidates,
+  findGeometryProposalOpportunities,
   optimizeProjectionPreservingStackProposal,
   projectWithFormationPoints,
   proposedPointsOf,
@@ -47,6 +48,14 @@ import {
   useAudienceViewSettings,
 } from "@/lib/studio/audienceView";
 import { setGeometryProposalPreview } from "@/lib/studio/geometryProposalPreview";
+import {
+  NO_OPPORTUNITY_MESSAGE,
+  SEARCHING_MESSAGE,
+  buildOpportunityRows,
+  isOpportunitySearchStale,
+  opportunitySearchKey,
+  type OpportunitySearchState,
+} from "@/lib/studio/geometryOpportunitySearch";
 import { useStudio } from "@/lib/studio/store";
 
 const MODES: ProposalPreviewMode[] = ["BEFORE", "AFTER", "OVERLAY"];
@@ -113,6 +122,7 @@ export default function GeometryProposalPanel() {
     fullShowAnalysisOptions,
     analysisRevision,
     applyGeometryProposal,
+    setTime,
   } = useStudio();
 
   // SHARED viewpoint authority — no local distance/eye/target state here.
