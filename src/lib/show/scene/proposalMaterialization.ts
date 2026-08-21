@@ -1,10 +1,6 @@
 import type { Formation, ShowProject, Vector3Tuple } from "../types";
-import {
-  applyInverseInstanceTransform,
-  findStaticSource,
-  geometricCentre,
-  instancePivot,
-} from "./resolve";
+import { applyInverseInstanceTransform } from "./inverseTransform";
+import { findStaticSource, geometricCentre, instancePivot } from "./resolve";
 import type { FormationScene } from "./types";
 
 export type SceneProposalMaterializationBlocker =
