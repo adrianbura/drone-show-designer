@@ -402,6 +402,20 @@ export default function GeometryProposalPanel() {
 
 
 
+  /**
+   * PROJECT-SESSION SCOPE. Evidence, opportunity results and the applied note
+   * describe ONE document: adopting another project (Open/New/Sample/Recovery)
+   * must not leave any of it presented as current.
+   */
+  useEffect(() => {
+    setEvidence(null);
+    setSearch(null);
+    setApplied(null);
+    setApplyError(null);
+    setGhost(false);
+    setAcknowledgePromotion(false);
+  }, [project.id]);
+
   // Ghost preview is ephemeral diagnostic state, never project state.
   useEffect(() => {
     setGeometryProposalPreview(
@@ -409,6 +423,7 @@ export default function GeometryProposalPanel() {
     );
     return () => setGeometryProposalPreview(null);
   }, [ghost, points, proposed]);
+
 
   const scale = preview ? 260 / Math.max(preview.box.width, preview.box.height) : 1;
   const promoted = trajectory?.newlyPromotedClipIds ?? [];
