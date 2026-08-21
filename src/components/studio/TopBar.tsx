@@ -128,9 +128,11 @@ export default function TopBar() {
               : undefined
           }
         >
-          {projectDirty
+          {/* A project that was never written to a file is NOT "saved": a new show
+              or a loaded sample must never inherit the previous file's badge. */}
+          {projectDirty || !projectSavedAt
             ? t("project.unsaved")
-            : `${t("project.saved")}${projectSavedAt ? ` ${shortTime(projectSavedAt)}` : ""}`}
+            : `${t("project.saved")} ${shortTime(projectSavedAt)}`}
         </span>
         <div className="flex overflow-hidden rounded border border-border" role="group" aria-label={t("common.language")}>
           {LANGUAGES.map((lng: Language) => (
