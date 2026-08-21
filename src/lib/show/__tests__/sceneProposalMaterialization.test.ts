@@ -161,10 +161,10 @@ describe("scene geometry proposal materialization", () => {
     expect(second.project.formations).toHaveLength(firstCount);
 
     const derived = second.project.formations.find((formation) => formation.id === firstId)!;
-    expect(derived.params?.derivedFromFormationId).toBe(originalSourceId);
-    expect(derived.params?.rootFormationId).toBe(originalSourceId);
-    expect(derived.params?.derivedForSceneId).toBe(scene.id);
-    expect(derived.params?.derivedForObjectId).toBe(scene.objects[0]!.id);
+    expect(derived.params?.['derivedFromFormationId']).toBe(originalSourceId);
+    expect(derived.params?.['rootFormationId']).toBe(originalSourceId);
+    expect(derived.params?.['derivedForSceneId']).toBe(scene.id);
+    expect(derived.params?.['derivedForObjectId']).toBe(scene.objects[0]!.id);
     expect(derived.name.match(/geometry proposal/g)).toHaveLength(1);
 
     const secondScene = second.project.scenes!.find((candidate) => candidate.id === scene.id)!;

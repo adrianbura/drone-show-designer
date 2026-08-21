@@ -30,6 +30,7 @@ import {
   evaluateGeometryApplyReadiness,
   evaluateGeometryTrajectoryConsequence,
   explainProposalCandidates,
+  findGeometryProposalOpportunities,
   optimizeProjectionPreservingStackProposal,
   projectWithFormationPoints,
   proposedPointsOf,
@@ -47,6 +48,14 @@ import {
   useAudienceViewSettings,
 } from "@/lib/studio/audienceView";
 import { setGeometryProposalPreview } from "@/lib/studio/geometryProposalPreview";
+import {
+  NO_OPPORTUNITY_MESSAGE,
+  SEARCHING_MESSAGE,
+  buildOpportunityRows,
+  isOpportunitySearchStale,
+  opportunitySearchKey,
+  type OpportunitySearchState,
+} from "@/lib/studio/geometryOpportunitySearch";
 import { useStudio } from "@/lib/studio/store";
 
 const MODES: ProposalPreviewMode[] = ["BEFORE", "AFTER", "OVERLAY"];
@@ -113,6 +122,7 @@ export default function GeometryProposalPanel() {
     fullShowAnalysisOptions,
     analysisRevision,
     applyGeometryProposal,
+    setTime,
   } = useStudio();
 
   // SHARED viewpoint authority — no local distance/eye/target state here.
@@ -335,6 +345,61 @@ export default function GeometryProposalPanel() {
     );
   };
 
+  /**
+   * OPPORTUNITY FINDER — explicit click only, never per render. All search work
+   * happens in the canonical `findGeometryProposalOpportunities` helper, which
+   * inspects SHOW hold midpoints only.
+   */
+  const searchKey = useMemo(
+    () =>
+      opportunitySearchKey({
+        analysisRevision,
+        audience,
+        horizontalThresholdMeters: horizontal,
+        minVerticalDifferenceMeters: vertical,
+        maxDisplacementMeters: cap,
+      }),
+    [analysisRevision, audience, horizontal, vertical, cap],
+  );
+  const [search, setSearch] = useState<OpportunitySearchState | null>(null);
+  const [searching, setSearching] = useState(false);
+  const searchStale = isOpportunitySearchStale(search, searchKey);
+
+  const findOpportunity = () => {
+    setSearching(true);
+    const key = searchKey;
+    try {
+      const report = findGeometryProposalOpportunities(
+        project,
+        (t) => samplesAtTime(t).map((s) => s.position as Vector3Tuple),
+        view,
+        {
+          horizontalThresholdMeters: horizontal,
+          minVerticalDifferenceMeters: vertical,
+          maxDisplacementMeters: cap,
+        },
+      );
+      const bestOpportunity = report.best;
+      if (!bestOpportunity) {
+        setSearch({ key, clipId: null, time: null, rows: [] });
+        return;
+      }
+      const clip = project.timeline.find((c) => c.id === bestOpportunity.clipId);
+      const label =
+        project.formations.find((f) => f.id === clip?.formationId)?.name ?? bestOpportunity.clipId;
+      setSearch({
+        key,
+        clipId: bestOpportunity.clipId,
+        time: bestOpportunity.time,
+        rows: buildOpportunityRows(bestOpportunity, label),
+      });
+    } finally {
+      setSearching(false);
+    }
+  };
+
+
+
 
 
   // Ghost preview is ephemeral diagnostic state, never project state.
@@ -413,6 +478,63 @@ export default function GeometryProposalPanel() {
       <p className="pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
         {GEOMETRY_PROPOSAL_WORDING.capLabel}
       </p>
+
+      {/* ---- OPPORTUNITY FINDER (operator navigation only) ---- */}
+      <div className="mb-2 border-y border-border/60 py-2" data-testid="gp-finder">
+        <button
+          type="button"
+          onClick={findOpportunity}
+          disabled={searching}
+          className="chip-btn w-full justify-center"
+          data-testid="gp-find-opportunity"
+        >
+          {searching ? SEARCHING_MESSAGE : "Find proposal opportunity"}
+        </button>
+        {search && !searchStale ? (
+          search.rows.length ? (
+            <>
+              <p className="pt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground">
+                Best opportunity
+              </p>
+              <ul className="pt-1 font-mono text-[10px]" data-testid="gp-opportunity-rows">
+                {search.rows.map((row) => (
+                  <li key={row.label} className="grid grid-cols-2 gap-x-2">
+                    <span className="uppercase tracking-[0.12em] text-muted-foreground">
+                      {row.label}
+                    </span>
+                    <span className="text-right text-foreground">{row.value}</span>
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => search.time !== null && setTime(search.time)}
+                className="chip-btn mt-1 w-full justify-center"
+                data-testid="gp-goto-opportunity"
+              >
+                Go to opportunity
+              </button>
+              <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground">
+                Navigation only — proposal evaluation stays a separate explicit action.
+              </p>
+            </>
+          ) : (
+            <p
+              className="pt-2 text-[10px] leading-relaxed text-muted-foreground"
+              data-testid="gp-no-opportunity"
+            >
+              {NO_OPPORTUNITY_MESSAGE}
+            </p>
+          )
+        ) : null}
+        {searchStale ? (
+          <p className="pt-2 text-[10px] leading-relaxed text-warning" data-testid="gp-search-stale">
+            Diagnostic settings or the project changed — the previous opportunity search is stale.
+            Search again.
+          </p>
+        ) : null}
+      </div>
+
 
       <dl
         className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[10px] text-muted-foreground"
