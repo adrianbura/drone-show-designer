@@ -4193,6 +4193,57 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [aiHistory, setAiHistory] = useState<readonly AIChoreographyProposalV1[]>([]);
   const [aiPreviewTime, setAiPreviewTime] = useState(0);
 
+  /**
+   * THE ONE SESSION-RESET LIST (see ./projectLifecycle). Assigned during render
+   * because the adoption boundary is declared before these session slots.
+   */
+  const sessionResetSetters = useMemo<ProjectSessionResetSetters>(
+    () => ({
+      setReferenceShow,
+      setReferencePlayback,
+      setReferenceBusy,
+      setReferenceError,
+      setSelectedReferenceDroneId,
+      setShowReferencePaths,
+      setReferenceExtraction,
+      setReferenceAssetDrafts,
+      setReferenceExtractionWarnings,
+      setForensicsReport,
+      setForensicsError,
+      setForensicsBusy,
+      setSelectedForensicSegmentId,
+      setAiProposal,
+      setAiProposalErrors,
+      setAiHistory,
+      setAiError,
+      setAiPreviewTime,
+      setAiBusy,
+      setSvgDraft,
+      setSvgError,
+      setSvgBusy,
+      clearSceneSelection: () => setSceneSelectionState(EMPTY_SCENE_SELECTION),
+      setSceneGizmoDraft,
+      setSceneReferenceGhost,
+      setSelectedLaunchGroupId,
+      setSelectedPointIds: setSelectedPointIdsState,
+      setSelectedMotionGroupId,
+      setDynamicEditTime,
+      setExplicitDynamicId,
+      clearAudioSession: () => {
+        // The decoded buffer belongs to the LOCAL file of the replaced project:
+        // it must not stay playable under the adopted project. Audio METADATA of
+        // the adopted project is untouched (files never carry audio bytes, so a
+        // reopened project reports attached = false).
+        audioBufferRef.current = null;
+        setAudioPeaks(null);
+        setAudioError(null);
+        setAudioBusy(false);
+      },
+    }),
+    [],
+  );
+  sessionResetRef.current = () => resetProjectSessionState(sessionResetSetters);
+
   const aiBuilt = useMemo(() => {
     if (!aiProposal || aiProposalErrors.length > 0) return null;
     try {
