@@ -175,7 +175,9 @@ describe("legacy wedding story removal", () => {
       "weddingStory",
     ];
     const offenders: string[] = [];
+    const self = "historyRestoreIntegrity.test.ts";
     for (const file of sourceFiles("src")) {
+      if (file.endsWith(self)) continue;
       const text = readFileSync(file, "utf8");
       for (const pattern of patterns) {
         if (text.includes(pattern)) offenders.push(`${file}: ${pattern}`);
