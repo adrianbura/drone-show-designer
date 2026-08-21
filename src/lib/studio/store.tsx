@@ -3996,18 +3996,19 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }
   }, [project, buildProjectFile, projectFileName, markSaved]);
 
-  /** Replaces every derived/analysis result after the project is replaced. */
+  /**
+   * THE ONE PROJECT-CONTENT ADOPTION BOUNDARY (new, sample, open, recovery).
+   * Session state of the replaced project is cleared through the canonical
+   * session-reset authority and derived analysis through the derived-analysis
+   * authority, so no caller keeps a partial reset list of its own.
+   */
   const adoptProject = useCallback((
     next: ShowProject,
     fileName: string,
-    restore?: {
-      planning?: ProjectPlanningState;
-      referenceLayer?: ReferenceTrajectoryLayer | null;
-      selectedClipId?: string | null;
-      sampleRate?: number;
-    },
+    restore?: AdoptProjectRestore,
   ) => {
     setProject(next);
+    sessionResetRef.current();
     // IMPORTED LAYER: rehydrated from the file, so the first frame after
     // reopening already plays the imported samples. A payload that cannot be
     // rehydrated is surfaced as an error, never silently downgraded.
