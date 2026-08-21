@@ -105,12 +105,12 @@ describe("autosave recovery round-trip", () => {
     const snapshot = await readAutosave(store);
     expect(snapshot).not.toBeNull();
     expect(snapshot!.fileName).toBe("authored.dss.json");
-    expect(snapshot!.file.planning.assignmentStrategy).toBe("hungarian");
-    expect(snapshot!.file.planning.transitionOverrides[clipId]).toEqual(
+    expect(snapshot!.file.planning!.assignmentStrategy).toBe("hungarian");
+    expect(snapshot!.file.planning!.transitionOverrides[clipId]).toEqual(
       state.transitionOverrides[clipId],
     );
     // REAL BUG COVERAGE: transition designs used to be dropped by autosave.
-    expect(snapshot!.file.planning.transitionDesigns?.[clipId]).toMatchObject({
+    expect(snapshot!.file.planning!.transitionDesigns?.[clipId]).toMatchObject({
       mode: "MANUAL",
       autoRecalculate: false,
     });
@@ -296,8 +296,8 @@ describe("failed open atomicity", () => {
     const { project, clipId, state } = authoredState();
     const file = serializeProject(project, projectPersistenceOptions(state));
     const reopened = parseProjectFile(JSON.stringify(file));
-    expect(reopened.planning.assignmentStrategy).toBe("hungarian");
-    expect(reopened.planning.transitionDesigns?.[clipId]).toMatchObject({ mode: "MANUAL" });
+    expect(reopened.planning!.assignmentStrategy).toBe("hungarian");
+    expect(reopened.planning!.transitionDesigns?.[clipId]).toMatchObject({ mode: "MANUAL" });
     expect(reopened.editor?.sampleRate).toBe(17);
   });
 });
