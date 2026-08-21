@@ -17,6 +17,14 @@ export interface DerivedAnalysisSetters {
   setFullShowError: (value: null) => void;
   setHighlightedDrones: (value: never[]) => void;
   setPreShowPreview: (value: null) => void;
+  /**
+   * IN-FLIGHT ANALYSIS CANCELLATION (optional so pure test harnesses can model
+   * state slices only). A result computed for the replaced content must never
+   * be installed, and the busy/progress state must not stay stuck.
+   */
+  invalidateFullShowRun?: () => void;
+  setFullShowProgress?: (value: null) => void;
+  setFullShowBusy?: (value: false) => void;
 }
 
 /** The canonical list of derived-analysis slots a content change invalidates. */
@@ -41,4 +49,8 @@ export function invalidateDerivedAnalysis(setters: DerivedAnalysisSetters): void
   setters.setFullShowError(null);
   setters.setHighlightedDrones([]);
   setters.setPreShowPreview(null);
+  // Same boundary cancels any in-flight full-show run and releases its UI state.
+  setters.invalidateFullShowRun?.();
+  setters.setFullShowProgress?.(null);
+  setters.setFullShowBusy?.(false);
 }

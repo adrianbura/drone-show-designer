@@ -18,6 +18,7 @@ import {
 
 import { createDefaultProject } from "../show/defaultProject";
 import { invalidateDerivedAnalysis, type DerivedAnalysisSetters } from "./derivedAnalysis";
+import { createAnalysisRunAuthority } from "./analysisRunAuthority";
 import { findSampleShow } from "../show/stories/samples";
 import { generatePoints, makeFormation } from "../show/formations";
 import { buildShowPlan, samplesAt, sampleTrajectorySet, DEFAULT_SAMPLE_RATE } from "../show/trajectory";
@@ -1125,6 +1126,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     revision: string;
   } | null>(null);
   /**
+   * FULL-SHOW RUN AUTHORITY. Owns the monotonic generation id used to reject
+   * results that belong to a superseded project revision (see
+   * ./analysisRunAuthority). Held in a ref so every check reads CURRENT state.
+   */
+  const fullShowRunRef = useRef(createAnalysisRunAuthority());
+  /** CURRENT canonical analysis revision, readable from async callbacks. */
+  const analysisRevisionRef = useRef("");
+  /**
    * The ONE derived-analysis invalidation authority (see ./derivedAnalysis).
    * Stable across renders: every setState is stable, so this object is too.
    */
@@ -1138,6 +1147,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setFullShowError,
       setHighlightedDrones,
       setPreShowPreview,
+      invalidateFullShowRun: () => fullShowRunRef.current.invalidate(),
+      setFullShowProgress,
+      setFullShowBusy,
     }),
     [],
   );
@@ -1183,7 +1195,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [selectedForensicSegmentId, setSelectedForensicSegmentId] = useState<string | null>(null);
   const [showForensicActiveDrones, setShowForensicActiveDrones] = useState(true);
   const forensicsRunRef = useRef(0);
-  const cancelFullShow = useRef(false);
 
   // Pure engine pipeline: formations -> assignment -> planning -> sampling -> safety.
   const plan = useMemo(
@@ -1265,6 +1276,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       }),
     [project, sampleRate, assignmentStrategy, transitionOverrides, referenceLayer],
   );
+  analysisRevisionRef.current = analysisRevision;
   const fullShowStale = !!fullShow && fullShow.report.analysisRevision !== analysisRevision;
 
   /**
@@ -1530,7 +1542,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setSvgError(null);
     timelineHistory.current = { past: [], future: [] };
     setTimelineHistoryDepth({ past: 0, future: 0 });
-  }, []);
+  }, [derivedAnalysisSetters]);
 
   const createProjectFromDraft = useCallback(
     (draft: ProjectSetupDraft) => {
@@ -1860,8 +1872,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       future: timelineHistory.current.future.length,
     });
     restoreSnapshot(next);
-
-  }, []);
+  }, [currentSnapshot, restoreSnapshot]);
 
   // ---- Markers / music sections (project-owned authoring metadata) --------
   const addMarker = useCallback(
@@ -3169,7 +3180,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   // describe a different show than the one on screen.
   const analyzeFullShow = useCallback(() => {
     if (fullShowBusy) return;
-    cancelFullShow.current = false;
+    // One run token per invocation: any later invalidation (apply, undo/redo,
+    // project load, manual cancel) advances the generation and this run's
+    // result — success OR error — is dropped instead of installed.
+    const token = fullShowRunRef.current.begin(analysisRevisionRef.current);
     setFullShowBusy(true);
     setFullShowError(null);
     setFullShowProgress(null);
@@ -3190,15 +3204,23 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           transitionOverrides,
           analyzedClipIds,
           unresolvedClipIds,
-          onProgress: setFullShowProgress,
-          isCancelled: () => cancelFullShow.current,
+          onProgress: (progress) => {
+            if (fullShowRunRef.current.isCancelled(token)) return;
+            setFullShowProgress(progress);
+          },
+          isCancelled: () => fullShowRunRef.current.isCancelled(token),
           reference:
             referenceLayerRef.current && referenceLayerShow
               ? { layer: referenceLayerRef.current, show: referenceLayerShow }
               : null,
         });
+        // Install ONLY when this is still the newest run AND the revision it was
+        // computed for is still the current one.
+        if (!fullShowRunRef.current.accepts(token, analysisRevisionRef.current)) return;
         setFullShow(result);
       } catch (err) {
+        // A failure that belongs to a superseded revision must not surface.
+        if (!fullShowRunRef.current.accepts(token, analysisRevisionRef.current)) return;
         setFullShow(null);
         setFullShowError(
           err instanceof FullShowError
@@ -3223,7 +3245,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   ]);
 
   const cancelFullShowAnalysis = useCallback(() => {
-    cancelFullShow.current = true;
+    // Advancing the generation both stops the engine and rejects its result.
+    fullShowRunRef.current.invalidate();
   }, []);
 
   const clearFullShowReport = useCallback(() => {
