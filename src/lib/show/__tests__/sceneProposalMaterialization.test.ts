@@ -46,6 +46,12 @@ function expectPointClose(actual: Vector3Tuple, expected: Vector3Tuple, digits =
   expect(actual[2]).toBeCloseTo(expected[2], digits);
 }
 
+function proposal(points: readonly Vector3Tuple[]): Vector3Tuple[] {
+  return points.map(
+    (point, index) => [point[0] + index * 0.01, point[1] + (index % 3) * 0.02, point[2] + (index % 2 ? 1.25 : -1.25)] as Vector3Tuple,
+  );
+}
+
 describe("scene geometry proposal materialization", () => {
   it("inverts instance transforms including mirror, scale, rotation and translation", () => {
     const transform: InstanceTransform = {
@@ -60,20 +66,18 @@ describe("scene geometry proposal materialization", () => {
     expectPointClose(applyInverseInstanceTransform(world, transform, pivot), local, 9);
   });
 
-  it("creates a derived asset and reproduces the proposed world points without mutating the source", () => {
+  it("creates a derived asset and reproduces proposed world points without mutating the source", () => {
     const { project, scene } = sceneProject();
     const sourceId = scene.objects[0]!.source.kind === "STATIC" ? scene.objects[0]!.source.formationId : "";
     const sourceBefore = JSON.stringify(project.formations.find((formation) => formation.id === sourceId));
     const projectBefore = JSON.stringify(project);
-    const before = resolveSceneAt(project, scene).points;
-    const proposed = before.map(
-      (point, index) => [point[0] + index * 0.01, point[1], point[2] + (index % 2 ? 1.25 : -1.25)] as Vector3Tuple,
-    );
+    const proposed = proposal(resolveSceneAt(project, scene).points);
 
     const result = materializeStaticSceneGeometryProposal(project, scene.id, proposed);
     expect(result.ok).toBe(true);
     expect(result.blocker).toBeNull();
     expect(result.derivedFormationId).toBeTruthy();
+    expect(result.derivedFormationIds).toHaveLength(1);
     expect(JSON.stringify(project)).toBe(projectBefore);
     expect(JSON.stringify(project.formations.find((formation) => formation.id === sourceId))).toBe(sourceBefore);
 
@@ -81,33 +85,81 @@ describe("scene geometry proposal materialization", () => {
     const resolved = resolveSceneAt(result.project, materializedScene).points;
     expect(resolved).toHaveLength(proposed.length);
     resolved.forEach((point, index) => expectPointClose(point, proposed[index]!, 7));
-    expect(result.project.formations).toHaveLength(project.formations.length + 1);
-    expect(materializedScene.objects[0]!.source).toEqual({
-      kind: "STATIC",
-      formationId: result.derivedFormationId,
-    });
   });
 
-  it("blocks ambiguous multi-object and sub-sampled scenes instead of guessing", () => {
+  it("materializes multiple static objects in stable scene/group order", () => {
     const { project, scene } = sceneProject();
-    const points = resolveSceneAt(project, scene).points;
-    const multi: ShowProject = {
-      ...project,
-      scenes: [{ ...scene, objects: [...scene.objects, { ...scene.objects[0]!, id: `${scene.id}-obj-2` }] }],
+    const second = {
+      ...scene.objects[0]!,
+      id: `${scene.id}-obj-2`,
+      name: "Static object 2",
+      transform: {
+        position: [12, -3, -5] as Vector3Tuple,
+        rotationDeg: [-4, 9, 17] as Vector3Tuple,
+        scale: 1.25,
+      },
     };
-    expect(materializeStaticSceneGeometryProposal(multi, scene.id, points).blocker).toBe("MULTI_OBJECT_SCENE");
+    const multiScene: FormationScene = { ...scene, objects: [...scene.objects, second] };
+    const multi: ShowProject = { ...project, scenes: [multiScene] };
+    const beforeJson = JSON.stringify(multi);
+    const proposed = proposal(resolveSceneAt(multi, multiScene).points);
 
-    const subsampled: ShowProject = {
-      ...project,
-      scenes: [
+    const result = materializeStaticSceneGeometryProposal(multi, multiScene.id, proposed);
+    expect(result.ok).toBe(true);
+    expect(result.derivedFormationId).toBeNull();
+    expect(result.derivedFormationIds).toHaveLength(2);
+    expect(JSON.stringify(multi)).toBe(beforeJson);
+
+    const materializedScene = result.project.scenes![0]!;
+    const resolved = resolveSceneAt(result.project, materializedScene).points;
+    resolved.forEach((point, index) => expectPointClose(point, proposed[index]!, 7));
+    expect(result.project.formations).toHaveLength(multi.formations.length + 2);
+  });
+
+  it("materializes deterministic static sub-samples instead of guessing unused asset points", () => {
+    const { project, scene } = sceneProject();
+    const source = project.formations.find(
+      (formation) => scene.objects[0]!.source.kind === "STATIC" && formation.id === scene.objects[0]!.source.formationId,
+    )!;
+    const requestedDroneCount = Math.max(1, source.points.length - 2);
+    const subsampledScene: FormationScene = {
+      ...scene,
+      objects: [{ ...scene.objects[0]!, requestedDroneCount }],
+    };
+    const subsampled: ShowProject = { ...project, scenes: [subsampledScene] };
+    const proposed = proposal(resolveSceneAt(subsampled, subsampledScene).points);
+
+    const result = materializeStaticSceneGeometryProposal(subsampled, scene.id, proposed);
+    expect(result.ok).toBe(true);
+    const rebound = result.project.scenes![0]!.objects[0]!;
+    expect(rebound.requestedDroneCount).toBe(requestedDroneCount);
+    expect(rebound.source.kind).toBe("STATIC");
+    if (rebound.source.kind !== "STATIC") throw new Error("expected static rebound");
+    const derived = result.project.formations.find((formation) => formation.id === rebound.source.formationId)!;
+    expect(derived.points).toHaveLength(requestedDroneCount);
+    const resolved = resolveSceneAt(result.project, result.project.scenes![0]!).points;
+    resolved.forEach((point, index) => expectPointClose(point, proposed[index]!, 7));
+  });
+
+  it("blocks dynamic objects and point-count mismatch", () => {
+    const { project, scene } = sceneProject();
+    const dynamicScene: FormationScene = {
+      ...scene,
+      objects: [
         {
-          ...scene,
-          objects: [{ ...scene.objects[0]!, requestedDroneCount: Math.max(1, points.length - 1) }],
+          ...scene.objects[0]!,
+          source: { kind: "DYNAMIC", dynamicFormationId: "missing-dynamic" },
         },
       ],
     };
-    expect(materializeStaticSceneGeometryProposal(subsampled, scene.id, points).blocker).toBe(
-      "SUBSAMPLED_OBJECT_UNSUPPORTED",
+    const dynamicProject: ShowProject = { ...project, scenes: [dynamicScene] };
+    expect(materializeStaticSceneGeometryProposal(dynamicProject, scene.id, []).blocker).toBe(
+      "DYNAMIC_OBJECT_UNSUPPORTED",
+    );
+
+    const points = resolveSceneAt(project, scene).points;
+    expect(materializeStaticSceneGeometryProposal(project, scene.id, points.slice(1)).blocker).toBe(
+      "POINT_COUNT_MISMATCH",
     );
   });
 });
