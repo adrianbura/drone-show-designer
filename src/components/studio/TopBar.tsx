@@ -121,16 +121,18 @@ export default function TopBar() {
       <div className="ml-auto flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em]">
         <span className="hidden text-muted-foreground md:inline">{project.name}</span>
         <span
-          className={`metric-pill ${projectDirty ? "status-review" : ""}`}
+          className={`metric-pill ${projectDirty || !projectSavedAt ? "status-review" : ""}`}
           title={
             projectAutosavedAt
               ? t("project.autosaved", { time: shortTime(projectAutosavedAt) })
               : undefined
           }
         >
-          {projectDirty
+          {/* A project that was never written to a file is NOT "saved": a new show
+              or a loaded sample must never inherit the previous file's badge. */}
+          {projectDirty || !projectSavedAt
             ? t("project.unsaved")
-            : `${t("project.saved")}${projectSavedAt ? ` ${shortTime(projectSavedAt)}` : ""}`}
+            : `${t("project.saved")} ${shortTime(projectSavedAt)}`}
         </span>
         <div className="flex overflow-hidden rounded border border-border" role="group" aria-label={t("common.language")}>
           {LANGUAGES.map((lng: Language) => (

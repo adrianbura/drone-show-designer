@@ -18,6 +18,11 @@ import {
 
 import { createDefaultProject } from "../show/defaultProject";
 import { invalidateDerivedAnalysis, type DerivedAnalysisSetters } from "./derivedAnalysis";
+import {
+  resetProjectSessionState,
+  type ProjectSessionResetSetters,
+} from "./projectLifecycle";
+import { projectPersistenceOptions } from "./projectPersistence";
 import { createAnalysisRunAuthority } from "./analysisRunAuthority";
 import { findSampleShow } from "../show/stories/samples";
 import { generatePoints, makeFormation } from "../show/formations";
@@ -1057,6 +1062,19 @@ function svgPatchFromRecord(record: Record<string, number | string>): Partial<Sv
 let counter = 0;
 const nextId = (prefix: string) => `${prefix}-${++counter}-${Date.now().toString(36)}`;
 
+/**
+ * Everything a project adoption may restore. `fileState` distinguishes reopening
+ * a real file (clean, saved-as-that-file) from authoring a new project or sample
+ * (no file on disk yet, so it must not claim the previous file's saved state).
+ */
+interface AdoptProjectRestore {
+  planning?: ProjectPlanningState;
+  referenceLayer?: ReferenceTrajectoryLayer | null;
+  selectedClipId?: string | null;
+  sampleRate?: number;
+  fileState?: "FILE" | "UNSAVED" | "RECOVERED";
+}
+
 export function StudioProvider({ children }: { children: ReactNode }) {
   // Lazy initializer: keeps module scope free of runtime work (Worker-safe).
   const [project, setProject] = useState<ShowProject>(() => createDefaultProject());
@@ -1153,6 +1171,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }),
     [],
   );
+
+  /**
+   * SESSION RESET / ADOPTION INDIRECTION. The session setters and the canonical
+   * adoption boundary are declared far apart in this store, so both are reached
+   * through refs assigned during render. This keeps ONE reset list and ONE
+   * project-content replacement boundary instead of partial per-command lists.
+   */
+  const sessionResetRef = useRef<() => void>(() => {});
+  const adoptProjectRef = useRef<
+    (next: ShowProject, fileName: string, restore?: AdoptProjectRestore) => void
+  >(() => {});
 
   const [preShowBusy, setPreShowBusy] = useState(false);
   const [showLaunchPads, setShowLaunchPads] = useState(false);
@@ -1525,24 +1554,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const currentSetupDraft = useMemo(() => setupDraftFromProject(project), [project]);
 
   /**
-   * Replaces the whole open project with an authored one (setup wizard, story
-   * presets). Every derived/cached analysis was computed for the previous
-   * project, so it is dropped in the same commit.
+   * Replaces the whole open project with an authored one (setup wizard, sample
+   * shows). It flows through the SAME adoption boundary as opening a file, so
+   * there is exactly one reset list; only the file state differs: an authored
+   * project has no file on disk and must not claim the previous file's save.
    */
   const loadShowProject = useCallback((created: ShowProject) => {
-    setProject(created);
-    setSelectedClipId(created.timeline[0]?.id ?? null);
-    setExplicitDynamicId(null);
-    overrideBasisRef.current = {};
-    setTransitionOverrides({});
-    setTransitionDesigns({});
-    invalidateDerivedAnalysis(derivedAnalysisSetters);
-    setSelectedLaunchGroupId(null);
-    setSvgDraft(null);
-    setSvgError(null);
-    timelineHistory.current = { past: [], future: [] };
-    setTimelineHistoryDepth({ past: 0, future: 0 });
-  }, [derivedAnalysisSetters]);
+    adoptProjectRef.current(created, suggestedProjectFileName(created.name), {
+      fileState: "UNSAVED",
+    });
+  }, []);
 
   const createProjectFromDraft = useCallback(
     (draft: ProjectSetupDraft) => {
@@ -3921,20 +3942,25 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     if (snapshotName) setProjectFileNameState(ensureProjectExtension(snapshotName));
   }, [project]);
 
-  // CANONICAL PROJECT ENVELOPE. Every writer (TopBar save, autosave, Inspector
-  // "Studio project file") goes through this so they cannot drift apart: the
-  // planning section carries the applied optimization that changes flight output.
-  const buildProjectFile = useCallback(
-    (): ProjectFile =>
-      serializeProject(project, {
-        planning: { assignmentStrategy, transitionOverrides, transitionDesigns },
+  /**
+   * CANONICAL PERSISTENCE OPTIONS. Manual save and autosave map the SAME
+   * planning / reference / editor authority through `projectPersistenceOptions`,
+   * so no writer can silently drop authoring intent (transition designs were
+   * previously missing from autosave). The mapping lives in ONE place.
+   */
+  const persistenceOptions = useMemo(
+    () =>
+      projectPersistenceOptions({
+        assignmentStrategy,
+        transitionOverrides,
+        transitionDesigns,
         // LOSSLESS: the imported payload is written verbatim, so reopening the
         // saved project reproduces the imported playback exactly.
         referenceLayer,
-        editor: { selectedClipId, sampleRate },
+        selectedClipId,
+        sampleRate,
       }),
     [
-      project,
       assignmentStrategy,
       transitionOverrides,
       transitionDesigns,
@@ -3942,6 +3968,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectedClipId,
       sampleRate,
     ],
+  );
+
+  // CANONICAL PROJECT ENVELOPE. Every writer (TopBar save, autosave, Inspector
+  // "Studio project file") goes through this so they cannot drift apart.
+  const buildProjectFile = useCallback(
+    (): ProjectFile => serializeProject(project, persistenceOptions),
+    [project, persistenceOptions],
   );
 
   const saveProjectFile = useCallback(() => {
@@ -3963,18 +3996,19 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }
   }, [project, buildProjectFile, projectFileName, markSaved]);
 
-  /** Replaces every derived/analysis result after the project is replaced. */
+  /**
+   * THE ONE PROJECT-CONTENT ADOPTION BOUNDARY (new, sample, open, recovery).
+   * Session state of the replaced project is cleared through the canonical
+   * session-reset authority and derived analysis through the derived-analysis
+   * authority, so no caller keeps a partial reset list of its own.
+   */
   const adoptProject = useCallback((
     next: ShowProject,
     fileName: string,
-    restore?: {
-      planning?: ProjectPlanningState;
-      referenceLayer?: ReferenceTrajectoryLayer | null;
-      selectedClipId?: string | null;
-      sampleRate?: number;
-    },
+    restore?: AdoptProjectRestore,
   ) => {
     setProject(next);
+    sessionResetRef.current();
     // IMPORTED LAYER: rehydrated from the file, so the first frame after
     // reopening already plays the imported samples. A payload that cannot be
     // rehydrated is surfaced as an error, never silently downgraded.
@@ -4035,31 +4069,46 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setSampleRate(restore.sampleRate);
     }
     invalidateDerivedAnalysis(derivedAnalysisSetters);
-    setSelectedLaunchGroupId(null);
-    setSvgDraft(null);
-    setSvgError(null);
-    setSelectedPointIdsState([]);
-    setSelectedMotionGroupId(null);
-    setDynamicEditTime(0);
     dynamicHistory.current = { past: [], future: [] };
     setDynamicHistoryDepth({ past: 0, future: 0 });
     timelineHistory.current = { past: [], future: [] };
     setTimelineHistoryDepth({ past: 0, future: 0 });
-    savedSignature.current = JSON.stringify(next);
-    setProjectDirty(false);
+    // FILE SEMANTICS. Reopening a file lands clean and saved-as-that-file; an
+    // authored project/sample has no file yet (never "saved as the previous
+    // file"); a recovered autosave is dirty by construction — the empty
+    // signature never equals a project signature, so it stays dirty.
+    const fileState = restore?.fileState ?? "FILE";
+    if (fileState === "FILE") {
+      savedSignature.current = JSON.stringify(next);
+      setProjectDirty(false);
+    } else if (fileState === "RECOVERED") {
+      savedSignature.current = "";
+      setProjectDirty(true);
+      setProjectSavedAt(null);
+    } else {
+      savedSignature.current = null;
+      setProjectDirty(false);
+      setProjectSavedAt(null);
+    }
+    setProjectAutosavedAt(null);
     setProjectFileNameState(ensureProjectExtension(fileName || suggestedProjectFileName(next.name)));
-  }, []);
+  }, [derivedAnalysisSetters]);
+  adoptProjectRef.current = adoptProject;
 
   /** Adopts a parsed/migrated envelope with its planning state and editor prefs. */
   const adoptProjectFile = useCallback(
-    (file: ProjectFile, fileName: string) => {
+    (file: ProjectFile, fileName: string, fileState: "FILE" | "RECOVERED" = "FILE") => {
       adoptProject(file.project, fileName, {
         ...(file.planning ? { planning: file.planning } : {}),
-        ...(file.referenceLayer ? { referenceLayer: file.referenceLayer } : {}),
+        // EXACT REFERENCE AUTHORITY: the adopted file owns it. A file without a
+        // layer installs null, so no imported authority of the previous project
+        // can survive the adoption.
+        referenceLayer: file.referenceLayer ?? null,
         selectedClipId: file.editor?.selectedClipId ?? null,
         ...(typeof file.editor?.sampleRate === "number"
           ? { sampleRate: file.editor.sampleRate }
           : {}),
+        fileState,
       });
     },
     [adoptProject],
@@ -4106,36 +4155,24 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       void writeAutosave(store, {
         savedAt,
         fileName: projectFileName,
-        file: serializeProject(project, {
-          savedAt,
-          planning: { assignmentStrategy, transitionOverrides },
-          referenceLayer,
-          editor: { selectedClipId, sampleRate },
-        }),
+        // SAME options as a manual save (planning incl. transition designs,
+        // reference layer, editor prefs) so a recovery is a reopened project.
+        file: serializeProject(project, { savedAt, ...persistenceOptions }),
       }).then(() => setProjectAutosavedAt(savedAt));
     }, delay);
     return () => clearTimeout(timer);
-  }, [
-    project,
-    projectFileName,
-    getAutosaveStore,
-    assignmentStrategy,
-    transitionOverrides,
-    referenceLayer,
-    selectedClipId,
-    sampleRate,
-  ]);
+  }, [project, projectFileName, getAutosaveStore, persistenceOptions]);
 
   const restoreAutosave = useCallback(() => {
     const snapshot = autosaveRecovery;
     if (!snapshot) return;
-    // Recovery restores planning state and editor prefs exactly like an open.
+    // Recovery restores planning state and editor prefs exactly like an open,
+    // but the recovered content was never written to a file: it stays dirty.
     adoptProjectFile(
       snapshot.file,
       snapshot.fileName || suggestedProjectFileName(snapshot.file.project.name),
+      "RECOVERED",
     );
-    setProjectSavedAt(null);
-    setProjectDirty(true);
     setAutosaveRecovery(null);
   }, [autosaveRecovery, adoptProjectFile]);
 
@@ -4155,6 +4192,57 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [aiProposalErrors, setAiProposalErrors] = useState<readonly string[]>([]);
   const [aiHistory, setAiHistory] = useState<readonly AIChoreographyProposalV1[]>([]);
   const [aiPreviewTime, setAiPreviewTime] = useState(0);
+
+  /**
+   * THE ONE SESSION-RESET LIST (see ./projectLifecycle). Assigned during render
+   * because the adoption boundary is declared before these session slots.
+   */
+  const sessionResetSetters = useMemo<ProjectSessionResetSetters>(
+    () => ({
+      setReferenceShow,
+      setReferencePlayback,
+      setReferenceBusy,
+      setReferenceError,
+      setSelectedReferenceDroneId,
+      setShowReferencePaths,
+      setReferenceExtraction,
+      setReferenceAssetDrafts,
+      setReferenceExtractionWarnings,
+      setForensicsReport,
+      setForensicsError,
+      setForensicsBusy,
+      setSelectedForensicSegmentId,
+      setAiProposal,
+      setAiProposalErrors,
+      setAiHistory,
+      setAiError,
+      setAiPreviewTime,
+      setAiBusy,
+      setSvgDraft,
+      setSvgError,
+      setSvgBusy,
+      clearSceneSelection: () => setSceneSelectionState(EMPTY_SCENE_SELECTION),
+      setSceneGizmoDraft,
+      setSceneReferenceGhost,
+      setSelectedLaunchGroupId,
+      setSelectedPointIds: setSelectedPointIdsState,
+      setSelectedMotionGroupId,
+      setDynamicEditTime,
+      setExplicitDynamicId,
+      clearAudioSession: () => {
+        // The decoded buffer belongs to the LOCAL file of the replaced project:
+        // it must not stay playable under the adopted project. Audio METADATA of
+        // the adopted project is untouched (files never carry audio bytes, so a
+        // reopened project reports attached = false).
+        audioBufferRef.current = null;
+        setAudioPeaks(null);
+        setAudioError(null);
+        setAudioBusy(false);
+      },
+    }),
+    [],
+  );
+  sessionResetRef.current = () => resetProjectSessionState(sessionResetSetters);
 
   const aiBuilt = useMemo(() => {
     if (!aiProposal || aiProposalErrors.length > 0) return null;
