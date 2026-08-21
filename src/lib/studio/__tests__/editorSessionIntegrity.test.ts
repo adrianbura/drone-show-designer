@@ -20,6 +20,7 @@ import {
 import {
   EMPTY_EDITOR_CLIP_SELECTION,
   reconcileEditorSelection,
+  type EditorClipSelectionState,
 } from "../clipSelection";
 import { PROJECT_SESSION_RESET_SLOTS } from "../projectLifecycle";
 import { DERIVED_ANALYSIS_SLOTS } from "../derivedAnalysis";
@@ -128,7 +129,7 @@ describe("selection integrity across long sessions", () => {
   it("stays clean over 50 alternating clip switches", () => {
     const project = createDepthStaggerDemoProject();
     const ids = project.timeline.map((c) => c.id);
-    let state = {
+    let state: EditorClipSelectionState = {
       ...EMPTY_EDITOR_CLIP_SELECTION,
       sceneSelection: { ids: ["stale"], primaryId: "stale" },
       selectedLightingEffectId: "fx-stale",
