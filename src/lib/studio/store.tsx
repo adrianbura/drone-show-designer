@@ -1075,6 +1075,15 @@ interface AdoptProjectRestore {
   fileState?: "FILE" | "UNSAVED" | "RECOVERED";
 }
 
+/**
+ * Result of the adoption boundary. A failed adoption changes NOTHING: the
+ * previously open project keeps its own reference layer, export eligibility and
+ * source-recovery bytes.
+ */
+type AdoptProjectOutcome =
+  | { ok: true }
+  | { ok: false; error: { code: string; message: string } };
+
 export function StudioProvider({ children }: { children: ReactNode }) {
   // Lazy initializer: keeps module scope free of runtime work (Worker-safe).
   const [project, setProject] = useState<ShowProject>(() => createDefaultProject());
@@ -1180,8 +1189,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    */
   const sessionResetRef = useRef<() => void>(() => {});
   const adoptProjectRef = useRef<
-    (next: ShowProject, fileName: string, restore?: AdoptProjectRestore) => void
-  >(() => {});
+    (next: ShowProject, fileName: string, restore?: AdoptProjectRestore) => AdoptProjectOutcome
+  >(() => ({ ok: true }));
 
   const [preShowBusy, setPreShowBusy] = useState(false);
   const [showLaunchPads, setShowLaunchPads] = useState(false);
@@ -4006,33 +4015,36 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     next: ShowProject,
     fileName: string,
     restore?: AdoptProjectRestore,
-  ) => {
+  ): AdoptProjectOutcome => {
+    // ATOMICITY: the imported layer is rehydrated BEFORE any state is touched.
+    // A payload that cannot be rehydrated aborts the whole adoption, so the
+    // currently open project (and its export/recovery authority) stays intact
+    // instead of being half-replaced.
+    const restoredLayer = restore?.referenceLayer ?? null;
+    let restoredShow: ReturnType<typeof referenceShowFromLayer> | null = null;
+    if (restoredLayer) {
+      try {
+        restoredShow = referenceShowFromLayer(restoredLayer);
+      } catch (err) {
+        return {
+          ok: false,
+          error: {
+            code: err instanceof ReferenceLayerError ? err.code : "MALFORMED_LAYER",
+            message: err instanceof Error ? err.message : String(err),
+          },
+        };
+      }
+    }
     setProject(next);
     sessionResetRef.current();
-    // IMPORTED LAYER: rehydrated from the file, so the first frame after
-    // reopening already plays the imported samples. A payload that cannot be
-    // rehydrated is surfaced as an error, never silently downgraded.
     setReferenceExtractionError(null);
     setReferenceExtraction([]);
     setReferenceAssetDrafts([]);
     setReferenceExtractionWarnings([]);
-    const restoredLayer = restore?.referenceLayer ?? null;
-    if (restoredLayer) {
-      try {
-        setReferenceLayerShow(referenceShowFromLayer(restoredLayer));
-        setReferenceLayer(restoredLayer);
-      } catch (err) {
-        setReferenceLayer(null);
-        setReferenceLayerShow(null);
-        setReferenceExtractionError({
-          code: err instanceof ReferenceLayerError ? err.code : "MALFORMED_LAYER",
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
-    } else {
-      setReferenceLayer(null);
-      setReferenceLayerShow(null);
-    }
+    // IMPORTED LAYER: always travels with the adopted project, including null,
+    // so no source-recovery bytes of the replaced project can survive.
+    setReferenceLayerShow(restoredShow);
+    setReferenceLayer(restoredShow ? restoredLayer : null);
     // selectedClipId is only restored when that clip still exists; otherwise the
     // deterministic fallback is the first clip of the reopened timeline.
     const requested = restore?.selectedClipId;
@@ -4092,12 +4104,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }
     setProjectAutosavedAt(null);
     setProjectFileNameState(ensureProjectExtension(fileName || suggestedProjectFileName(next.name)));
+    return { ok: true };
   }, [derivedAnalysisSetters]);
   adoptProjectRef.current = adoptProject;
 
   /** Adopts a parsed/migrated envelope with its planning state and editor prefs. */
   const adoptProjectFile = useCallback(
-    (file: ProjectFile, fileName: string, fileState: "FILE" | "RECOVERED" = "FILE") => {
+    (
+      file: ProjectFile,
+      fileName: string,
+      fileState: "FILE" | "RECOVERED" = "FILE",
+    ): AdoptProjectOutcome =>
       adoptProject(file.project, fileName, {
         ...(file.planning ? { planning: file.planning } : {}),
         // EXACT REFERENCE AUTHORITY: the adopted file owns it. A file without a
@@ -4109,8 +4126,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           ? { sampleRate: file.editor.sampleRate }
           : {}),
         fileState,
-      });
-    },
+      }),
     [adoptProject],
   );
 
@@ -4118,7 +4134,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     async (file: File) => {
       try {
         const parsed = parseProjectFile(await file.text());
-        adoptProjectFile(parsed, file.name);
+        const outcome = adoptProjectFile(parsed, file.name);
+        if (!outcome.ok) {
+          // Nothing was adopted: report the failure and keep project A intact.
+          setProjectFileError(outcome.error);
+          return;
+        }
         setProjectSavedAt(parsed.savedAt);
         setProjectFileError(null);
       } catch (err) {
@@ -4168,11 +4189,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     if (!snapshot) return;
     // Recovery restores planning state and editor prefs exactly like an open,
     // but the recovered content was never written to a file: it stays dirty.
-    adoptProjectFile(
+    const outcome = adoptProjectFile(
       snapshot.file,
       snapshot.fileName || suggestedProjectFileName(snapshot.file.project.name),
       "RECOVERED",
     );
+    if (!outcome.ok) {
+      // A recovery that cannot be rehydrated leaves the open project untouched.
+      setProjectFileError(outcome.error);
+      return;
+    }
     setAutosaveRecovery(null);
   }, [autosaveRecovery, adoptProjectFile]);
 
