@@ -5,6 +5,7 @@ import {
   findGeometryProposalOpportunities,
   type AudienceView,
 } from "../diagnostics";
+import { createWeddingStoryProject } from "../stories/weddingStory";
 import type { ShowProject, Vector3Tuple } from "../types";
 import { clipPhase } from "../types";
 
@@ -40,6 +41,16 @@ function fixture(): { project: ShowProject; targetTime: number; targetClipId: st
     targetTime,
     targetClipId: target.id,
   };
+}
+
+function holdFormationPoints(project: ShowProject, time: number): readonly Vector3Tuple[] {
+  const clip = project.timeline.find((candidate) => {
+    const holdStart = candidate.start + candidate.transition;
+    const holdEnd = holdStart + candidate.hold;
+    return time >= holdStart - 1e-9 && time <= holdEnd + 1e-9;
+  });
+  if (!clip) return [];
+  return project.formations.find((formation) => formation.id === clip.formationId)?.points ?? [];
 }
 
 describe("geometry proposal opportunity finder", () => {
@@ -79,6 +90,24 @@ describe("geometry proposal opportunity finder", () => {
       (time) => (Math.abs(time - targetTime) < 1e-6 ? STACKED : PLANAR),
       VIEW,
     );
+    expect(JSON.stringify(project)).toBe(before);
+  });
+
+  it("finds a real materialisable proposal opportunity in the authored wedding story", () => {
+    const project = createWeddingStoryProject(200);
+    const before = JSON.stringify(project);
+    const report = findGeometryProposalOpportunities(
+      project,
+      (time) => holdFormationPoints(project, time),
+      VIEW,
+    );
+
+    expect(report.checkedHoldCount).toBeGreaterThan(0);
+    expect(report.materialisableHoldCount).toBe(report.checkedHoldCount);
+    expect(report.best).not.toBeNull();
+    expect(report.best!.optimization.before.candidatePairCount).toBeGreaterThan(0);
+    expect(report.best!.optimization.improved).toBe(true);
+    expect(report.best!.materialisation.kind).toBe("FORMATION");
     expect(JSON.stringify(project)).toBe(before);
   });
 });
