@@ -4104,12 +4104,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }
     setProjectAutosavedAt(null);
     setProjectFileNameState(ensureProjectExtension(fileName || suggestedProjectFileName(next.name)));
+    return { ok: true };
   }, [derivedAnalysisSetters]);
   adoptProjectRef.current = adoptProject;
 
   /** Adopts a parsed/migrated envelope with its planning state and editor prefs. */
   const adoptProjectFile = useCallback(
-    (file: ProjectFile, fileName: string, fileState: "FILE" | "RECOVERED" = "FILE") => {
+    (
+      file: ProjectFile,
+      fileName: string,
+      fileState: "FILE" | "RECOVERED" = "FILE",
+    ): AdoptProjectOutcome =>
       adoptProject(file.project, fileName, {
         ...(file.planning ? { planning: file.planning } : {}),
         // EXACT REFERENCE AUTHORITY: the adopted file owns it. A file without a
@@ -4121,8 +4126,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           ? { sampleRate: file.editor.sampleRate }
           : {}),
         fileState,
-      });
-    },
+      }),
     [adoptProject],
   );
 
@@ -4130,7 +4134,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     async (file: File) => {
       try {
         const parsed = parseProjectFile(await file.text());
-        adoptProjectFile(parsed, file.name);
+        const outcome = adoptProjectFile(parsed, file.name);
+        if (!outcome.ok) {
+          // Nothing was adopted: report the failure and keep project A intact.
+          setProjectFileError(outcome.error);
+          return;
+        }
         setProjectSavedAt(parsed.savedAt);
         setProjectFileError(null);
       } catch (err) {
