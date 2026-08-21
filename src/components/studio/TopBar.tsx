@@ -1,4 +1,4 @@
-import { Activity, FolderOpen, Heart, Keyboard, Radio, Save, Settings2, Sparkles } from "lucide-react";
+import { Activity, Layers, FolderOpen, Keyboard, Radio, Save, Settings2, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { DEPTH_STAGGER_DEMO_ID } from "@/lib/show/stories/depthStaggerDemo";
@@ -81,7 +81,7 @@ export default function TopBar() {
           title="Load the Depth Stagger Demo sample show (Geometry Proposal workflow)"
           className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
         >
-          <Heart className="size-3" /> Depth Stagger Demo
+          <Layers className="size-3" /> Depth Stagger Demo
         </button>
         <button
           type="button"
