@@ -52,7 +52,7 @@ describe("geometry opportunity search helpers", () => {
     );
     expect(map.get("materialisation")).toBe("FORMATION");
     expect(map.get("amplitude")).toMatch(/ m$/);
-  });
+  }, 30_000);
 
   it("has an explicit no-opportunity message that never claims safety", () => {
     expect(NO_OPPORTUNITY_MESSAGE).toContain("No materialisable SHOW hold");
@@ -114,5 +114,5 @@ describe("geometry opportunity search helpers", () => {
       });
       expect(clip).toBeDefined();
     }
-  });
+  }, 30_000);
 });

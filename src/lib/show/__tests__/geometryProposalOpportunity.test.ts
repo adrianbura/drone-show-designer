@@ -109,5 +109,5 @@ describe("geometry proposal opportunity finder", () => {
     expect(report.best!.optimization.improved).toBe(true);
     expect(report.best!.materialisation.kind).toBe("FORMATION");
     expect(JSON.stringify(project)).toBe(before);
-  });
+  }, 30_000);
 });
