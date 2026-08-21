@@ -5,7 +5,7 @@ import {
   findGeometryProposalOpportunities,
   type AudienceView,
 } from "../diagnostics";
-import { createWeddingStoryProject } from "../stories/weddingStory";
+import { createDepthStaggerDemoProject } from "../stories/depthStaggerDemo";
 import type { ShowProject, Vector3Tuple } from "../types";
 import { clipPhase } from "../types";
 
@@ -93,8 +93,8 @@ describe("geometry proposal opportunity finder", () => {
     expect(JSON.stringify(project)).toBe(before);
   });
 
-  it("finds a real materialisable proposal opportunity in the authored wedding story", () => {
-    const project = createWeddingStoryProject(200);
+  it("finds a real materialisable proposal opportunity in the Depth Stagger Demo", () => {
+    const project = createDepthStaggerDemoProject();
     const before = JSON.stringify(project);
     const report = findGeometryProposalOpportunities(
       project,

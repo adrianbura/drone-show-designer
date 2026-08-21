@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createWeddingStoryProject } from "../../show/stories/weddingStory";
+import { createDepthStaggerDemoProject } from "../../show/stories/depthStaggerDemo";
 import { findGeometryProposalOpportunities, type AudienceView } from "../../show/diagnostics";
 import { AUDIENCE_VIEW_DEFAULTS, audienceViewOf } from "../audienceView";
 import {
@@ -32,8 +32,8 @@ function holdPoints(project: ShowProject, time: number): readonly Vector3Tuple[]
 }
 
 describe("geometry opportunity search helpers", () => {
-  it("maps a real authored-story opportunity to operator rows", () => {
-    const project = createWeddingStoryProject(200);
+  it("maps a real Depth Stagger Demo opportunity to operator rows", () => {
+    const project = createDepthStaggerDemoProject();
     const report = findGeometryProposalOpportunities(
       project,
       (time) => holdPoints(project, time),
@@ -95,7 +95,7 @@ describe("geometry opportunity search helpers", () => {
   });
 
   it("searches only SHOW hold midpoints, once per explicit invocation", () => {
-    const project = createWeddingStoryProject(120);
+    const project = createDepthStaggerDemoProject();
     const sampled: number[] = [];
     const report = findGeometryProposalOpportunities(
       project,
