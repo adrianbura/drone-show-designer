@@ -8,6 +8,8 @@
  */
 export * from "./types";
 export * from "./resolve";
+export * from "./inverseTransform";
+export * from "./proposalMaterialization";
 export * from "./budget";
 export * from "./migrate";
 export * from "./overlap";
