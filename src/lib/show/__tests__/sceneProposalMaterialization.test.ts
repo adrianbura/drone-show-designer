@@ -135,7 +135,9 @@ describe("scene geometry proposal materialization", () => {
     expect(rebound.requestedDroneCount).toBe(requestedDroneCount);
     expect(rebound.source.kind).toBe("STATIC");
     if (rebound.source.kind !== "STATIC") throw new Error("expected static rebound");
-    const derived = result.project.formations.find((formation) => formation.id === rebound.source.formationId)!;
+    const reboundFormationId = rebound.source.formationId;
+    const derived = result.project.formations.find((formation) => formation.id === reboundFormationId)!;
+
     expect(derived.points).toHaveLength(requestedDroneCount);
     const resolved = resolveSceneAt(result.project, result.project.scenes![0]!).points;
     resolved.forEach((point, index) => expectPointClose(point, proposed[index]!, 7));

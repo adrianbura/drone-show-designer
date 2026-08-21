@@ -13,9 +13,12 @@ import { Info, Sparkles } from "lucide-react";
 
 import {
   CONSEQUENCE_WORDING,
+  DERIVED_ASSET_DISCLOSURE,
   GEOMETRY_PROPOSAL_DEFAULTS,
   GEOMETRY_PROPOSAL_WORDING,
   SCENE_MATERIALISER_MISSING_MESSAGE,
+  SUBSAMPLED_DISCLOSURE,
+
   VERTICAL_STACK_ANALYSIS_DEFAULTS,
   analyzeGeometryProposalConsequences,
   applyActionMessage,
@@ -36,6 +39,7 @@ import {
   type GeometryTrajectoryConsequenceReport,
   type ProposalPreviewMode,
 } from "@/lib/show/diagnostics";
+import { materializeStaticSceneGeometryProposal } from "@/lib/show/scene";
 import type { Vector3Tuple } from "@/lib/show/types";
 import {
   audienceViewOf,
@@ -226,11 +230,25 @@ export default function GeometryProposalPanel() {
   // Explicit evaluation only: the canonical full-show path is expensive and must
   // never run per render or per animation frame.
   const evaluate = () => {
-    if (!materialisation || materialisation.kind !== "FORMATION" || !proposed.length) return;
+    if (!materialisation || materialisation.kind === "UNAVAILABLE" || !proposed.length) return;
     setEvaluating(true);
     const key = evidenceKey;
     try {
-      const hypothetical = projectWithFormationPoints(project, materialisation.formationId, proposed);
+      let hypothetical;
+      if (materialisation.kind === "FORMATION") {
+        hypothetical = projectWithFormationPoints(project, materialisation.formationId, proposed);
+      } else {
+        const scene = materializeStaticSceneGeometryProposal(
+          project,
+          materialisation.sceneId,
+          proposed,
+        );
+        if (!scene.ok) {
+          setEvidence({ key, report: null, error: `${scene.blocker}: ${scene.note}` });
+          return;
+        }
+        hypothetical = scene.project;
+      }
       const report = evaluateGeometryTrajectoryConsequence(
         project,
         hypothetical,
@@ -243,6 +261,7 @@ export default function GeometryProposalPanel() {
       setEvaluating(false);
     }
   };
+
 
   // Ghost preview is ephemeral diagnostic state, never project state.
   useEffect(() => {
@@ -487,10 +506,24 @@ export default function GeometryProposalPanel() {
             </p>
             {materialisation && materialisation.kind === "UNAVAILABLE" ? (
               <p className="pt-1 text-[10px] leading-relaxed text-warning" data-testid="gp-trajectory-unavailable">
-                {SCENE_MATERIALISER_MISSING_MESSAGE}. {materialisation.reason}
+                {materialisation.reason.startsWith(SCENE_MATERIALISER_MISSING_MESSAGE) ||
+                materialisation.reason.startsWith("Trajectory consequence preview unavailable")
+                  ? materialisation.reason
+                  : `${SCENE_MATERIALISER_MISSING_MESSAGE}. ${materialisation.reason}`}
               </p>
             ) : (
               <>
+                {materialisation && materialisation.kind === "SCENE" ? (
+                  <p
+                    className="pt-1 text-[10px] leading-relaxed text-muted-foreground"
+                    data-testid="gp-scene-derived-note"
+                  >
+                    {DERIVED_ASSET_DISCLOSURE} {SUBSAMPLED_DISCLOSURE} Derived formations:{" "}
+                    {materialisation.objectCount}. Nothing is persisted — this preview stays
+                    hypothetical and read-only.
+                  </p>
+                ) : null}
+
                 <button
                   type="button"
                   onClick={evaluate}
