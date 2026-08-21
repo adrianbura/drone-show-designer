@@ -3103,6 +3103,23 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     patchClip(clipId, { transition: Math.max(0.5, next) });
   }, [transitionAnalysis, patchClip]);
 
+  /**
+   * CANONICAL FULL-SHOW OPTIONS (single source).
+   *
+   * Read-only consumers (diagnostics, consequence previews) must analyse with
+   * EXACTLY these settings so they can never build a second planner path.
+   */
+  const fullShowAnalysisOptions = useMemo<AnalyzeFullShowOptions>(
+    () => ({
+      sampleRate,
+      assignmentStrategy,
+      transitionOverrides,
+      reference:
+        referenceLayer && referenceLayerShow ? { layer: referenceLayer, show: referenceLayerShow } : null,
+    }),
+    [sampleRate, assignmentStrategy, transitionOverrides, referenceLayer, referenceLayerShow],
+  );
+
   // ---- Full show simulation & validation ---------------------------------
   //
   // The analysis composes the show with EXACTLY the settings the viewport plays
