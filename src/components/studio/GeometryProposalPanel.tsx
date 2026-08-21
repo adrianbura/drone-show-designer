@@ -39,6 +39,7 @@ import {
   type GeometryTrajectoryConsequenceReport,
   type ProposalPreviewMode,
 } from "@/lib/show/diagnostics";
+import { materializeStaticSceneGeometryProposal } from "@/lib/show/scene";
 import type { Vector3Tuple } from "@/lib/show/types";
 import {
   audienceViewOf,
