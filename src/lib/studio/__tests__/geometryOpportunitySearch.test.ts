@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createWeddingStoryProject } from "../../show/stories/weddingStory";
+import { createDepthStaggerDemoProject } from "../../show/stories/depthStaggerDemo";
 import { findGeometryProposalOpportunities, type AudienceView } from "../../show/diagnostics";
 import { AUDIENCE_VIEW_DEFAULTS, audienceViewOf } from "../audienceView";
 import {
@@ -32,17 +32,17 @@ function holdPoints(project: ShowProject, time: number): readonly Vector3Tuple[]
 }
 
 describe("geometry opportunity search helpers", () => {
-  it("maps a real authored-story opportunity to operator rows", () => {
-    const project = createWeddingStoryProject(200);
+  it("maps the real depth-stagger demo opportunity to operator rows", () => {
+    const project = createDepthStaggerDemoProject();
     const report = findGeometryProposalOpportunities(
       project,
       (time) => holdPoints(project, time),
       VIEW,
     );
     expect(report.best).not.toBeNull();
-    const rows = buildOpportunityRows(report.best!, "Heart");
+    const rows = buildOpportunityRows(report.best!, "Depth Stagger · Vertical Columns");
     const map = new Map(rows.map((r) => [r.label, r.value]));
-    expect(map.get("clip")).toBe("Heart");
+    expect(map.get("clip")).toBe("Depth Stagger · Vertical Columns");
     expect(map.get("time")).toBe(`${report.best!.time.toFixed(2)} s`);
     expect(map.get("pairs before")).toBe(
       String(report.best!.optimization.before.candidatePairCount),
@@ -52,7 +52,7 @@ describe("geometry opportunity search helpers", () => {
     );
     expect(map.get("materialisation")).toBe("FORMATION");
     expect(map.get("amplitude")).toMatch(/ m$/);
-  }, 30_000);
+  });
 
   it("has an explicit no-opportunity message that never claims safety", () => {
     expect(NO_OPPORTUNITY_MESSAGE).toContain("No materialisable SHOW hold");
@@ -95,7 +95,7 @@ describe("geometry opportunity search helpers", () => {
   });
 
   it("searches only SHOW hold midpoints, once per explicit invocation", () => {
-    const project = createWeddingStoryProject(120);
+    const project = createDepthStaggerDemoProject();
     const sampled: number[] = [];
     const report = findGeometryProposalOpportunities(
       project,
@@ -114,5 +114,5 @@ describe("geometry opportunity search helpers", () => {
       });
       expect(clip).toBeDefined();
     }
-  }, 30_000);
+  });
 });
