@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { useStudio } from "@/lib/studio/store";
+import { useGeometryProposalPreview } from "@/lib/studio/geometryProposalPreview";
 import { lightColorAt } from "@/lib/show/lights";
 import { emittedColor, type DroneLightState } from "@/lib/show/lighting";
 import { activeClipAt } from "@/lib/show/timeline";
@@ -16,6 +17,7 @@ import TransitionOverlay from "./TransitionOverlay";
 import ReferenceSwarm from "./ReferenceSwarm";
 import ConversionOverlay from "./ConversionOverlay";
 import ReferenceGhostSwarm from "./ReferenceGhostSwarm";
+import GeometryProposalGhost from "./GeometryProposalGhost";
 import SceneGizmo from "./SceneGizmo";
 import SceneGizmoPreview from "./SceneGizmoPreview";
 
@@ -219,6 +221,7 @@ export default function Viewport3D() {
     updateSceneGizmo,
     commitSceneGizmo,
   } = useStudio();
+  const proposalPreview = useGeometryProposalPreview();
   const handleSelectDrone = useCallback(
     (index: number, additive: boolean) => {
       // SCENE-FIRST PICKING: clicking a drone selects the SCENE OBJECT whose
@@ -355,6 +358,12 @@ export default function Viewport3D() {
           showStaging={showStaging}
           showGroups={showLaunchGroups}
           selectedGroupId={selectedLaunchGroupId}
+        />
+      ) : null}
+      {!reference && proposalPreview.enabled ? (
+        <GeometryProposalGhost
+          original={proposalPreview.original}
+          proposed={proposalPreview.proposed}
         />
       ) : null}
       {!reference && svgDraft ? <SvgDraftPreview draft={svgDraft} /> : null}

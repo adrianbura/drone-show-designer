@@ -21,6 +21,7 @@ import EsspPanel from "./EsspPanel";
 import ExportPreflight from "./ExportPreflight";
 import ForensicsPanel from "./ForensicsPanel";
 import VerticalStackPanel from "./VerticalStackPanel";
+import GeometryProposalPanel from "./GeometryProposalPanel";
 import ConversionPanel from "./ConversionPanel";
 import NativeConversionPanel from "./NativeConversionPanel";
 
@@ -695,6 +696,7 @@ export default function Inspector() {
       </section>
 
       <VerticalStackPanel />
+      <GeometryProposalPanel />
 
       <LaunchPanel />
 

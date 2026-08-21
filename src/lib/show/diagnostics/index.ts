@@ -7,5 +7,6 @@ export * from "./audienceProjection";
 export * from "./projectionPreservingGeometry";
 export * from "./geometryProposalOptimizer";
 export * from "./geometryProposalComparison";
+export * from "./geometryProposalPresentation";
 export * from "./geometryConsequencePreflight";
 export * from "./geometryTrajectoryConsequence";
