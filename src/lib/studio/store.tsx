@@ -4106,6 +4106,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         };
       }
     }
+    // ONE PLACE: the successful adoption advances the project-session generation
+    // and cancels every subsystem authority, so no in-flight audio decode, SVG
+    // import, ESSP import, forensics run or AI request from the replaced
+    // document can install state (or an error) into the new one.
+    invalidateProjectSessionJobs(projectSession.current, [
+      audioJobs.current,
+      svgJobs.current,
+      esspJobs.current,
+      forensicsJobs.current,
+      aiJobs.current,
+    ]);
     setProject(next);
     sessionResetRef.current();
     setReferenceExtractionError(null);
@@ -4445,10 +4456,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           message: err instanceof Error ? err.message : String(err),
         });
       } finally {
-        setAiBusy(false);
+        if (aiJobs.current.isCurrent(token)) setAiBusy(false);
       }
     },
-    [aiProposal, acceptProposal],
+    [aiProposal, acceptProposal, aiScope],
   );
 
   const revertAiProposal = useCallback(() => {
