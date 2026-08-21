@@ -1,14 +1,16 @@
 /**
  * HYPOTHETICAL-PROJECT ELIGIBILITY RESOLVER — PURE / READ-ONLY.
  *
- * Decides which canonical materialiser can honestly represent a current-frame
- * geometry proposal. Legacy/simple formation holds use `projectWithFormationPoints`.
- * Authored STATIC scenes (including multi-object and deterministic sub-sampling)
- * use the scene proposal materialiser. Dynamic formations and transition instants
- * remain unavailable instead of being approximated.
+ * Decides whether a geometry proposal at a given show instant corresponds to a
+ * SIMPLE REUSABLE FORMATION whose point cloud can honestly be swapped by the
+ * canonical `projectWithFormationPoints` helper. Composed scenes, dynamic
+ * formations and transition instants are reported as UNAVAILABLE instead of
+ * being faked through a formation mutation that the real authoring path would
+ * never perform.
+ *
+ * This module never mutates the project and never applies anything.
  */
-import { isCompositeScene, projectScene } from "../scene/migrate";
-import { resolveSceneAt } from "../scene/resolve";
+import { isCompositeScene } from "../scene/migrate";
 import { activeClipAt } from "../timeline";
 import type { ShowProject } from "../types";
 
@@ -17,12 +19,6 @@ export type ProposalMaterialisation =
       readonly kind: "FORMATION";
       readonly clipId: string;
       readonly formationId: string;
-      readonly pointCount: number;
-    }
-  | {
-      readonly kind: "SCENE";
-      readonly clipId: string;
-      readonly sceneId: string;
       readonly pointCount: number;
     }
   | { readonly kind: "UNAVAILABLE"; readonly reason: string };
@@ -52,39 +48,10 @@ export function resolveProposalMaterialisation(
     };
   }
   if (isCompositeScene(project, clip)) {
-    const scene = projectScene(project, clip.id);
-    if (!scene) {
-      return {
-        kind: "UNAVAILABLE",
-        reason: `${SCENE_MATERIALISER_MISSING_MESSAGE} (scene data missing).`,
-      };
-    }
-    if (scene.objects.some((object) => object.source.kind !== "STATIC")) {
-      return {
-        kind: "UNAVAILABLE",
-        reason: `${SCENE_MATERIALISER_MISSING_MESSAGE} (dynamic scene object).`,
-      };
-    }
-    try {
-      const resolvedCount = resolveSceneAt(project, scene).points.length;
-      if (resolvedCount !== proposedPointCount) {
-        return {
-          kind: "UNAVAILABLE",
-          reason: `Proposal covers ${proposedPointCount} point(s) but the static scene resolves to ${resolvedCount}.`,
-        };
-      }
-      return {
-        kind: "SCENE",
-        clipId: clip.id,
-        sceneId: scene.id,
-        pointCount: proposedPointCount,
-      };
-    } catch (err) {
-      return {
-        kind: "UNAVAILABLE",
-        reason: `${SCENE_MATERIALISER_MISSING_MESSAGE} (${err instanceof Error ? err.message : String(err)}).`,
-      };
-    }
+    return {
+      kind: "UNAVAILABLE",
+      reason: `${SCENE_MATERIALISER_MISSING_MESSAGE} (composed multi-object scene).`,
+    };
   }
   const formation = project.formations.find((f) => f.id === clip.formationId);
   if (!formation) {
