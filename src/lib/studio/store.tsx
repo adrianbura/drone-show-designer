@@ -1554,24 +1554,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const currentSetupDraft = useMemo(() => setupDraftFromProject(project), [project]);
 
   /**
-   * Replaces the whole open project with an authored one (setup wizard, story
-   * presets). Every derived/cached analysis was computed for the previous
-   * project, so it is dropped in the same commit.
+   * Replaces the whole open project with an authored one (setup wizard, sample
+   * shows). It flows through the SAME adoption boundary as opening a file, so
+   * there is exactly one reset list; only the file state differs: an authored
+   * project has no file on disk and must not claim the previous file's save.
    */
   const loadShowProject = useCallback((created: ShowProject) => {
-    setProject(created);
-    setSelectedClipId(created.timeline[0]?.id ?? null);
-    setExplicitDynamicId(null);
-    overrideBasisRef.current = {};
-    setTransitionOverrides({});
-    setTransitionDesigns({});
-    invalidateDerivedAnalysis(derivedAnalysisSetters);
-    setSelectedLaunchGroupId(null);
-    setSvgDraft(null);
-    setSvgError(null);
-    timelineHistory.current = { past: [], future: [] };
-    setTimelineHistoryDepth({ past: 0, future: 0 });
-  }, [derivedAnalysisSetters]);
+    adoptProjectRef.current(created, suggestedProjectFileName(created.name), {
+      fileState: "UNSAVED",
+    });
+  }, []);
 
   const createProjectFromDraft = useCallback(
     (draft: ProjectSetupDraft) => {
