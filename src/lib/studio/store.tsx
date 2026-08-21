@@ -4069,20 +4069,31 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setSampleRate(restore.sampleRate);
     }
     invalidateDerivedAnalysis(derivedAnalysisSetters);
-    setSelectedLaunchGroupId(null);
-    setSvgDraft(null);
-    setSvgError(null);
-    setSelectedPointIdsState([]);
-    setSelectedMotionGroupId(null);
-    setDynamicEditTime(0);
     dynamicHistory.current = { past: [], future: [] };
     setDynamicHistoryDepth({ past: 0, future: 0 });
     timelineHistory.current = { past: [], future: [] };
     setTimelineHistoryDepth({ past: 0, future: 0 });
-    savedSignature.current = JSON.stringify(next);
-    setProjectDirty(false);
+    // FILE SEMANTICS. Reopening a file lands clean and saved-as-that-file; an
+    // authored project/sample has no file yet (never "saved as the previous
+    // file"); a recovered autosave is dirty by construction — the empty
+    // signature never equals a project signature, so it stays dirty.
+    const fileState = restore?.fileState ?? "FILE";
+    if (fileState === "FILE") {
+      savedSignature.current = JSON.stringify(next);
+      setProjectDirty(false);
+    } else if (fileState === "RECOVERED") {
+      savedSignature.current = "";
+      setProjectDirty(true);
+      setProjectSavedAt(null);
+    } else {
+      savedSignature.current = null;
+      setProjectDirty(false);
+      setProjectSavedAt(null);
+    }
+    setProjectAutosavedAt(null);
     setProjectFileNameState(ensureProjectExtension(fileName || suggestedProjectFileName(next.name)));
-  }, []);
+  }, [derivedAnalysisSetters]);
+  adoptProjectRef.current = adoptProject;
 
   /** Adopts a parsed/migrated envelope with its planning state and editor prefs. */
   const adoptProjectFile = useCallback(
