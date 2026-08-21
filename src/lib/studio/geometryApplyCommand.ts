@@ -76,20 +76,6 @@ function snapshot(
   };
 }
 
-function newlyPromotedClipIds(
-  before: ReferenceTrajectoryLayer,
-  after: ReferenceTrajectoryLayer,
-): string[] {
-  const beforeOwners = new Map(before.intervals.map((interval) => [interval.clipId, interval.owner] as const));
-  const promoted = new Set<string>();
-  for (const interval of after.intervals) {
-    if (interval.owner === "PLANNER" && beforeOwners.get(interval.clipId) === "REFERENCE") {
-      promoted.add(interval.clipId);
-    }
-  }
-  return [...promoted].sort();
-}
-
 /**
  * Prepares ONE atomic authoring revision. The caller must push `before` to the
  * existing history and install `after.project`, `after.transitionOverrides` and
@@ -137,7 +123,9 @@ export function prepareGeometryApplyCommand(
       input.promotedAt,
     );
     nextLayer = reconciled.layer;
-    promotedReferenceClipIds = newlyPromotedClipIds(input.referenceLayer, reconciled.layer);
+    promotedReferenceClipIds = [
+      ...new Set(reconciled.promotions.map((promotion) => promotion.clipId)),
+    ].sort();
   }
 
   return {
