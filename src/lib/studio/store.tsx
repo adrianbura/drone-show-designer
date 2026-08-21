@@ -3945,7 +3945,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    */
   const consumeAutosaveRecovery = useCallback(() => {
     autosaveGeneration.current += 1;
-    setAutosaveRecoveryState(null);
+    setAutosaveRecovery(null);
     setProjectAutosavedAt(null);
     const store = getAutosaveStore();
     if (store) void clearAutosave(store);
