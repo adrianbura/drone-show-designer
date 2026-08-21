@@ -1847,9 +1847,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       // travels with the snapshot instead of staying promoted forever.
       referenceLayer: referenceLayerRef.current,
     });
+    // BOUNDED HISTORY: a long authoring session must not accumulate snapshots
+    // without limit (same bound as the dynamic-formation history).
+    boundHistory(timelineHistory.current.past);
     timelineHistory.current.future = [];
     setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
   }, []);
+
 
   /**
    * GESTURE COMMIT (Sprint 7.2, ripple since Sprint 8D).
