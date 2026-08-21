@@ -4380,8 +4380,26 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [project.droneCount],
   );
 
+  /**
+   * AI SCOPE. A proposal depends on the open document AND on the design inputs
+   * it was generated for (fleet count, area, seed). Revalidating an old answer
+   * against different inputs and calling it current would be a lie, so those
+   * inputs are part of the acceptance scope.
+   */
+  const aiScope = useCallback(
+    () =>
+      projectSession.current.scope(
+        project.droneCount,
+        project.area.width,
+        project.area.height,
+        project.seed,
+      ),
+    [project.droneCount, project.area.width, project.area.height, project.seed],
+  );
+
   const generateAiProposal = useCallback(
     async (prompt: string) => {
+      const token = aiJobs.current.begin(aiScope());
       setAiBusy(true);
       setAiError(null);
       try {
@@ -4391,32 +4409,37 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           area: project.area,
           seed: project.seed,
         });
+        if (!aiJobs.current.accepts(token, aiScope())) return;
         setAiHistory([]);
         acceptProposal(proposal);
       } catch (err) {
+        if (!aiJobs.current.accepts(token, aiScope())) return;
         setAiProposal(null);
         setAiError({
           code: (err as { code?: string }).code ?? "PROVIDER_UNAVAILABLE",
           message: err instanceof Error ? err.message : String(err),
         });
       } finally {
-        setAiBusy(false);
+        if (aiJobs.current.isCurrent(token)) setAiBusy(false);
       }
     },
-    [project.droneCount, project.area, project.seed, acceptProposal],
+    [project.droneCount, project.area, project.seed, acceptProposal, aiScope],
   );
 
   const refineAiProposal = useCallback(
     async (instruction: string) => {
       const base = aiProposal;
       if (!base) return;
+      const token = aiJobs.current.begin(aiScope());
       setAiBusy(true);
       setAiError(null);
       try {
         const next = await aiProvider.current.refineProposal({ proposal: base, instruction });
+        if (!aiJobs.current.accepts(token, aiScope())) return;
         setAiHistory((h) => [...h, base].slice(-20));
         acceptProposal(next);
       } catch (err) {
+        if (!aiJobs.current.accepts(token, aiScope())) return;
         setAiError({
           code: (err as { code?: string }).code ?? "PROVIDER_UNAVAILABLE",
           message: err instanceof Error ? err.message : String(err),
