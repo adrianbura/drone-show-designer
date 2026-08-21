@@ -6,6 +6,8 @@
  * mirrors the exact store command boundary (`invalidateDerivedAnalysis` with the
  * run-cancellation setters) so no policy is duplicated.
  */
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { createAnalysisRunAuthority, type AnalysisRunToken } from "../analysisRunAuthority";
@@ -207,5 +209,29 @@ describe("store race acceptance", () => {
     store.startRun();
     store.replaceContent("rev-B");
     expect(store.settings).toEqual({ sampleRate: 10 });
+  });
+});
+
+describe("store source discipline", () => {
+  const source = readFileSync(new URL("../store.tsx", import.meta.url), "utf8");
+
+  it("redoTimeline declares the same dependencies as undoTimeline", () => {
+    const redo = source.slice(source.indexOf("const redoTimeline"));
+    const deps = redo.slice(0, redo.indexOf("// ---- Markers"));
+    expect(deps).toContain("[currentSnapshot, restoreSnapshot]");
+  });
+
+  it("does not suppress react-hooks warnings", () => {
+    expect(source).not.toContain("eslint-disable-next-line react-hooks");
+    expect(source).not.toContain("eslint-disable react-hooks");
+  });
+
+  it("has a single full-show cancellation authority", () => {
+    expect(source).not.toContain("cancelFullShow.current");
+    expect(source).toContain("fullShowRunRef");
+  });
+
+  it("keeps the removed legacy story API absent", () => {
+    expect(source).not.toMatch(/weddingStory|loadStoryShow|createWeddingStoryProject/);
   });
 });
