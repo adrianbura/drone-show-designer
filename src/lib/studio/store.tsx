@@ -19,6 +19,13 @@ import {
 import { createDefaultProject } from "../show/defaultProject";
 import { invalidateDerivedAnalysis, type DerivedAnalysisSetters } from "./derivedAnalysis";
 import {
+  ADOPTED_TIMELINE_VIEW,
+  boundHistory,
+  reconcileAdoptedEditorSession,
+} from "./editorSession";
+import { setGeometryProposalPreview } from "./geometryProposalPreview";
+
+import {
   createAsyncJobAuthority,
   createProjectSessionAuthority,
   invalidateProjectSessionJobs,
