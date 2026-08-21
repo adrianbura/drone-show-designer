@@ -1072,7 +1072,7 @@ interface AdoptProjectRestore {
   referenceLayer?: ReferenceTrajectoryLayer | null;
   selectedClipId?: string | null;
   sampleRate?: number;
-  fileState?: "FILE" | "UNSAVED";
+  fileState?: "FILE" | "UNSAVED" | "RECOVERED";
 }
 
 export function StudioProvider({ children }: { children: ReactNode }) {
