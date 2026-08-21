@@ -3,6 +3,8 @@ import { applyInverseInstanceTransform } from "./inverseTransform";
 import { findStaticSource, geometricCentre, instancePivot, subsampleIndices } from "./resolve";
 import type { FormationScene, SceneFormationInstance } from "./types";
 
+const GEOMETRY_PROPOSAL_DERIVATION = "projection-preserving-geometry-proposal";
+
 export type SceneProposalMaterializationBlocker =
   | "SCENE_NOT_FOUND"
   | "MULTI_OBJECT_SCENE"
@@ -84,12 +86,79 @@ function prepareStaticObjects(
   return { objects, pointCount: offset };
 }
 
+function derivedIdBase(sceneId: string, objectId: string): string {
+  return `${sceneId}-${objectId}-geometry`;
+}
+
+function isGeometryProposalFormation(formation: Formation): boolean {
+  return formation.params?.derivation === GEOMETRY_PROPOSAL_DERIVATION;
+}
+
+/**
+ * Resolve durable provenance instead of chaining proposal -> proposal -> proposal
+ * on repeated Apply. This metadata never replaces the actual current source used
+ * by inverse transforms.
+ */
+function rootSourceFormationId(project: ShowProject, source: Formation): string {
+  const byId = new Map(project.formations.map((formation) => [formation.id, formation] as const));
+  const seen = new Set<string>();
+  let current = source;
+  while (isGeometryProposalFormation(current)) {
+    const candidate = current.params?.rootFormationId ?? current.params?.derivedFromFormationId;
+    if (typeof candidate !== "string" || !candidate || seen.has(candidate)) break;
+    seen.add(candidate);
+    const next = byId.get(candidate);
+    if (!next) return candidate;
+    current = next;
+  }
+  return current.id;
+}
+
+function referencedOutsideObject(
+  project: ShowProject,
+  formationId: string,
+  sceneId: string,
+  objectId: string,
+): boolean {
+  if (project.timeline.some((clip) => clip.formationId === formationId)) return true;
+  for (const scene of project.scenes ?? []) {
+    for (const object of scene.objects) {
+      if (scene.id === sceneId && object.id === objectId) continue;
+      if (object.source.kind === "STATIC" && object.source.formationId === formationId) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Repeated Apply on one scene object must not leak an unbounded sequence of
+ * project-owned derived formations. Reuse is allowed only when the current
+ * proposal formation clearly belongs to this object and nobody else references
+ * it. History still preserves the previous Formation object, so undo remains exact.
+ */
+function reusableDerivedFormationId(
+  project: ShowProject,
+  source: Formation,
+  sceneId: string,
+  objectId: string,
+): string | null {
+  const expectedBase = derivedIdBase(sceneId, objectId);
+  const ownedByMetadata =
+    source.params?.derivedForSceneId === sceneId && source.params?.derivedForObjectId === objectId;
+  const ownedByLegacyId =
+    isGeometryProposalFormation(source) &&
+    (source.id === expectedBase || source.id.startsWith(`${expectedBase}-`));
+  if (!ownedByMetadata && !ownedByLegacyId) return null;
+  if (referencedOutsideObject(project, source.id, sceneId, objectId)) return null;
+  return source.id;
+}
+
 function nextDerivedFormationId(
   used: Set<string>,
   sceneId: string,
   objectId: string,
 ): string {
-  const base = `${sceneId}-${objectId}-geometry`;
+  const base = derivedIdBase(sceneId, objectId);
   if (!used.has(base)) {
     used.add(base);
     return base;
@@ -109,13 +178,18 @@ function nextDerivedFormationId(
  * deterministic `subsampleIndices` order — exactly the same order used by
  * `resolveSceneAt`. The proposed combined world-space point cloud is split by
  * those stable group offsets, inverted through SCENE -> OBJECT transforms, and
- * each object's used points become a new project-owned custom formation.
+ * each object's used points become project-owned custom geometry.
  *
- * This means multi-object and sub-sampled STATIC scenes are lossless: a
- * sub-sampled object intentionally derives only the points that participate in
- * this scene. Original source assets remain untouched. Explicit object and scene
- * pivots are frozen from the ORIGINAL resolved base points so rebinding to the
- * derived assets cannot move the composition through implicit-centre changes.
+ * Re-applying a proposal to an object that already owns an unshared proposal
+ * formation REPLACES that formation at a stable id instead of appending another
+ * derivation layer. Provenance stays rooted at the original reusable asset. If
+ * that current derived formation is referenced elsewhere, a fresh id is used so
+ * no other clip/scene can be altered accidentally.
+ *
+ * A sub-sampled object intentionally derives only the points that participate in
+ * this scene. Explicit object and scene pivots are frozen from the ORIGINAL
+ * resolved base points so rebinding cannot move the composition through implicit
+ * centre changes.
  *
  * DYNAMIC objects remain blocked because a single current-frame point cloud is
  * insufficient to reconstruct their time-varying local geometry honestly.
@@ -143,6 +217,7 @@ export function materializeStaticSceneGeometryProposal(
     sceneTransform.pivot ?? geometricCentre(prepared.objects.map((entry) => geometricCentre(entry.base)));
   const usedIds = new Set(project.formations.map((formation) => formation.id));
   const derivedFormations: Formation[] = [];
+  const replaceIds = new Set<string>();
   const reboundByObjectId = new Map<string, SceneFormationInstance>();
 
   for (const entry of prepared.objects) {
@@ -151,15 +226,21 @@ export function materializeStaticSceneGeometryProposal(
       const objectWorld = applyInverseInstanceTransform(world, sceneTransform, scenePivot);
       return applyInverseInstanceTransform(objectWorld, entry.object.transform, entry.pivot);
     });
-    const derivedFormationId = nextDerivedFormationId(usedIds, scene.id, entry.object.id);
+    const reusableId = reusableDerivedFormationId(project, entry.source, scene.id, entry.object.id);
+    const derivedFormationId = reusableId ?? nextDerivedFormationId(usedIds, scene.id, entry.object.id);
+    if (reusableId) replaceIds.add(reusableId);
+    const rootFormationId = rootSourceFormationId(project, entry.source);
     derivedFormations.push({
       id: derivedFormationId,
-      name: `${entry.source.name} — geometry proposal`,
+      name: `${entry.source.name.replace(/ — geometry proposal$/, "")} — geometry proposal`,
       kind: "custom",
       points: derivedPoints.map((point) => [point[0], point[1], point[2]] as Vector3Tuple),
       params: {
-        derivedFromFormationId: entry.source.id,
-        derivation: "projection-preserving-geometry-proposal",
+        derivedFromFormationId: rootFormationId,
+        rootFormationId,
+        derivedForSceneId: scene.id,
+        derivedForObjectId: entry.object.id,
+        derivation: GEOMETRY_PROPOSAL_DERIVATION,
         sourcePointIndices: entry.indices.join(","),
       },
     });
@@ -182,7 +263,10 @@ export function materializeStaticSceneGeometryProposal(
     ok: true,
     project: {
       ...project,
-      formations: [...project.formations, ...derivedFormations],
+      formations: [
+        ...project.formations.filter((formation) => !replaceIds.has(formation.id)),
+        ...derivedFormations,
+      ],
       scenes: (project.scenes ?? []).map((candidate) =>
         candidate.id === scene.id ? materializedScene : candidate,
       ),
@@ -191,6 +275,6 @@ export function materializeStaticSceneGeometryProposal(
     derivedFormationIds,
     blocker: null,
     note:
-      "Preview materialisation only. Each static scene object is rebound to a derived project-owned formation; original assets are preserved and resolved world-space proposal points round-trip through the existing scene transform hierarchy.",
+      "Preview materialisation only. Each static scene object is rebound to derived project-owned geometry; original reusable assets are preserved, repeated proposals reuse unshared scene-owned derived ids, and resolved world-space proposal points round-trip through the existing scene transform hierarchy.",
   };
 }
