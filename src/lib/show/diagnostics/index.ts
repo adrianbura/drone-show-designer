@@ -13,3 +13,4 @@ export * from "./geometryTrajectoryConsequence";
 export * from "./geometryApplyReadiness";
 export * from "./geometryProposalMaterialisation";
 export * from "./geometryConsequencePresentation";
+export * from "./geometryProposalOpportunity";
