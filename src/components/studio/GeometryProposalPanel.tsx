@@ -414,6 +414,63 @@ export default function GeometryProposalPanel() {
         {GEOMETRY_PROPOSAL_WORDING.capLabel}
       </p>
 
+      {/* ---- OPPORTUNITY FINDER (operator navigation only) ---- */}
+      <div className="mb-2 border-y border-border/60 py-2" data-testid="gp-finder">
+        <button
+          type="button"
+          onClick={findOpportunity}
+          disabled={searching}
+          className="chip-btn w-full justify-center"
+          data-testid="gp-find-opportunity"
+        >
+          {searching ? SEARCHING_MESSAGE : "Find proposal opportunity"}
+        </button>
+        {search && !searchStale ? (
+          search.rows.length ? (
+            <>
+              <p className="pt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground">
+                Best opportunity
+              </p>
+              <ul className="pt-1 font-mono text-[10px]" data-testid="gp-opportunity-rows">
+                {search.rows.map((row) => (
+                  <li key={row.label} className="grid grid-cols-2 gap-x-2">
+                    <span className="uppercase tracking-[0.12em] text-muted-foreground">
+                      {row.label}
+                    </span>
+                    <span className="text-right text-foreground">{row.value}</span>
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => search.time !== null && setTime(search.time)}
+                className="chip-btn mt-1 w-full justify-center"
+                data-testid="gp-goto-opportunity"
+              >
+                Go to opportunity
+              </button>
+              <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground">
+                Navigation only — proposal evaluation stays a separate explicit action.
+              </p>
+            </>
+          ) : (
+            <p
+              className="pt-2 text-[10px] leading-relaxed text-muted-foreground"
+              data-testid="gp-no-opportunity"
+            >
+              {NO_OPPORTUNITY_MESSAGE}
+            </p>
+          )
+        ) : null}
+        {searchStale ? (
+          <p className="pt-2 text-[10px] leading-relaxed text-warning" data-testid="gp-search-stale">
+            Diagnostic settings or the project changed — the previous opportunity search is stale.
+            Search again.
+          </p>
+        ) : null}
+      </div>
+
+
       <dl
         className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[10px] text-muted-foreground"
         data-testid="geometry-proposal-summary"
