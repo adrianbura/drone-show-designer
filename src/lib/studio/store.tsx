@@ -1233,7 +1233,22 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
   const [selectedForensicSegmentId, setSelectedForensicSegmentId] = useState<string | null>(null);
   const [showForensicActiveDrones, setShowForensicActiveDrones] = useState(true);
-  const forensicsRunRef = useRef(0);
+  /**
+   * PROJECT-SESSION ASYNC AUTHORITY (see ./asyncJobAuthority).
+   *
+   * One session generation for the whole Studio, advanced ONLY by a successful
+   * project adoption, plus one authority per async subsystem so "newest request
+   * wins" and "still the current document" are decided in one place. Refs, not
+   * state: no rerender is caused by async bookkeeping.
+   */
+  const projectSession = useRef(createProjectSessionAuthority());
+  const forensicsJobs = useRef(createAsyncJobAuthority());
+  const audioJobs = useRef(createAsyncJobAuthority());
+  const svgJobs = useRef(createAsyncJobAuthority());
+  const esspJobs = useRef(createAsyncJobAuthority());
+  const aiJobs = useRef(createAsyncJobAuthority());
+  /** Session-only scope (identity of the open document, nothing else). */
+  const sessionScope = useCallback(() => projectSession.current.scope(), []);
 
   // Pure engine pipeline: formations -> assignment -> planning -> sampling -> safety.
   const plan = useMemo(
