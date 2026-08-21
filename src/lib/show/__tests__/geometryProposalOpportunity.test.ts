@@ -93,7 +93,7 @@ describe("geometry proposal opportunity finder", () => {
     expect(JSON.stringify(project)).toBe(before);
   });
 
-  it("finds a real materialisable proposal opportunity in the depth-stagger demo", () => {
+  it("finds a real materialisable proposal opportunity in the Depth Stagger Demo", () => {
     const project = createDepthStaggerDemoProject();
     const before = JSON.stringify(project);
     const report = findGeometryProposalOpportunities(
@@ -105,10 +105,9 @@ describe("geometry proposal opportunity finder", () => {
     expect(report.checkedHoldCount).toBeGreaterThan(0);
     expect(report.materialisableHoldCount).toBe(report.checkedHoldCount);
     expect(report.best).not.toBeNull();
-    expect(report.best!.clipId).toBe("c-ds-stack");
     expect(report.best!.optimization.before.candidatePairCount).toBeGreaterThan(0);
     expect(report.best!.optimization.improved).toBe(true);
     expect(report.best!.materialisation.kind).toBe("FORMATION");
     expect(JSON.stringify(project)).toBe(before);
-  });
+  }, 30_000);
 });

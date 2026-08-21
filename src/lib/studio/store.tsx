@@ -17,7 +17,8 @@ import {
 } from "react";
 
 import { createDefaultProject } from "../show/defaultProject";
-import { createWeddingStoryProject } from "../show/stories/weddingStory";
+import { invalidateDerivedAnalysis, type DerivedAnalysisSetters } from "./derivedAnalysis";
+import { findSampleShow } from "../show/stories/samples";
 import { generatePoints, makeFormation } from "../show/formations";
 import { buildShowPlan, samplesAt, sampleTrajectorySet, DEFAULT_SAMPLE_RATE } from "../show/trajectory";
 import type { ClipTransitionOverride, ShowPlan, TrajectorySample, TrajectorySet } from "../show/trajectory";
@@ -621,8 +622,8 @@ interface StudioContextValue {
   // ---- Project setup wizard + asset library (Sprint 6B.6) -----------------
   /** Replaces the whole project with a new one built from the wizard draft. */
   createProjectFromDraft: (draft: ProjectSetupDraft) => void;
-  /** Loads the built-in authored story show (wedding narrative). */
-  loadStoryShow: (droneCount?: number) => void;
+  /** Loads a registered opt-in sample/demo show by id (never automatic). */
+  loadSampleShow: (sampleId: string) => boolean;
   /** Applies wizard edits (name / fleet / launch geometry) to the open project. */
   applySetupDraft: (draft: ProjectSetupDraft) => void;
   /** Current project expressed as an editable wizard draft. */
@@ -1123,6 +1124,24 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     /** Project revision the preview was computed for (staleness provenance). */
     revision: string;
   } | null>(null);
+  /**
+   * The ONE derived-analysis invalidation authority (see ./derivedAnalysis).
+   * Stable across renders: every setState is stable, so this object is too.
+   */
+  const derivedAnalysisSetters = useMemo<DerivedAnalysisSetters>(
+    () => ({
+      setTransitionAnalysis,
+      setAssignmentComparison,
+      setOptimization,
+      setTransitionError,
+      setFullShow,
+      setFullShowError,
+      setHighlightedDrones,
+      setPreShowPreview,
+    }),
+    [],
+  );
+
   const [preShowBusy, setPreShowBusy] = useState(false);
   const [showLaunchPads, setShowLaunchPads] = useState(false);
   const [showStaging, setShowStaging] = useState(false);
@@ -1505,12 +1524,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     overrideBasisRef.current = {};
     setTransitionOverrides({});
     setTransitionDesigns({});
-    setTransitionAnalysis(null);
-    setAssignmentComparison(null);
-    setOptimization(null);
-    setFullShow(null);
-    setPreShowPreview(null);
-    setHighlightedDrones([]);
+    invalidateDerivedAnalysis(derivedAnalysisSetters);
     setSelectedLaunchGroupId(null);
     setSvgDraft(null);
     setSvgError(null);
@@ -1525,11 +1539,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [loadShowProject],
   );
 
-  const loadStoryShow = useCallback(
-    (droneCount?: number) => {
-      loadShowProject(createWeddingStoryProject(droneCount ?? project.droneCount));
+  const loadSampleShow = useCallback(
+    (sampleId: string) => {
+      const sample = findSampleShow(sampleId);
+      if (!sample) return false;
+      loadShowProject(sample.create());
+      return true;
     },
-    [loadShowProject, project.droneCount],
+    [loadShowProject],
   );
 
 
@@ -1801,11 +1818,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setTransitionDesigns({ ...(snapshot.transitionDesigns ?? {}) });
     // Restore ownership BEFORE the project so the promotion guard reconciles the
     // restored project against the restored signatures (no phantom promotion).
-    if (snapshot.referenceLayer !== undefined && referenceLayerRef.current) {
+    // EXACT restore: ownership travels with the snapshot, so null -> non-null,
+    // non-null -> null and non-null -> other non-null must all round-trip. It
+    // must never be gated on the CURRENT layer value.
+    if (snapshot.referenceLayer !== undefined) {
       referenceLayerRef.current = snapshot.referenceLayer;
       setReferenceLayer(snapshot.referenceLayer);
     }
+    projectRef.current = snapshot.project;
     setProject(snapshot.project);
+    // Every derived analysis was computed for the REPLACED geometry.
+    invalidateDerivedAnalysis(derivedAnalysisSetters);
     const previous = selectedClipIdRef.current;
     const restoredClip =
       previous && snapshot.project.timeline.some((c) => c.id === previous)
@@ -1815,7 +1838,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     // Undo/redo restores project content only: transient drafts are dropped and
     // every clip-scoped selection is reconciled against the restored project.
     reconcileSelectionRef.current(snapshot.project, restoredClip, previous);
-  }, []);
+  }, [derivedAnalysisSetters]);
 
   const undoTimeline = useCallback(() => {
     const previous = timelineHistory.current.past.pop();
@@ -3714,14 +3737,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setProject(installed.project);
 
       // ---- DERIVED ANALYSIS INVALIDATION (authored settings untouched) ----
-      setTransitionAnalysis(null);
-      setAssignmentComparison(null);
-      setOptimization(null);
-      setTransitionError(null);
-      setFullShow(null);
-      setFullShowError(null);
-      setHighlightedDrones([]);
-      setPreShowPreview(null);
+      invalidateDerivedAnalysis(derivedAnalysisSetters);
 
       // ---- SELECTION (existing authority; keep a still-valid selection) ---
       const previousClipId = selectedClipIdRef.current;
@@ -3739,7 +3755,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         note: prepared.note,
       };
     },
-    [assignmentStrategy],
+    [assignmentStrategy, derivedAnalysisSetters],
   );
 
 
@@ -3995,12 +4011,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     if (typeof restore?.sampleRate === "number" && Number.isFinite(restore.sampleRate)) {
       setSampleRate(restore.sampleRate);
     }
-    setTransitionAnalysis(null);
-    setAssignmentComparison(null);
-    setOptimization(null);
-    setFullShow(null);
-    setPreShowPreview(null);
-    setHighlightedDrones([]);
+    invalidateDerivedAnalysis(derivedAnalysisSetters);
     setSelectedLaunchGroupId(null);
     setSvgDraft(null);
     setSvgError(null);
@@ -4897,7 +4908,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       patchParticipation,
       setClipParticipation,
       createProjectFromDraft,
-      loadStoryShow,
+      loadSampleShow,
       applySetupDraft,
       currentSetupDraft,
       addLibraryFormation,

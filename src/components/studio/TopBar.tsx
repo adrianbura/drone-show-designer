@@ -1,6 +1,7 @@
-import { Activity, FolderOpen, Keyboard, Radio, Save, Settings2, Sparkles } from "lucide-react";
+import { Activity, Layers, FolderOpen, Keyboard, Radio, Save, Settings2, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { DEPTH_STAGGER_DEMO_ID } from "@/lib/show/stories/depthStaggerDemo";
 import { useI18n } from "@/i18n";
 import { LANGUAGES, type Language } from "@/i18n/translate";
 import { SHORTCUT_HELP } from "@/lib/studio/shortcuts";
@@ -31,6 +32,7 @@ export default function TopBar() {
     autosaveRecovery,
     restoreAutosave,
     dismissAutosave,
+    loadSampleShow,
   } = useStudio();
   const { t, language, setLanguage } = useI18n();
   const [wizard, setWizard] = useState<"CREATE" | "EDIT" | null>(null);
@@ -72,6 +74,14 @@ export default function TopBar() {
           className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
         >
           <Settings2 className="size-3" /> {t("topBar.showSetup")}
+        </button>
+        <button
+          type="button"
+          onClick={() => loadSampleShow(DEPTH_STAGGER_DEMO_ID)}
+          title="Load the Depth Stagger Demo sample show (Geometry Proposal workflow)"
+          className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
+        >
+          <Layers className="size-3" /> Depth Stagger Demo
         </button>
         <button
           type="button"

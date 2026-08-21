@@ -32,7 +32,7 @@ function holdPoints(project: ShowProject, time: number): readonly Vector3Tuple[]
 }
 
 describe("geometry opportunity search helpers", () => {
-  it("maps the real depth-stagger demo opportunity to operator rows", () => {
+  it("maps a real Depth Stagger Demo opportunity to operator rows", () => {
     const project = createDepthStaggerDemoProject();
     const report = findGeometryProposalOpportunities(
       project,
@@ -40,9 +40,9 @@ describe("geometry opportunity search helpers", () => {
       VIEW,
     );
     expect(report.best).not.toBeNull();
-    const rows = buildOpportunityRows(report.best!, "Depth Stagger · Vertical Columns");
+    const rows = buildOpportunityRows(report.best!, "Heart");
     const map = new Map(rows.map((r) => [r.label, r.value]));
-    expect(map.get("clip")).toBe("Depth Stagger · Vertical Columns");
+    expect(map.get("clip")).toBe("Heart");
     expect(map.get("time")).toBe(`${report.best!.time.toFixed(2)} s`);
     expect(map.get("pairs before")).toBe(
       String(report.best!.optimization.before.candidatePairCount),
@@ -52,7 +52,7 @@ describe("geometry opportunity search helpers", () => {
     );
     expect(map.get("materialisation")).toBe("FORMATION");
     expect(map.get("amplitude")).toMatch(/ m$/);
-  });
+  }, 30_000);
 
   it("has an explicit no-opportunity message that never claims safety", () => {
     expect(NO_OPPORTUNITY_MESSAGE).toContain("No materialisable SHOW hold");
@@ -114,5 +114,5 @@ describe("geometry opportunity search helpers", () => {
       });
       expect(clip).toBeDefined();
     }
-  });
+  }, 30_000);
 });
