@@ -17,6 +17,7 @@ import { parseProjectFile, serializeProject } from "../../project/serialize";
 import type { KeyValueStore } from "../../library/repository";
 import { createDepthStaggerDemoProject } from "../../show/stories/depthStaggerDemo";
 import type { ClipTransitionOverride } from "../../show/trajectory";
+import { clipPhase } from "../../show/types";
 import { invalidateDerivedAnalysis, DERIVED_ANALYSIS_SLOTS } from "../derivedAnalysis";
 import {
   PROJECT_SESSION_RESET_SLOTS,
@@ -39,7 +40,7 @@ function memoryStore(): KeyValueStore {
 
 function authoredState() {
   const project = createDepthStaggerDemoProject();
-  const clipId = project.timeline[0]!.id;
+  const clipId = project.timeline.find((c) => clipPhase(c) === "SHOW")!.id;
   const n = project.droneCount;
   const override: ClipTransitionOverride = {
     targetPointIndex: Array.from({ length: n }, (_, i) => i),
