@@ -110,6 +110,12 @@ import {
   type OverrideBasisMap,
   type TimelineHistorySnapshot,
 } from "./planningIntegrity";
+import { prepareGeometryApplyCommand } from "./geometryApplyCommand";
+import {
+  installPreparedGeometryApply,
+  type GeometryApplyCommitResult,
+} from "./geometryApplyStoreTransaction";
+import type { GeometryApplyReadinessReport } from "../show/diagnostics/geometryApplyReadiness";
 import {
   clampZoom,
   defaultPhaseForNewClip,
@@ -563,6 +569,16 @@ interface StudioContextValue {
   resetSceneObject: (clipId: string, objectId: string) => void;
   /** Planner-owned editable copy of the whole scene; returns the new clip id. */
   duplicateSceneAsEditable: (clipId: string) => string | null;
+  /**
+   * GEOMETRY APPLY: commits a canonically materialised hypothetical project as
+   * ONE undoable authoring revision (project + overrides + designs + imported
+   * ownership + history) and invalidates derived analysis.
+   */
+  applyGeometryProposal: (input: {
+    afterProject: ShowProject;
+    readiness: GeometryApplyReadinessReport;
+    promotedAt: string;
+  }) => GeometryApplyCommitResult;
 
 
   // ---- Lighting, reveal & colour effects (Sprint 7.4) ---------------------
@@ -3639,6 +3655,96 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   /**
+   * GEOMETRY APPLY — ONE ATOMIC UNDOABLE AUTHORING REVISION.
+   *
+   * All policy lives in the canonical pure modules: `prepareGeometryApplyCommand`
+   * decides/derives the before+after snapshots (override pruning + imported
+   * ownership reconciliation) and `installPreparedGeometryApply` produces the
+   * exact next store state and history stack. This function only installs those
+   * values TOGETHER and invalidates derived analysis computed for the old
+   * geometry. It never re-implements readiness, pruning or promotion.
+   */
+  const applyGeometryProposal = useCallback(
+    (input: {
+      afterProject: ShowProject;
+      readiness: GeometryApplyReadinessReport;
+      promotedAt: string;
+    }): GeometryApplyCommitResult => {
+      const prepared = prepareGeometryApplyCommand({
+        beforeProject: projectRef.current,
+        afterProject: input.afterProject,
+        readiness: input.readiness,
+        transitionOverrides: transitionOverridesRef.current,
+        transitionDesigns: transitionDesignsRef.current,
+        referenceLayer: referenceLayerRef.current,
+        assignmentStrategy,
+        promotedAt: input.promotedAt,
+      });
+      if (!prepared.ok) return prepared;
+
+      const installed = installPreparedGeometryApply(prepared, {
+        past: timelineHistory.current.past,
+        future: timelineHistory.current.future,
+      });
+
+      // ---- ATOMIC INSTALL (one React command boundary) --------------------
+      timelineHistory.current = {
+        past: [...installed.history.past],
+        future: [...installed.history.future],
+      };
+      setTimelineHistoryDepth({
+        past: installed.history.past.length,
+        future: installed.history.future.length,
+      });
+      // Re-seed the basis from the APPLIED project so the invalidation guard
+      // cannot prune the overrides the canonical preparation kept.
+      overrideBasisRef.current = computeOverrideBasis(
+        installed.project,
+        installed.transitionOverrides,
+      );
+      transitionOverridesRef.current = installed.transitionOverrides;
+      transitionDesignsRef.current = installed.transitionDesigns;
+      setTransitionOverrides({ ...installed.transitionOverrides });
+      setTransitionDesigns({ ...installed.transitionDesigns });
+      if (referenceLayerRef.current) {
+        referenceLayerRef.current = installed.referenceLayer;
+        setReferenceLayer(installed.referenceLayer);
+      }
+      projectRef.current = installed.project;
+      setProject(installed.project);
+
+      // ---- DERIVED ANALYSIS INVALIDATION (authored settings untouched) ----
+      setTransitionAnalysis(null);
+      setAssignmentComparison(null);
+      setOptimization(null);
+      setTransitionError(null);
+      setFullShow(null);
+      setFullShowError(null);
+      setHighlightedDrones([]);
+      setPreShowPreview(null);
+
+      // ---- SELECTION (existing authority; keep a still-valid selection) ---
+      const previousClipId = selectedClipIdRef.current;
+      const nextClipId =
+        previousClipId && installed.project.timeline.some((c) => c.id === previousClipId)
+          ? previousClipId
+          : (installed.project.timeline[0]?.id ?? null);
+      if (nextClipId !== previousClipId) setSelectedClipId(nextClipId);
+      reconcileSelectionRef.current(installed.project, nextClipId, nextClipId);
+
+      return {
+        ok: true,
+        invalidatedTransitionOverrideClipIds: installed.invalidatedTransitionOverrideClipIds,
+        promotedReferenceClipIds: installed.promotedReferenceClipIds,
+        note: prepared.note,
+      };
+    },
+    [assignmentStrategy],
+  );
+
+
+
+  /**
    * One-click extraction. The segmentation report is a DERIVED input: when it is
    * missing or stale for the loaded show, the analysis is run here first instead
    * of forcing the operator to discover a second button.
@@ -4758,6 +4864,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       canResetSelectedSceneObject,
       resetSceneObject,
       duplicateSceneAsEditable,
+      applyGeometryProposal,
 
       lightingEffects,
       lightingReport,
@@ -5109,6 +5216,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       canResetSelectedSceneObject,
       resetSceneObject,
       duplicateSceneAsEditable,
+      applyGeometryProposal,
 
       lightingEffects,
       lightingReport,

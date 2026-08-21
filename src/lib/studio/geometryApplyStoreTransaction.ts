@@ -62,3 +62,21 @@ export function installPreparedGeometryApply(
     invalidateDerivedAnalysis: true,
   };
 }
+
+/**
+ * Result of the STORE command boundary: either the preparation blocker reported
+ * by `prepareGeometryApplyCommand`, or the canonical consequences of the
+ * installed revision. No policy is added here.
+ */
+export type GeometryApplyCommitResult =
+  | {
+      readonly ok: true;
+      readonly invalidatedTransitionOverrideClipIds: readonly string[];
+      readonly promotedReferenceClipIds: readonly string[];
+      readonly note: string;
+    }
+  | {
+      readonly ok: false;
+      readonly blocker: import("./geometryApplyCommand").GeometryApplyPreparationBlocker;
+      readonly note: string;
+    };

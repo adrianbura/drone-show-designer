@@ -106,7 +106,14 @@ function EvidenceRows({ rows, testId }: { rows: readonly ConsequenceRow[]; testI
 }
 
 export default function GeometryProposalPanel() {
-  const { samplesAtTime, time, project, fullShowAnalysisOptions, analysisRevision } = useStudio();
+  const {
+    samplesAtTime,
+    time,
+    project,
+    fullShowAnalysisOptions,
+    analysisRevision,
+    applyGeometryProposal,
+  } = useStudio();
 
   // SHARED viewpoint authority — no local distance/eye/target state here.
   const audience = useAudienceViewSettings();
@@ -227,6 +234,29 @@ export default function GeometryProposalPanel() {
     [staticPreflight, trajectory, acknowledgePromotion],
   );
 
+  /**
+   * ONE canonical materialisation authority, shared by evaluation and Apply, so
+   * the applied project is byte-for-byte the project the evidence was produced
+   * for. FORMATION -> `projectWithFormationPoints`; SCENE ->
+   * `materializeStaticSceneGeometryProposal`.
+   */
+  const buildHypothetical = ():
+    | { ok: true; project: typeof project }
+    | { ok: false; error: string } => {
+    if (!materialisation || materialisation.kind === "UNAVAILABLE" || !proposed.length) {
+      return { ok: false, error: "No materialisable geometry proposal." };
+    }
+    if (materialisation.kind === "FORMATION") {
+      return {
+        ok: true,
+        project: projectWithFormationPoints(project, materialisation.formationId, proposed),
+      };
+    }
+    const scene = materializeStaticSceneGeometryProposal(project, materialisation.sceneId, proposed);
+    if (!scene.ok) return { ok: false, error: `${scene.blocker}: ${scene.note}` };
+    return { ok: true, project: scene.project };
+  };
+
   // Explicit evaluation only: the canonical full-show path is expensive and must
   // never run per render or per animation frame.
   const evaluate = () => {
@@ -234,24 +264,14 @@ export default function GeometryProposalPanel() {
     setEvaluating(true);
     const key = evidenceKey;
     try {
-      let hypothetical;
-      if (materialisation.kind === "FORMATION") {
-        hypothetical = projectWithFormationPoints(project, materialisation.formationId, proposed);
-      } else {
-        const scene = materializeStaticSceneGeometryProposal(
-          project,
-          materialisation.sceneId,
-          proposed,
-        );
-        if (!scene.ok) {
-          setEvidence({ key, report: null, error: `${scene.blocker}: ${scene.note}` });
-          return;
-        }
-        hypothetical = scene.project;
+      const hypothetical = buildHypothetical();
+      if (!hypothetical.ok) {
+        setEvidence({ key, report: null, error: hypothetical.error });
+        return;
       }
       const report = evaluateGeometryTrajectoryConsequence(
         project,
-        hypothetical,
+        hypothetical.project,
         fullShowAnalysisOptions,
       );
       setEvidence({ key, report, error: null });
@@ -261,6 +281,60 @@ export default function GeometryProposalPanel() {
       setEvaluating(false);
     }
   };
+
+  /**
+   * APPLY. Enabled only with CURRENT canonical evidence and an existing
+   * materialisation. The store owns the atomic revision; this handler adds no
+   * second confirmation gate and no second safety policy.
+   */
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [applied, setApplied] = useState<string | null>(null);
+
+  const canApply =
+    readiness.canApply &&
+    !!trajectory &&
+    !stale &&
+    !!materialisation &&
+    materialisation.kind !== "UNAVAILABLE" &&
+    proposed.length > 0;
+
+  const apply = () => {
+    if (!canApply) return;
+    setApplyError(null);
+    setApplied(null);
+    const hypothetical = buildHypothetical();
+    if (!hypothetical.ok) {
+      setApplyError(hypothetical.error);
+      return;
+    }
+    const result = applyGeometryProposal({
+      afterProject: hypothetical.project,
+      readiness,
+      promotedAt: new Date().toISOString(),
+    });
+    if (!result.ok) {
+      setApplyError(`${result.blocker}: ${result.note}`);
+      return;
+    }
+    setEvidence(null);
+    setAcknowledgePromotion(false);
+    setGhost(false);
+    setApplied(
+      [
+        "Applied as one undoable revision.",
+        result.invalidatedTransitionOverrideClipIds.length
+          ? `Stale transition overrides removed: ${result.invalidatedTransitionOverrideClipIds.join(", ")}.`
+          : "No transition override was invalidated.",
+        result.promotedReferenceClipIds.length
+          ? `Imported ownership promoted REFERENCE → PLANNER: ${result.promotedReferenceClipIds.join(", ")}.`
+          : null,
+        "Previous validation is no longer current — re-run full-show validation before generated ESSP export.",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+  };
+
 
 
   // Ghost preview is ephemeral diagnostic state, never project state.
@@ -618,13 +692,34 @@ export default function GeometryProposalPanel() {
 
           <button
             type="button"
-            disabled
-            aria-disabled="true"
-            className="chip-btn mt-2 w-full cursor-not-allowed justify-center opacity-50"
-            data-testid="gp-apply-disabled"
+            onClick={apply}
+            disabled={!canApply}
+            aria-disabled={!canApply}
+            className={`chip-btn mt-2 w-full justify-center ${
+              canApply
+                ? readiness.status === "WARNING"
+                  ? "text-warning"
+                  : ""
+                : "cursor-not-allowed opacity-50"
+            }`}
+            data-testid="gp-apply"
           >
-            {applyActionMessage(readiness)}
+            {canApply
+              ? readiness.status === "WARNING"
+                ? "Apply geometry proposal with warnings"
+                : "Apply geometry proposal"
+              : applyActionMessage(readiness)}
           </button>
+          {applyError ? (
+            <p className="pt-1 font-mono text-[10px] text-destructive" data-testid="gp-apply-error">
+              {applyError}
+            </p>
+          ) : null}
+          {applied ? (
+            <p className="pt-1 text-[10px] leading-relaxed text-warning" data-testid="gp-applied">
+              {applied}
+            </p>
+          ) : null}
         </>
       ) : null}
 
