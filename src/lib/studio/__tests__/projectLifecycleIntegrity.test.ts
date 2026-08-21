@@ -52,7 +52,7 @@ function authoredState() {
     project,
     clipId,
     state: {
-      assignmentStrategy: "hungarian" as const,
+      assignmentStrategy: "optimalDistance" as const,
       transitionOverrides: { [clipId]: override },
       transitionDesigns: {
         [clipId]: {
@@ -106,7 +106,7 @@ describe("autosave recovery round-trip", () => {
     const snapshot = await readAutosave(store);
     expect(snapshot).not.toBeNull();
     expect(snapshot!.fileName).toBe("authored.dss.json");
-    expect(snapshot!.file.planning!.assignmentStrategy).toBe("hungarian");
+    expect(snapshot!.file.planning!.assignmentStrategy).toBe("optimalDistance");
     expect(snapshot!.file.planning!.transitionOverrides[clipId]).toEqual(
       state.transitionOverrides[clipId],
     );
@@ -281,7 +281,15 @@ describe("failed open atomicity", () => {
     const { project, state } = authoredState();
     const file = serializeProject(project, projectPersistenceOptions(state));
     expect(() =>
-      parseProjectFile(JSON.stringify({ ...file, project: { ...file.project, formations: [] } })),
+      parseProjectFile(
+        JSON.stringify({
+          ...file,
+          project: {
+            ...file.project,
+            formations: [{ ...file.project.formations[0], points: [[0, 0, "x"]] }],
+          },
+        }),
+      ),
     ).toThrow();
   });
 
@@ -297,7 +305,7 @@ describe("failed open atomicity", () => {
     const { project, clipId, state } = authoredState();
     const file = serializeProject(project, projectPersistenceOptions(state));
     const reopened = parseProjectFile(JSON.stringify(file));
-    expect(reopened.planning!.assignmentStrategy).toBe("hungarian");
+    expect(reopened.planning!.assignmentStrategy).toBe("optimalDistance");
     expect(reopened.planning!.transitionDesigns?.[clipId]).toMatchObject({ mode: "MANUAL" });
     expect(reopened.editor?.sampleRate).toBe(17);
   });
