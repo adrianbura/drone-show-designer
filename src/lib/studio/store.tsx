@@ -1062,6 +1062,19 @@ function svgPatchFromRecord(record: Record<string, number | string>): Partial<Sv
 let counter = 0;
 const nextId = (prefix: string) => `${prefix}-${++counter}-${Date.now().toString(36)}`;
 
+/**
+ * Everything a project adoption may restore. `fileState` distinguishes reopening
+ * a real file (clean, saved-as-that-file) from authoring a new project or sample
+ * (no file on disk yet, so it must not claim the previous file's saved state).
+ */
+interface AdoptProjectRestore {
+  planning?: ProjectPlanningState;
+  referenceLayer?: ReferenceTrajectoryLayer | null;
+  selectedClipId?: string | null;
+  sampleRate?: number;
+  fileState?: "FILE" | "UNSAVED";
+}
+
 export function StudioProvider({ children }: { children: ReactNode }) {
   // Lazy initializer: keeps module scope free of runtime work (Worker-safe).
   const [project, setProject] = useState<ShowProject>(() => createDefaultProject());
