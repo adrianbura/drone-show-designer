@@ -4006,33 +4006,36 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     next: ShowProject,
     fileName: string,
     restore?: AdoptProjectRestore,
-  ) => {
+  ): AdoptProjectOutcome => {
+    // ATOMICITY: the imported layer is rehydrated BEFORE any state is touched.
+    // A payload that cannot be rehydrated aborts the whole adoption, so the
+    // currently open project (and its export/recovery authority) stays intact
+    // instead of being half-replaced.
+    const restoredLayer = restore?.referenceLayer ?? null;
+    let restoredShow: ReturnType<typeof referenceShowFromLayer> | null = null;
+    if (restoredLayer) {
+      try {
+        restoredShow = referenceShowFromLayer(restoredLayer);
+      } catch (err) {
+        return {
+          ok: false,
+          error: {
+            code: err instanceof ReferenceLayerError ? err.code : "MALFORMED_LAYER",
+            message: err instanceof Error ? err.message : String(err),
+          },
+        };
+      }
+    }
     setProject(next);
     sessionResetRef.current();
-    // IMPORTED LAYER: rehydrated from the file, so the first frame after
-    // reopening already plays the imported samples. A payload that cannot be
-    // rehydrated is surfaced as an error, never silently downgraded.
     setReferenceExtractionError(null);
     setReferenceExtraction([]);
     setReferenceAssetDrafts([]);
     setReferenceExtractionWarnings([]);
-    const restoredLayer = restore?.referenceLayer ?? null;
-    if (restoredLayer) {
-      try {
-        setReferenceLayerShow(referenceShowFromLayer(restoredLayer));
-        setReferenceLayer(restoredLayer);
-      } catch (err) {
-        setReferenceLayer(null);
-        setReferenceLayerShow(null);
-        setReferenceExtractionError({
-          code: err instanceof ReferenceLayerError ? err.code : "MALFORMED_LAYER",
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
-    } else {
-      setReferenceLayer(null);
-      setReferenceLayerShow(null);
-    }
+    // IMPORTED LAYER: always travels with the adopted project, including null,
+    // so no source-recovery bytes of the replaced project can survive.
+    setReferenceLayerShow(restoredShow);
+    setReferenceLayer(restoredShow ? restoredLayer : null);
     // selectedClipId is only restored when that clip still exists; otherwise the
     // deterministic fallback is the first clip of the reopened timeline.
     const requested = restore?.selectedClipId;
