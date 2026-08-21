@@ -11,10 +11,12 @@ import {
   evaluateGeometryApplyReadiness,
   evaluateGeometryTrajectoryConsequence,
   projectWithFormationPoints,
+  DYNAMIC_SCENE_UNAVAILABLE_MESSAGE,
   resolveProposalMaterialisation,
   SCENE_MATERIALISER_MISSING_MESSAGE,
   staticPreflightVerdict,
 } from "../diagnostics";
+import { materializeStaticSceneGeometryProposal, resolveSceneAt } from "../scene";
 import type { ShowProject, Vector3Tuple } from "../types";
 import {
   AUDIENCE_VIEW_DEFAULTS,
@@ -212,5 +214,140 @@ describe("apply readiness surface", () => {
     const trajectory = evaluateGeometryTrajectoryConsequence(project, project, options);
     const readiness = evaluateGeometryApplyReadiness({ staticPreflight: null, trajectory });
     expect(readiness.newlyPromotedClipIds).toEqual(trajectory.newlyPromotedClipIds);
+  });
+});
+
+describe("composite STATIC scene materialisation", () => {
+  function sceneOf(project: ShowProject, objectCount: number, requested?: number) {
+    const clip = showClip(project);
+    const formation = project.formations.find((f) => f.id === clip.formationId)!;
+    const objects = Array.from({ length: objectCount }, (_, i) => ({
+      id: `${clip.id}-obj-${i + 1}`,
+      name: `Object ${i + 1}`,
+      source: { kind: "STATIC" as const, formationId: formation.id },
+      transform: {
+        position: [i * 12, 0, i * 3] as Vector3Tuple,
+        rotationDeg: [0, i * 9, 0] as Vector3Tuple,
+        scale: 1,
+      },
+      ...(requested ? { requestedDroneCount: requested } : {}),
+    }));
+    const scene = {
+      id: clip.id,
+      name: "Composite scene",
+      schemaVersion: 1,
+      transform: { position: [0, 2, 0] as Vector3Tuple, rotationDeg: [0, 4, 0] as Vector3Tuple, scale: 1 },
+      objects,
+    };
+    return { clip, scene, project: { ...project, scenes: [scene] } as ShowProject };
+  }
+
+  it("resolves a 2-object STATIC scene as SCENE materialisation", () => {
+    const { clip, project } = sceneOf(smallProject(), 2);
+    const points = resolveSceneAt(project, project.scenes![0]!).points;
+    const target = resolveProposalMaterialisation(
+      project,
+      clip.start + clip.transition + 0.1,
+      points.length,
+    );
+    expect(target.kind).toBe("SCENE");
+    if (target.kind === "SCENE") {
+      expect(target.sceneId).toBe(clip.id);
+      expect(target.objectCount).toBe(2);
+    }
+  });
+
+  it("resolves a sub-sampled STATIC scene and materialises only participating points", () => {
+    const base = smallProject();
+    const requested = 5;
+    const { clip, project } = sceneOf(base, 1, requested);
+    const points = resolveSceneAt(project, project.scenes![0]!).points;
+    expect(points).toHaveLength(requested);
+    const target = resolveProposalMaterialisation(
+      project,
+      clip.start + clip.transition + 0.1,
+      points.length,
+    );
+    expect(target.kind).toBe("SCENE");
+    const sourceSnapshot = JSON.stringify(project.formations);
+    const proposed = points.map((p) => [p[0], p[1], p[2] + 1.5] as Vector3Tuple);
+    const result = materializeStaticSceneGeometryProposal(project, clip.id, proposed);
+    expect(result.ok).toBe(true);
+    expect(result.derivedFormationIds).toHaveLength(1);
+    const derived = result.project.formations.find((f) => f.id === result.derivedFormationIds[0]!)!;
+    expect(derived.points).toHaveLength(requested);
+    expect(JSON.stringify(project.formations)).toBe(sourceSnapshot);
+  });
+
+  it("round-trips world geometry and runs canonical trajectory consequence", () => {
+    const { clip, project } = sceneOf(smallProject(), 2);
+    const points = resolveSceneAt(project, project.scenes![0]!).points;
+    const proposed = points.map((p, i) => [p[0], p[1], p[2] + (i % 2 ? 1.2 : -1.2)] as Vector3Tuple);
+    const snapshot = JSON.stringify(project);
+    const result = materializeStaticSceneGeometryProposal(project, clip.id, proposed);
+    expect(result.ok).toBe(true);
+    const resolved = resolveSceneAt(result.project, result.project.scenes![0]!).points;
+    resolved.forEach((p, i) => {
+      expect(p[0]).toBeCloseTo(proposed[i]![0], 6);
+      expect(p[1]).toBeCloseTo(proposed[i]![1], 6);
+      expect(p[2]).toBeCloseTo(proposed[i]![2], 6);
+    });
+    expect(JSON.stringify(project)).toBe(snapshot);
+
+    const report = evaluateGeometryTrajectoryConsequence(project, result.project, options);
+    expect(report).toBeTruthy();
+    expect(JSON.stringify(project)).toBe(snapshot);
+  });
+
+  it("keeps dynamic scene objects unavailable and surfaces blockers", () => {
+    const { clip, project } = sceneOf(smallProject(), 1);
+    const dynamic: ShowProject = {
+      ...project,
+      scenes: [
+        {
+          ...project.scenes![0]!,
+          objects: [
+            {
+              ...project.scenes![0]!.objects[0]!,
+              source: { kind: "DYNAMIC", dynamicFormationId: "dyn-x" },
+            },
+          ],
+        },
+      ],
+    };
+    const target = resolveProposalMaterialisation(
+      dynamic,
+      clip.start + clip.transition + 0.1,
+      project.droneCount,
+    );
+    expect(target.kind).toBe("UNAVAILABLE");
+    if (target.kind === "UNAVAILABLE") {
+      expect(target.reason).toBe(DYNAMIC_SCENE_UNAVAILABLE_MESSAGE);
+    }
+    expect(materializeStaticSceneGeometryProposal(dynamic, clip.id, []).blocker).toBe(
+      "DYNAMIC_OBJECT_UNSUPPORTED",
+    );
+  });
+
+  it("keeps apply non-mutating for a successful scene consequence", () => {
+    const { clip, project } = sceneOf(smallProject(), 2);
+    const points = resolveSceneAt(project, project.scenes![0]!).points;
+    const proposed = points.map((p) => [p[0], p[1], p[2] + 0.8] as Vector3Tuple);
+    const snapshot = JSON.stringify(project);
+    const result = materializeStaticSceneGeometryProposal(project, clip.id, proposed);
+    const trajectory = evaluateGeometryTrajectoryConsequence(project, result.project, options);
+    const readiness = evaluateGeometryApplyReadiness({
+      staticPreflight: analyzeGeometryProposalConsequences({
+        before: points,
+        after: proposed,
+        area: project.area,
+        limits: project.limits,
+      }),
+      trajectory,
+      importedPromotionAcknowledged: true,
+    });
+    expect(["READY", "WARNING", "BLOCKED"]).toContain(readiness.status);
+    expect(applyActionMessage(readiness)).toBeTruthy();
+    expect(JSON.stringify(project)).toBe(snapshot);
   });
 });
