@@ -4137,6 +4137,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     ]);
     setProject(next);
     sessionResetRef.current();
+    // PRESENTATION SESSION: transport, timeline viewport and the ephemeral
+    // geometry ghost belong to the replaced document (see ./editorSession).
+    adoptedEditorSessionRef.current();
+
     setReferenceExtractionError(null);
     setReferenceExtraction([]);
     setReferenceAssetDrafts([]);
