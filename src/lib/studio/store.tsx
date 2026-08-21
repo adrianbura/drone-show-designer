@@ -699,6 +699,8 @@ interface StudioContextValue {
   fullShowError: { code: string; message: string } | null;
   /** Deterministic revision of the CURRENT project + analysis settings. */
   analysisRevision: string;
+  /** Canonical options used by full-show validation. Read-only consumers reuse these. */
+  fullShowAnalysisOptions: AnalyzeFullShowOptions;
   analyzeFullShow: () => void;
   cancelFullShowAnalysis: () => void;
   clearFullShowReport: () => void;
