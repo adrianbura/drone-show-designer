@@ -3924,12 +3924,34 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const savedSignature = useRef<string | null>(null);
   const autosaveStore = useRef<KeyValueStore | null>(null);
   const lastAutosaveAt = useRef(0);
+  /**
+   * AUTOSAVE GENERATION. Bumped by every explicit lifecycle action that makes a
+   * pending/persisted snapshot obsolete, so a debounce timer scheduled before
+   * the action can never write after it (Save race, Project A -> Open B race).
+   */
+  const autosaveGeneration = useRef(0);
 
   const getAutosaveStore = useCallback((): KeyValueStore | null => {
     if (typeof window === "undefined") return null;
     autosaveStore.current ??= createBrowserKeyValueStore();
     return autosaveStore.current;
   }, []);
+
+  /**
+   * CONSUME OBSOLETE RECOVERY. Invalidates in-flight autosave timers, clears the
+   * persisted snapshot and drops the UI offer. Idempotent, and it never disables
+   * future autosaves: the next project mutation reschedules with the new
+   * generation.
+   */
+  const consumeAutosaveRecovery = useCallback(() => {
+    autosaveGeneration.current += 1;
+    setAutosaveRecoveryState(null);
+    setProjectAutosavedAt(null);
+    const store = getAutosaveStore();
+    if (store) void clearAutosave(store);
+  }, [getAutosaveStore]);
+  const consumeAutosaveRecoveryRef = useRef(consumeAutosaveRecovery);
+  consumeAutosaveRecoveryRef.current = consumeAutosaveRecovery;
 
   const setProjectFileName = useCallback((name: string) => {
     setProjectFileNameState(ensureProjectExtension(name));
