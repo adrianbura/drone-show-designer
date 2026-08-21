@@ -1935,6 +1935,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     const previous = timelineHistory.current.past.pop();
     if (!previous) return;
     timelineHistory.current.future.push(currentSnapshot());
+    boundHistory(timelineHistory.current.future);
     setTimelineHistoryDepth({
       past: timelineHistory.current.past.length,
       future: timelineHistory.current.future.length,
@@ -1946,6 +1947,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     const next = timelineHistory.current.future.pop();
     if (!next) return;
     timelineHistory.current.past.push(currentSnapshot());
+    boundHistory(timelineHistory.current.past);
+
     setTimelineHistoryDepth({
       past: timelineHistory.current.past.length,
       future: timelineHistory.current.future.length,
