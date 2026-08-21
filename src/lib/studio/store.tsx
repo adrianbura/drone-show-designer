@@ -64,6 +64,7 @@ import {
 } from "../show/transition";
 import {
   analyzeFullShow as analyzeFullShowCore,
+  type AnalyzeFullShowOptions,
   computeAnalysisRevision,
   FullShowError,
   type FullShowIssue,
