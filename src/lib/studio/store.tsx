@@ -4155,25 +4155,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       void writeAutosave(store, {
         savedAt,
         fileName: projectFileName,
-        file: serializeProject(project, {
-          savedAt,
-          planning: { assignmentStrategy, transitionOverrides },
-          referenceLayer,
-          editor: { selectedClipId, sampleRate },
-        }),
+        // SAME options as a manual save (planning incl. transition designs,
+        // reference layer, editor prefs) so a recovery is a reopened project.
+        file: serializeProject(project, { savedAt, ...persistenceOptions }),
       }).then(() => setProjectAutosavedAt(savedAt));
     }, delay);
     return () => clearTimeout(timer);
-  }, [
-    project,
-    projectFileName,
-    getAutosaveStore,
-    assignmentStrategy,
-    transitionOverrides,
-    referenceLayer,
-    selectedClipId,
-    sampleRate,
-  ]);
+  }, [project, projectFileName, getAutosaveStore, persistenceOptions]);
 
   const restoreAutosave = useCallback(() => {
     const snapshot = autosaveRecovery;
