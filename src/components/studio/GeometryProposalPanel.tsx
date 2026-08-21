@@ -335,6 +335,61 @@ export default function GeometryProposalPanel() {
     );
   };
 
+  /**
+   * OPPORTUNITY FINDER — explicit click only, never per render. All search work
+   * happens in the canonical `findGeometryProposalOpportunities` helper, which
+   * inspects SHOW hold midpoints only.
+   */
+  const searchKey = useMemo(
+    () =>
+      opportunitySearchKey({
+        analysisRevision,
+        audience,
+        horizontalThresholdMeters: horizontal,
+        minVerticalDifferenceMeters: vertical,
+        maxDisplacementMeters: cap,
+      }),
+    [analysisRevision, audience, horizontal, vertical, cap],
+  );
+  const [search, setSearch] = useState<OpportunitySearchState | null>(null);
+  const [searching, setSearching] = useState(false);
+  const searchStale = isOpportunitySearchStale(search, searchKey);
+
+  const findOpportunity = () => {
+    setSearching(true);
+    const key = searchKey;
+    try {
+      const report = findGeometryProposalOpportunities(
+        project,
+        (t) => samplesAtTime(t).map((s) => s.position as Vector3Tuple),
+        view,
+        {
+          horizontalThresholdMeters: horizontal,
+          minVerticalDifferenceMeters: vertical,
+          maxDisplacementMeters: cap,
+        },
+      );
+      const bestOpportunity = report.best;
+      if (!bestOpportunity) {
+        setSearch({ key, clipId: null, time: null, rows: [] });
+        return;
+      }
+      const clip = project.timeline.find((c) => c.id === bestOpportunity.clipId);
+      const label =
+        project.formations.find((f) => f.id === clip?.formationId)?.name ?? bestOpportunity.clipId;
+      setSearch({
+        key,
+        clipId: bestOpportunity.clipId,
+        time: bestOpportunity.time,
+        rows: buildOpportunityRows(bestOpportunity, label),
+      });
+    } finally {
+      setSearching(false);
+    }
+  };
+
+
+
 
 
   // Ghost preview is ephemeral diagnostic state, never project state.
