@@ -98,7 +98,7 @@ describe("hypothetical project materialisation", () => {
     );
     expect(target.kind).toBe("UNAVAILABLE");
     if (target.kind === "UNAVAILABLE") {
-      expect(target.reason).toContain(SCENE_MATERIALISER_MISSING_MESSAGE);
+      expect(target.reason).toBe(DYNAMIC_SCENE_UNAVAILABLE_MESSAGE);
     }
   });
 
