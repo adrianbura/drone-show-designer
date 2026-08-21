@@ -5,7 +5,7 @@ import {
   findGeometryProposalOpportunities,
   type AudienceView,
 } from "../diagnostics";
-import { createWeddingStoryProject } from "../stories/weddingStory";
+import { createDepthStaggerDemoProject } from "../stories/depthStaggerDemo";
 import type { ShowProject, Vector3Tuple } from "../types";
 import { clipPhase } from "../types";
 
@@ -93,8 +93,8 @@ describe("geometry proposal opportunity finder", () => {
     expect(JSON.stringify(project)).toBe(before);
   });
 
-  it("finds a real materialisable proposal opportunity in the authored wedding story", () => {
-    const project = createWeddingStoryProject(200);
+  it("finds a real materialisable proposal opportunity in the depth-stagger demo", () => {
+    const project = createDepthStaggerDemoProject();
     const before = JSON.stringify(project);
     const report = findGeometryProposalOpportunities(
       project,
@@ -105,9 +105,10 @@ describe("geometry proposal opportunity finder", () => {
     expect(report.checkedHoldCount).toBeGreaterThan(0);
     expect(report.materialisableHoldCount).toBe(report.checkedHoldCount);
     expect(report.best).not.toBeNull();
+    expect(report.best!.clipId).toBe("c-ds-stack");
     expect(report.best!.optimization.before.candidatePairCount).toBeGreaterThan(0);
     expect(report.best!.optimization.improved).toBe(true);
     expect(report.best!.materialisation.kind).toBe("FORMATION");
     expect(JSON.stringify(project)).toBe(before);
-  }, 30_000);
+  });
 });
