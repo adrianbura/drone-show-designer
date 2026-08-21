@@ -17,6 +17,7 @@ import {
 } from "react";
 
 import { createDefaultProject } from "../show/defaultProject";
+import { invalidateDerivedAnalysis, type DerivedAnalysisSetters } from "./derivedAnalysis";
 import { findSampleShow } from "../show/stories/samples";
 import { generatePoints, makeFormation } from "../show/formations";
 import { buildShowPlan, samplesAt, sampleTrajectorySet, DEFAULT_SAMPLE_RATE } from "../show/trajectory";
@@ -1123,6 +1124,24 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     /** Project revision the preview was computed for (staleness provenance). */
     revision: string;
   } | null>(null);
+  /**
+   * The ONE derived-analysis invalidation authority (see ./derivedAnalysis).
+   * Stable across renders: every setState is stable, so this object is too.
+   */
+  const derivedAnalysisSetters = useMemo<DerivedAnalysisSetters>(
+    () => ({
+      setTransitionAnalysis,
+      setAssignmentComparison,
+      setOptimization,
+      setTransitionError,
+      setFullShow,
+      setFullShowError,
+      setHighlightedDrones,
+      setPreShowPreview,
+    }),
+    [],
+  );
+
   const [preShowBusy, setPreShowBusy] = useState(false);
   const [showLaunchPads, setShowLaunchPads] = useState(false);
   const [showStaging, setShowStaging] = useState(false);
