@@ -1189,8 +1189,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    */
   const sessionResetRef = useRef<() => void>(() => {});
   const adoptProjectRef = useRef<
-    (next: ShowProject, fileName: string, restore?: AdoptProjectRestore) => void
-  >(() => {});
+    (next: ShowProject, fileName: string, restore?: AdoptProjectRestore) => AdoptProjectOutcome
+  >(() => ({ ok: true }));
 
   const [preShowBusy, setPreShowBusy] = useState(false);
   const [showLaunchPads, setShowLaunchPads] = useState(false);
