@@ -184,7 +184,9 @@ describe("SVG import isolation", () => {
     run.fail("SVG_PARSE_FAILED");
     expect(svg.state.result).toBeNull();
     expect(svg.state.error).toBeNull();
-    expect(svg.state.busy).toBe(true === false ? true : false || svg.state.busy);
+    // The stale job owns nothing anymore: busy is released by the adoption's
+    // session reset, never by the superseded run.
+    expect(svg.jobs.isCurrent({ jobId: 1, scope: "s0" })).toBe(false);
   });
 
   it("lets the latest SVG import win", () => {
