@@ -506,10 +506,24 @@ export default function GeometryProposalPanel() {
             </p>
             {materialisation && materialisation.kind === "UNAVAILABLE" ? (
               <p className="pt-1 text-[10px] leading-relaxed text-warning" data-testid="gp-trajectory-unavailable">
-                {SCENE_MATERIALISER_MISSING_MESSAGE}. {materialisation.reason}
+                {materialisation.reason.startsWith(SCENE_MATERIALISER_MISSING_MESSAGE) ||
+                materialisation.reason.startsWith("Trajectory consequence preview unavailable")
+                  ? materialisation.reason
+                  : `${SCENE_MATERIALISER_MISSING_MESSAGE}. ${materialisation.reason}`}
               </p>
             ) : (
               <>
+                {materialisation && materialisation.kind === "SCENE" ? (
+                  <p
+                    className="pt-1 text-[10px] leading-relaxed text-muted-foreground"
+                    data-testid="gp-scene-derived-note"
+                  >
+                    {DERIVED_ASSET_DISCLOSURE} {SUBSAMPLED_DISCLOSURE} Derived formations:{" "}
+                    {materialisation.objectCount}. Nothing is persisted — this preview stays
+                    hypothetical and read-only.
+                  </p>
+                ) : null}
+
                 <button
                   type="button"
                   onClick={evaluate}
