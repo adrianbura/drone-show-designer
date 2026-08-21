@@ -1438,9 +1438,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   /** FIT — restore the complete authored range (editor state only). */
   const fitTimeline = useCallback(() => {
-    setTimelineZoomState(1);
-    setTimelineScrollState(0);
+    setTimelineZoomState(ADOPTED_TIMELINE_VIEW.zoom);
+    setTimelineScrollState(ADOPTED_TIMELINE_VIEW.scroll);
   }, []);
+
 
   const setTimelineZoom = useCallback(
     (zoom: number, anchorTime?: number) => {
