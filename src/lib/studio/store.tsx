@@ -19,6 +19,13 @@ import {
 import { createDefaultProject } from "../show/defaultProject";
 import { invalidateDerivedAnalysis, type DerivedAnalysisSetters } from "./derivedAnalysis";
 import {
+  ADOPTED_TIMELINE_VIEW,
+  boundHistory,
+  reconcileAdoptedEditorSession,
+} from "./editorSession";
+import { setGeometryProposalPreview } from "./geometryProposalPreview";
+
+import {
   createAsyncJobAuthority,
   createProjectSessionAuthority,
   invalidateProjectSessionJobs,
@@ -1194,6 +1201,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * project-content replacement boundary instead of partial per-command lists.
    */
   const sessionResetRef = useRef<() => void>(() => {});
+  /** Presentation-session reconciliation of an adopted project (see ./editorSession). */
+  const adoptedEditorSessionRef = useRef<() => void>(() => {});
+
   const adoptProjectRef = useRef<
     (next: ShowProject, fileName: string, restore?: AdoptProjectRestore) => AdoptProjectOutcome
   >(() => ({ ok: true }));
@@ -1428,9 +1438,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   /** FIT — restore the complete authored range (editor state only). */
   const fitTimeline = useCallback(() => {
-    setTimelineZoomState(1);
-    setTimelineScrollState(0);
+    setTimelineZoomState(ADOPTED_TIMELINE_VIEW.zoom);
+    setTimelineScrollState(ADOPTED_TIMELINE_VIEW.scroll);
   }, []);
+
 
   const setTimelineZoom = useCallback(
     (zoom: number, anchorTime?: number) => {
@@ -1836,9 +1847,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       // travels with the snapshot instead of staying promoted forever.
       referenceLayer: referenceLayerRef.current,
     });
+    // BOUNDED HISTORY: a long authoring session must not accumulate snapshots
+    // without limit (same bound as the dynamic-formation history).
+    boundHistory(timelineHistory.current.past);
     timelineHistory.current.future = [];
     setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
   }, []);
+
 
   /**
    * GESTURE COMMIT (Sprint 7.2, ripple since Sprint 8D).
@@ -1920,6 +1935,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     const previous = timelineHistory.current.past.pop();
     if (!previous) return;
     timelineHistory.current.future.push(currentSnapshot());
+    boundHistory(timelineHistory.current.future);
     setTimelineHistoryDepth({
       past: timelineHistory.current.past.length,
       future: timelineHistory.current.future.length,
@@ -1931,6 +1947,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     const next = timelineHistory.current.future.pop();
     if (!next) return;
     timelineHistory.current.past.push(currentSnapshot());
+    boundHistory(timelineHistory.current.past);
+
     setTimelineHistoryDepth({
       past: timelineHistory.current.past.length,
       future: timelineHistory.current.future.length,
@@ -4119,6 +4137,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     ]);
     setProject(next);
     sessionResetRef.current();
+    // PRESENTATION SESSION: transport, timeline viewport and the ephemeral
+    // geometry ghost belong to the replaced document (see ./editorSession).
+    adoptedEditorSessionRef.current();
+
     setReferenceExtractionError(null);
     setReferenceExtraction([]);
     setReferenceAssetDrafts([]);
@@ -4365,6 +4387,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [],
   );
   sessionResetRef.current = () => resetProjectSessionState(sessionResetSetters);
+  adoptedEditorSessionRef.current = () =>
+    reconcileAdoptedEditorSession({
+      stopPlayback: clock.pause,
+      seek: clock.seek,
+      resetTimelineView: fitTimeline,
+      clearGeometryDiagnostics: () => setGeometryProposalPreview(null),
+    });
+
 
   const aiBuilt = useMemo(() => {
     if (!aiProposal || aiProposalErrors.length > 0) return null;
