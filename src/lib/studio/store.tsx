@@ -1075,6 +1075,15 @@ interface AdoptProjectRestore {
   fileState?: "FILE" | "UNSAVED" | "RECOVERED";
 }
 
+/**
+ * Result of the adoption boundary. A failed adoption changes NOTHING: the
+ * previously open project keeps its own reference layer, export eligibility and
+ * source-recovery bytes.
+ */
+type AdoptProjectOutcome =
+  | { ok: true }
+  | { ok: false; error: { code: string; message: string } };
+
 export function StudioProvider({ children }: { children: ReactNode }) {
   // Lazy initializer: keeps module scope free of runtime work (Worker-safe).
   const [project, setProject] = useState<ShowProject>(() => createDefaultProject());
