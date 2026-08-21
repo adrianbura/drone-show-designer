@@ -4387,6 +4387,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [],
   );
   sessionResetRef.current = () => resetProjectSessionState(sessionResetSetters);
+  adoptedEditorSessionRef.current = () =>
+    reconcileAdoptedEditorSession({
+      stopPlayback: clock.pause,
+      seek: clock.seek,
+      resetTimelineView: fitTimeline,
+      clearGeometryDiagnostics: () => setGeometryProposalPreview(null),
+    });
+
 
   const aiBuilt = useMemo(() => {
     if (!aiProposal || aiProposalErrors.length > 0) return null;
