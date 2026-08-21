@@ -4097,14 +4097,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   /** Adopts a parsed/migrated envelope with its planning state and editor prefs. */
   const adoptProjectFile = useCallback(
-    (file: ProjectFile, fileName: string) => {
+    (file: ProjectFile, fileName: string, fileState: "FILE" | "RECOVERED" = "FILE") => {
       adoptProject(file.project, fileName, {
         ...(file.planning ? { planning: file.planning } : {}),
-        ...(file.referenceLayer ? { referenceLayer: file.referenceLayer } : {}),
+        // EXACT REFERENCE AUTHORITY: the adopted file owns it. A file without a
+        // layer installs null, so no imported authority of the previous project
+        // can survive the adoption.
+        referenceLayer: file.referenceLayer ?? null,
         selectedClipId: file.editor?.selectedClipId ?? null,
         ...(typeof file.editor?.sampleRate === "number"
           ? { sampleRate: file.editor.sampleRate }
           : {}),
+        fileState,
       });
     },
     [adoptProject],
