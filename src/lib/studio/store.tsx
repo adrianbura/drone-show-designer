@@ -3942,20 +3942,25 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     if (snapshotName) setProjectFileNameState(ensureProjectExtension(snapshotName));
   }, [project]);
 
-  // CANONICAL PROJECT ENVELOPE. Every writer (TopBar save, autosave, Inspector
-  // "Studio project file") goes through this so they cannot drift apart: the
-  // planning section carries the applied optimization that changes flight output.
-  const buildProjectFile = useCallback(
-    (): ProjectFile =>
-      serializeProject(project, {
-        planning: { assignmentStrategy, transitionOverrides, transitionDesigns },
+  /**
+   * CANONICAL PERSISTENCE OPTIONS. Manual save and autosave map the SAME
+   * planning / reference / editor authority through `projectPersistenceOptions`,
+   * so no writer can silently drop authoring intent (transition designs were
+   * previously missing from autosave). The mapping lives in ONE place.
+   */
+  const persistenceOptions = useMemo(
+    () =>
+      projectPersistenceOptions({
+        assignmentStrategy,
+        transitionOverrides,
+        transitionDesigns,
         // LOSSLESS: the imported payload is written verbatim, so reopening the
         // saved project reproduces the imported playback exactly.
         referenceLayer,
-        editor: { selectedClipId, sampleRate },
+        selectedClipId,
+        sampleRate,
       }),
     [
-      project,
       assignmentStrategy,
       transitionOverrides,
       transitionDesigns,
@@ -3963,6 +3968,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectedClipId,
       sampleRate,
     ],
+  );
+
+  // CANONICAL PROJECT ENVELOPE. Every writer (TopBar save, autosave, Inspector
+  // "Studio project file") goes through this so they cannot drift apart.
+  const buildProjectFile = useCallback(
+    (): ProjectFile => serializeProject(project, persistenceOptions),
+    [project, persistenceOptions],
   );
 
   const saveProjectFile = useCallback(() => {
