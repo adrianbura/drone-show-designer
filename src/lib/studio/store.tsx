@@ -1194,6 +1194,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * project-content replacement boundary instead of partial per-command lists.
    */
   const sessionResetRef = useRef<() => void>(() => {});
+  /** Presentation-session reconciliation of an adopted project (see ./editorSession). */
+  const adoptedEditorSessionRef = useRef<() => void>(() => {});
+
   const adoptProjectRef = useRef<
     (next: ShowProject, fileName: string, restore?: AdoptProjectRestore) => AdoptProjectOutcome
   >(() => ({ ok: true }));
