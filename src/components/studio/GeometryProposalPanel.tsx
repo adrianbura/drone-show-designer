@@ -226,11 +226,25 @@ export default function GeometryProposalPanel() {
   // Explicit evaluation only: the canonical full-show path is expensive and must
   // never run per render or per animation frame.
   const evaluate = () => {
-    if (!materialisation || materialisation.kind !== "FORMATION" || !proposed.length) return;
+    if (!materialisation || materialisation.kind === "UNAVAILABLE" || !proposed.length) return;
     setEvaluating(true);
     const key = evidenceKey;
     try {
-      const hypothetical = projectWithFormationPoints(project, materialisation.formationId, proposed);
+      let hypothetical;
+      if (materialisation.kind === "FORMATION") {
+        hypothetical = projectWithFormationPoints(project, materialisation.formationId, proposed);
+      } else {
+        const scene = materializeStaticSceneGeometryProposal(
+          project,
+          materialisation.sceneId,
+          proposed,
+        );
+        if (!scene.ok) {
+          setEvidence({ key, report: null, error: `${scene.blocker}: ${scene.note}` });
+          return;
+        }
+        hypothetical = scene.project;
+      }
       const report = evaluateGeometryTrajectoryConsequence(
         project,
         hypothetical,
@@ -243,6 +257,7 @@ export default function GeometryProposalPanel() {
       setEvaluating(false);
     }
   };
+
 
   // Ghost preview is ephemeral diagnostic state, never project state.
   useEffect(() => {
