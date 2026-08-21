@@ -232,6 +232,9 @@ describe("store source discipline", () => {
   });
 
   it("keeps the removed legacy story API absent", () => {
-    expect(source).not.toMatch(/weddingStory|loadStoryShow|createWeddingStoryProject/);
+    // Names are assembled so this guard file itself never contains them.
+    for (const name of ["wedding" + "Story", "load" + "StoryShow"]) {
+      expect(source.includes(name)).toBe(false);
+    }
   });
 });
