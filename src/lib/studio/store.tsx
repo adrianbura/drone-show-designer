@@ -1159,6 +1159,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  /**
+   * SESSION RESET / ADOPTION INDIRECTION. The session setters and the canonical
+   * adoption boundary are declared far apart in this store, so both are reached
+   * through refs assigned during render. This keeps ONE reset list and ONE
+   * project-content replacement boundary instead of partial per-command lists.
+   */
+  const sessionResetRef = useRef<() => void>(() => {});
+  const adoptProjectRef = useRef<
+    (next: ShowProject, fileName: string, restore?: AdoptProjectRestore) => void
+  >(() => {});
+
   const [preShowBusy, setPreShowBusy] = useState(false);
   const [showLaunchPads, setShowLaunchPads] = useState(false);
   const [showStaging, setShowStaging] = useState(false);
