@@ -91,7 +91,7 @@ function derivedIdBase(sceneId: string, objectId: string): string {
 }
 
 function isGeometryProposalFormation(formation: Formation): boolean {
-  return formation.params?.derivation === GEOMETRY_PROPOSAL_DERIVATION;
+  return formation.params?.['derivation'] === GEOMETRY_PROPOSAL_DERIVATION;
 }
 
 /**
@@ -104,7 +104,7 @@ function rootSourceFormationId(project: ShowProject, source: Formation): string 
   const seen = new Set<string>();
   let current = source;
   while (isGeometryProposalFormation(current)) {
-    const candidate = current.params?.rootFormationId ?? current.params?.derivedFromFormationId;
+    const candidate = current.params?.['rootFormationId'] ?? current.params?.['derivedFromFormationId'];
     if (typeof candidate !== "string" || !candidate || seen.has(candidate)) break;
     seen.add(candidate);
     const next = byId.get(candidate);
@@ -144,7 +144,7 @@ function reusableDerivedFormationId(
 ): string | null {
   const expectedBase = derivedIdBase(sceneId, objectId);
   const ownedByMetadata =
-    source.params?.derivedForSceneId === sceneId && source.params?.derivedForObjectId === objectId;
+    source.params?.['derivedForSceneId'] === sceneId && source.params?.['derivedForObjectId'] === objectId;
   const ownedByLegacyId =
     isGeometryProposalFormation(source) &&
     (source.id === expectedBase || source.id.startsWith(`${expectedBase}-`));
