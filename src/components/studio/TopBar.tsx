@@ -5,6 +5,7 @@ import { DEPTH_STAGGER_DEMO_ID } from "@/lib/show/stories/depthStaggerDemo";
 import { useI18n } from "@/i18n";
 import { LANGUAGES, type Language } from "@/i18n/translate";
 import { SHORTCUT_HELP } from "@/lib/studio/shortcuts";
+import { authorityLabel, buildProductionStatus } from "@/lib/studio/productionStatus";
 import { useStudio } from "@/lib/studio/store";
 import SetupWizard from "./SetupWizard";
 
@@ -33,11 +34,15 @@ export default function TopBar() {
     restoreAutosave,
     dismissAutosave,
     loadSampleShow,
+    referenceOwnership,
   } = useStudio();
   const { t, language, setLanguage } = useI18n();
   const [wizard, setWizard] = useState<"CREATE" | "EDIT" | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
+  // DOMINANT production state: canonical export eligibility, mirrored only.
+  const readiness = buildProductionStatus(fullShowReport, fullShowStale);
+  const authority = authorityLabel(referenceOwnership);
   const status =
     safety.status === "ok" ? "nominal" : safety.status === "warning" ? "review" : "unsafe";
   const statusLabel = t(
@@ -152,26 +157,28 @@ export default function TopBar() {
           <Radio className="size-3" /> {t("topBar.drones", { count: project.droneCount })}
         </span>
         <span className="metric-pill">{duration.toFixed(0)}s</span>
-        <span className={`metric-pill status-${status}`}>
+        <span
+          className={`metric-pill status-${status}`}
+          title="Live authoring feedback — it does not authorize export."
+        >
           <Activity className="size-3" /> {statusLabel}
         </span>
+        {authority && (
+          <span className="metric-pill" title={authority.detail} data-testid="topbar-authority">
+            {authority.label}
+          </span>
+        )}
         {fullShowBusy ? (
           <span className="metric-pill">{t("topBar.validating")}</span>
-        ) : fullShowReport ? (
+        ) : (
           <span
-            className={`metric-pill status-${
-              fullShowReport.status === "FAIL"
-                ? "unsafe"
-                : fullShowReport.status === "PASS_WITH_WARNINGS"
-                  ? "review"
-                  : "nominal"
-            }`}
-            title={fullShowReport.statement}
+            className={`metric-pill status-${readiness.tone === "neutral" ? "review" : readiness.tone}`}
+            title={readiness.detail}
+            data-testid="topbar-readiness"
           >
-            {t(fullShowReport.status === "FAIL" ? "topBar.fullShowFail" : "topBar.fullShowPass")}
-            {fullShowStale ? ` · ${t("topBar.stale")}` : ""}
+            {readiness.readiness.replace(/_/g, " ")}
           </span>
-        ) : null}
+        )}
       </div>
 
       {helpOpen && (
