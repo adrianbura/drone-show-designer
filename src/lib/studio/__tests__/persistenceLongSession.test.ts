@@ -88,7 +88,7 @@ describe("20-cycle persistence session", () => {
         (recoveryOffer as { file: unknown }).file as never,
       );
       expect(restored.project.name).toBe(project.name);
-      expect(restored.planning.transitionDesigns?.[showClip.id]).toBeDefined();
+      expect(restored.planning!.transitionDesigns?.[showClip.id]).toBeDefined();
       await clearAutosave(store);
       generation += 1;
       recoveryOffer = null;
@@ -113,11 +113,11 @@ describe("20-cycle persistence session", () => {
       expect(reopened.project.name).toBe(project.name);
       expect(reopened.project.droneCount).toBe(project.droneCount);
       expect(reopened.project.timeline.map((c) => c.id)).toEqual(project.timeline.map((c) => c.id));
-      expect(reopened.planning.assignmentStrategy).toBe(STRATEGY);
-      expect(reopened.planning.transitionOverrides[showClip.id]).toEqual(
+      expect(reopened.planning!.assignmentStrategy).toBe(STRATEGY);
+      expect(reopened.planning!.transitionOverrides[showClip.id]).toEqual(
         transitionOverrides[showClip.id],
       );
-      expect(reopened.planning.transitionDesigns?.[showClip.id]).toEqual(
+      expect(reopened.planning!.transitionDesigns?.[showClip.id]).toEqual(
         transitionDesigns[showClip.id],
       );
       expect(reopened.referenceLayer ?? null).toBeNull();
