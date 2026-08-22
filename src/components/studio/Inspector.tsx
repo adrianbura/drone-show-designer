@@ -382,6 +382,10 @@ export default function Inspector() {
           hidden={group !== "AUTHORING"}
           className={`flex flex-col gap-5 ${group === "AUTHORING" ? "" : "hidden"}`}
         >
+      {/* Reference show sits at the TOP of AUTHORING: importing an ESSP and
+          converting it into an editable timeline is a first-class entry path. */}
+      <EsspPanel />
+
       <section className="panel-card">
         <h2 className="panel-title">Clip inspector</h2>
         {!clip ? (
@@ -817,7 +821,6 @@ export default function Inspector() {
         </ul>
       </section>
 
-      <EsspPanel />
 
 
       <section className="panel-card">

@@ -1,4 +1,4 @@
-import { FileArchive, PencilRuler, Trash2 } from "lucide-react";
+import { Check, FileArchive, PencilRuler, Trash2 } from "lucide-react";
 import { useMemo, useRef } from "react";
 
 import { esspUnitsToMeters } from "@/lib/import/essp";
@@ -34,8 +34,14 @@ export default function EsspPanel() {
     time,
     referenceLayer,
     extractReferenceShowToProject,
+    referenceExtraction,
+    referenceExtractionError,
+    forensicsBusy,
   } = useStudio();
   const inputRef = useRef<HTMLInputElement>(null);
+  // DUPLICATE-EXTRACTION PROTECTION — the primary action only offers the first
+  // conversion; replacing an existing editable timeline is a separate action.
+  const hasEditableTimeline = !!referenceLayer && referenceExtraction.length > 0;
   const report = referenceShow?.report;
   const stats = referenceShow?.statistics;
   const drone = referenceShow?.drones.find((d) => d.sourceId === selectedReferenceDroneId);
@@ -83,19 +89,59 @@ export default function EsspPanel() {
         </button>
       </div>
       {referenceShow ? (
-        <div className="space-y-1 pt-1">
-          <button
-            type="button"
-            data-testid="essp-make-editable"
-            onClick={extractReferenceShowToProject}
-            className="chip-btn w-full justify-center"
-          >
-            <PencilRuler className="size-3" /> Make editable (extract to formations)
-          </button>
+        <div className="space-y-1.5 rounded border border-primary/50 bg-primary/5 p-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Editable timeline
+            </span>
+            <span className="status-pill status-ok" data-testid="essp-source-preserved">
+              Original ESSP preserved
+            </span>
+          </div>
+          {hasEditableTimeline ? (
+            <>
+              <p
+                data-testid="essp-editable-created"
+                className="flex items-center gap-1.5 text-[11px] font-medium text-success"
+              >
+                <Check className="size-3" /> Editable timeline created — original ESSP preserved.
+              </p>
+              <button
+                type="button"
+                data-testid="essp-make-editable-again"
+                onClick={extractReferenceShowToProject}
+                disabled={forensicsBusy}
+                className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground disabled:opacity-40"
+              >
+                {forensicsBusy ? "Re-extracting…" : "Re-extract and replace"}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              data-testid="essp-make-editable"
+              onClick={extractReferenceShowToProject}
+              disabled={forensicsBusy}
+              className="chip-btn chip-btn-active w-full justify-center disabled:opacity-40"
+            >
+              <PencilRuler className="size-3" />{" "}
+              {forensicsBusy ? "Preparing…" : "Make editable"}
+            </button>
+          )}
           <p className="text-[10px] leading-relaxed text-muted-foreground">
-            Extraction ADDS editable Studio formations. The imported samples stay the playback
-            authority for every interval you do not replace.
+            Create an editable Studio timeline while preserving the original ESSP as the reference
+            source. The imported samples stay the playback authority for every interval you do not
+            replace.
           </p>
+          {referenceExtractionError && (
+            <p
+              data-testid="essp-make-editable-error"
+              className="text-[10px] leading-relaxed text-critical"
+            >
+              {referenceExtractionError.code}: {referenceExtractionError.message} — the imported
+              reference show and its source bytes are unchanged.
+            </p>
+          )}
         </div>
       ) : null}
       {lighting ? (
