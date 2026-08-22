@@ -55,6 +55,15 @@ import {
   showsThumbnail,
 } from "@/lib/studio/clipPresentation";
 import { clipLightingSummary } from "@/lib/studio/lightingTimeline";
+import {
+  primaryCommandFor,
+  resolveTimelineCommands,
+  type StudioCommandId,
+  type TimelineCommandContext,
+} from "@/lib/studio/commands";
+import { useTimelineCommands, type RenameRequest } from "@/lib/studio/useTimelineCommands";
+import StudioContextMenu from "@/components/studio/StudioContextMenu";
+import ClipRenameDialog from "@/components/studio/ClipRenameDialog";
 import { packTimelineClipLanes } from "@/lib/studio/timelineLayout";
 import { rippleClipTiming } from "@/lib/studio/timelineRipple";
 
@@ -238,6 +247,44 @@ export default function Timeline({
   );
 
   const scrub = useCallback((clientX: number) => setTime(pointerTime(clientX)), [pointerTime, setTime]);
+
+  /**
+   * CONTEXT ACTIONS. The menu model comes from the single command authority and
+   * the execution from the canonical store actions — the timeline only supplies
+   * the target it was invoked on. Opening a menu mutates nothing.
+   */
+  const [renameRequest, setRenameRequest] = useState<RenameRequest | null>(null);
+  const { clipContext, execute } = useTimelineCommands(setRenameRequest);
+  const emptyTimeRef = useRef(0);
+  const [emptyTime, setEmptyTime] = useState(0);
+
+  const runCommand = useCallback(
+    (id: StudioCommandId, ctx: TimelineCommandContext) => {
+      if (ctx.kind === "CLIP") {
+        execute(id, { clipId: ctx.clipId });
+        return;
+      }
+      if (ctx.kind === "EMPTY_TIMELINE") {
+        execute(id, { time: ctx.time });
+        return;
+      }
+      if (ctx.kind === "MARKER") {
+        execute(id, { markerId: ctx.markerId, time });
+        return;
+      }
+      execute(id, { effectId: ctx.effectId });
+    },
+    [execute, time],
+  );
+
+  const emptyMenuContext = useMemo<TimelineCommandContext>(
+    () => ({
+      kind: "EMPTY_TIMELINE",
+      time: emptyTime,
+      canAddClip: project.formations.length > 0,
+    }),
+    [emptyTime, project.formations.length],
+  );
 
   const beginGesture = useCallback(
     (kind: GestureKind, clipId: string, clientX: number) => {
@@ -624,6 +671,10 @@ export default function Timeline({
           footer (scrollbar + audio + lighting) in short windows.
         */}
         <div className="relative min-h-[68px] flex-1 shrink-0 overflow-y-auto overflow-x-hidden pb-3">
+        <StudioContextMenu
+          menu={resolveTimelineCommands(emptyMenuContext)}
+          onCommand={(id) => runCommand(id, emptyMenuContext)}
+        >
         <div
           ref={trackRef}
           data-testid="timeline-track"
@@ -648,6 +699,10 @@ export default function Timeline({
           onPointerCancel={endPan}
           onAuxClick={(e) => {
             if (e.button === 1) e.preventDefault();
+          }}
+          onContextMenuCapture={(e) => {
+            emptyTimeRef.current = pointerTime(e.clientX);
+            setEmptyTime(emptyTimeRef.current);
           }}
           style={{ minHeight: `${Math.max(80, trackMinHeight)}px` }}
           className={`relative w-full touch-none rounded-md border border-border bg-surface-sunken ${
@@ -760,10 +815,12 @@ export default function Timeline({
             const designed = phase === "SHOW" ? describeTransitionDesign(transitionDesignFor(clip.id)) : "";
             const needsRecalc = phase === "SHOW" && transitionDesignNeedsRecalculation(clip.id);
             const timing = `T ${formatSeconds(transition, comma)} · H ${formatSeconds(hold, comma)}`;
-            return (
+            const menuContext = clipContext(clip.id);
+            const clipBlock = (
               <div
                 key={clip.id}
                 data-testid={`clip-${clip.id}`}
+                onContextMenu={(e) => e.stopPropagation()}
                 data-density={density}
                 data-phase={phase}
                 data-shifted={shifted ? "true" : undefined}
@@ -838,6 +895,12 @@ export default function Timeline({
                     endGesture();
                   }}
                   onPointerCancel={cancelGesture}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    if (!menuContext) return;
+                    const primary = primaryCommandFor(menuContext);
+                    if (primary) runCommand(primary, menuContext);
+                  }}
                   onKeyDown={handleKey("MOVE", clip.id)}
                   title={`${style.glyph} ${phase} · ${name} · ${timing}${
                     designed ? ` · ${designed}` : ""
@@ -937,6 +1000,19 @@ export default function Timeline({
                 />
               </div>
             );
+            // RIGHT-CLICK = context, and only context: the menu is generated from
+            // the clip's real capabilities, never from a fixed list.
+            return menuContext ? (
+              <StudioContextMenu
+                key={clip.id}
+                menu={resolveTimelineCommands(menuContext)}
+                onCommand={(id) => runCommand(id, menuContext)}
+              >
+                {clipBlock}
+              </StudioContextMenu>
+            ) : (
+              clipBlock
+            );
           })}
 
           {/* Live gesture read-out: exact timings + what captured the snap. */}
@@ -981,6 +1057,7 @@ export default function Timeline({
             <div className="absolute -left-[5px] top-0 size-3 rotate-45 bg-accent" />
           </div>
         </div>
+        </StudioContextMenu>
         </div>
 
         {/*
@@ -1030,6 +1107,8 @@ export default function Timeline({
           )}
         </div>
       </div>
+
+      <ClipRenameDialog request={renameRequest} onClose={() => setRenameRequest(null)} />
     </section>
   );
 }

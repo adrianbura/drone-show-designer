@@ -678,6 +678,8 @@ interface StudioContextValue {
   setLimits: (patch: Partial<SafetyLimits>) => void;
   addFormation: (kind: FormationKind, params?: Record<string, number | string>) => Formation;
   updateFormation: (id: string, params: Record<string, number | string>) => void;
+  /** Renames the formation a clip shows (one undoable authored revision). */
+  renameFormation: (id: string, name: string) => void;
   addClip: (formationId: string, timing?: { transition?: number; hold?: number }) => void;
   /** Imported SVG assets, keyed by asset id (reproducibility + regeneration). */
   svgAssets: Record<string, SvgAsset>;
@@ -5033,6 +5035,27 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * are never touched. Declared here so the lighting/dynamic selection setters
    * it reconciles are already in scope.
    */
+  /**
+   * FORMATION RENAME. Naming is authored content, so it is snapshotted like any
+   * other authored edit and never regenerates geometry.
+   */
+  const renameFormation = useCallback(
+    (id: string, name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      setProject((p) => {
+        const target = p.formations.find((f) => f.id === id);
+        if (!target || target.name === trimmed) return p;
+        pushSnapshot(p);
+        return {
+          ...p,
+          formations: p.formations.map((f) => (f.id === id ? { ...f, name: trimmed } : f)),
+        };
+      });
+    },
+    [pushSnapshot],
+  );
+
   const removeClip = useCallback(
     (id: string) => {
       setProject((p) => {
@@ -5308,6 +5331,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setLimits,
       addFormation,
       updateFormation,
+      renameFormation,
       addClip,
       patchClip,
       removeClip,
@@ -5646,6 +5670,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setLimits,
       addFormation,
       updateFormation,
+      renameFormation,
       addClip,
       patchClip,
       removeClip,

@@ -25,7 +25,7 @@ import GeometryProposalPanel from "./GeometryProposalPanel";
 import ConversionPanel from "./ConversionPanel";
 import NativeConversionPanel from "./NativeConversionPanel";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { DEPTH_STAGGER_DEMO_ID } from "@/lib/show/stories/depthStaggerDemo";
 import {
@@ -38,7 +38,15 @@ import {
   buildProductionStatus,
 } from "@/lib/studio/productionStatus";
 
-type InspectorGroupId = "AUTHORING" | "VALIDATE" | "ADVANCED";
+import {
+  INSPECTOR_PANEL_GROUP,
+  onInspectorFocus,
+  type InspectorGroupId,
+} from "@/lib/studio/inspectorFocus";
+import { summarizeClipSelection } from "@/lib/studio/selectionSummary";
+import { formatShowTime } from "@/lib/studio/timelineEdit";
+import { findCommand, primaryCommandFor, resolveTimelineCommands } from "@/lib/studio/commands";
+import { useTimelineCommands } from "@/lib/studio/useTimelineCommands";
 
 const INSPECTOR_GROUPS: readonly { id: InspectorGroupId; label: string }[] = [
   { id: "AUTHORING", label: "Authoring" },
@@ -256,6 +264,18 @@ function EsspSourceRecovery({
 
 export default function Inspector() {
   const [group, setGroup] = useState<InspectorGroupId>("AUTHORING");
+  /**
+   * FOCUS REQUESTS from other surfaces (timeline context menu, double-click).
+   * Reveal only: switch to the owning group, then scroll the panel into view.
+   */
+  useEffect(
+    () =>
+      onInspectorFocus((panel) => {
+        setGroup(INSPECTOR_PANEL_GROUP[panel]);
+        requestAnimationFrame(() => scrollToPanel(panel));
+      }),
+    [],
+  );
   const [sampleConfirm, setSampleConfirm] = useState(false);
   const {
     project,
@@ -334,6 +354,18 @@ export default function Inspector() {
   const hasAuthoredScene = !!clip && (project.scenes ?? []).some((sc) => sc.id === clip.id);
   const isOptimized = !!selectedClipId && !!transitionOverrides[selectedClipId];
 
+  // CONTEXTUAL HEADER — same command authority as the timeline context menu.
+  const { clipContext, execute } = useTimelineCommands();
+  const selectionContext = selectedClipId ? clipContext(selectedClipId) : null;
+  const selectionSummary = selectionContext
+    ? summarizeClipSelection(
+        project,
+        selectedClipId,
+        selectionContext.ownership,
+        selectionContext.hasAuthoredLighting,
+      )
+    : null;
+
   const status = buildProductionStatus(fullShowReport, fullShowStale);
   // Blocker navigation uses ONLY context the canonical report already carries.
   const firstBlockingIssue =
@@ -373,6 +405,55 @@ export default function Inspector() {
         ))}
       </div>
 
+      {/* WHAT IS SELECTED — answered before any panel, in one place. */}
+      <div
+        className="shrink-0 border-b border-border bg-panel/40 px-3 py-2"
+        data-testid="inspector-selection-header"
+      >
+        {!selectionContext || !selectionSummary ? (
+          <p className="text-[11px] text-muted-foreground" data-testid="inspector-selection-empty">
+            Nothing selected — click a clip on the timeline. Right-click it for its actions.
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            <p className="truncate text-xs font-medium" data-testid="inspector-selection-title">
+              {selectionSummary.label}
+            </p>
+            <p
+              className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground"
+              data-testid="inspector-selection-meta"
+            >
+              {selectionSummary.phase} · {selectionSummary.representation}
+              {selectionSummary.ownership === "NONE" ? "" : ` · ${selectionSummary.ownership}`} ·{" "}
+              {formatShowTime(selectionSummary.start)} → {formatShowTime(selectionSummary.end)}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {(() => {
+                const menu = resolveTimelineCommands(selectionContext);
+                const primary = primaryCommandFor(selectionContext);
+                const quick = [
+                  primary ? findCommand(menu, primary) : undefined,
+                  findCommand(menu, "EDIT_LIGHTING"),
+                  findCommand(menu, "EDIT_TRANSITION"),
+                ].filter((c): c is NonNullable<typeof c> => !!c);
+                return quick.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    disabled={!c.available}
+                    onClick={() => execute(c.id, { clipId: selectionSummary.clipId })}
+                    data-testid={`selection-action-${c.id}`}
+                    className="chip-btn text-[10px]"
+                  >
+                    {c.label}
+                  </button>
+                ));
+              })()}
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">
         {/* ---------------------------------------------------- A. AUTHORING */}
         <div
@@ -384,9 +465,11 @@ export default function Inspector() {
         >
       {/* Reference show sits at the TOP of AUTHORING: importing an ESSP and
           converting it into an editable timeline is a first-class entry path. */}
-      <EsspPanel />
+      <div id="essp-panel">
+        <EsspPanel />
+      </div>
 
-      <section className="panel-card">
+      <section className="panel-card" id="clip-inspector">
         <h2 className="panel-title">Clip inspector</h2>
         {!clip ? (
           <p className="text-xs text-muted-foreground">
@@ -529,7 +612,9 @@ export default function Inspector() {
         )}
       </section>
 
-      <TransitionDesignPanel />
+      <div id="transition-panel">
+        <TransitionDesignPanel />
+      </div>
 
       <section className="panel-card">
         <h2 className="panel-title">
@@ -680,7 +765,9 @@ export default function Inspector() {
         <SceneObjectsPanel />
       </div>
 
-      <LightingEffectsPanel />
+      <div id="lighting-panel">
+        <LightingEffectsPanel />
+      </div>
 
       <ParticipationPanel />
 
@@ -1039,7 +1126,9 @@ export default function Inspector() {
 
           <VerticalStackPanel />
           <GeometryProposalPanel />
-          <ForensicsPanel />
+          <div id="forensics-panel">
+            <ForensicsPanel />
+          </div>
           <NativeConversionPanel />
           <ConversionPanel />
           <SimulationPanel />
