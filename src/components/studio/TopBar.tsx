@@ -1,11 +1,15 @@
-import { Activity, Layers, FolderOpen, Keyboard, Radio, Save, Settings2, Sparkles } from "lucide-react";
+import { Activity, FolderOpen, Keyboard, Radio, Save, Settings2, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
 
-import { DEPTH_STAGGER_DEMO_ID } from "@/lib/show/stories/depthStaggerDemo";
 import { useI18n } from "@/i18n";
 import { LANGUAGES, type Language } from "@/i18n/translate";
 import { SHORTCUT_HELP } from "@/lib/studio/shortcuts";
 import { authorityLabel, buildProductionStatus } from "@/lib/studio/productionStatus";
+import {
+  requiresUnsavedConfirmation,
+  unsavedWorkPrompt,
+  type DestructiveDocumentAction,
+} from "@/lib/studio/unsavedWorkGuard";
 import { useStudio } from "@/lib/studio/store";
 import SetupWizard from "./SetupWizard";
 
@@ -33,12 +37,16 @@ export default function TopBar() {
     autosaveRecovery,
     restoreAutosave,
     dismissAutosave,
-    loadSampleShow,
     referenceOwnership,
   } = useStudio();
   const { t, language, setLanguage } = useI18n();
   const [wizard, setWizard] = useState<"CREATE" | "EDIT" | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  // UNSAVED WORK GUARD — explicit consent before a dirty document is replaced.
+  const [pending, setPending] = useState<{
+    action: DestructiveDocumentAction;
+    run: () => void;
+  } | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
   // DOMINANT production state: canonical export eligibility, mirrored only.
   const readiness = buildProductionStatus(fullShowReport, fullShowStale);
@@ -52,6 +60,15 @@ export default function TopBar() {
         ? "topBar.statusReview"
         : "topBar.statusUnsafe",
   );
+
+  const guard = (action: DestructiveDocumentAction, run: () => void) => {
+    if (requiresUnsavedConfirmation(action, { projectDirty })) {
+      setPending({ action, run });
+      return;
+    }
+    run();
+  };
+  const prompt = pending ? unsavedWorkPrompt(pending.action) : null;
 
   return (
     <header className="relative flex items-center gap-4 border-b border-border bg-panel px-4 py-2.5">
@@ -68,7 +85,7 @@ export default function TopBar() {
       <div className="flex items-center gap-1.5">
         <button
           type="button"
-          onClick={() => setWizard("CREATE")}
+          onClick={() => guard("NEW_SHOW", () => setWizard("CREATE"))}
           className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
         >
           <Sparkles className="size-3" /> {t("topBar.newShow")}
@@ -82,14 +99,6 @@ export default function TopBar() {
         </button>
         <button
           type="button"
-          onClick={() => loadSampleShow(DEPTH_STAGGER_DEMO_ID)}
-          title="Load the Depth Stagger Demo sample show (Geometry Proposal workflow)"
-          className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
-        >
-          <Layers className="size-3" /> Depth Stagger Demo
-        </button>
-        <button
-          type="button"
           onClick={saveProjectFile}
           className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
         >
@@ -97,7 +106,7 @@ export default function TopBar() {
         </button>
         <button
           type="button"
-          onClick={() => fileInput.current?.click()}
+          onClick={() => guard("OPEN_PROJECT", () => fileInput.current?.click())}
           className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
         >
           <FolderOpen className="size-3" /> {t("project.open")}
@@ -157,9 +166,12 @@ export default function TopBar() {
           <Radio className="size-3" /> {t("topBar.drones", { count: project.droneCount })}
         </span>
         <span className="metric-pill">{duration.toFixed(0)}s</span>
+        {/* SECONDARY: live authoring feedback. Deliberately quieter than the
+            dominant readiness pill so it can never read as export approval. */}
         <span
-          className={`metric-pill status-${status}`}
-          title="Live authoring feedback — it does not authorize export."
+          className="hidden items-center gap-1 border-l border-border pl-2 text-muted-foreground lg:inline-flex"
+          title="Live authoring feedback while you edit — it does not authorize export."
+          data-testid="topbar-authoring-feedback"
         >
           <Activity className="size-3" /> {statusLabel}
         </span>
@@ -213,11 +225,63 @@ export default function TopBar() {
             {t("project.recoveryBody", { time: shortTime(autosaveRecovery.savedAt) })}
           </p>
           <div className="flex gap-1.5">
-            <button type="button" className="chip-btn" onClick={restoreAutosave}>
+            <button
+              type="button"
+              className="chip-btn"
+              onClick={() => guard("RESTORE_AUTOSAVE", restoreAutosave)}
+            >
               {t("project.restore")}
             </button>
             <button type="button" className="chip-btn" onClick={dismissAutosave}>
               {t("project.discard")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {prompt && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={prompt.title}
+          data-testid="unsaved-work-dialog"
+          className="absolute left-1/2 top-12 z-50 w-96 -translate-x-1/2 space-y-2 rounded border border-warning/60 bg-panel p-3 shadow-lg"
+        >
+          <p className="text-xs font-semibold text-foreground">{prompt.title}</p>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">{prompt.body}</p>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              className="chip-btn"
+              data-testid="unsaved-work-save"
+              onClick={() => {
+                const run = pending?.run;
+                setPending(null);
+                saveProjectFile();
+                run?.();
+              }}
+            >
+              Save, then continue
+            </button>
+            <button
+              type="button"
+              className="chip-btn"
+              data-testid="unsaved-work-continue"
+              onClick={() => {
+                const run = pending?.run;
+                setPending(null);
+                run?.();
+              }}
+            >
+              {prompt.continueLabel}
+            </button>
+            <button
+              type="button"
+              className="chip-btn"
+              data-testid="unsaved-work-cancel"
+              onClick={() => setPending(null)}
+            >
+              {t("common.cancel")}
             </button>
           </div>
         </div>
