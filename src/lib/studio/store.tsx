@@ -23,6 +23,7 @@ import {
   boundHistory,
   reconcileAdoptedEditorSession,
 } from "./editorSession";
+import { documentDirty } from "./unsavedWorkGuard";
 import { setGeometryProposalPreview } from "./geometryProposalPreview";
 
 import {
@@ -4025,10 +4026,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   // Any project change marks the file dirty; the signature makes a save -> edit
   // -> undo cycle land back on "saved" instead of staying falsely dirty.
+  // A null signature means "not anchored yet" (first mount): anchor the initial
+  // document so edits to a never-saved show still count as unsaved work.
   useEffect(() => {
     const signature = JSON.stringify(project);
-    setProjectDirty(savedSignature.current !== null && savedSignature.current !== signature);
+    if (savedSignature.current === null) {
+      savedSignature.current = signature;
+      setProjectDirty(false);
+      return;
+    }
+    setProjectDirty(documentDirty(savedSignature.current, signature));
   }, [project]);
+
 
   const markSaved = useCallback((snapshotName?: string) => {
     savedSignature.current = JSON.stringify(project);
@@ -4202,10 +4211,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setProjectDirty(true);
       setProjectSavedAt(null);
     } else {
-      savedSignature.current = null;
+      // AUTHORED / SAMPLE: no file yet, but the adopted document IS the baseline.
+      // Anchoring here is what makes later edits count as unsaved work, so the
+      // unsaved-work guard can protect a never-saved show from silent loss.
+      savedSignature.current = JSON.stringify(next);
       setProjectDirty(false);
       setProjectSavedAt(null);
     }
+
     setProjectFileNameState(ensureProjectExtension(fileName || suggestedProjectFileName(next.name)));
     // RECOVERY PRECEDENCE: a successful, deliberate replacement (Open, New,
     // Sample, consumed Restore) makes the previous session's snapshot obsolete.

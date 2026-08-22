@@ -27,6 +27,12 @@ import NativeConversionPanel from "./NativeConversionPanel";
 
 import { useState } from "react";
 
+import { DEPTH_STAGGER_DEMO_ID } from "@/lib/show/stories/depthStaggerDemo";
+import {
+  requiresUnsavedConfirmation,
+  unsavedWorkPrompt,
+} from "@/lib/studio/unsavedWorkGuard";
+
 import {
   authorityLabel,
   buildProductionStatus,
@@ -240,7 +246,7 @@ function EsspSourceRecovery({
           className="font-mono text-[10px] text-success"
           data-testid="essp-source-recovery-ok"
         >
-          {result.files.length} original file(s) · show hash{" "}
+          Original imported files returned unchanged — {result.files.length} file(s) · show hash{" "}
           {result.referenceShowHash?.slice(0, 12) ?? "-"}
         </p>
       )}
@@ -250,6 +256,7 @@ function EsspSourceRecovery({
 
 export default function Inspector() {
   const [group, setGroup] = useState<InspectorGroupId>("AUTHORING");
+  const [sampleConfirm, setSampleConfirm] = useState(false);
   const {
     project,
     plan,
@@ -296,6 +303,9 @@ export default function Inspector() {
     analysisRevision,
     referenceOwnership,
     esspPreflightSource,
+    loadSampleShow,
+    focusIssue,
+    projectDirty,
   } = useStudio();
   // SAME pure model as the preflight panel — the action state mirrors it.
   const preflight = buildExportPreflight({
@@ -325,6 +335,13 @@ export default function Inspector() {
   const isOptimized = !!selectedClipId && !!transitionOverrides[selectedClipId];
 
   const status = buildProductionStatus(fullShowReport, fullShowStale);
+  // Blocker navigation uses ONLY context the canonical report already carries.
+  const firstBlockingIssue =
+    fullShowReport?.issues.find(
+      (i) =>
+        i.severity === "error" &&
+        (typeof i.time === "number" || !!i.clipId || (i.droneIndices?.length ?? 0) > 0),
+    ) ?? null;
   const authority = authorityLabel(referenceOwnership);
 
   return (
@@ -847,6 +864,20 @@ export default function Inspector() {
               ))}
               {exportEligibility.blockers.length === 0 && <li>See full-show report for details.</li>}
             </ul>
+            {/* NON-MUTATING NAVIGATION — only uses context the report already has. */}
+            {firstBlockingIssue && (
+              <button
+                type="button"
+                onClick={() => focusIssue(firstBlockingIssue)}
+                data-testid="export-goto-blocker"
+                className="chip-btn mt-1 w-full justify-center"
+              >
+                Go to first blocker
+                {typeof firstBlockingIssue.time === "number"
+                  ? ` (${firstBlockingIssue.time.toFixed(1)}s)`
+                  : ""}
+              </button>
+            )}
           </div>
         )}
         {exportEligibility.reason === "OK_WITH_WARNINGS" && (
@@ -951,6 +982,58 @@ export default function Inspector() {
             Advanced diagnostics and tooling. Nothing here is required for the normal
             create → validate → export workflow.
           </p>
+          {/* SAMPLES / DEVELOPMENT — secondary by design: must never compete with
+              New / Open / Save or the production readiness state. */}
+          <section className="panel-card" data-testid="samples-dev">
+            <h2 className="panel-title">Samples / development</h2>
+            <p className="pb-1 text-[10px] leading-relaxed text-muted-foreground">
+              Development and diagnostics fixtures. Loading one replaces the open document.
+            </p>
+            {sampleConfirm ? (
+              <div className="space-y-1.5 rounded border border-warning/60 p-2" data-testid="samples-unsaved-confirm">
+                <p className="text-[11px] leading-relaxed text-warning">
+                  {unsavedWorkPrompt("LOAD_SAMPLE").body}
+                </p>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    className="chip-btn"
+                    data-testid="samples-confirm-continue"
+                    onClick={() => {
+                      setSampleConfirm(false);
+                      loadSampleShow(DEPTH_STAGGER_DEMO_ID);
+                    }}
+                  >
+                    {unsavedWorkPrompt("LOAD_SAMPLE").continueLabel}
+                  </button>
+                  <button
+                    type="button"
+                    className="chip-btn"
+                    data-testid="samples-confirm-cancel"
+                    onClick={() => setSampleConfirm(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (requiresUnsavedConfirmation("LOAD_SAMPLE", { projectDirty })) {
+                    setSampleConfirm(true);
+                    return;
+                  }
+                  loadSampleShow(DEPTH_STAGGER_DEMO_ID);
+                }}
+                data-testid="samples-depth-stagger-demo"
+                className="chip-btn w-full justify-center"
+              >
+                Load Depth Stagger Demo
+              </button>
+            )}
+          </section>
+
           <VerticalStackPanel />
           <GeometryProposalPanel />
           <ForensicsPanel />
