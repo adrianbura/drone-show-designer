@@ -27,6 +27,19 @@ import NativeConversionPanel from "./NativeConversionPanel";
 
 import { useState } from "react";
 
+import {
+  authorityLabel,
+  buildProductionStatus,
+} from "@/lib/studio/productionStatus";
+
+type InspectorGroupId = "AUTHORING" | "VALIDATE" | "ADVANCED";
+
+const INSPECTOR_GROUPS: readonly { id: InspectorGroupId; label: string }[] = [
+  { id: "AUTHORING", label: "Authoring" },
+  { id: "VALIDATE", label: "Validate & export" },
+  { id: "ADVANCED", label: "Advanced" },
+];
+
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
 import type { EsspExportResult } from "@/lib/adapters/esspExport";
 import type { EsspSourceRecoveryResult } from "@/lib/adapters/esspSourceRecovery";
@@ -236,6 +249,7 @@ function EsspSourceRecovery({
 }
 
 export default function Inspector() {
+  const [group, setGroup] = useState<InspectorGroupId>("AUTHORING");
   const {
     project,
     plan,
