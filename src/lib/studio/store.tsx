@@ -4202,10 +4202,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setProjectDirty(true);
       setProjectSavedAt(null);
     } else {
-      savedSignature.current = null;
+      // AUTHORED / SAMPLE: no file yet, but the adopted document IS the baseline.
+      // Anchoring here is what makes later edits count as unsaved work, so the
+      // unsaved-work guard can protect a never-saved show from silent loss.
+      savedSignature.current = JSON.stringify(next);
       setProjectDirty(false);
       setProjectSavedAt(null);
     }
+
     setProjectFileNameState(ensureProjectExtension(fileName || suggestedProjectFileName(next.name)));
     // RECOVERY PRECEDENCE: a successful, deliberate replacement (Open, New,
     // Sample, consumed Restore) makes the previous session's snapshot obsolete.
