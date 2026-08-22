@@ -4025,10 +4025,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   // Any project change marks the file dirty; the signature makes a save -> edit
   // -> undo cycle land back on "saved" instead of staying falsely dirty.
+  // A null signature means "not anchored yet" (first mount): anchor the initial
+  // document so edits to a never-saved show still count as unsaved work.
   useEffect(() => {
     const signature = JSON.stringify(project);
-    setProjectDirty(savedSignature.current !== null && savedSignature.current !== signature);
+    if (savedSignature.current === null) {
+      savedSignature.current = signature;
+      setProjectDirty(false);
+      return;
+    }
+    setProjectDirty(savedSignature.current !== signature);
   }, [project]);
+
 
   const markSaved = useCallback((snapshotName?: string) => {
     savedSignature.current = JSON.stringify(project);
