@@ -282,6 +282,8 @@ export default function Inspector() {
     setShowConflicts,
     fullShowReport,
     fullShowStale,
+    fullShowBusy,
+    analyzeFullShow,
     preShowReport,
     preShowStale,
     buildProjectFile,
@@ -744,12 +746,11 @@ export default function Inspector() {
           ) : (
             <AlertTriangle className="size-3.5 text-warning" />
           )}
-          Validation ({safety.errors.length} err / {safety.warnings.length} warn)
+          Authoring feedback ({safety.errors.length} err / {safety.warnings.length} warn)
         </h2>
         <p className="pb-1 text-[10px] leading-relaxed text-muted-foreground">
-          {safety.status === "ok"
-            ? "VALIDATED AGAINST CURRENT SAFETY PROFILE — not a real-world safety guarantee."
-            : "Violations of the configured safety profile. This is not a real-world safety assessment."}
+          Live authoring feedback while you edit — it does NOT authorize export.
+          Export is authorized only by Full-Show Validation above.
         </p>
         <label className="flex items-center justify-between gap-2 pb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
           Sample rate
@@ -804,14 +805,26 @@ export default function Inspector() {
 
       <section className="panel-card">
         <h2 className="panel-title">
-          <Download className="size-3.5" /> Export
+          <Download className="size-3.5" /> Export flight output
         </h2>
+        {/* PRIMARY ACTION FLOW — validation is the gate, never auto-run. */}
+        {(status.readiness === "NOT_ANALYZED" || status.readiness === "STALE") && (
+          <button
+            type="button"
+            onClick={analyzeFullShow}
+            disabled={fullShowBusy}
+            data-testid="export-run-validation"
+            className="chip-btn w-full justify-center disabled:opacity-40"
+          >
+            {fullShowBusy ? "Validating…" : status.nextActionLabel}
+          </button>
+        )}
         {exportEligibility.reason === "NO_REPORT" && (
           <p
             data-testid="export-gate-no-report"
             className="rounded border border-border bg-muted/30 p-2 text-[10px] leading-relaxed text-muted-foreground"
           >
-            Run full-show analysis before exporting computed show data.
+            Not analysed yet. Run Full-Show Validation to enable flight output export.
           </p>
         )}
         {exportEligibility.reason === "STALE" && (
@@ -819,7 +832,7 @@ export default function Inspector() {
             data-testid="export-gate-stale"
             className="rounded border border-warning/60 bg-warning/10 p-2 text-[10px] leading-relaxed text-warning"
           >
-            Project changed after validation; run full-show analysis again.
+            The show changed after validation. Run Full-Show Validation again to export.
           </p>
         )}
         {exportEligibility.reason === "BLOCKED" && (
@@ -903,6 +916,12 @@ export default function Inspector() {
           buildOriginalEsspPackage={buildOriginalEsspPackage}
           hasEsspSourceFiles={hasEsspSourceFiles}
         />
+        <p className="pt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Save project
+        </p>
+        <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+          The editable Studio document. Always allowed — it is not flight output.
+        </p>
         <button
           onClick={() =>
             downloadText(
