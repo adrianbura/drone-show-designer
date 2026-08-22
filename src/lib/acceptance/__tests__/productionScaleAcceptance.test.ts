@@ -54,9 +54,10 @@ interface ScaleMeasurement {
 
 /** Drops measured wall-clock fields, which are inherently non-deterministic. */
 function withoutRuntime(metrics: FullShowValidationReport["metrics"]) {
-  const { validationRuntimeMs: _ignored, ...rest } = metrics as Record<string, unknown> & {
-    validationRuntimeMs?: number;
-  };
+  const { validationRuntimeMs: _ignored, ...rest } = metrics as unknown as Record<
+    string,
+    unknown
+  > & { validationRuntimeMs?: number };
   return rest;
 }
 
