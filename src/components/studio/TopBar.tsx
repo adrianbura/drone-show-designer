@@ -118,7 +118,7 @@ export default function TopBar() {
           type="button"
           onClick={() => saveProjectFile()}
           disabled={!documentOpen}
-          className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
+          className="chip-btn disabled:opacity-40 font-mono text-[10px] uppercase tracking-[0.16em]"
         >
           <Save className="size-3" /> {t("project.save")}
         </button>
@@ -188,7 +188,11 @@ export default function TopBar() {
       ) : null}
 
       <div className="ml-auto flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em]">
-        <span className="hidden text-muted-foreground md:inline">{project.name}</span>
+        <span className="hidden text-muted-foreground md:inline">
+          {documentOpen ? project.name : t("project.noShowTitle")}
+        </span>
+        {documentOpen ? (
+        <>
         <span
           data-testid="project-file-state"
           data-dirty={projectDirty ? "true" : "false"}
@@ -206,20 +210,6 @@ export default function TopBar() {
             ? t("project.unsaved")
             : `${t("project.saved")} ${shortTime(projectSavedAt)}`}
         </span>
-        <div className="flex overflow-hidden rounded border border-border" role="group" aria-label={t("common.language")}>
-          {LANGUAGES.map((lng: Language) => (
-            <button
-              key={lng}
-              type="button"
-              onClick={() => setLanguage(lng)}
-              className={`px-1.5 py-0.5 uppercase transition-colors ${
-                language === lng ? "bg-accent/15 text-accent" : "text-muted-foreground"
-              }`}
-            >
-              {lng}
-            </button>
-          ))}
-        </div>
         <span className="metric-pill">
           <Radio className="size-3" /> {t("topBar.drones", { count: project.droneCount })}
         </span>
@@ -249,6 +239,22 @@ export default function TopBar() {
             {readiness.readiness.replace(/_/g, " ")}
           </span>
         )}
+        </>
+        ) : null}
+        <div className="flex overflow-hidden rounded border border-border" role="group" aria-label={t("common.language")}>
+          {LANGUAGES.map((lng: Language) => (
+            <button
+              key={lng}
+              type="button"
+              onClick={() => setLanguage(lng)}
+              className={`px-1.5 py-0.5 uppercase transition-colors ${
+                language === lng ? "bg-accent/15 text-accent" : "text-muted-foreground"
+              }`}
+            >
+              {lng}
+            </button>
+          ))}
+        </div>
       </div>
 
       {helpOpen && (
