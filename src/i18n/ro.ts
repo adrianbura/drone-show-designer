@@ -243,6 +243,11 @@ export const ro: Dictionary = {
 
   "project.save": "Salvează",
   "project.open": "Deschide",
+  "project.saveAs": "Salvează ca",
+  "project.close": "Închide",
+  "project.saveAsPrompt": "Salvează show-ul sub un nume nou",
+  "project.noShowTitle": "Niciun show deschis",
+  "project.noShowBody": "Creează un show nou, deschide un proiect salvat sau importă o arhivă ESSP.",
   "project.saved": "salvat",
   "project.unsaved": "modificări nesalvate",
   "project.autosaved": "salvare automată {time}",

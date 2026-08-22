@@ -15,7 +15,8 @@ export type DestructiveDocumentAction =
   | "NEW_SHOW"
   | "OPEN_PROJECT"
   | "LOAD_SAMPLE"
-  | "RESTORE_AUTOSAVE";
+  | "RESTORE_AUTOSAVE"
+  | "CLOSE_SHOW";
 
 export interface UnsavedWorkPrompt {
   readonly action: DestructiveDocumentAction;
@@ -47,6 +48,11 @@ const PROMPTS: Record<DestructiveDocumentAction, Omit<UnsavedWorkPrompt, "action
     title: "Unsaved changes",
     body: "This show has changes that were never saved to a file. Restoring the recovered document replaces it.",
     continueLabel: "Restore without saving",
+  },
+  CLOSE_SHOW: {
+    title: "Unsaved changes",
+    body: "This show has changes that were never saved to a file. Closing it discards them.",
+    continueLabel: "Close without saving",
   },
 };
 

@@ -24,6 +24,12 @@ import {
   reconcileAdoptedEditorSession,
 } from "./editorSession";
 import { documentDirty } from "./unsavedWorkGuard";
+import {
+  documentFeedback,
+  saveAsFileName,
+  type DocumentFeedback,
+} from "./documentLifecycle";
+
 import { setGeometryProposalPreview } from "./geometryProposalPreview";
 
 import {
@@ -989,8 +995,20 @@ interface StudioContextValue {
   projectAutosavedAt: string | null;
   projectFileError: { code: string; message: string } | null;
   clearProjectFileError: () => void;
-  /** Writes the project file to disk (browser download). */
-  saveProjectFile: () => void;
+  /** Writes the project file to disk (browser download). Returns success. */
+  saveProjectFile: () => boolean;
+  /**
+   * SAVE AS: writes the current project state under a NEW document identity and
+   * makes that identity the active document + saved baseline. Returns success.
+   */
+  saveProjectFileAs: (name?: string) => boolean;
+  /** False when no document is open (explicit NO SHOW OPEN state). */
+  documentOpen: boolean;
+  /** Closes the open document; the Studio enters NO SHOW OPEN. */
+  closeShow: () => void;
+  /** Compact confirmation of the last successful document action. */
+  documentAction: DocumentFeedback | null;
+  clearDocumentAction: () => void;
   /** Canonical project envelope (project + planning + editor prefs). */
   buildProjectFile: () => ProjectFile;
   /** Loads a project file, replacing the open show only when it is valid. */
@@ -999,6 +1017,7 @@ interface StudioContextValue {
   autosaveRecovery: ProjectAutosaveSnapshot | null;
   restoreAutosave: () => void;
   dismissAutosave: () => void;
+
 
   // ---- AI choreography assistant (Sprint 7) ------------------------------
   aiProvider: { id: string; label: string; deterministic: boolean };
@@ -3455,6 +3474,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setReferenceShow(show);
       setReferencePlayback(true);
       setSelectedReferenceDroneId(show.drones[0]?.sourceId ?? null);
+      // An import from the NO SHOW OPEN state IS opening a document.
+      setDocumentOpen(true);
+
     } catch (err) {
       if (!esspJobs.current.accepts(token, sessionScope())) return;
       setReferenceShow(null);
@@ -3986,6 +4008,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     null,
   );
   const [autosaveRecovery, setAutosaveRecovery] = useState<ProjectAutosaveSnapshot | null>(null);
+  // DOCUMENT LIFECYCLE. `documentOpen` is the single source of truth for the
+  // NO SHOW OPEN state; every editing surface is gated on it.
+  const [documentOpen, setDocumentOpen] = useState(true);
+  const [documentAction, setDocumentAction] = useState<DocumentFeedback | null>(null);
+
   const savedSignature = useRef<string | null>(null);
   const autosaveStore = useRef<KeyValueStore | null>(null);
   const lastAutosaveAt = useRef(0);
@@ -4081,27 +4108,60 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [project, persistenceOptions],
   );
 
-  const saveProjectFile = useCallback(() => {
-    try {
-      const file = buildProjectFile();
-      const name = ensureProjectExtension(projectFileName || suggestedProjectFileName(project.name));
-      const blob = new Blob([projectFileToJson(file)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = name;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setProjectFileError(null);
-      markSaved(name);
-      // SUCCESS BOUNDARY ONLY: the bytes reached the download, so any autosave
-      // snapshot (and any pending debounce timer) is now obsolete work.
-      consumeAutosaveRecoveryRef.current();
-    } catch (err) {
-      const error = toProjectFileError(err);
-      setProjectFileError({ code: error.code, message: error.message });
-    }
-  }, [project, buildProjectFile, projectFileName, markSaved]);
+  /**
+   * ONE DOCUMENT WRITER. Save and Save As differ ONLY in the document identity
+   * they write under; serialization, dirty baseline, autosave consumption and
+   * error handling are shared, so the two can never diverge.
+   */
+  const writeProjectDocument = useCallback(
+    (name: string, kind: "SAVED" | "SAVED_AS"): boolean => {
+      try {
+        const file = buildProjectFile();
+        const blob = new Blob([projectFileToJson(file)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = name;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        setProjectFileError(null);
+        // The written identity becomes the ACTIVE document and the new baseline.
+        markSaved(name);
+        setDocumentAction(documentFeedback(kind, name));
+        // SUCCESS BOUNDARY ONLY: the bytes reached the download, so any autosave
+        // snapshot (and any pending debounce timer) is now obsolete work — for
+        // Save As this also detaches the old identity's recovery snapshot.
+        consumeAutosaveRecoveryRef.current();
+        return true;
+      } catch (err) {
+        const error = toProjectFileError(err);
+        setProjectFileError({ code: error.code, message: error.message });
+        return false;
+      }
+    },
+    [buildProjectFile, markSaved],
+  );
+
+  const saveProjectFile = useCallback(
+    (): boolean =>
+      writeProjectDocument(
+        ensureProjectExtension(projectFileName || suggestedProjectFileName(project.name)),
+        "SAVED",
+      ),
+    [writeProjectDocument, projectFileName, project.name],
+  );
+
+  /**
+   * SAVE AS. Same canonical envelope and the same writer: nothing about the
+   * project, planning, reference layer, source bytes or ownership is touched —
+   * only the document identity the bytes are written under.
+   */
+  const saveProjectFileAs = useCallback(
+    (name?: string): boolean =>
+      writeProjectDocument(saveAsFileName(name ?? "", project.name), "SAVED_AS"),
+    [writeProjectDocument, project.name],
+  );
+
 
   /**
    * THE ONE PROJECT-CONTENT ADOPTION BOUNDARY (new, sample, open, recovery).
@@ -4220,6 +4280,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     }
 
     setProjectFileNameState(ensureProjectExtension(fileName || suggestedProjectFileName(next.name)));
+    // Adopting a document ALWAYS leaves the NO SHOW OPEN state.
+    setDocumentOpen(true);
+    setDocumentAction(null);
     // RECOVERY PRECEDENCE: a successful, deliberate replacement (Open, New,
     // Sample, consumed Restore) makes the previous session's snapshot obsolete.
     // Runs only on the success path, so a failed adoption keeps recovery intact.
@@ -4227,6 +4290,29 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     return { ok: true };
   }, [derivedAnalysisSetters]);
   adoptProjectRef.current = adoptProject;
+
+  /**
+   * CLOSE SHOW. Reuses the single adoption boundary with a blank placeholder so
+   * every subsystem (playback, validation, forensics, reference layer, source
+   * bytes, histories, in-flight jobs, autosave snapshot) is cleared by exactly
+   * the same authority as a project switch — then marks the document closed.
+   * The placeholder is NEVER presented as an editable show: `documentOpen` is
+   * false, so the Studio renders the explicit NO SHOW OPEN state instead.
+   */
+  const closeShow = useCallback(() => {
+    const closedName = projectFileName || project.name;
+    adoptProject(createDefaultProject(), "", { fileState: "UNSAVED" });
+    setDocumentOpen(false);
+    setProjectDirty(false);
+    setProjectSavedAt(null);
+    setProjectAutosavedAt(null);
+    setProjectFileError(null);
+    setDocumentAction(documentFeedback("CLOSED", closedName));
+  }, [adoptProject, projectFileName, project.name]);
+
+  const clearDocumentAction = useCallback(() => setDocumentAction(null), []);
+
+
 
   /** Adopts a parsed/migrated envelope with its planning state and editor prefs. */
   const adoptProjectFile = useCallback(
@@ -4291,8 +4377,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   // Debounced autosave. Never runs on an animation frame: it only reacts to
   // project mutations, and at most once per debounce window.
   useEffect(() => {
+    // NO SHOW OPEN: the placeholder document is not the operator's work and must
+    // never be snapshotted as a recoverable show.
+    if (!documentOpen) return;
     const store = getAutosaveStore();
     if (!store) return;
+
     const delay = Math.max(0, AUTOSAVE_DEBOUNCE_MS - (Date.now() - lastAutosaveAt.current));
     const generation = autosaveGeneration.current;
     const timer = setTimeout(() => {
@@ -4313,7 +4403,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       });
     }, delay);
     return () => clearTimeout(timer);
-  }, [project, projectFileName, getAutosaveStore, persistenceOptions]);
+  }, [project, projectFileName, getAutosaveStore, persistenceOptions, documentOpen]);
 
   const restoreAutosave = useCallback(() => {
     const snapshot = autosaveRecovery;
@@ -5398,6 +5488,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       projectFileError,
       clearProjectFileError,
       saveProjectFile,
+    saveProjectFileAs,
+    documentOpen,
+    closeShow,
+    documentAction,
+    clearDocumentAction,
       buildProjectFile,
       referenceLayer,
       referenceOwnership,

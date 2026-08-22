@@ -6,9 +6,10 @@ import Inspector from "@/components/studio/Inspector";
 import LeftPanel from "@/components/studio/LeftPanel";
 import Timeline from "@/components/studio/Timeline";
 import TopBar from "@/components/studio/TopBar";
+import NoShowOpen from "@/components/studio/NoShowOpen";
 import { I18nProvider } from "@/i18n";
 import { LibraryProvider } from "@/lib/library/provider";
-import { StudioProvider } from "@/lib/studio/store";
+import { StudioProvider, useStudio } from "@/lib/studio/store";
 
 // three.js touches browser APIs at import time — keep it out of the SSR graph.
 const Viewport3D = lazy(() => import("@/components/studio/Viewport3D"));
@@ -124,6 +125,24 @@ function StudioPage() {
       <main className="flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">
         <h1 className="sr-only">Drone Show Studio — drone light show design and simulation</h1>
         <TopBar />
+        <StudioWorkspace />
+      </main>
+    </StudioProvider>
+    </LibraryProvider>
+    </I18nProvider>
+  );
+}
+
+/**
+ * DOCUMENT-GATED WORKSPACE. With no document open the editing surfaces are not
+ * rendered at all — no viewport, no timeline, no panels — so nothing from a
+ * closed show can be seen, played or acted on.
+ */
+function StudioWorkspace() {
+  const { documentOpen } = useStudio();
+  if (!documentOpen) return <NoShowOpen />;
+  return (
+    <>
         <div className="flex min-h-[200px] flex-1">
           <aside className="hidden w-[300px] shrink-0 overflow-y-auto border-r border-border bg-panel lg:block">
             <LeftPanel />
@@ -155,9 +174,6 @@ function StudioPage() {
           </div>
           <Inspector />
         </div>
-      </main>
-    </StudioProvider>
-    </LibraryProvider>
-    </I18nProvider>
+    </>
   );
 }
