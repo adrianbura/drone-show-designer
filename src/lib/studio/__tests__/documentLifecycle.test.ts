@@ -31,7 +31,7 @@ describe("save as naming", () => {
 
   it("proposes a NEW identity instead of the current one", () => {
     const proposal = suggestedSaveAsName("wedding.droneshow.json", "Wedding");
-    expect(proposal).toBe("wedding.droneshow-copy.json");
+    expect(proposal).toBe("wedding-copy.droneshow.json");
     expect(proposal).not.toBe("wedding.droneshow.json");
   });
 
