@@ -23,6 +23,7 @@ import {
   boundHistory,
   reconcileAdoptedEditorSession,
 } from "./editorSession";
+import { documentDirty } from "./unsavedWorkGuard";
 import { setGeometryProposalPreview } from "./geometryProposalPreview";
 
 import {
@@ -4034,7 +4035,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setProjectDirty(false);
       return;
     }
-    setProjectDirty(savedSignature.current !== signature);
+    setProjectDirty(documentDirty(savedSignature.current, signature));
   }, [project]);
 
 
