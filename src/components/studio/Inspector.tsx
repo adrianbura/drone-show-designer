@@ -785,30 +785,8 @@ export default function Inspector() {
         </ul>
       </section>
 
-      <VerticalStackPanel />
-      <GeometryProposalPanel />
-
-      <LaunchPanel />
-
-      <div id="scene-panel">
-        <SceneObjectsPanel />
-      </div>
-
-      <LightingEffectsPanel />
-
-      <ParticipationPanel />
-
-      <div id="dynamic-panel">
-        <DynamicPanel />
-      </div>
-
-      <FullShowPanel />
-
       <EsspPanel />
-      <ForensicsPanel />
-      <NativeConversionPanel />
-      <ConversionPanel />
-      <SimulationPanel />
+
 
       <section className="panel-card">
         <h2 className="panel-title">
