@@ -31,19 +31,6 @@ import {
 } from "../editorSession";
 import { PROJECT_SESSION_RESET_SLOTS, resetProjectSessionState } from "../projectLifecycle";
 
-/** Records which canonical slot each authority setter cleared. */
-function recordingSetters(cleared: Set<string>) {
-  return new Proxy(
-    {},
-    {
-      get: () => {
-        const handler = (..._args: unknown[]) => undefined;
-        return handler;
-      },
-    },
-  ) as never;
-}
-
 function slotFromSetter(name: string): string {
   return name.replace(/^(set|clear|invalidate)/, "").replace(/^./, (c) => c.toLowerCase());
 }
@@ -206,6 +193,5 @@ describe("50-cycle project switch stress", () => {
     expect(past).toHaveLength(0);
     expect(future).toHaveLength(0);
     expect(session.generation).toBe(50);
-    void recordingSetters;
   }, 120_000);
 });
