@@ -254,8 +254,9 @@ describe("autosave precedence helpers", () => {
 
 describe("store wiring", () => {
   it("consumes recovery on the manual-save success boundary", () => {
-    const save = STORE_SRC.slice(STORE_SRC.indexOf("const saveProjectFile"));
-    const body = save.slice(0, save.indexOf("}, ["));
+    // Save and Save As share ONE writer, so the boundary is asserted there.
+    const save = STORE_SRC.slice(STORE_SRC.indexOf("const writeProjectDocument"));
+    const body = save.slice(0, save.indexOf("const saveProjectFile"));
     expect(body).toContain("markSaved(name)");
     expect(body).toContain("consumeAutosaveRecoveryRef.current()");
     // Consumption must live after the success boundary, never in the catch.
@@ -263,6 +264,7 @@ describe("store wiring", () => {
       body.indexOf("} catch"),
     );
   });
+
 
   it("consumes recovery only on the successful adoption path", () => {
     const adopt = STORE_SRC.slice(STORE_SRC.indexOf("const adoptProject = useCallback"));

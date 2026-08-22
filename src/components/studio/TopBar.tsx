@@ -1,4 +1,14 @@
-import { Activity, FolderOpen, Keyboard, Radio, Save, Settings2, Sparkles } from "lucide-react";
+import {
+  Activity,
+  FolderOpen,
+  Keyboard,
+  Radio,
+  Save,
+  SaveAll,
+  Settings2,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { useRef, useState } from "react";
 
 import { useI18n } from "@/i18n";
@@ -10,6 +20,7 @@ import {
   unsavedWorkPrompt,
   type DestructiveDocumentAction,
 } from "@/lib/studio/unsavedWorkGuard";
+import { suggestedSaveAsName } from "@/lib/studio/documentLifecycle";
 import { useStudio } from "@/lib/studio/store";
 import SetupWizard from "./SetupWizard";
 
@@ -33,6 +44,12 @@ export default function TopBar() {
     projectFileError,
     clearProjectFileError,
     saveProjectFile,
+    saveProjectFileAs,
+    documentOpen,
+    closeShow,
+    documentAction,
+    clearDocumentAction,
+    projectFileName,
     openProjectFile,
     autosaveRecovery,
     restoreAutosave,
@@ -99,8 +116,9 @@ export default function TopBar() {
         </button>
         <button
           type="button"
-          onClick={saveProjectFile}
-          className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
+          onClick={() => saveProjectFile()}
+          disabled={!documentOpen}
+          className="chip-btn disabled:opacity-40 font-mono text-[10px] uppercase tracking-[0.16em]"
         >
           <Save className="size-3" /> {t("project.save")}
         </button>
@@ -110,6 +128,31 @@ export default function TopBar() {
           className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em]"
         >
           <FolderOpen className="size-3" /> {t("project.open")}
+        </button>
+        <button
+          type="button"
+          data-testid="save-as-project"
+          disabled={!documentOpen}
+          onClick={() => {
+            const next = window.prompt(
+              t("project.saveAsPrompt"),
+              suggestedSaveAsName(projectFileName, project.name),
+            );
+            if (next === null) return;
+            saveProjectFileAs(next);
+          }}
+          className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em] disabled:opacity-40"
+        >
+          <SaveAll className="size-3" /> {t("project.saveAs")}
+        </button>
+        <button
+          type="button"
+          data-testid="close-show"
+          disabled={!documentOpen}
+          onClick={() => guard("CLOSE_SHOW", closeShow)}
+          className="chip-btn font-mono text-[10px] uppercase tracking-[0.16em] disabled:opacity-40"
+        >
+          <X className="size-3" /> {t("project.close")}
         </button>
         <button
           type="button"
@@ -132,8 +175,24 @@ export default function TopBar() {
         />
       </div>
 
+      {documentAction ? (
+        <button
+          type="button"
+          data-testid="document-action-feedback"
+          onClick={clearDocumentAction}
+          title="Dismiss"
+          className="metric-pill font-mono text-[10px] uppercase tracking-[0.16em]"
+        >
+          {documentAction.message}
+        </button>
+      ) : null}
+
       <div className="ml-auto flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em]">
-        <span className="hidden text-muted-foreground md:inline">{project.name}</span>
+        <span className="hidden text-muted-foreground md:inline">
+          {documentOpen ? project.name : t("project.noShowTitle")}
+        </span>
+        {documentOpen ? (
+        <>
         <span
           data-testid="project-file-state"
           data-dirty={projectDirty ? "true" : "false"}
@@ -151,20 +210,6 @@ export default function TopBar() {
             ? t("project.unsaved")
             : `${t("project.saved")} ${shortTime(projectSavedAt)}`}
         </span>
-        <div className="flex overflow-hidden rounded border border-border" role="group" aria-label={t("common.language")}>
-          {LANGUAGES.map((lng: Language) => (
-            <button
-              key={lng}
-              type="button"
-              onClick={() => setLanguage(lng)}
-              className={`px-1.5 py-0.5 uppercase transition-colors ${
-                language === lng ? "bg-accent/15 text-accent" : "text-muted-foreground"
-              }`}
-            >
-              {lng}
-            </button>
-          ))}
-        </div>
         <span className="metric-pill">
           <Radio className="size-3" /> {t("topBar.drones", { count: project.droneCount })}
         </span>
@@ -194,6 +239,22 @@ export default function TopBar() {
             {readiness.readiness.replace(/_/g, " ")}
           </span>
         )}
+        </>
+        ) : null}
+        <div className="flex overflow-hidden rounded border border-border" role="group" aria-label={t("common.language")}>
+          {LANGUAGES.map((lng: Language) => (
+            <button
+              key={lng}
+              type="button"
+              onClick={() => setLanguage(lng)}
+              className={`px-1.5 py-0.5 uppercase transition-colors ${
+                language === lng ? "bg-accent/15 text-accent" : "text-muted-foreground"
+              }`}
+            >
+              {lng}
+            </button>
+          ))}
+        </div>
       </div>
 
       {helpOpen && (

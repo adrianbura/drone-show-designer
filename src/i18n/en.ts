@@ -236,6 +236,11 @@ export const en = {
 
   "project.save": "Save",
   "project.open": "Open",
+  "project.saveAs": "Save As",
+  "project.close": "Close",
+  "project.saveAsPrompt": "Save the show under a new file name",
+  "project.noShowTitle": "No show open",
+  "project.noShowBody": "Create a new show, open a saved Studio project, or import an ESSP archive to begin.",
   "project.saved": "saved",
   "project.unsaved": "unsaved changes",
   "project.autosaved": "autosaved {time}",

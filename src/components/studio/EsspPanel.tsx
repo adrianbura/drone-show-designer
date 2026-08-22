@@ -1,7 +1,8 @@
-import { FileArchive, Trash2 } from "lucide-react";
-import { useRef } from "react";
+import { FileArchive, PencilRuler, Trash2 } from "lucide-react";
+import { useMemo, useRef } from "react";
 
 import { esspUnitsToMeters } from "@/lib/import/essp";
+import { analyzeImportedLighting } from "@/lib/import/essp/native/lightingAudit";
 import { useStudio } from "@/lib/studio/store";
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -31,11 +32,18 @@ export default function EsspPanel() {
     showReferencePaths,
     setShowReferencePaths,
     time,
+    referenceLayer,
+    extractReferenceShowToProject,
   } = useStudio();
   const inputRef = useRef<HTMLInputElement>(null);
   const report = referenceShow?.report;
   const stats = referenceShow?.statistics;
   const drone = referenceShow?.drones.find((d) => d.sourceId === selectedReferenceDroneId);
+  // IMPORTED LIGHTING AUDIT — description only. Never rewrites reference bytes.
+  const lighting = useMemo(
+    () => analyzeImportedLighting(referenceShow, referenceLayer),
+    [referenceShow, referenceLayer],
+  );
 
   return (
     <section className="panel-card">
@@ -74,6 +82,45 @@ export default function EsspPanel() {
           <Trash2 className="size-3" /> Clear
         </button>
       </div>
+      {referenceShow ? (
+        <div className="space-y-1 pt-1">
+          <button
+            type="button"
+            data-testid="essp-make-editable"
+            onClick={extractReferenceShowToProject}
+            className="chip-btn w-full justify-center"
+          >
+            <PencilRuler className="size-3" /> Make editable (extract to formations)
+          </button>
+          <p className="text-[10px] leading-relaxed text-muted-foreground">
+            Extraction ADDS editable Studio formations. The imported samples stay the playback
+            authority for every interval you do not replace.
+          </p>
+        </div>
+      ) : null}
+      {lighting ? (
+        <div
+          data-testid="imported-lighting-audit"
+          className="space-y-1 border-t border-border pt-2 font-mono text-[10px] text-muted-foreground"
+        >
+          <p className="uppercase tracking-[0.14em]">imported lighting</p>
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
+            <Row label="rgb frames" value={`${lighting.frameCount} @ ${lighting.rgbRateHz} Hz`} />
+            <Row label="segments" value={String(lighting.intervals.length)} />
+            <Row label="blackout" value={`${lighting.blackoutSeconds.toFixed(2)} s`} />
+            <Row label="held colour" value={`${lighting.solidSeconds.toFixed(2)} s`} />
+            <Row label="varying" value={`${lighting.varyingSeconds.toFixed(2)} s`} />
+            <Row
+              label="exact as effects"
+              value={`${(lighting.exactCoverage * 100).toFixed(1)} %`}
+            />
+          </dl>
+          <p className="leading-relaxed">
+            Varying intervals cannot be expressed as Studio effects without loss, so they stay owned
+            by the imported RGB track (zero error) instead of being approximated.
+          </p>
+        </div>
+      ) : null}
       {referenceError && (
         <p className="text-[10px] leading-relaxed text-critical">
           {referenceError.code}: {referenceError.message}
