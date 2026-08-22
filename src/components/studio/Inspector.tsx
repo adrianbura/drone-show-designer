@@ -308,12 +308,54 @@ export default function Inspector() {
   const hasAuthoredScene = !!clip && (project.scenes ?? []).some((sc) => sc.id === clip.id);
   const isOptimized = !!selectedClipId && !!transitionOverrides[selectedClipId];
 
+  const status = buildProductionStatus(fullShowReport, fullShowStale);
+  const authority = authorityLabel(referenceOwnership);
+
   return (
-    <div className="flex h-full flex-col gap-5 overflow-y-auto p-4">
+    <div className="flex h-full min-h-0 flex-col">
+      {/* INSPECTOR INFORMATION ARCHITECTURE — three operator-facing groups.
+          Groups stay MOUNTED (hidden, not unmounted) so panel state, searches
+          and diagnostics survive navigation. */}
+      <div
+        role="tablist"
+        aria-label="Inspector sections"
+        className="flex shrink-0 gap-1 border-b border-border bg-panel/60 px-2 py-1.5"
+      >
+        {INSPECTOR_GROUPS.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            role="tab"
+            id={`inspector-tab-${g.id}`}
+            aria-selected={group === g.id}
+            aria-controls={`inspector-panel-${g.id}`}
+            onClick={() => setGroup(g.id)}
+            data-testid={`inspector-tab-${g.id}`}
+            className={`chip-btn flex-1 justify-center font-mono text-[10px] uppercase tracking-[0.14em] ${
+              group === g.id ? "chip-btn-active" : ""
+            }`}
+          >
+            {g.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">
+        {/* ---------------------------------------------------- A. AUTHORING */}
+        <div
+          role="tabpanel"
+          id="inspector-panel-AUTHORING"
+          aria-labelledby="inspector-tab-AUTHORING"
+          hidden={group !== "AUTHORING"}
+          className={`flex flex-col gap-5 ${group === "AUTHORING" ? "" : "hidden"}`}
+        >
       <section className="panel-card">
         <h2 className="panel-title">Clip inspector</h2>
         {!clip ? (
-          <p className="text-xs text-muted-foreground">Select a clip on the timeline.</p>
+          <p className="text-xs text-muted-foreground">
+            No clip selected. Click a clip on the timeline to edit its formation, timing, easing and
+            colour.
+          </p>
         ) : (
           <div className="space-y-3">
             <select
