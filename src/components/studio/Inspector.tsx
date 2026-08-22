@@ -28,6 +28,10 @@ import NativeConversionPanel from "./NativeConversionPanel";
 import { useState } from "react";
 
 import { DEPTH_STAGGER_DEMO_ID } from "@/lib/show/stories/depthStaggerDemo";
+import {
+  requiresUnsavedConfirmation,
+  unsavedWorkPrompt,
+} from "@/lib/studio/unsavedWorkGuard";
 
 import {
   authorityLabel,
@@ -252,6 +256,7 @@ function EsspSourceRecovery({
 
 export default function Inspector() {
   const [group, setGroup] = useState<InspectorGroupId>("AUTHORING");
+  const [sampleConfirm, setSampleConfirm] = useState(false);
   const {
     project,
     plan,
@@ -300,6 +305,7 @@ export default function Inspector() {
     esspPreflightSource,
     loadSampleShow,
     focusIssue,
+    projectDirty,
   } = useStudio();
   // SAME pure model as the preflight panel — the action state mirrors it.
   const preflight = buildExportPreflight({
@@ -983,14 +989,49 @@ export default function Inspector() {
             <p className="pb-1 text-[10px] leading-relaxed text-muted-foreground">
               Development and diagnostics fixtures. Loading one replaces the open document.
             </p>
-            <button
-              type="button"
-              onClick={() => loadSampleShow(DEPTH_STAGGER_DEMO_ID)}
-              data-testid="samples-depth-stagger-demo"
-              className="chip-btn w-full justify-center"
-            >
-              Load Depth Stagger Demo
-            </button>
+            {sampleConfirm ? (
+              <div className="space-y-1.5 rounded border border-warning/60 p-2" data-testid="samples-unsaved-confirm">
+                <p className="text-[11px] leading-relaxed text-warning">
+                  {unsavedWorkPrompt("LOAD_SAMPLE").body}
+                </p>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    className="chip-btn"
+                    data-testid="samples-confirm-continue"
+                    onClick={() => {
+                      setSampleConfirm(false);
+                      loadSampleShow(DEPTH_STAGGER_DEMO_ID);
+                    }}
+                  >
+                    {unsavedWorkPrompt("LOAD_SAMPLE").continueLabel}
+                  </button>
+                  <button
+                    type="button"
+                    className="chip-btn"
+                    data-testid="samples-confirm-cancel"
+                    onClick={() => setSampleConfirm(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (requiresUnsavedConfirmation("LOAD_SAMPLE", { projectDirty })) {
+                    setSampleConfirm(true);
+                    return;
+                  }
+                  loadSampleShow(DEPTH_STAGGER_DEMO_ID);
+                }}
+                data-testid="samples-depth-stagger-demo"
+                className="chip-btn w-full justify-center"
+              >
+                Load Depth Stagger Demo
+              </button>
+            )}
           </section>
 
           <VerticalStackPanel />
