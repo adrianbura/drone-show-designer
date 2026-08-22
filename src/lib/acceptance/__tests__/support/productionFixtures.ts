@@ -232,10 +232,59 @@ export function syntheticEsspArchive(count = 4, seconds = 60): SyntheticEsspFile
   });
 }
 
+/**
+ * CUSTOMER-SHAPED COLOUR TRACK.
+ *
+ * The real customer archive is dominated by near-WHITE frames with black
+ * blackout stretches and saturated accents, and it holds one colour per 12 Hz
+ * frame (never blends). That shape is what makes a lost LED authority look like
+ * a plain white show instead of an obviously broken one, so the regression
+ * fixture reproduces it byte-for-byte in kind.
+ */
+function customerShapedRgbTrack(index: number, frames: number): number[][] {
+  const palette = [
+    [253, 253, 255],
+    [221, 228, 255],
+    [84, 84, 84],
+    [0, 0, 0],
+    [0, 238, 201],
+    [255, 255, 255],
+  ];
+  return Array.from({ length: frames }, (_, f) => {
+    // One palette step per whole colour second: every step is an exact RGB
+    // transition boundary on the independent 12 Hz clock.
+    const step = Math.floor(f / SOURCE_RGB_RATE_HZ) + index;
+    return [...palette[step % palette.length]!];
+  });
+}
+
+/** Deterministic archive whose LED track matches the real customer profile. */
+export function customerShapedEsspArchive(count = 12, seconds = 40): SyntheticEsspFile[] {
+  return Array.from({ length: count }, (_, i) => {
+    const xyz = trajectory(i, seconds);
+    return {
+      name: `${i + 1}.essp`,
+      bytes: buildSyntheticEssp({
+        xyz,
+        rgb: customerShapedRgbTrack(
+          i,
+          Math.ceil((xyz.length / SOURCE_POSITION_RATE_HZ) * SOURCE_RGB_RATE_HZ),
+        ),
+      }),
+    };
+  });
+}
+
 /** Full import path: archive -> reference show -> extracted native project. */
 export async function importedFixture(count = 4, seconds = 60): Promise<ImportedFixture> {
-  const files = syntheticEsspArchive(count, seconds);
-  const show = await buildReferenceShow(files);
+  return importArchiveFixture(syntheticEsspArchive(count, seconds));
+}
+
+/** Same import path, driven by an explicit archive. */
+export async function importArchiveFixture(
+  files: readonly SyntheticEsspFile[],
+): Promise<ImportedFixture> {
+  const show = await buildReferenceShow(files.map((f) => ({ name: f.name, bytes: f.bytes })));
   const extraction = extractReferenceTimeline(show, analyzeReferenceShow(show));
   const base = createDefaultProject();
   const project: ShowProject = {
@@ -261,6 +310,7 @@ export async function importedFixture(count = 4, seconds = 60): Promise<Imported
     sourceNames: files.map((f) => f.name),
   };
 }
+
 
 /* ------------------------------------------------ canonical pipeline calls */
 
