@@ -48,6 +48,27 @@ describe("assignment strategy save/reopen semantics", () => {
     }
   });
 
+  it("never lets the internal identity strategy enter a saved envelope", () => {
+    for (const strategy of [...SELECTABLE_ASSIGNMENT_STRATEGIES, "identity" as const]) {
+      const { file } = roundTrip(strategy as AssignmentStrategyId);
+      expect(projectFileToJson(file)).not.toContain('"identity"');
+    }
+  });
+
+  it("produces byte-identical output for repeated saves", () => {
+    const a = projectFileToJson(
+      serializeProject(project, {
+        planning: { assignmentStrategy: "identity", transitionOverrides: {} },
+      }),
+    );
+    const b = projectFileToJson(
+      serializeProject(project, {
+        planning: { assignmentStrategy: "identity", transitionOverrides: {} },
+      }),
+    );
+    expect(a).toBe(b);
+  });
+
   it("is deterministic and idempotent", () => {
     const once = normalizePlanningForSave({
       assignmentStrategy: "identity",
