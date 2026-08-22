@@ -24,7 +24,7 @@ describe("save as naming", () => {
   });
 
   it("never writes an unnamed document: an empty request falls back to the project name", () => {
-    const fallback = saveAsFileName("   ", "Two Hearts");
+    const fallback = saveAsFileName("   ", "Wedding Show");
     expect(fallback.endsWith(".droneshow.json")).toBe(true);
     expect(fallback.length).toBeGreaterThan(".droneshow.json".length);
   });
