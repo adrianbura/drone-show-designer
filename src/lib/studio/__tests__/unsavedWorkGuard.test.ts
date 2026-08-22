@@ -46,7 +46,7 @@ describe("dirty tracking rule", () => {
   it("marks edits to a never-saved but anchored document as unsaved work", () => {
     const baseline = JSON.stringify({ name: "Untitled Show" });
     expect(documentDirty(baseline, baseline)).toBe(false);
-    expect(documentDirty(baseline, JSON.stringify({ name: "Two Hearts, One Sky" }))).toBe(true);
+    expect(documentDirty(baseline, JSON.stringify({ name: "Renamed Show" }))).toBe(true);
   });
 
   it("lands back on clean when an edit is undone", () => {
