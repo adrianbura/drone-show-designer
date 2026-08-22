@@ -44,6 +44,29 @@ function withDetachedAudio(project: ShowProject): ShowProject {
   return { ...project, audio: { ...project.audio, attached: false } };
 }
 
+/**
+ * INTERNAL, NON-AUTHORABLE STRATEGIES.
+ *
+ * `identity` is an internal planner strategy (takeoff/landing verticals, tests):
+ * it is NOT offered in the UI, so it must never be written into project planning
+ * state — otherwise reopening the file would silently change the flown mapping.
+ *
+ * Canonical replacement: `optimalDistance`. For the index-aligned formations
+ * where `identity` is used it produces the same (identity) mapping, and it IS
+ * user-selectable, so save -> reopen is stable and deterministic.
+ */
+export const NON_AUTHORABLE_STRATEGY_REPLACEMENT: AssignmentStrategyId = "optimalDistance";
+
+/** Normalises planning state to authorable values BEFORE it is written. */
+export function normalizePlanningForSave(planning: ProjectPlanningState): ProjectPlanningState {
+  const authorable = (SELECTABLE_ASSIGNMENT_STRATEGIES as readonly string[]).includes(
+    planning.assignmentStrategy,
+  );
+  return authorable
+    ? planning
+    : { ...planning, assignmentStrategy: NON_AUTHORABLE_STRATEGY_REPLACEMENT };
+}
+
 /** Builds the versioned envelope around the current editable project. */
 export function serializeProject(
   project: ShowProject,
@@ -61,7 +84,8 @@ export function serializeProject(
     savedAt: options.savedAt ?? new Date().toISOString(),
     app: { name: PROJECT_ENGINE_NAME, schemaVersion: SCHEMA_VERSION },
     project: withDetachedAudio(plainClone(project)),
-    planning: plainClone(options.planning ?? defaultPlanningState()),
+    // Normalised BEFORE writing: what the file says is what reopening restores.
+    planning: plainClone(normalizePlanningForSave(options.planning ?? defaultPlanningState())),
     ...(options.referenceLayer ? { referenceLayer: plainClone(options.referenceLayer) } : {}),
     ...(options.editor ? { editor: options.editor } : {}),
   };

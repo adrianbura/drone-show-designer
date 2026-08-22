@@ -27,6 +27,19 @@ import NativeConversionPanel from "./NativeConversionPanel";
 
 import { useState } from "react";
 
+import {
+  authorityLabel,
+  buildProductionStatus,
+} from "@/lib/studio/productionStatus";
+
+type InspectorGroupId = "AUTHORING" | "VALIDATE" | "ADVANCED";
+
+const INSPECTOR_GROUPS: readonly { id: InspectorGroupId; label: string }[] = [
+  { id: "AUTHORING", label: "Authoring" },
+  { id: "VALIDATE", label: "Validate & export" },
+  { id: "ADVANCED", label: "Advanced" },
+];
+
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
 import type { EsspExportResult } from "@/lib/adapters/esspExport";
 import type { EsspSourceRecoveryResult } from "@/lib/adapters/esspSourceRecovery";
@@ -236,6 +249,7 @@ function EsspSourceRecovery({
 }
 
 export default function Inspector() {
+  const [group, setGroup] = useState<InspectorGroupId>("AUTHORING");
   const {
     project,
     plan,
@@ -268,6 +282,8 @@ export default function Inspector() {
     setShowConflicts,
     fullShowReport,
     fullShowStale,
+    fullShowBusy,
+    analyzeFullShow,
     preShowReport,
     preShowStale,
     buildProjectFile,
@@ -308,12 +324,54 @@ export default function Inspector() {
   const hasAuthoredScene = !!clip && (project.scenes ?? []).some((sc) => sc.id === clip.id);
   const isOptimized = !!selectedClipId && !!transitionOverrides[selectedClipId];
 
+  const status = buildProductionStatus(fullShowReport, fullShowStale);
+  const authority = authorityLabel(referenceOwnership);
+
   return (
-    <div className="flex h-full flex-col gap-5 overflow-y-auto p-4">
+    <div className="flex h-full min-h-0 flex-col">
+      {/* INSPECTOR INFORMATION ARCHITECTURE — three operator-facing groups.
+          Groups stay MOUNTED (hidden, not unmounted) so panel state, searches
+          and diagnostics survive navigation. */}
+      <div
+        role="tablist"
+        aria-label="Inspector sections"
+        className="flex shrink-0 gap-1 border-b border-border bg-panel/60 px-2 py-1.5"
+      >
+        {INSPECTOR_GROUPS.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            role="tab"
+            id={`inspector-tab-${g.id}`}
+            aria-selected={group === g.id}
+            aria-controls={`inspector-panel-${g.id}`}
+            onClick={() => setGroup(g.id)}
+            data-testid={`inspector-tab-${g.id}`}
+            className={`chip-btn flex-1 justify-center font-mono text-[10px] uppercase tracking-[0.14em] ${
+              group === g.id ? "chip-btn-active" : ""
+            }`}
+          >
+            {g.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">
+        {/* ---------------------------------------------------- A. AUTHORING */}
+        <div
+          role="tabpanel"
+          id="inspector-panel-AUTHORING"
+          aria-labelledby="inspector-tab-AUTHORING"
+          hidden={group !== "AUTHORING"}
+          className={`flex flex-col gap-5 ${group === "AUTHORING" ? "" : "hidden"}`}
+        >
       <section className="panel-card">
         <h2 className="panel-title">Clip inspector</h2>
         {!clip ? (
-          <p className="text-xs text-muted-foreground">Select a clip on the timeline.</p>
+          <p className="text-xs text-muted-foreground">
+            No clip selected. Click a clip on the timeline to edit its formation, timing, easing and
+            colour.
+          </p>
         ) : (
           <div className="space-y-3">
             <select
@@ -595,6 +653,54 @@ export default function Inspector() {
         </div>
       </section>
 
+      <LaunchPanel />
+
+      <div id="scene-panel">
+        <SceneObjectsPanel />
+      </div>
+
+      <LightingEffectsPanel />
+
+      <ParticipationPanel />
+
+      <div id="dynamic-panel">
+        <DynamicPanel />
+      </div>
+        </div>
+
+        {/* --------------------------------------- B. VALIDATE & EXPORT */}
+        <div
+          role="tabpanel"
+          id="inspector-panel-VALIDATE"
+          aria-labelledby="inspector-tab-VALIDATE"
+          hidden={group !== "VALIDATE"}
+          className={`flex flex-col gap-5 ${group === "VALIDATE" ? "" : "hidden"}`}
+        >
+          {/* DOMINANT PRODUCTION STATE — canonical eligibility, mirrored only. */}
+          <section className="panel-card" data-testid="production-readiness">
+            <h2 className="panel-title">Production readiness</h2>
+            <p
+              className={`metric-pill w-fit status-${status.tone === "neutral" ? "review" : status.tone}`}
+              data-testid="production-readiness-state"
+            >
+              {status.readiness.replace(/_/g, " ")}
+            </p>
+            <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground">{status.detail}</p>
+            {authority && (
+              <p
+                className="pt-1 font-mono text-[10px] leading-relaxed text-muted-foreground"
+                data-testid="production-authority"
+              >
+                {authority.label} — {authority.detail}
+              </p>
+            )}
+            <p className="pt-1 font-mono text-[10px] leading-relaxed text-muted-foreground">
+              Next: {status.nextActionLabel}
+            </p>
+          </section>
+
+          <FullShowPanel />
+
       <section className="panel-card">
         <h2 className="panel-title">
           <ShieldCheck className="size-3.5" /> Flight envelope
@@ -640,12 +746,11 @@ export default function Inspector() {
           ) : (
             <AlertTriangle className="size-3.5 text-warning" />
           )}
-          Validation ({safety.errors.length} err / {safety.warnings.length} warn)
+          Authoring feedback ({safety.errors.length} err / {safety.warnings.length} warn)
         </h2>
         <p className="pb-1 text-[10px] leading-relaxed text-muted-foreground">
-          {safety.status === "ok"
-            ? "VALIDATED AGAINST CURRENT SAFETY PROFILE — not a real-world safety guarantee."
-            : "Violations of the configured safety profile. This is not a real-world safety assessment."}
+          Live authoring feedback while you edit — it does NOT authorize export.
+          Export is authorized only by Full-Show Validation above.
         </p>
         <label className="flex items-center justify-between gap-2 pb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
           Sample rate
@@ -695,41 +800,31 @@ export default function Inspector() {
         </ul>
       </section>
 
-      <VerticalStackPanel />
-      <GeometryProposalPanel />
-
-      <LaunchPanel />
-
-      <div id="scene-panel">
-        <SceneObjectsPanel />
-      </div>
-
-      <LightingEffectsPanel />
-
-      <ParticipationPanel />
-
-      <div id="dynamic-panel">
-        <DynamicPanel />
-      </div>
-
-      <FullShowPanel />
-
       <EsspPanel />
-      <ForensicsPanel />
-      <NativeConversionPanel />
-      <ConversionPanel />
-      <SimulationPanel />
+
 
       <section className="panel-card">
         <h2 className="panel-title">
-          <Download className="size-3.5" /> Export
+          <Download className="size-3.5" /> Export flight output
         </h2>
+        {/* PRIMARY ACTION FLOW — validation is the gate, never auto-run. */}
+        {(status.readiness === "NOT_ANALYZED" || status.readiness === "STALE") && (
+          <button
+            type="button"
+            onClick={analyzeFullShow}
+            disabled={fullShowBusy}
+            data-testid="export-run-validation"
+            className="chip-btn w-full justify-center disabled:opacity-40"
+          >
+            {fullShowBusy ? "Validating…" : status.nextActionLabel}
+          </button>
+        )}
         {exportEligibility.reason === "NO_REPORT" && (
           <p
             data-testid="export-gate-no-report"
             className="rounded border border-border bg-muted/30 p-2 text-[10px] leading-relaxed text-muted-foreground"
           >
-            Run full-show analysis before exporting computed show data.
+            Not analysed yet. Run Full-Show Validation to enable flight output export.
           </p>
         )}
         {exportEligibility.reason === "STALE" && (
@@ -737,7 +832,7 @@ export default function Inspector() {
             data-testid="export-gate-stale"
             className="rounded border border-warning/60 bg-warning/10 p-2 text-[10px] leading-relaxed text-warning"
           >
-            Project changed after validation; run full-show analysis again.
+            The show changed after validation. Run Full-Show Validation again to export.
           </p>
         )}
         {exportEligibility.reason === "BLOCKED" && (
@@ -821,6 +916,12 @@ export default function Inspector() {
           buildOriginalEsspPackage={buildOriginalEsspPackage}
           hasEsspSourceFiles={hasEsspSourceFiles}
         />
+        <p className="pt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          Save project
+        </p>
+        <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+          The editable Studio document. Always allowed — it is not flight output.
+        </p>
         <button
           onClick={() =>
             downloadText(
@@ -836,6 +937,26 @@ export default function Inspector() {
           Studio project file
         </button>
       </section>
+        </div>
+
+        {/* ------------------------------------ C. ADVANCED / DIAGNOSTICS */}
+        <div
+          role="tabpanel"
+          id="inspector-panel-ADVANCED"
+          aria-labelledby="inspector-tab-ADVANCED"
+          hidden={group !== "ADVANCED"}
+          className={`flex flex-col gap-5 ${group === "ADVANCED" ? "" : "hidden"}`}
+        >
+          <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+            Advanced diagnostics and tooling. Nothing here is required for the normal
+            create → validate → export workflow.
+          </p>
+          <VerticalStackPanel />
+          <GeometryProposalPanel />
+          <ForensicsPanel />
+          <NativeConversionPanel />
+          <ConversionPanel />
+          <SimulationPanel />
 
       <section className="panel-card">
         <h2 className="panel-title">
@@ -855,6 +976,8 @@ export default function Inspector() {
           ))}
         </ul>
       </section>
+        </div>
+      </div>
     </div>
   );
 }
