@@ -183,7 +183,11 @@ describe("50-cycle project switch stress", () => {
           true,
         );
       }
-      expect(selectedClipId && project.timeline.some((c) => c.id === selectedClipId)).toBe(true);
+      expect(
+        selectedClipId === null
+          ? project.timeline.length === 0
+          : project.timeline.some((c) => c.id === selectedClipId),
+      ).toBe(true);
 
       // Every job started for the previous project is now refused.
       for (const token of staleJobTokens) {

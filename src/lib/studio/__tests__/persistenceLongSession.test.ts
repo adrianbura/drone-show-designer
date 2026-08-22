@@ -85,7 +85,7 @@ describe("20-cycle persistence session", () => {
 
       // --- restore the autosave: consumed, but the work is still unsaved ---
       const restored = parseProjectFile(
-        (recoveryOffer as { file: unknown }).file as never,
+        JSON.stringify((recoveryOffer as { file: unknown }).file),
       );
       expect(restored.project.name).toBe(project.name);
       expect(restored.planning!.transitionDesigns?.[showClip.id]).toBeDefined();
@@ -109,7 +109,7 @@ describe("20-cycle persistence session", () => {
       expect(isAutosaveWriteAuthorized(scheduled, generation)).toBe(false);
 
       // --- reopen the saved file: full planning parity, no validation evidence ---
-      const reopened = parseProjectFile(JSON.parse(envelope) as never);
+      const reopened = parseProjectFile(envelope);
       expect(reopened.project.name).toBe(project.name);
       expect(reopened.project.droneCount).toBe(project.droneCount);
       expect(reopened.project.timeline.map((c) => c.id)).toEqual(project.timeline.map((c) => c.id));
