@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  documentDirty,
   requiresUnsavedConfirmation,
   unsavedWorkPrompt,
   type DestructiveDocumentAction,
@@ -34,5 +35,27 @@ describe("unsaved work guard", () => {
       expect(prompt.body).toMatch(/replaces it/i);
       expect(prompt.continueLabel).toMatch(/without saving/i);
     }
+  });
+});
+
+describe("dirty tracking rule", () => {
+  it("treats an unanchored document as clean", () => {
+    expect(documentDirty(null, "{}")).toBe(false);
+  });
+
+  it("marks edits to a never-saved but anchored document as unsaved work", () => {
+    const baseline = JSON.stringify({ name: "Untitled Show" });
+    expect(documentDirty(baseline, baseline)).toBe(false);
+    expect(documentDirty(baseline, JSON.stringify({ name: "Two Hearts, One Sky" }))).toBe(true);
+  });
+
+  it("lands back on clean when an edit is undone", () => {
+    const baseline = JSON.stringify({ name: "A" });
+    expect(documentDirty(baseline, JSON.stringify({ name: "B" }))).toBe(true);
+    expect(documentDirty(baseline, JSON.stringify({ name: "A" }))).toBe(false);
+  });
+
+  it("keeps a recovered document dirty against the empty signature", () => {
+    expect(documentDirty("", JSON.stringify({ name: "A" }))).toBe(true);
   });
 });

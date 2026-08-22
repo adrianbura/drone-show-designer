@@ -64,3 +64,16 @@ export function requiresUnsavedConfirmation(
 export function unsavedWorkPrompt(action: DestructiveDocumentAction): UnsavedWorkPrompt {
   return { action, ...PROMPTS[action] };
 }
+
+/**
+ * DIRTY TRACKING RULE (single authority).
+ *
+ * `baseline` is the signature of the document as last adopted or saved.
+ * `null` means "not anchored yet" — the caller must anchor the current document
+ * and treat it as clean. A never-saved show is still anchored at adoption, so
+ * later edits DO count as unsaved work and the guard can protect them.
+ */
+export function documentDirty(baseline: string | null, current: string): boolean {
+  if (baseline === null) return false;
+  return baseline !== current;
+}
