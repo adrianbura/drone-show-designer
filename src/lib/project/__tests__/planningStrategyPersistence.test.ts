@@ -55,17 +55,15 @@ describe("assignment strategy save/reopen semantics", () => {
     }
   });
 
-  it("produces byte-identical output for repeated saves", () => {
-    const a = projectFileToJson(
-      serializeProject(project, {
-        planning: { assignmentStrategy: "identity", transitionOverrides: {} },
-      }),
-    );
-    const b = projectFileToJson(
-      serializeProject(project, {
-        planning: { assignmentStrategy: "identity", transitionOverrides: {} },
-      }),
-    );
+  it("produces byte-identical output for repeated saves of the same document", () => {
+    // savedAt is the only wall-clock field: pin it so the comparison measures
+    // serialisation determinism, not the clock.
+    const options = {
+      savedAt: "2026-01-01T00:00:00.000Z",
+      planning: { assignmentStrategy: "identity" as AssignmentStrategyId, transitionOverrides: {} },
+    };
+    const a = projectFileToJson(serializeProject(project, options));
+    const b = projectFileToJson(serializeProject(project, options));
     expect(a).toBe(b);
   });
 
