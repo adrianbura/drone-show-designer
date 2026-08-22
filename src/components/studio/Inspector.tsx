@@ -878,6 +878,26 @@ export default function Inspector() {
           Studio project file
         </button>
       </section>
+        </div>
+
+        {/* ------------------------------------ C. ADVANCED / DIAGNOSTICS */}
+        <div
+          role="tabpanel"
+          id="inspector-panel-ADVANCED"
+          aria-labelledby="inspector-tab-ADVANCED"
+          hidden={group !== "ADVANCED"}
+          className={`flex flex-col gap-5 ${group === "ADVANCED" ? "" : "hidden"}`}
+        >
+          <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+            Advanced diagnostics and tooling. Nothing here is required for the normal
+            create → validate → export workflow.
+          </p>
+          <VerticalStackPanel />
+          <GeometryProposalPanel />
+          <ForensicsPanel />
+          <NativeConversionPanel />
+          <ConversionPanel />
+          <SimulationPanel />
 
       <section className="panel-card">
         <h2 className="panel-title">
