@@ -1,4 +1,4 @@
-import { FileArchive, PencilRuler, Trash2 } from "lucide-react";
+import { Check, FileArchive, PencilRuler, Trash2 } from "lucide-react";
 import { useMemo, useRef } from "react";
 
 import { esspUnitsToMeters } from "@/lib/import/essp";
