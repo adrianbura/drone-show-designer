@@ -637,6 +637,54 @@ export default function Inspector() {
         </div>
       </section>
 
+      <LaunchPanel />
+
+      <div id="scene-panel">
+        <SceneObjectsPanel />
+      </div>
+
+      <LightingEffectsPanel />
+
+      <ParticipationPanel />
+
+      <div id="dynamic-panel">
+        <DynamicPanel />
+      </div>
+        </div>
+
+        {/* --------------------------------------- B. VALIDATE & EXPORT */}
+        <div
+          role="tabpanel"
+          id="inspector-panel-VALIDATE"
+          aria-labelledby="inspector-tab-VALIDATE"
+          hidden={group !== "VALIDATE"}
+          className={`flex flex-col gap-5 ${group === "VALIDATE" ? "" : "hidden"}`}
+        >
+          {/* DOMINANT PRODUCTION STATE — canonical eligibility, mirrored only. */}
+          <section className="panel-card" data-testid="production-readiness">
+            <h2 className="panel-title">Production readiness</h2>
+            <p
+              className={`metric-pill w-fit status-${status.tone === "neutral" ? "review" : status.tone}`}
+              data-testid="production-readiness-state"
+            >
+              {status.readiness.replace(/_/g, " ")}
+            </p>
+            <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground">{status.detail}</p>
+            {authority && (
+              <p
+                className="pt-1 font-mono text-[10px] leading-relaxed text-muted-foreground"
+                data-testid="production-authority"
+              >
+                {authority.label} — {authority.detail}
+              </p>
+            )}
+            <p className="pt-1 font-mono text-[10px] leading-relaxed text-muted-foreground">
+              Next: {status.nextActionLabel}
+            </p>
+          </section>
+
+          <FullShowPanel />
+
       <section className="panel-card">
         <h2 className="panel-title">
           <ShieldCheck className="size-3.5" /> Flight envelope
