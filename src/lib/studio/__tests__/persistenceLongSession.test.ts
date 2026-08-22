@@ -18,7 +18,7 @@ import { parseProjectFile, serializeProject } from "../../project/serialize";
 import { createDepthStaggerDemoProject } from "../../show/stories/depthStaggerDemo";
 import { clipPhase, type ShowProject } from "../../show/types";
 import type { ClipTransitionOverride } from "../../show/trajectory";
-import type { TransitionDesignState } from "../../show/transition";
+import { normalizeTransitionDesign, type TransitionDesignState } from "../../show/transition";
 import { isAutosaveWriteAuthorized, isRecoveryOfferable } from "../autosaveAuthority";
 import { projectPersistenceOptions } from "../projectPersistence";
 
@@ -52,7 +52,8 @@ describe("20-cycle persistence session", () => {
       [showClip.id]: identityOverride(project.droneCount),
     };
     const transitionDesigns: Record<string, TransitionDesignState> = {
-      [showClip.id]: { mode: "STAGGERED", pattern: "DEPTH" } as unknown as TransitionDesignState,
+      // Normalised up front so save -> reopen parity is an EXACT comparison.
+      [showClip.id]: normalizeTransitionDesign({ mode: "STAGGERED", pattern: "DEPTH" } as never)!,
     };
 
     let generation = 0;
