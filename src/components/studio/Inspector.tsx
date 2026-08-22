@@ -897,6 +897,8 @@ export default function Inspector() {
           ))}
         </ul>
       </section>
+        </div>
+      </div>
     </div>
   );
 }
