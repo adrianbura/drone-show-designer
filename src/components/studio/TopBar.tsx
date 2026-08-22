@@ -135,7 +135,10 @@ export default function TopBar() {
       <div className="ml-auto flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em]">
         <span className="hidden text-muted-foreground md:inline">{project.name}</span>
         <span
+          data-testid="project-file-state"
+          data-dirty={projectDirty ? "true" : "false"}
           className={`metric-pill ${projectDirty || !projectSavedAt ? "status-review" : ""}`}
+
           title={
             projectAutosavedAt
               ? t("project.autosaved", { time: shortTime(projectAutosavedAt) })
