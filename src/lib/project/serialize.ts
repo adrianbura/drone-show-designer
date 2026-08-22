@@ -239,9 +239,22 @@ export function migratePlanningState(
   return { assignmentStrategy: strategy, transitionOverrides: overrides, transitionDesigns: designs };
 }
 
+/**
+ * CANONICAL production serializer for Studio project files (Save + Autosave).
+ * Compact JSON: a real 150-drone imported ESSP project drops from ~143 MB to ~52 MB
+ * with an identical semantic payload.
+ */
 export function projectFileToJson(file: ProjectFile): string {
+  return JSON.stringify(file);
+}
+
+/**
+ * Readable JSON for dev tooling / diagnostics ONLY. Never used by Save or Autosave.
+ */
+export function projectFileToPrettyJson(file: ProjectFile): string {
   return JSON.stringify(file, null, 2);
 }
+
 
 /** Deterministic, filesystem-safe default file name for a show. */
 export function suggestedProjectFileName(showName: string): string {
