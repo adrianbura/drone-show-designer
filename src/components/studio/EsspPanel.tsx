@@ -34,8 +34,14 @@ export default function EsspPanel() {
     time,
     referenceLayer,
     extractReferenceShowToProject,
+    referenceExtraction,
+    referenceExtractionError,
+    forensicsBusy,
   } = useStudio();
   const inputRef = useRef<HTMLInputElement>(null);
+  // DUPLICATE-EXTRACTION PROTECTION — the primary action only offers the first
+  // conversion; replacing an existing editable timeline is a separate action.
+  const hasEditableTimeline = !!referenceLayer && referenceExtraction.length > 0;
   const report = referenceShow?.report;
   const stats = referenceShow?.statistics;
   const drone = referenceShow?.drones.find((d) => d.sourceId === selectedReferenceDroneId);
