@@ -817,7 +817,6 @@ export default function Inspector() {
         </ul>
       </section>
 
-      <EsspPanel />
 
 
       <section className="panel-card">
