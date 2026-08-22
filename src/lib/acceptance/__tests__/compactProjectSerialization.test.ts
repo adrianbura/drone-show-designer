@@ -19,7 +19,7 @@ import { buildOriginalEsspDownload, hasEsspSourceBytes } from "@/lib/adapters/es
 import {
   intervalAtTime,
   referenceColorsAt,
-  referencePositionsAt,
+  referenceFleetSamples,
   reconcileReferenceLayer,
 } from "@/lib/import/essp/native";
 import {
@@ -78,8 +78,8 @@ describe("compact canonical project serialization", () => {
     expect(compactParsed.editor).toEqual(prettyParsed.editor);
     expect(compactParsed.referenceLayer).toEqual(prettyParsed.referenceLayer);
     expect(compactParsed.referenceLayer?.showHash).toBe(imported.layer.showHash);
-    expect(compactParsed.referenceLayer!.drones.map((d) => d.fileName)).toEqual(
-      imported.layer.drones.map((d) => d.fileName),
+    expect(compactParsed.referenceLayer!.drones.map((d) => d.sourceFile)).toEqual(
+      imported.layer.drones.map((d) => d.sourceFile),
     );
     expect(compactParsed.referenceLayer!.drones.map((d) => d.fileBase64)).toEqual(
       imported.layer.drones.map((d) => d.fileBase64),
@@ -128,8 +128,8 @@ describe("compact canonical project serialization", () => {
       expect(referenceColorsAt(reopened.show, reconciled.layer, t, FLEET)).toEqual(
         referenceColorsAt(imported.show, imported.layer, t, FLEET),
       );
-      expect(referencePositionsAt(reopened.show, t, FLEET)).toEqual(
-        referencePositionsAt(imported.show, t, FLEET),
+      expect(referenceFleetSamples(reopened.show, t, FLEET, [])).toEqual(
+        referenceFleetSamples(imported.show, t, FLEET, []),
       );
       expect(intervalAtTime(reconciled.layer, t)?.owner).toBe(
         intervalAtTime(imported.layer, t)?.owner,
