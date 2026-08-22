@@ -84,7 +84,8 @@ export function serializeProject(
     savedAt: options.savedAt ?? new Date().toISOString(),
     app: { name: PROJECT_ENGINE_NAME, schemaVersion: SCHEMA_VERSION },
     project: withDetachedAudio(plainClone(project)),
-    planning: plainClone(options.planning ?? defaultPlanningState()),
+    // Normalised BEFORE writing: what the file says is what reopening restores.
+    planning: plainClone(normalizePlanningForSave(options.planning ?? defaultPlanningState())),
     ...(options.referenceLayer ? { referenceLayer: plainClone(options.referenceLayer) } : {}),
     ...(options.editor ? { editor: options.editor } : {}),
   };
