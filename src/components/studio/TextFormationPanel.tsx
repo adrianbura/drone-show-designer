@@ -479,6 +479,26 @@ export default function TextFormationPanel() {
             </p>
           ) : null}
 
+          {ok ? (
+            <p
+              className={`font-mono text-[10px] ${
+                ok.feasibility.status === "INFEASIBLE"
+                  ? "text-destructive"
+                  : ok.feasibility.status === "TIGHT"
+                    ? "text-warning"
+                    : "text-muted-foreground"
+              }`}
+              data-testid="text-feasibility"
+            >
+              {ok.feasibility.status} · closest {ok.feasibility.minPairSeparationMeters.toFixed(2)} m
+              / {ok.feasibility.requiredSeparationMeters} m ·{" "}
+              {ok.feasibility.violationPairCount} violating pair(s) · capacity{" "}
+              {ok.feasibility.capacityPoints} of {ok.feasibility.participation} ·{" "}
+              {ok.feasibility.note}
+            </p>
+          ) : null}
+
+
           <div className="flex gap-2">
             <button
               type="button"
