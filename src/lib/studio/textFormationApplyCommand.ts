@@ -37,6 +37,7 @@ import {
   previewTextFormation,
   type TextPreviewBlocker,
   type TextPreviewRequest,
+  type TextPreviewSuccess,
 } from "./textFormationPreview";
 
 export interface TextApplyInput {
