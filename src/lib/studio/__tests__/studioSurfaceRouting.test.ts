@@ -166,6 +166,8 @@ describe("visible surface hosts", () => {
 
 
 describe("narrow dock host contract", () => {
+  // Transforming the real component module can exceed the default 5s budget on
+  // a cold cache; the assertions themselves are synchronous.
   it("is a candidate only below xl and always loses to the visible docked aside", async () => {
     const { isNarrowLayout, INSPECTOR_DOCK_PRIORITY, DOCKED_INSPECTOR_PRIORITY, XL } =
       await import("@/components/studio/InspectorDock");
