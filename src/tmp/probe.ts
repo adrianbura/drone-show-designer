@@ -17,3 +17,8 @@ const r = evaluateGeometryApplyReadiness({ staticPreflight: pre, trajectory: tra
 console.log("static", { pass: pre.staticEnvelopePass, sep: pre.introducesPairSeparationViolation, alt: pre.introducesAltitudeViolation, area: pre.introducesAreaViolation, note: pre.note });
 console.log("after full show", traj.after.exportReadiness, traj.after.status);
 console.log("readiness", r.status, r.canApply, r.blockers, r.warnings);
+const issues = (traj.after as any);
+console.log(Object.keys(issues));
+const full = (await import("@/lib/show/fullshow")).analyzeFullShow(cand.project, { sampleRate: 8, assignmentStrategy: "optimalDistance" as never }).report;
+console.log(JSON.stringify(full.exportReadiness, null, 1));
+console.log(full.issues?.slice(0,8).map((i:any)=>[i.severity,i.code??i.kind,i.message??i.note]));
