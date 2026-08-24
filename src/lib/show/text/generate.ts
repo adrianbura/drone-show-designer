@@ -73,6 +73,7 @@ function canonical(recipe: TextGeometryRecipe): string {
     recipe.style,
     recipe.widthMeters,
     recipe.heightMeters,
+    recipe.centerAltitudeMeters,
     recipe.letterSpacingEm,
     recipe.alignment,
     recipe.participation,
@@ -121,11 +122,13 @@ function assertRecipe(recipe: TextGeometryRecipe): string {
     !(recipe.widthMeters > 0) ||
     !(recipe.heightMeters > 0) ||
     !Number.isFinite(recipe.widthMeters) ||
-    !Number.isFinite(recipe.heightMeters)
+    !Number.isFinite(recipe.heightMeters) ||
+    !Number.isFinite(recipe.centerAltitudeMeters)
   ) {
     throw new TextGeometryError("INVALID_BOUNDS", "Width and height must be positive metres.", {
       widthMeters: recipe.widthMeters,
       heightMeters: recipe.heightMeters,
+      centerAltitudeMeters: recipe.centerAltitudeMeters,
     });
   }
   if (!(recipe.outlineRatio > 0) || recipe.outlineRatio > 1) {
@@ -354,7 +357,7 @@ export function generateTextGeometry(recipe: TextGeometryRecipe): TextGeometryRe
   const seen = new Set<string>();
   for (const { line, index, point } of samples) {
     const x = (point[0] - (minX + maxX) / 2) * scale + alignShift;
-    const y = (point[1] - (minY + maxY) / 2) * scale;
+    const y = (point[1] - (minY + maxY) / 2) * scale + recipe.centerAltitudeMeters;
     const key = `${x.toFixed(6)}|${y.toFixed(6)}`;
     if (seen.has(key)) {
       throw new TextGeometryError("DUPLICATE_POSITION", "Two text points resolved to the same position.", {
