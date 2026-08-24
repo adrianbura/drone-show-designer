@@ -18,7 +18,7 @@ describe("dbg", () => {
     const cand = buildTextCandidateProject({ project, preview: p, formationId: "f-dbg" });
     const traj = evaluateGeometryTrajectoryConsequence(project, cand.project, {});
     const r = evaluateGeometryApplyReadiness({ staticPreflight: pre, trajectory: traj, importedPromotionAcknowledged: true });
-    console.log(JSON.stringify({ status: r.status, blockers: r.blockers, warnings: r.warnings, promoted: traj.newlyPromotedClipIds }, null, 1));
+    console.log(JSON.stringify({ beforeBlocking: traj.before, status: r.status, blockers: r.blockers, warnings: r.warnings, promoted: traj.newlyPromotedClipIds }, null, 1));
     expect(true).toBe(true);
   });
 });
