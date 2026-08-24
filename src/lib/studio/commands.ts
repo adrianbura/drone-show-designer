@@ -201,13 +201,11 @@ function clipMenu(ctx: ClipCommandContext): StudioCommandMenu {
           ctx.canCompareReference
             ? cmd("COMPARE_REFERENCE", "Compare with Original")
             : blocked("COMPARE_REFERENCE", "Compare with Original", "No comparable reference geometry for this clip."),
-          ctx.canRestoreReference
-            ? cmd("RESTORE_REFERENCE", "Restore Reference Version")
-            : blocked(
-                "RESTORE_REFERENCE",
-                "Restore Reference Version",
-                "Nothing to restore — this clip still matches the imported original.",
-              ),
+          // Only shown when a real restore continuation exists: production
+          // menus contain working actions only.
+          ...(ctx.canRestoreReference
+            ? [cmd("RESTORE_REFERENCE", "Restore Reference Version")]
+            : []),
         ];
 
   // ADVANCED — planned semantic reconstruction, development surfaces only.

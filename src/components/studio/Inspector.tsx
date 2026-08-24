@@ -25,7 +25,7 @@ import GeometryProposalPanel from "./GeometryProposalPanel";
 import ConversionPanel from "./ConversionPanel";
 import NativeConversionPanel from "./NativeConversionPanel";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { DEPTH_STAGGER_DEMO_ID } from "@/lib/show/stories/depthStaggerDemo";
 import {
@@ -39,9 +39,10 @@ import {
 } from "@/lib/studio/productionStatus";
 
 import {
-  INSPECTOR_PANEL_GROUP,
+  focusStudioSurface,
   onInspectorFocus,
   type InspectorGroupId,
+  type StudioFocusRequest,
 } from "@/lib/studio/inspectorFocus";
 import { summarizeClipSelection } from "@/lib/studio/selectionSummary";
 import { formatShowTime } from "@/lib/studio/timelineEdit";
@@ -264,18 +265,41 @@ function EsspSourceRecovery({
 
 export default function Inspector() {
   const [group, setGroup] = useState<InspectorGroupId>("AUTHORING");
+  const rootRef = useRef<HTMLDivElement | null>(null);
   /**
-   * FOCUS REQUESTS from other surfaces (timeline context menu, double-click).
-   * Reveal only: switch to the owning group, then scroll the panel into view.
+   * FOCUS REQUESTS from other surfaces (timeline context menu, double-click,
+   * Inspector quick actions, later Ctrl+K). Reveal only — never a mutation.
+   *
+   * Two Inspector instances are mounted (docked at xl, stacked fallback below
+   * it), so the panel is resolved INSIDE this instance's own subtree and only
+   * revealed when this instance is actually visible. A global getElementById
+   * lookup used to resolve the hidden copy, which is why menu actions appeared
+   * to do nothing in narrow windows.
    */
+  const [pendingFocus, setPendingFocus] = useState<StudioFocusRequest | null>(null);
   useEffect(
     () =>
-      onInspectorFocus((panel) => {
-        setGroup(INSPECTOR_PANEL_GROUP[panel]);
-        requestAnimationFrame(() => scrollToPanel(panel));
+      onInspectorFocus((request) => {
+        setGroup(request.group);
+        setPendingFocus(request);
       }),
     [],
   );
+  useEffect(() => {
+    if (!pendingFocus) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const el = root.querySelector<HTMLElement>(`[data-panel-id="${pendingFocus.panel}"]`);
+    // offsetParent === null => this Inspector copy is the hidden one.
+    if (!el || el.offsetParent === null) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.setAttribute("data-focused", "true");
+    el.setAttribute("tabindex", "-1");
+    el.focus({ preventScroll: true });
+    const t = window.setTimeout(() => el.removeAttribute("data-focused"), 2200);
+    return () => window.clearTimeout(t);
+  }, [pendingFocus, group]);
+
   const [sampleConfirm, setSampleConfirm] = useState(false);
   const {
     project,
@@ -377,7 +401,7 @@ export default function Inspector() {
   const authority = authorityLabel(referenceOwnership);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col" ref={rootRef}>
       {/* INSPECTOR INFORMATION ARCHITECTURE — three operator-facing groups.
           Groups stay MOUNTED (hidden, not unmounted) so panel state, searches
           and diagnostics survive navigation. */}
@@ -465,11 +489,11 @@ export default function Inspector() {
         >
       {/* Reference show sits at the TOP of AUTHORING: importing an ESSP and
           converting it into an editable timeline is a first-class entry path. */}
-      <div id="essp-panel">
+      <div id="essp-panel" data-panel-id="essp-panel">
         <EsspPanel />
       </div>
 
-      <section className="panel-card" id="clip-inspector">
+      <section className="panel-card" id="clip-inspector" data-panel-id="clip-inspector">
         <h2 className="panel-title">Clip inspector</h2>
         {!clip ? (
           <p className="text-xs text-muted-foreground">
@@ -499,7 +523,7 @@ export default function Inspector() {
               canConvert={canEditClipAsScene(clip.id)}
               isShowClip={clipPhase(clip) === "SHOW"}
               onConvert={() => {
-                if (editClipAsScene(clip.id)) scrollToPanel("scene-panel");
+                if (editClipAsScene(clip.id)) focusStudioSurface({ surface: "SCENE", clipId: clip.id });
               }}
               onDuplicate={() => duplicateClipForDesign(clip.id)}
             />
@@ -612,7 +636,7 @@ export default function Inspector() {
         )}
       </section>
 
-      <div id="transition-panel">
+      <div id="transition-panel" data-panel-id="transition-panel">
         <TransitionDesignPanel />
       </div>
 
@@ -761,17 +785,17 @@ export default function Inspector() {
 
       <LaunchPanel />
 
-      <div id="scene-panel">
+      <div id="scene-panel" data-panel-id="scene-panel">
         <SceneObjectsPanel />
       </div>
 
-      <div id="lighting-panel">
+      <div id="lighting-panel" data-panel-id="lighting-panel">
         <LightingEffectsPanel />
       </div>
 
       <ParticipationPanel />
 
-      <div id="dynamic-panel">
+      <div id="dynamic-panel" data-panel-id="dynamic-panel">
         <DynamicPanel />
       </div>
         </div>
@@ -1126,7 +1150,7 @@ export default function Inspector() {
 
           <VerticalStackPanel />
           <GeometryProposalPanel />
-          <div id="forensics-panel">
+          <div id="forensics-panel" data-panel-id="forensics-panel">
             <ForensicsPanel />
           </div>
           <NativeConversionPanel />
@@ -1157,11 +1181,6 @@ export default function Inspector() {
   );
 }
 
-/** Scrolls the inspector to the panel that actually edits the selected clip. */
-function scrollToPanel(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
 /**
  * CLIP -> DESIGN ROUTING. Read-only guidance plus two explicit commands; opening
  * or reading this block never mutates the project.
@@ -1188,7 +1207,7 @@ function ClipDesignActions({
       <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Design</p>
       {hasScene && (
         <button
-          onClick={() => scrollToPanel("scene-panel")}
+          onClick={() => focusStudioSurface({ surface: "SCENE", clipId })}
           className="chip-btn w-full justify-center"
           data-testid="clip-design-open-scene"
         >
@@ -1197,7 +1216,7 @@ function ClipDesignActions({
       )}
       {isDynamic && (
         <button
-          onClick={() => scrollToPanel("dynamic-panel")}
+          onClick={() => focusStudioSurface({ surface: "DYNAMIC", clipId })}
           className="chip-btn w-full justify-center"
           data-testid="clip-design-open-dynamic"
         >

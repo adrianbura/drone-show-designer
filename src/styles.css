@@ -287,3 +287,20 @@ input[type="range"].studio-range::-webkit-slider-thumb {
   background: var(--accent);
   box-shadow: 0 0 10px color-mix(in oklab, var(--accent) 45%, transparent);
 }
+
+/* NAVIGATION FEEDBACK — a command that routes to a panel makes that panel
+   visibly announce itself, so "Edit X…" is never a silent no-op. */
+[data-panel-id][data-focused="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 8px;
+  animation: studio-panel-focus 2.2s ease-out;
+}
+@keyframes studio-panel-focus {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
