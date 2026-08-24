@@ -169,7 +169,11 @@ describe("imported scene audit", () => {
     expect(result.text.glyphOrLetterGrouping).toBe(false);
     expect(result.text.motionGroupsLookLikeLetters).toBe(false);
     expect(result.text.humanInterpretationOnly).toBe(true);
-    expect(result.text.stablePointIdsAvailable).toBe(true);
+    expect(result.text.stableSourceIdentityAvailable).toBe(true);
+    // Stable SOURCE ids never imply a deterministic transfer.
+    expect(result.text.targetCorrespondenceAvailable).toBe(false);
+    expect(result.text.deterministicPointTransferPossible).toBe(false);
+    expect(result.text.pointTransferBlockers.length).toBeGreaterThan(0);
   });
 
   it("never claims exact lighting reconstruction", () => {
