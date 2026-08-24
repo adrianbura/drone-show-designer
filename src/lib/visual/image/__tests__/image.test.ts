@@ -211,3 +211,48 @@ describe("provenance mapping", () => {
     expect(design.metadata.tags).toContain("ai-reference");
   });
 });
+
+/**
+ * Drone-render references are STIPPLED: bright dots on a dark sky. Without
+ * stipple consolidation a radius-1 opening erased every dot and the analysis
+ * fell back to the whole frame, producing a rectangle instead of the artwork.
+ */
+function stippledHeart(): { width: number; height: number; data: Uint8ClampedArray } {
+  const w = 160;
+  const h = 160;
+  const data = new Uint8ClampedArray(w * h * 4);
+  for (let i = 0; i < w * h; i++) data[i * 4 + 3] = 255;
+  const inHeart = (x: number, y: number) => {
+    const nx = (x - w / 2) / (w * 0.42);
+    const ny = (h / 2 - y) / (h * 0.42) + 0.25;
+    const v = nx * nx + ny * ny - 1;
+    return v * v * v - nx * nx * ny * ny * ny <= 0;
+  };
+  for (let y = 0; y < h; y += 5) {
+    for (let x = 0; x < w; x += 5) {
+      if (!inHeart(x, y)) continue;
+      const o = (y * w + x) * 4;
+      data[o] = 255;
+      data[o + 1] = 40;
+      data[o + 2] = 40;
+    }
+  }
+  return { width: w, height: h, data };
+}
+
+describe("image analysis — stippled drone-render references", () => {
+  it("recovers the silhouette instead of the whole frame", () => {
+    const result = analyzeImage(stippledHeart(), { detail: "MEDIUM" });
+    expect(result.diagnostics.polarity).toBe("DARK");
+    // A frame fallback would report a near-1 foreground ratio and 4 corners.
+    expect(result.diagnostics.foregroundRatio).toBeLessThan(0.6);
+    expect(result.components[0]!.outer.length).toBeGreaterThan(8);
+  });
+
+  it("still compiles to exactly N points", () => {
+    const design = designFromAnalysis(analyzeImage(stippledHeart(), { detail: "MEDIUM" }), {
+      name: "stipple",
+    });
+    expect(compileVisualFormation(design, 200).points).toHaveLength(200);
+  });
+});
