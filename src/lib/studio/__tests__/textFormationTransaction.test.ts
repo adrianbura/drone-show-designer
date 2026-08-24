@@ -6,9 +6,7 @@ import { serializeProject, parseProjectFile } from "../../project/serialize";
 import { previewTextFormation, discardTextPreview } from "../textFormationPreview";
 import { prepareTextFormationApply } from "../textFormationApplyCommand";
 import { installPreparedGeometryApply } from "../geometryApplyStoreTransaction";
-import { importedFixture } from "./support/geometryApplyHarness";
-
-const STRATEGY = "optimalDistance" as const;
+import { STRATEGY, importedFixture } from "./support/geometryApplyHarness";
 
 function recipeFor(participation: number, text = "RALLY") {
   return makeTextRecipe({
