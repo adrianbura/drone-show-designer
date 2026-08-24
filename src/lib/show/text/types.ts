@@ -80,3 +80,18 @@ export interface TextGeometryResult {
     readonly heightMeters: number;
   };
 }
+
+/**
+ * PERSISTED PROVENANCE of a planner-owned text formation. Stored on the
+ * formation so Save -> Open reproduces identical geometry from the recipe alone.
+ */
+export interface TextFormationSource {
+  readonly recipe: TextGeometryRecipe;
+  readonly recipeHash: string;
+  /** Stable ids, index aligned with the formation points. */
+  readonly pointIds: readonly string[];
+  /** Clip the text was authored for. Provenance only; may dangle. */
+  readonly authoredForClipId?: string;
+  /** Object (scene instance) the text replaced, when the clip had a scene. */
+  readonly authoredForObjectId?: string;
+}
