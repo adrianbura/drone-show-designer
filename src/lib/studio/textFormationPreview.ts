@@ -9,7 +9,14 @@
  *
  * Pure module: no React, no Three.js, no I/O.
  */
-import { generateTextGeometry, TextGeometryError, type TextGeometryRecipe, type TextGeometryResult } from "../show/text";
+import {
+  evaluateTextFeasibility,
+  generateTextGeometry,
+  TextGeometryError,
+  type TextFeasibilityReport,
+  type TextGeometryRecipe,
+  type TextGeometryResult,
+} from "../show/text";
 import type { ShowProject, Vec3 } from "../show/types";
 
 export type TextPreviewBlocker =
@@ -37,6 +44,11 @@ export interface TextPreviewSuccess {
   readonly replacedPointCount: number;
   readonly geometry: TextGeometryResult;
   readonly points: readonly Vec3[];
+  /**
+   * Physical spacing/capacity evidence for the generated geometry. Exactly N
+   * points is NOT feasibility, so this is measured on every preview.
+   */
+  readonly feasibility: TextFeasibilityReport;
   readonly note: string;
 }
 
@@ -131,6 +143,7 @@ export function previewTextFormation(
     replacedPointCount: formation.points.length,
     geometry,
     points: geometry.points,
+    feasibility: evaluateTextFeasibility(geometry, project.limits),
     note: "PREVIEW ONLY. No project, reference-layer, override, participation or history state was read for writing or modified.",
   };
 }
