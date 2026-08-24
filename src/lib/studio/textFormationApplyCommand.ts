@@ -105,6 +105,62 @@ function plannedIntervals(layer: ReferenceTrajectoryLayer | null | undefined): S
 }
 
 /**
+ * ONE CANONICAL CANDIDATE MATERIALISATION, shared by the review UI (which runs
+ * the canonical static preflight, full-show trajectory consequence analysis and
+ * readiness evaluation on it) and by Apply. The evidence is therefore produced
+ * for exactly the project that gets installed.
+ */
+export function buildTextCandidateProject(input: {
+  readonly project: ShowProject;
+  readonly preview: { readonly clipId: string; readonly objectId: string | null };
+  readonly formationId: string;
+  readonly formationName?: string;
+  readonly recipe?: undefined;
+} & { readonly preview: TextPreviewSuccess }): {
+  readonly project: ShowProject;
+  readonly formation: Formation;
+} {
+  const { project, preview } = input;
+  const { formation } = makeTextFormation({
+    id: input.formationId,
+    name: input.formationName ?? `Text — ${preview.geometry.recipe.text}`,
+    recipe: preview.geometry.recipe,
+    authoredForClipId: preview.clipId,
+    ...(preview.objectId ? { authoredForObjectId: preview.objectId } : {}),
+  });
+
+  // The replaced asset is kept: other clips and ESSP source recovery may use it.
+  const formations = [...project.formations, formation];
+  // Explicit scene object edits touch ONLY that object's STATIC source; the
+  // legacy `clip.formationId` fallback is rewritten only when no scene object
+  // owns the geometry.
+  const timeline = preview.objectId
+    ? project.timeline
+    : project.timeline.map((clip) =>
+        clip.id === preview.clipId ? { ...clip, formationId: formation.id } : clip,
+      );
+
+  const scenes: FormationScene[] | undefined = project.scenes?.map((scene) =>
+    scene.id === preview.clipId && preview.objectId
+      ? {
+          ...scene,
+          objects: scene.objects.map((object) =>
+            object.id === preview.objectId
+              ? { ...object, source: { kind: "STATIC" as const, formationId: formation.id } }
+              : object,
+          ),
+        }
+      : scene,
+  );
+
+  return {
+    formation,
+    project: { ...project, formations, timeline, ...(scenes ? { scenes } : {}) },
+  };
+}
+
+
+/**
  * Prepares the complete revision. The caller must install `prepared.after`
  * (project + pruned overrides + reconciled reference layer) as ONE history
  * entry; a partial commit would break undo/redo and imported ownership.
