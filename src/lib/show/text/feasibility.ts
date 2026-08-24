@@ -74,7 +74,7 @@ function minPairSeparation(points: readonly Vec3[], limit: number): {
 
 export function evaluateTextFeasibility(
   geometry: TextGeometryResult,
-  limits: Pick<ShowLimits, "minSeparation">,
+  limits: Pick<SafetyLimits, "minSeparation">,
 ): TextFeasibilityReport {
   const required = limits.minSeparation;
   const { min, pairs, offenders } = minPairSeparation(geometry.points, required);

@@ -9,3 +9,5 @@ export * from "./glyphPack";
 export * from "./types";
 export * from "./generate";
 export * from "./formation";
+export * from "./compat";
+export * from "./feasibility";
