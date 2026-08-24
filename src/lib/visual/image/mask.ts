@@ -122,6 +122,37 @@ function dilate(mask: BinaryMask, radius: number, value: 1 | 0): BinaryMask {
 }
 
 /**
+ * STIPPLE CONSOLIDATION.
+ *
+ * A drone-render reference (bright dots on a dark sky) is a STIPPLED silhouette:
+ * hundreds of tiny components with gaps between them. A radius-1 opening erases
+ * every dot, which previously made analysis fall back to the whole frame and
+ * produce a rectangle. Closing with an adaptive radius bridges the dot lattice
+ * into the silhouette it depicts BEFORE any noise removal happens.
+ *
+ * Deterministic: the radius search is a bounded ascending scan.
+ */
+export function isStippledMask(mask: BinaryMask): boolean {
+  const fg = labelComponents(mask, 1);
+  if (fg.count < 12) return false;
+  const total = fg.areas.reduce((a, b) => a + b, 0);
+  if (total === 0) return false;
+  const largest = Math.max(...fg.areas);
+  return largest / total < 0.2;
+}
+
+export function consolidateStipple(mask: BinaryMask, maxRadius = 6): BinaryMask {
+  if (!isStippledMask(mask)) return mask;
+  let best = mask;
+  for (let r = 1; r <= maxRadius; r++) {
+    const closed = dilate(dilate(mask, r, 1), r, 0);
+    best = closed;
+    if (!isStippledMask(closed)) break;
+  }
+  return best;
+}
+
+/**
  * Morphological opening then closing with a square structuring element.
  * Opening removes salt noise, closing seals pepper holes. Deliberately small:
  * bad extraction must stay visible in the STRUCTURE preview rather than being
