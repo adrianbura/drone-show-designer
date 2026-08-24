@@ -99,6 +99,24 @@ export function normalizeText(text: string): string {
 }
 
 function assertRecipe(recipe: TextGeometryRecipe): string {
+  // VERSION GATE FIRST. A recipe persisted by an older algorithm/schema is NOT
+  // interpretable by this generator: schema 1 carried no altitude intent, so
+  // running it here would invent one. Callers must upgrade it explicitly.
+  if (
+    recipe.schemaVersion !== TEXT_RECIPE_SCHEMA_VERSION ||
+    recipe.algorithmVersion !== TEXT_GEOMETRY_ALGORITHM_VERSION
+  ) {
+    throw new TextGeometryError(
+      "ALGORITHM_VERSION_MISMATCH",
+      "The recipe was authored by a different text geometry version and cannot be regenerated without an explicit upgrade.",
+      {
+        recipeSchemaVersion: recipe.schemaVersion,
+        recipeAlgorithmVersion: recipe.algorithmVersion,
+        currentSchemaVersion: TEXT_RECIPE_SCHEMA_VERSION,
+        currentAlgorithmVersion: TEXT_GEOMETRY_ALGORITHM_VERSION,
+      },
+    );
+  }
   if (recipe.glyphPackId !== GLYPH_PACK_ID || recipe.glyphPackVersion !== GLYPH_PACK_VERSION) {
     throw new TextGeometryError("GLYPH_PACK_MISMATCH", "The recipe references an unknown glyph pack.", {
       glyphPackId: recipe.glyphPackId,
@@ -374,11 +392,18 @@ export function generateTextGeometry(recipe: TextGeometryRecipe): TextGeometryRe
     throw new TextGeometryError("DUPLICATE_POSITION", "Text point ids are not unique.", {});
   }
 
+  // Curve budget actually occupied by sampled strokes, in metres.
+  let pathMeters = 0;
+  for (const line of lines) {
+    if ((perLine.get(line) ?? 0) > 0) pathMeters += line.length * scale;
+  }
+
   return {
     recipe,
     points,
     pointIds,
     recipeHash: hash,
     bounds: { widthMeters: usedWidth, heightMeters: usedHeight },
+    pathMeters,
   };
 }
