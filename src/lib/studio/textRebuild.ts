@@ -27,6 +27,11 @@ export interface TextRebuildEligibility {
   readonly formationId: string | null;
   /** Exact number of active drones the text must occupy. */
   readonly participation: number;
+  /**
+   * Mean altitude of the replaced geometry. Used as the default altitude anchor
+   * so the rebuilt text starts where the original formation actually flew.
+   */
+  readonly centerAltitudeMeters: number;
 }
 
 export function resolveTextRebuildEligibility(
@@ -42,6 +47,7 @@ export function resolveTextRebuildEligibility(
       objectId: null,
       formationId: null,
       participation: 0,
+      centerAltitudeMeters: 0,
     };
   }
   const formation = project.formations.find((f) => f.id === target.formationId);
@@ -53,6 +59,7 @@ export function resolveTextRebuildEligibility(
       objectId: target.objectId,
       formationId: target.formationId,
       participation: 0,
+      centerAltitudeMeters: 0,
     };
   }
   return {
@@ -61,6 +68,8 @@ export function resolveTextRebuildEligibility(
     objectId: target.objectId,
     formationId: formation.id,
     participation: formation.points.length,
+    centerAltitudeMeters:
+      formation.points.reduce((sum, p) => sum + p[1], 0) / Math.max(1, formation.points.length),
   };
 }
 
@@ -68,13 +77,18 @@ export function resolveTextRebuildEligibility(
  * Editor defaults. Participation is NOT a free parameter: it must equal the
  * replaced formation's point count, otherwise the preview blocks.
  */
-export function defaultTextRecipe(participation: number, text = "TEXT"): TextGeometryRecipe {
+export function defaultTextRecipe(
+  participation: number,
+  text = "TEXT",
+  centerAltitudeMeters = 40,
+): TextGeometryRecipe {
   return makeTextRecipe({
     text,
     weight: "REGULAR",
     style: "UPRIGHT",
     widthMeters: 90,
     heightMeters: 24,
+    centerAltitudeMeters,
     letterSpacingEm: 0.8,
     alignment: "CENTER",
     participation,

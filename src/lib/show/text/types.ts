@@ -31,6 +31,12 @@ export interface TextGeometryRecipe {
   /** Requested bounding box in show-local metres. */
   readonly widthMeters: number;
   readonly heightMeters: number;
+  /**
+   * Altitude (metres, Y axis) of the text block's vertical centre. The glyph
+   * plane is authored around Y = 0, so a real show must anchor it explicitly:
+   * without this the lower half of every letter would sit below ground.
+   */
+  readonly centerAltitudeMeters: number;
   /** Extra advance between glyphs, in em units. */
   readonly letterSpacingEm: number;
   readonly alignment: TextAlignment;

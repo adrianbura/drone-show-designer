@@ -18,6 +18,7 @@ function recipe(overrides: Partial<Omit<TextGeometryRecipe, "schemaVersion" | "a
     style: "UPRIGHT",
     widthMeters: 120,
     heightMeters: 30,
+    centerAltitudeMeters: 45,
     letterSpacingEm: 0.8,
     alignment: "CENTER",
     participation: 150,
@@ -75,7 +76,7 @@ describe("deterministic text geometry", () => {
     const result = generateTextGeometry(r);
     for (const [x, y, z] of result.points) {
       expect(Math.abs(x)).toBeLessThanOrEqual(r.widthMeters / 2 + 1e-9);
-      expect(Math.abs(y)).toBeLessThanOrEqual(r.heightMeters / 2 + 1e-9);
+      expect(Math.abs(y - r.centerAltitudeMeters)).toBeLessThanOrEqual(r.heightMeters / 2 + 1e-9);
       expect(z).toBe(0);
     }
   });
