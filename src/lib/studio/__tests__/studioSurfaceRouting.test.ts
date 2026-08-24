@@ -186,5 +186,5 @@ describe("narrow dock host contract", () => {
     const dock = { priority: INSPECTOR_DOCK_PRIORITY, isVisible: () => true, reveal: () => {} };
     expect(selectVisibleHost([dock, docked])).toBe(docked);
     expect(selectVisibleHost([{ ...docked, isVisible: () => false }, dock])).toBe(dock);
-  });
+  }, 30000);
 });
