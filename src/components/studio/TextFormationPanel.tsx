@@ -93,6 +93,12 @@ export default function TextFormationPanel() {
   const [style, setStyle] = useState<TextStyle>("UPRIGHT");
   const [widthMeters, setWidthMeters] = useState(90);
   const [heightMeters, setHeightMeters] = useState(24);
+  /**
+   * Null until the operator overrides it: the effective default is the mean
+   * altitude of the replaced formation, so the rebuilt text stays where the
+   * original geometry actually flew instead of sinking through the ground.
+   */
+  const [altitudeOverride, setAltitudeOverride] = useState<number | null>(null);
   const [letterSpacingEm, setLetterSpacingEm] = useState(0.8);
   const [alignment, setAlignment] = useState<TextAlignment>("CENTER");
   const [outlineRatio, setOutlineRatio] = useState(0.7);
@@ -114,16 +120,19 @@ export default function TextFormationPanel() {
 
   // Participation is dictated by the replaced formation, never typed by hand.
   const participation = eligibility?.participation ?? 0;
+  const centerAltitudeMeters =
+    altitudeOverride ?? Math.max(heightMeters / 2 + 5, eligibility?.centerAltitudeMeters ?? 0);
 
   const recipe = useMemo(
     () =>
       makeTextRecipe({
-        ...defaultTextRecipe(participation, text),
+        ...defaultTextRecipe(participation, text, centerAltitudeMeters),
         text,
         weight,
         style,
         widthMeters,
         heightMeters,
+        centerAltitudeMeters,
         letterSpacingEm,
         alignment,
         participation,
@@ -134,6 +143,7 @@ export default function TextFormationPanel() {
     [
       alignment,
       bandOffsetEm,
+      centerAltitudeMeters,
       heightMeters,
       letterSpacingEm,
       outlineRatio,
@@ -414,6 +424,13 @@ export default function TextFormationPanel() {
               step={1}
               onChange={setHeightMeters}
               testId="text-height"
+            />
+            <Num
+              label="altitude (m)"
+              value={centerAltitudeMeters}
+              step={1}
+              onChange={setAltitudeOverride}
+              testId="text-altitude"
             />
             <Num
               label="spacing (em)"
