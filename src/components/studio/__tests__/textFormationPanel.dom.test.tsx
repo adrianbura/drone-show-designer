@@ -18,7 +18,7 @@
  * shared geometry-apply harness. The real 150-drone customer Scene 31 archive is
  * NOT exercised here.
  */
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import TextFormationPanel from "@/components/studio/TextFormationPanel";
@@ -62,11 +62,7 @@ function click(testId: string) {
 }
 
 function typeText(value: string) {
-  const input = screen.getByTestId("text-input") as HTMLInputElement;
-  act(() => {
-    input.value = value;
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-  });
+  fireEvent.change(screen.getByTestId("text-input"), { target: { value } });
 }
 
 /** Middle static clip: it has real neighbours on both sides. */
