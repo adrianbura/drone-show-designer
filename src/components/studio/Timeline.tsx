@@ -881,10 +881,17 @@ export default function Timeline({
                 <button
                   onPointerDown={(e) => {
                     e.stopPropagation();
+                    // RIGHT / MIDDLE / secondary contact: select the target so the
+                    // context menu describes THIS clip, then let the trigger own it.
+                    if (!shouldBeginTimelineGesture(e)) {
+                      selectClip(clip.id);
+                      return;
+                    }
                     selectClip(clip.id);
                     e.currentTarget.setPointerCapture(e.pointerId);
                     beginGesture("MOVE", clip.id, e.clientX);
                   }}
+
                   onPointerMove={(e) => {
                     if (!gestureRef.current) return;
                     e.stopPropagation();
