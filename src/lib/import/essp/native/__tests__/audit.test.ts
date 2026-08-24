@@ -11,7 +11,7 @@ function project(): ShowProject {
     ...base,
     droneCount: 10,
     formations: [
-      { id: "f-1", name: "A", kind: "GRID", points: [[0, 0, 0], [1, 0, 0]], params: {} },
+      { id: "f-1", name: "A", kind: "grid", points: [[0, 0, 0], [1, 0, 0]], params: {} },
     ],
     dynamicFormations: [
       {
@@ -66,7 +66,7 @@ function project(): ShowProject {
         phase: "SHOW",
       },
     ],
-  } as ShowProject;
+  } as unknown as ShowProject;
 }
 
 function layer(): ReferenceTrajectoryLayer {
@@ -82,6 +82,8 @@ function layer(): ReferenceTrajectoryLayer {
     positionSampleCount: 10,
     rgbSampleCount: 10,
     positionDurationSeconds: 9,
+    playbackDurationSeconds: 9,
+    experimental: "",
     rgbDurationSeconds: 9,
     metersPerUnit: 1,
     axisMapping: "ESSP_XYZ",
@@ -112,7 +114,7 @@ function layer(): ReferenceTrajectoryLayer {
         signature: "sig-2",
       },
     ],
-  } as ReferenceTrajectoryLayer;
+  } as unknown as ReferenceTrajectoryLayer;
 }
 
 describe("imported scene audit", () => {
