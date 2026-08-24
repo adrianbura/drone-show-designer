@@ -33,7 +33,6 @@ import {
   AUTHORED_STRATEGY,
   FIXED_GENERATED_AT,
   authoredProductionProject,
-  planAuthored,
   validateAuthored,
 } from "./support/productionFixtures";
 
@@ -105,8 +104,8 @@ describe("text formation acceptance on the canonical authored fixture", () => {
     expect({
       status: readiness.status,
       blockers: readiness.blockers,
-      staticStatus: preflight.status,
-      afterStatus: trajectory.after.exportReadiness.status,
+      staticEnvelopePass: preflight.staticEnvelopePass,
+      afterStatus: trajectory.after.exportReadiness,
     }).toMatchObject({ status: readiness.status });
     if (!readiness.canApply) {
       expect(readiness.blockers.length).toBeGreaterThan(0);
@@ -140,7 +139,11 @@ describe("text formation acceptance on the canonical authored fixture", () => {
 
     // Save -> Open must reproduce the applied text formation byte-for-byte.
     const file = serializeProject(after, {
-      planning: planAuthored(after),
+      planning: {
+        assignmentStrategy: AUTHORED_STRATEGY,
+        transitionOverrides: {},
+        transitionDesigns: {},
+      },
       referenceLayer: null,
       savedAt: FIXED_GENERATED_AT,
     });
@@ -153,8 +156,6 @@ describe("text formation acceptance on the canonical authored fixture", () => {
 
     // Re-validation after reopen is the real gate before export.
     const revalidated = validateAuthored(reopened.project, SAMPLE_RATE);
-    expect(revalidated.exportReadiness.status).toBe(
-      trajectory.after.exportReadiness.status,
-    );
+    expect(revalidated.exportReadiness.status).toBe(trajectory.after.exportReadiness);
   });
 });
