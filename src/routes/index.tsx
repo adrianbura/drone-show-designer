@@ -51,12 +51,14 @@ function TimelineDock() {
   const maxHeight = () => {
     if (typeof window === "undefined") return 520;
     const h = window.innerHeight;
-    const narrow = window.innerWidth < 1024;
-    // The stacked panels below live in their own scrollable region, so only the
-    // top bar and the 3D viewport need a vertical reserve here.
+    // The 3D viewport (plus the top bar) keeps a fixed reserve; everything else
+    // may go to the dock. A tighter narrow-window share used to starve the clip
+    // lanes so badly at 900x600 that the pinned track footer covered the clips
+    // and they could not be right-clicked at all.
     const reserve = 64 + VIEWPORT_MIN;
-    return Math.max(DOCK_MIN, Math.min(Math.round(h * (narrow ? 0.45 : 0.6)), h - reserve));
+    return Math.max(DOCK_MIN, Math.min(Math.round(h * 0.6), h - reserve));
   };
+
 
   const height = Math.min(Math.max(manual ?? desired, DOCK_MIN), maxHeight());
 

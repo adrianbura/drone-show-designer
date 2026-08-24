@@ -64,6 +64,8 @@ import {
 } from "@/lib/studio/commands";
 import { useTimelineCommands, type RenameRequest } from "@/lib/studio/useTimelineCommands";
 import StudioContextMenu from "@/components/studio/StudioContextMenu";
+import { isInsideMenuSurface } from "@/lib/studio/menuSurface";
+
 import ClipRenameDialog from "@/components/studio/ClipRenameDialog";
 import { packTimelineClipLanes } from "@/lib/studio/timelineLayout";
 import { rippleClipTiming } from "@/lib/studio/timelineRipple";
@@ -219,11 +221,27 @@ export default function Timeline({
     setHeaderHeight(el.getBoundingClientRect().height);
     return () => observer.disconnect();
   }, []);
+  /**
+   * The pinned footer is MEASURED, never estimated. An estimate that was 36 px
+   * short made the dock request too little room in short windows, so the sticky
+   * footer floated over the clip lanes and left the clips unclickable.
+   */
+  const footerRef = useRef<HTMLDivElement | null>(null);
+  const [footerHeight, setFooterHeight] = useState(70);
+  useEffect(() => {
+    const el = footerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => setFooterHeight(el.getBoundingClientRect().height));
+    observer.observe(el);
+    setFooterHeight(el.getBoundingClientRect().height);
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     if (!onDesiredHeightChange) return;
-    const extras = 40 /* annotations */ + 26 /* scrollbar */ + 44 /* lighting */ + (audioAttached ? 58 : 0) + 24;
+    const extras = 40 /* annotations */ + footerHeight + 24;
     onDesiredHeightChange(headerHeight + trackMinHeight + extras);
-  }, [onDesiredHeightChange, headerHeight, trackMinHeight, audioAttached]);
+  }, [onDesiredHeightChange, headerHeight, trackMinHeight, footerHeight]);
+
 
 
   /** Snap context for the current gesture — pixel-aware, Alt bypasses it. */
@@ -654,7 +672,15 @@ export default function Timeline({
         </div>
       </header>
 
-      <div className="relative flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-4 pb-3 pt-2">
+      {/*
+        SHORT-WINDOW REACHABILITY. The column itself must not scroll: when it did,
+        the sticky track footer (scrollbar + audio + lighting) floated OVER the
+        clip lanes at 900x600 and left only a few pixels of each clip hittable, so
+        clips could not be right-clicked at all. The footer is now a real flex row
+        and the lanes area keeps its own vertical scrolling below.
+      */}
+      <div className="relative flex min-h-0 flex-1 flex-col gap-1 overflow-hidden px-4 pb-3 pt-2">
+
         <TimelineAnnotations
           markers={markers}
           sections={musicSections}
@@ -680,6 +706,17 @@ export default function Timeline({
           ref={trackRef}
           data-testid="timeline-track"
           onPointerDown={(e) => {
+            /**
+             * PORTAL-BUBBLING GUARD (root cause of dead context-menu actions).
+             *
+             * Radix renders each clip's context menu in a portal, but the portal
+             * content is a REACT child of this track, so synthetic pointer events
+             * inside the menu still bubble here. Without this guard the track took
+             * pointer capture on the pointerdown that landed on a menu item, which
+             * retargeted the following pointerup/click to the track — so Radix
+             * never saw the item release and `onSelect` never fired.
+             */
+            if (isInsideMenuSurface(e.target)) return;
             if (e.button === 1) {
               onTrackPointerDown(e);
               return;
@@ -688,6 +725,7 @@ export default function Timeline({
             e.currentTarget.setPointerCapture(e.pointerId);
             scrub(e.clientX);
           }}
+
           onPointerMove={(e) => {
             if (panRef.current) {
               onTrackPointerMove(e);
@@ -1083,9 +1121,11 @@ export default function Timeline({
           and without taking height from the 3D viewport.
         */}
         <div
+          ref={footerRef}
           data-testid="timeline-track-footer"
           className="sticky bottom-0 z-20 shrink-0 space-y-1 bg-panel pt-1"
         >
+
           {/* VIEWPORT SCROLLBAR — track = full authored range, thumb = visible window. */}
           <TimelineScrollbar
             geometry={timelineScrollGeometry}
