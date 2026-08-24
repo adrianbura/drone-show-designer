@@ -19,7 +19,7 @@
  *
  * Pure module: no React, no I/O.
  */
-import type { ShowLimits, Vec3 } from "../types";
+import type { SafetyLimits, Vec3 } from "../types";
 import type { TextGeometryResult } from "./types";
 
 export type TextFeasibilityStatus = "FEASIBLE" | "TIGHT" | "INFEASIBLE";
