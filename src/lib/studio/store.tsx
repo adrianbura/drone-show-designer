@@ -144,6 +144,18 @@ import {
   type TextApplyBlocker,
 } from "./textFormationApplyCommand";
 import type { TextPreviewRequest } from "./textFormationPreview";
+
+/** Result of a deterministic text apply command. */
+export type TextApplyCommitResult =
+  | {
+      readonly ok: true;
+      readonly formationId: string;
+      readonly newlyPlannedIntervals: readonly PromotedTextInterval[];
+      readonly invalidatedTransitionOverrideClipIds: readonly string[];
+      readonly promotedReferenceClipIds: readonly string[];
+      readonly note: string;
+    }
+  | { readonly ok: false; readonly blockers: readonly TextApplyBlocker[]; readonly note: string };
 import {
   installPreparedGeometryApply,
   type GeometryApplyCommitResult,
