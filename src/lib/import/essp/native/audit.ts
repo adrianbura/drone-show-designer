@@ -34,6 +34,7 @@ import type { FormationScene, SceneFormationInstance } from "../../../show/scene
 import { clipPhase, type ShowProject, type TimelineClip } from "../../../show/types";
 import { clipOutputSignature, type ClipSignatureContext } from "./signature";
 import { resolveReferenceIntervals } from "./intervals";
+import { hasEsspSourceBytes } from "../../../adapters/esspSourceRecovery";
 import type {
   ReferenceClipBinding,
   ReferenceExtractedSceneSnapshot,
@@ -258,8 +259,11 @@ export interface AuditOwnership {
   /** Structural comparison of the live scene against the extracted snapshot. */
   readonly matchesExtractedSnapshot: boolean | null;
   readonly snapshotDifferences: readonly string[];
+  /** True ONLY when the canonical source-byte contract passes for every file. */
   readonly originalSourceBytesPreserved: boolean;
   readonly sourceFileCount: number;
+  readonly sourceFilesWithBytes: number;
+  readonly allExpectedSourceBytesPresent: boolean;
   /** Intervals a future Apply/promotion of this clip would move to PLANNER. */
   readonly intervalsPromotedOnApply: readonly {
     readonly clipId: string;
@@ -285,8 +289,17 @@ export interface AuditTextFacts {
   readonly glyphOrLetterGrouping: boolean;
   readonly motionGroupsLookLikeLetters: boolean;
   readonly pointIdsCarryLetterIdentity: boolean;
-  readonly stablePointIdsAvailable: boolean;
+  /** SOURCE side only: imported points carry usable, non-empty stable ids. */
+  readonly stableSourceIdentityAvailable: boolean;
+  /**
+   * TARGET side: a target glyph geometry, target point count/ids and a
+   * successful source->target correspondence report all exist. The audit is
+   * read-only and never synthesises a target, so this is always false here.
+   */
+  readonly targetCorrespondenceAvailable: boolean;
+  /** Only true when BOTH sides exist AND correspondence succeeded. */
   readonly deterministicPointTransferPossible: boolean;
+  readonly pointTransferBlockers: readonly string[];
   readonly humanInterpretationOnly: boolean;
   readonly cannotBeClaimedWithout: readonly string[];
 }
@@ -325,7 +338,12 @@ export interface AuditReferenceClipInput {
   readonly layer?: ReferenceTrajectoryLayer | null | undefined;
   readonly diagnostics?: readonly ReferenceExtractionDiagnostic[] | undefined;
   readonly signatureContext?: ClipSignatureContext | undefined;
-  /** True when the original archive bytes are still recoverable in session. */
+  /**
+   * Optional OVERRIDE for the source-byte contract, for callers that already
+   * evaluated it (e.g. after a persisted reopen). When omitted the canonical
+   * `hasEsspSourceBytes` authority is consulted; audit.ts never restates its
+   * rules.
+   */
   readonly sourceBytesPresent?: boolean | undefined;
   readonly sourceFileCount?: number | undefined;
 }
@@ -681,6 +699,37 @@ function buildParticipation(
   };
 }
 
+/**
+ * SOURCE BYTES — delegated, never re-derived.
+ *
+ * Drone COUNT proves nothing about recoverability. The single authority for the
+ * source-byte contract is `hasEsspSourceBytes`; this only counts files for the
+ * report and never reimplements its rules.
+ */
+function sourceBytesFacts(
+  layer: ReferenceTrajectoryLayer | null,
+  input: AuditReferenceClipInput,
+): Pick<
+  AuditOwnership,
+  | "originalSourceBytesPreserved"
+  | "sourceFileCount"
+  | "sourceFilesWithBytes"
+  | "allExpectedSourceBytesPresent"
+> {
+  const drones = layer?.drones ?? [];
+  const sourceFileCount = input.sourceFileCount ?? drones.length;
+  const sourceFilesWithBytes = drones.filter((d) => !!d.fileBase64).length;
+  const contractPasses = input.sourceBytesPresent ?? hasEsspSourceBytes(layer);
+  const allExpectedSourceBytesPresent =
+    contractPasses && sourceFileCount > 0 && sourceFilesWithBytes === sourceFileCount;
+  return {
+    originalSourceBytesPreserved: allExpectedSourceBytesPresent,
+    sourceFileCount,
+    sourceFilesWithBytes,
+    allExpectedSourceBytesPresent,
+  };
+}
+
 function buildOwnership(
   project: ShowProject,
   clip: TimelineClip,
@@ -716,9 +765,7 @@ function buildOwnership(
     snapshotDynamicIds: snapshot?.dynamicFormations.map((d) => d.id) ?? [],
     matchesExtractedSnapshot: snapshot && scene ? differences.length === 0 : null,
     snapshotDifferences: differences,
-    originalSourceBytesPreserved:
-      input.sourceBytesPresent ?? (layer != null && layer.drones.length > 0),
-    sourceFileCount: input.sourceFileCount ?? layer?.drones.length ?? 0,
+    ...sourceBytesFacts(layer, input),
     intervalsPromotedOnApply: intervals.map((i) => ({
       clipId: i.clipId,
       kind: i.kind,
@@ -780,9 +827,18 @@ function buildTextFacts(
     glyphOrLetterGrouping: false,
     motionGroupsLookLikeLetters: false,
     pointIdsCarryLetterIdentity: false,
-    stablePointIdsAvailable: stable,
-    // A transfer is deterministic when point identity exists on both sides.
-    deterministicPointTransferPossible: stable,
+    stableSourceIdentityAvailable: stable,
+    // Read-only audit: no target glyph geometry, no target ids, no
+    // correspondence report can exist here. Stable SOURCE ids alone never
+    // imply a deterministic transfer.
+    targetCorrespondenceAvailable: false,
+    deterministicPointTransferPossible: false,
+    pointTransferBlockers: [
+      ...(stable ? [] : ["source point identity is missing or empty"]),
+      "target glyph geometry does not exist",
+      "target point count / target point ids do not exist",
+      "no source->target correspondence report has been produced",
+    ],
     humanInterpretationOnly: true,
     cannotBeClaimedWithout: [
       "OCR or manual operator input: which letters/words the artwork depicts",
