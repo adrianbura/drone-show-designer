@@ -9,6 +9,8 @@ import {
   INSPECTOR_PANEL_GROUP,
   STUDIO_SURFACE_PANEL,
   focusStudioSurface,
+  registerInspectorHost,
+  selectVisibleHost,
   onInspectorFocus,
   resolveStudioFocus,
   type StudioSurfaceId,
@@ -82,5 +84,43 @@ describe("studio surface routing", () => {
     } as const;
     expect(primaryCommandFor(ctx)).toBe("EDIT_SCENE");
     expect(resolveStudioFocus({ surface: "SCENE" }).panel).toBe("scene-panel");
+  });
+});
+
+describe("visible surface hosts", () => {
+  it("reveals through the highest-priority visible host, never a hidden one", async () => {
+    const { registerInspectorHost, selectVisibleHost } = await import("@/lib/studio/inspectorFocus");
+    const seen: string[] = [];
+    const desktop = {
+      priority: 10,
+      visible: true,
+      isVisible() {
+        return this.visible;
+      },
+      reveal: (r: { panel: string }) => seen.push(`desktop:${r.panel}`),
+    };
+    const narrow = {
+      priority: 0,
+      isVisible: () => true,
+      reveal: (r: { panel: string }) => seen.push(`narrow:${r.panel}`),
+    };
+    const offDesktop = registerInspectorHost(desktop);
+    const offNarrow = registerInspectorHost(narrow);
+
+    expect(selectVisibleHost([desktop, narrow])).toBe(desktop);
+    focusStudioSurface({ surface: "LIGHTING", clipId: "c1" });
+    // Wide layout hidden (narrow window): the narrow host must take over.
+    desktop.visible = false;
+    expect(selectVisibleHost([desktop, narrow])).toBe(narrow);
+    focusStudioSurface({ surface: "LIGHTING", clipId: "c1" });
+    offDesktop();
+    offNarrow();
+    expect(seen).toEqual(["desktop:lighting-panel", "narrow:lighting-panel"]);
+  });
+
+  it("resolves the same panel for a command regardless of presentation", () => {
+    expect(resolveStudioFocus({ surface: "LIGHTING" }).panel).toBe(
+      resolveStudioFocus({ surface: "LIGHTING" }).panel,
+    );
   });
 });

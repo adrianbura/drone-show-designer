@@ -263,18 +263,19 @@ function EsspSourceRecovery({
   );
 }
 
-export default function Inspector() {
+export default function Inspector({ focusRequest }: { focusRequest?: StudioFocusRequest | null } = {}) {
   const [group, setGroup] = useState<InspectorGroupId>("AUTHORING");
   const rootRef = useRef<HTMLDivElement | null>(null);
   /**
    * FOCUS REQUESTS from other surfaces (timeline context menu, double-click,
    * Inspector quick actions, later Ctrl+K). Reveal only — never a mutation.
    *
-   * Two Inspector instances are mounted (docked at xl, stacked fallback below
-   * it), so the panel is resolved INSIDE this instance's own subtree and only
-   * revealed when this instance is actually visible. A global getElementById
-   * lookup used to resolve the hidden copy, which is why menu actions appeared
-   * to do nothing in narrow windows.
+   * Several Inspector presentations can be mounted (docked at xl, narrow dock
+   * below it), so the panel is resolved INSIDE this instance's own subtree and
+   * only revealed when this instance is actually visible. A request can also be
+   * handed in directly via `focusRequest` by the presentation that just made
+   * itself visible (narrow dock), which is how the same command completes
+   * visibly at every breakpoint.
    */
   const [pendingFocus, setPendingFocus] = useState<StudioFocusRequest | null>(null);
   useEffect(
@@ -285,6 +286,11 @@ export default function Inspector() {
       }),
     [],
   );
+  useEffect(() => {
+    if (!focusRequest) return;
+    setGroup(focusRequest.group);
+    setPendingFocus(focusRequest);
+  }, [focusRequest]);
   useEffect(() => {
     if (!pendingFocus) return;
     const root = rootRef.current;
@@ -299,6 +305,7 @@ export default function Inspector() {
     const t = window.setTimeout(() => el.removeAttribute("data-focused"), 2200);
     return () => window.clearTimeout(t);
   }, [pendingFocus, group]);
+
 
   const [sampleConfirm, setSampleConfirm] = useState(false);
   const {
