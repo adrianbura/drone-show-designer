@@ -61,12 +61,11 @@ describe("command authority", () => {
     expect(show).not.toContain("VIEW_IMPORTED_RGB");
   });
 
-  it("disables blocked-but-applicable actions with a reason", () => {
+  it("hides restore until a real restore continuation exists", () => {
     const menu = resolveTimelineCommands(clip({ ownership: "REFERENCE", hasImportedRgb: true }));
-    const restore = findCommand(menu, "RESTORE_REFERENCE");
-    expect(restore?.available).toBe(false);
-    expect(restore?.unavailableReason).toBeTruthy();
+    expect(findCommand(menu, "RESTORE_REFERENCE")).toBeUndefined();
     expect(findCommand(menu, "VIEW_IMPORTED_RGB")?.available).toBe(true);
+
 
     const noBeats = resolveTimelineCommands(clip({ canSnapToBeat: false }));
     const snap = findCommand(noBeats, "SNAP_START_TO_BEAT");
