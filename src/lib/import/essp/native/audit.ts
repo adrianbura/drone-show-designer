@@ -660,7 +660,7 @@ function buildParticipation(
   clip: TimelineClip,
   representation: AuditRepresentation,
 ): AuditParticipation {
-  const settings = resolveParticipationSettings(project);
+  const settings = resolveParticipationSettings(project.participation ?? null);
   const clipSettings = settings.clips?.[clip.id];
   const requested = representation.objects.reduce(
     (sum, o) => sum + (o.requestedDroneCount ?? o.sourcePointCount ?? 0),
