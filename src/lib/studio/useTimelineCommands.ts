@@ -15,7 +15,7 @@ import { useCallback } from "react";
 import { clipPhase } from "@/lib/show/types";
 import { useStudio } from "@/lib/studio/store";
 import type { ClipCommandContext, ClipOwnership, StudioCommandId } from "./commands";
-import { requestInspectorFocus } from "./inspectorFocus";
+import { focusStudioSurface, type StudioSurfaceId } from "./inspectorFocus";
 import { clipLabel, clipRepresentation } from "./selectionSummary";
 
 export interface RenameRequest {
@@ -96,27 +96,27 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
       switch (id) {
         case "EDIT_SCENE":
           if (clipId) selectClip(clipId);
-          requestInspectorFocus("scene-panel");
+          focusSurface("SCENE", clipId);
           return;
         case "EDIT_DYNAMIC":
           if (clipId) selectClip(clipId);
-          requestInspectorFocus("dynamic-panel");
+          focusSurface("DYNAMIC", clipId);
           return;
         case "EDIT_FORMATION":
         case "SET_COLOR":
         case "EDIT_MOTION":
           if (clipId) selectClip(clipId);
-          requestInspectorFocus("clip-inspector");
+          focusSurface("CLIP", clipId);
           return;
         case "CONVERT_TO_SCENE":
-          if (clipId && editClipAsScene(clipId)) requestInspectorFocus("scene-panel");
+          if (clipId && editClipAsScene(clipId)) focusSurface("SCENE", clipId);
           return;
         case "EDIT_LIGHTING":
           if (clipId) selectClip(clipId);
-          requestInspectorFocus("lighting-panel");
+          focusSurface("LIGHTING", clipId);
           return;
         case "VIEW_IMPORTED_RGB":
-          requestInspectorFocus("essp-panel");
+          focusSurface("REFERENCE", clipId);
           return;
         case "SNAP_START_TO_BEAT": {
           if (!clipId) return;
@@ -130,7 +130,7 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
         case "TRANSITION_DESIGN":
         case "REPLAN_ASSIGNMENT":
           if (clipId) selectClip(clipId);
-          requestInspectorFocus("transition-panel");
+          focusSurface("TRANSITION", clipId);
           return;
         case "DUPLICATE_CLIP":
           if (clipId) duplicateClipForDesign(clipId);
@@ -146,7 +146,7 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
           if (clipId) removeClip(clipId);
           return;
         case "COMPARE_REFERENCE":
-          requestInspectorFocus("forensics-panel");
+          focusSurface("VALIDATION", clipId);
           return;
         case "RESTORE_REFERENCE":
         case "REBUILD_AS_TEXT":
@@ -177,7 +177,7 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
           return;
         case "EDIT_LIGHTING_EFFECT":
           if (target.effectId) selectLightingEffect(target.effectId);
-          requestInspectorFocus("lighting-panel");
+          focusSurface("LIGHTING", clipId);
           return;
         case "DELETE_LIGHTING_EFFECT":
           if (target.effectId) removeLightingEffect(target.effectId);
