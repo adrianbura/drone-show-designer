@@ -45,6 +45,7 @@ import {
   timeFromPixel,
   type SnapMode,
   type SnapResult,
+  shouldBeginTimelineGesture,
 } from "@/lib/studio/timelineEdit";
 import {
   clipDensity,
