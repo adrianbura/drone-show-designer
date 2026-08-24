@@ -50,7 +50,6 @@ describe("deterministic text geometry", () => {
       { weight: "BOLD" as const },
       { style: "ITALIC" as const },
       { letterSpacingEm: 1.2 },
-      { alignment: "LEFT" as const },
       { outlineRatio: 0.5 },
       { bandOffsetEm: 0.5 },
       { seed: 8 },
@@ -59,6 +58,16 @@ describe("deterministic text geometry", () => {
       expect(next.recipeHash, JSON.stringify(change)).not.toBe(base.recipeHash);
       expect(JSON.stringify(next.points), JSON.stringify(change)).not.toBe(JSON.stringify(base.points));
     }
+  });
+
+  it("shifts the block horizontally when alignment changes in a height-bound box", () => {
+    const box = { widthMeters: 400, heightMeters: 30 } as const;
+    const left = generateTextGeometry(recipe({ ...box, alignment: "LEFT" }));
+    const right = generateTextGeometry(recipe({ ...box, alignment: "RIGHT" }));
+    const centre = (points: readonly (readonly [number, number, number])[]) =>
+      points.reduce((sum, p) => sum + p[0], 0) / points.length;
+    expect(centre(left.points)).toBeLessThan(centre(right.points));
+    expect(left.recipeHash).not.toBe(right.recipeHash);
   });
 
   it("keeps every point inside the requested bounding box", () => {

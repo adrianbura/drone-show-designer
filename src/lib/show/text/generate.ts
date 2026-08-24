@@ -258,6 +258,8 @@ function allocate(weights: readonly number[], count: number, seed: number): numb
   return base;
 }
 
+const fract = (value: number): number => value - Math.floor(value);
+
 function sampleAt(line: Polyline, distance: number): P2 {
   const { vertices, cumulative } = line;
   for (let i = 1; i < cumulative.length; i += 1) {
@@ -306,8 +308,13 @@ export function generateTextGeometry(recipe: TextGeometryRecipe): TextGeometryRe
   const samples: { line: Polyline; index: number; point: P2 }[] = [];
   for (const line of lines) {
     const n = perLine.get(line) ?? 0;
+    // Deterministic sub-interval phase. Without it, two strokes that CROSS
+    // (e.g. the two diagonals of "X") can both land their mid-interval sample
+    // exactly on the intersection. The phase stays inside the interval, so no
+    // endpoint is ever emitted.
+    const phase = 0.5 + (fract(line.strokeIndex * 0.191 + line.band * 0.083 + line.glyphIndex * 0.037) - 0.5) * 0.5;
     for (let k = 0; k < n; k += 1) {
-      samples.push({ line, index: k, point: sampleAt(line, ((k + 0.5) / n) * line.length) });
+      samples.push({ line, index: k, point: sampleAt(line, ((k + phase) / n) * line.length) });
     }
   }
   if (samples.length !== recipe.participation) {
