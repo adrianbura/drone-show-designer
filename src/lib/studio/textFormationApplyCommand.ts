@@ -42,6 +42,14 @@ import {
 export interface TextApplyInput {
   readonly project: ShowProject;
   readonly request: TextPreviewRequest;
+  /**
+   * REAL canonical readiness evidence produced by
+   * `evaluateGeometryApplyReadiness` for this proposal. This module never
+   * synthesizes readiness: missing or blocked canonical evidence must prevent
+   * Apply, and the report is forwarded to `prepareGeometryApplyCommand`
+   * unchanged.
+   */
+  readonly readiness: GeometryApplyReadinessReport | null | undefined;
   /** Deterministic id supplied by the command boundary, never generated here. */
   readonly formationId: string;
   readonly formationName?: string;
@@ -71,11 +79,19 @@ export interface TextApplyPreparationSuccess {
   readonly note: string;
 }
 
+export type TextApplyBlocker =
+  | TextPreviewBlocker
+  | "READINESS_MISSING"
+  | "READINESS_BLOCKED"
+  | "FORMATION_ID_COLLISION"
+  | "APPLY_BLOCKED";
+
 export interface TextApplyPreparationFailure {
   readonly ok: false;
-  readonly blockers: readonly (TextPreviewBlocker | "APPLY_BLOCKED")[];
+  readonly blockers: readonly TextApplyBlocker[];
   readonly note: string;
 }
+
 
 export type TextApplyPreparationResult = TextApplyPreparationSuccess | TextApplyPreparationFailure;
 
