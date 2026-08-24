@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * SURFACE ROUTING — every navigation command must resolve to exactly one
  * existing Inspector panel, in the group that owns it. Routing is navigation:
