@@ -11,4 +11,5 @@ export * from "./splice";
 export * from "./derivatives";
 export * from "./comparison";
 export * from "./sceneEditing";
+export * from "./audit";
 
