@@ -347,3 +347,21 @@ export type AuthorableClipPhase = (typeof AUTHORABLE_CLIP_PHASES)[number];
 export function defaultPhaseForNewClip(timeline: readonly TimelineClip[]): AuthorableClipPhase {
   return timeline.length === 0 ? "TAKEOFF" : "SHOW";
 }
+
+/**
+ * POINTER BUTTON CONTRACT for timeline gestures.
+ *
+ * Only the PRIMARY pointer (left mouse button, primary touch contact, pen tip)
+ * may start a drag/resize. Right click (button 2), middle click (button 1) and
+ * secondary contacts must fall through so the context menu / pan logic owns the
+ * event — never a drag gesture and never a pointer capture.
+ */
+export function shouldBeginTimelineGesture(pointer: {
+  readonly button: number;
+  readonly isPrimary?: boolean;
+  readonly pointerType?: string;
+}): boolean {
+  if (pointer.isPrimary === false) return false;
+  return pointer.button === 0;
+}
+
