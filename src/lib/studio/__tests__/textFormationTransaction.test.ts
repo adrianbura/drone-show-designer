@@ -8,13 +8,14 @@ import { prepareTextFormationApply } from "../textFormationApplyCommand";
 import { installPreparedGeometryApply } from "../geometryApplyStoreTransaction";
 import { STRATEGY, importedFixture, readiness, sceneFixture } from "./support/geometryApplyHarness";
 
-function recipeFor(participation: number, text = "RALLY") {
+/** Spacious enough to clear the fixture's minimum separation (feasibility gate). */
+function recipeFor(participation: number, text = "GO") {
   return makeTextRecipe({
     text,
     weight: "REGULAR",
     style: "UPRIGHT",
-    widthMeters: 90,
-    heightMeters: 24,
+    widthMeters: 130,
+    heightMeters: 60,
     centerAltitudeMeters: 45,
     letterSpacingEm: 0.8,
     alignment: "CENTER",

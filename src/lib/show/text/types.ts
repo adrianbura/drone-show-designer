@@ -10,9 +10,16 @@
  */
 import type { Vec3 } from "../types";
 
-export const TEXT_RECIPE_SCHEMA_VERSION = 1;
+/**
+ * SCHEMA 2 introduced `centerAltitudeMeters`: the glyph plane is no longer
+ * implicitly centred on Y = 0. A schema-1 recipe therefore has NO altitude
+ * intent at all, and reading it as schema 2 would silently place the text at a
+ * different altitude than the one the operator saw. Legacy recipes are refused
+ * by the generator and must be upgraded EXPLICITLY (see `compat.ts`).
+ */
+export const TEXT_RECIPE_SCHEMA_VERSION = 2;
 /** Bumped whenever an identical recipe can resolve to different geometry. */
-export const TEXT_GEOMETRY_ALGORITHM_VERSION = "1.0.0";
+export const TEXT_GEOMETRY_ALGORITHM_VERSION = "1.1.0";
 
 export type TextWeight = "LIGHT" | "REGULAR" | "BOLD";
 export type TextStyle = "UPRIGHT" | "ITALIC";
@@ -59,7 +66,8 @@ export type TextGeometryErrorCode =
   | "INVALID_DISTRIBUTION"
   | "NO_GEOMETRY"
   | "DUPLICATE_POSITION"
-  | "POINT_COUNT_MISMATCH";
+  | "POINT_COUNT_MISMATCH"
+  | "ALGORITHM_VERSION_MISMATCH";
 
 export class TextGeometryError extends Error {
   readonly code: TextGeometryErrorCode;
@@ -85,6 +93,12 @@ export interface TextGeometryResult {
     readonly widthMeters: number;
     readonly heightMeters: number;
   };
+  /**
+   * Total sampled stroke length in metres (after fit). This is the real curve
+   * budget the participation count has to share, so it is the honest input for
+   * the feasibility diagnostic — not the bounding-box area.
+   */
+  readonly pathMeters: number;
 }
 
 /**

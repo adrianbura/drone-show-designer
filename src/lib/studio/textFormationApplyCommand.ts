@@ -71,6 +71,7 @@ export interface PromotedTextInterval {
 
 export interface TextApplyPreparationSuccess {
   readonly ok: true;
+  readonly feasibility: TextPreviewSuccess["feasibility"];
   readonly prepared: GeometryApplyPreparationSuccess;
   readonly formation: Formation;
   readonly replacedFormationId: string;
@@ -85,6 +86,7 @@ export type TextApplyBlocker =
   | "READINESS_MISSING"
   | "READINESS_BLOCKED"
   | "FORMATION_ID_COLLISION"
+  | "TEXT_INFEASIBLE"
   | "APPLY_BLOCKED";
 
 export interface TextApplyPreparationFailure {
@@ -186,6 +188,17 @@ export function prepareTextFormationApply(input: TextApplyInput): TextApplyPrepa
   const preview = previewTextFormation(input.project, input.request);
   if (!preview.ok) return { ok: false, blockers: preview.blockers, note: preview.note };
 
+  // Feasibility is an EXTRA gate in front of canonical validation, never a
+  // substitute for it: a recipe that generated exactly N points can still be
+  // physically impossible at the project's separation minimum.
+  if (preview.feasibility.status === "INFEASIBLE") {
+    return {
+      ok: false,
+      blockers: ["TEXT_INFEASIBLE"],
+      note: `The generated text is not physically flyable: ${preview.feasibility.note}`,
+    };
+  }
+
   if (input.project.formations.some((f) => f.id === input.formationId)) {
     return {
       ok: false,
@@ -234,6 +247,7 @@ export function prepareTextFormationApply(input: TextApplyInput): TextApplyPrepa
 
   return {
     ok: true,
+    feasibility: preview.feasibility,
     prepared,
     formation,
     replacedFormationId: preview.replacedFormationId,
