@@ -93,6 +93,12 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
   const execute = useCallback(
     (id: StudioCommandId, target: { clipId?: string; time?: number; markerId?: string; effectId?: string }) => {
       const clipId = target.clipId;
+      /** ONE routing path: select the target, then reveal the owning surface. */
+      const focusSurface = (surface: StudioSurfaceId, id?: string) => {
+        if (id) selectClip(id);
+        focusStudioSurface({ surface, ...(id ? { clipId: id } : {}) });
+      };
+
       switch (id) {
         case "EDIT_SCENE":
           if (clipId) selectClip(clipId);
