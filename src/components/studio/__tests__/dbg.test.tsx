@@ -12,9 +12,9 @@ function base(): ShowProject {
   return {
     ...p,
     timeline: [
-      { id: "c-takeoff", formationId: "f-launch", start: 0, transition: 20, hold: 20, easing: "easeInOut", color: "#ffffff" },
-      { id: "c-show", formationId: "f-sphere", start: 40, transition: 30, hold: 30, easing: "easeInOut", color: "#ffffff" },
-      { id: "c-land", formationId: "f-approach", start: 100, transition: 30, hold: 20, easing: "easeInOut", color: "#ffffff" },
+      { id: "c-takeoff", formationId: "f-launch", start: 0, transition: 20, hold: 20, easing: "easeInOut", color: [255, 255, 255] },
+      { id: "c-show", formationId: "f-sphere", start: 40, transition: 30, hold: 30, easing: "easeInOut", color: [255, 255, 255] },
+      { id: "c-land", formationId: "f-approach", start: 100, transition: 30, hold: 20, easing: "easeInOut", color: [255, 255, 255] },
     ] as ShowProject["timeline"],
   };
 }
