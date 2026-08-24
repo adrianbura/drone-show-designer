@@ -190,3 +190,73 @@ describe("imported scene audit", () => {
     expect(resolution.distinctClipIds).toContain("c-2");
   });
 });
+
+describe("scene audit — source byte contract", () => {
+  function drone(id: number, bytes: string) {
+    return {
+      sourceId: `S-${id}`,
+      numericSourceId: id,
+      sourceFile: `${id}.essp`,
+      fileBase64: bytes,
+    };
+  }
+
+  it("never claims preserved source bytes from drone count alone", () => {
+    const withCountOnly: ReferenceTrajectoryLayer = {
+      ...layer(),
+      drones: [drone(1, ""), drone(2, "")],
+    };
+    const result = auditReferenceClip({
+      project: project(),
+      clipId: "c-1",
+      layer: withCountOnly,
+    });
+    expect(result.found).toBe(true);
+    if (!result.found) return;
+    expect(result.ownership.sourceFileCount).toBe(2);
+    expect(result.ownership.sourceFilesWithBytes).toBe(0);
+    expect(result.ownership.allExpectedSourceBytesPresent).toBe(false);
+    expect(result.ownership.originalSourceBytesPreserved).toBe(false);
+  });
+
+  it("fails the contract when only SOME files carry bytes", () => {
+    const partial: ReferenceTrajectoryLayer = {
+      ...layer(),
+      drones: [drone(1, "AAAA"), drone(2, "")],
+    };
+    const result = auditReferenceClip({ project: project(), clipId: "c-1", layer: partial });
+    expect(result.found).toBe(true);
+    if (!result.found) return;
+    expect(result.ownership.sourceFilesWithBytes).toBe(1);
+    expect(result.ownership.allExpectedSourceBytesPresent).toBe(false);
+  });
+
+  it("passes only when every expected source file carries bytes", () => {
+    const full: ReferenceTrajectoryLayer = {
+      ...layer(),
+      drones: [drone(1, "AAAA"), drone(2, "BBBB")],
+    };
+    const result = auditReferenceClip({ project: project(), clipId: "c-1", layer: full });
+    expect(result.found).toBe(true);
+    if (!result.found) return;
+    expect(result.ownership.sourceFileCount).toBe(2);
+    expect(result.ownership.sourceFilesWithBytes).toBe(2);
+    expect(result.ownership.allExpectedSourceBytesPresent).toBe(true);
+    expect(result.ownership.originalSourceBytesPreserved).toBe(true);
+  });
+
+  it("fails when an expected file is missing entirely from the layer", () => {
+    const short: ReferenceTrajectoryLayer = { ...layer(), drones: [drone(1, "AAAA")] };
+    const result = auditReferenceClip({
+      project: project(),
+      clipId: "c-1",
+      layer: short,
+      sourceFileCount: 2,
+    });
+    expect(result.found).toBe(true);
+    if (!result.found) return;
+    expect(result.ownership.sourceFileCount).toBe(2);
+    expect(result.ownership.sourceFilesWithBytes).toBe(1);
+    expect(result.ownership.allExpectedSourceBytesPresent).toBe(false);
+  });
+});
