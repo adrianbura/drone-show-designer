@@ -264,18 +264,41 @@ function EsspSourceRecovery({
 
 export default function Inspector() {
   const [group, setGroup] = useState<InspectorGroupId>("AUTHORING");
+  const rootRef = useRef<HTMLDivElement | null>(null);
   /**
-   * FOCUS REQUESTS from other surfaces (timeline context menu, double-click).
-   * Reveal only: switch to the owning group, then scroll the panel into view.
+   * FOCUS REQUESTS from other surfaces (timeline context menu, double-click,
+   * Inspector quick actions, later Ctrl+K). Reveal only — never a mutation.
+   *
+   * Two Inspector instances are mounted (docked at xl, stacked fallback below
+   * it), so the panel is resolved INSIDE this instance's own subtree and only
+   * revealed when this instance is actually visible. A global getElementById
+   * lookup used to resolve the hidden copy, which is why menu actions appeared
+   * to do nothing in narrow windows.
    */
+  const [pendingFocus, setPendingFocus] = useState<StudioFocusRequest | null>(null);
   useEffect(
     () =>
-      onInspectorFocus((panel) => {
-        setGroup(INSPECTOR_PANEL_GROUP[panel]);
-        requestAnimationFrame(() => scrollToPanel(panel));
+      onInspectorFocus((request) => {
+        setGroup(request.group);
+        setPendingFocus(request);
       }),
     [],
   );
+  useEffect(() => {
+    if (!pendingFocus) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const el = root.querySelector<HTMLElement>(`[data-panel-id="${pendingFocus.panel}"]`);
+    // offsetParent === null => this Inspector copy is the hidden one.
+    if (!el || el.offsetParent === null) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.setAttribute("data-focused", "true");
+    el.setAttribute("tabindex", "-1");
+    el.focus({ preventScroll: true });
+    const t = window.setTimeout(() => el.removeAttribute("data-focused"), 2200);
+    return () => window.clearTimeout(t);
+  }, [pendingFocus, group]);
+
   const [sampleConfirm, setSampleConfirm] = useState(false);
   const {
     project,
