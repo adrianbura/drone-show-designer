@@ -14,6 +14,7 @@ import {
   onInspectorFocus,
   resolveStudioFocus,
   type StudioSurfaceId,
+  type StudioFocusRequest,
 } from "@/lib/studio/inspectorFocus";
 import { primaryCommandFor } from "@/lib/studio/commands";
 
@@ -88,21 +89,20 @@ describe("studio surface routing", () => {
 });
 
 describe("visible surface hosts", () => {
-  it("reveals through the highest-priority visible host, never a hidden one", async () => {
-    const { registerInspectorHost, selectVisibleHost } = await import("@/lib/studio/inspectorFocus");
+  it("reveals through the highest-priority visible host, never a hidden one", () => {
     const seen: string[] = [];
     const desktop = {
-      priority: 10,
+      priority: 20,
       visible: true,
       isVisible() {
         return this.visible;
       },
-      reveal: (r: { panel: string }) => seen.push(`desktop:${r.panel}`),
+      reveal: (r: StudioFocusRequest) => seen.push(`desktop:${r.panel}`),
     };
     const narrow = {
       priority: 0,
       isVisible: () => true,
-      reveal: (r: { panel: string }) => seen.push(`narrow:${r.panel}`),
+      reveal: (r: StudioFocusRequest) => seen.push(`narrow:${r.panel}`),
     };
     const offDesktop = registerInspectorHost(desktop);
     const offNarrow = registerInspectorHost(narrow);
@@ -118,9 +118,71 @@ describe("visible surface hosts", () => {
     expect(seen).toEqual(["desktop:lighting-panel", "narrow:lighting-panel"]);
   });
 
-  it("resolves the same panel for a command regardless of presentation", () => {
-    expect(resolveStudioFocus({ surface: "LIGHTING" }).panel).toBe(
-      resolveStudioFocus({ surface: "LIGHTING" }).panel,
-    );
+  it("hands the narrow host the exact resolved request", () => {
+    const got: StudioFocusRequest[] = [];
+    const off = registerInspectorHost({
+      priority: 0,
+      isVisible: () => true,
+      reveal: (r) => got.push(r),
+    });
+    const request = focusStudioSurface({ surface: "TRANSITION", clipId: "clip-42" });
+    off();
+    expect(got).toHaveLength(1);
+    expect(got[0]).toEqual(request);
+    expect(got[0]?.panel).toBe("transition-panel");
+    expect(got[0]?.group).toBe("AUTHORING");
+    expect(got[0]?.clipId).toBe("clip-42");
+  });
+
+  it("selects no host when every host is hidden, and still resolves the request", () => {
+    const revealed: string[] = [];
+    const hidden = {
+      priority: 20,
+      isVisible: () => false,
+      reveal: () => revealed.push("hidden"),
+    };
+    const off = registerInspectorHost(hidden);
+    expect(selectVisibleHost([hidden])).toBeNull();
+    const request = focusStudioSurface({ surface: "LIGHTING" });
+    off();
+    expect(revealed).toEqual([]);
+    expect(request.panel).toBe("lighting-panel");
+  });
+
+  it("gives repeated identical surface requests distinct ids so a repeat re-reveals", () => {
+    const ids: number[] = [];
+    const off = registerInspectorHost({
+      priority: 0,
+      isVisible: () => true,
+      reveal: (r) => ids.push(r.requestId),
+    });
+    focusStudioSurface({ surface: "LIGHTING", clipId: "c1" });
+    focusStudioSurface({ surface: "LIGHTING", clipId: "c1" });
+    off();
+    expect(ids).toHaveLength(2);
+    expect(ids[1]).toBeGreaterThan(ids[0]!);
+  });
+});
+
+
+describe("narrow dock host contract", () => {
+  it("is a candidate only below xl and always loses to the visible docked aside", async () => {
+    const { isNarrowLayout, INSPECTOR_DOCK_PRIORITY, DOCKED_INSPECTOR_PRIORITY, XL } =
+      await import("@/components/studio/InspectorDock");
+    expect(isNarrowLayout(900)).toBe(true);
+    expect(isNarrowLayout(1024)).toBe(true);
+    // At 1366 the docked aside is visible again, so the dock must stand down.
+    expect(isNarrowLayout(1366)).toBe(false);
+    expect(isNarrowLayout(XL)).toBe(false);
+    expect(INSPECTOR_DOCK_PRIORITY).toBeLessThan(DOCKED_INSPECTOR_PRIORITY);
+
+    const docked = {
+      priority: DOCKED_INSPECTOR_PRIORITY,
+      isVisible: () => true,
+      reveal: () => {},
+    };
+    const dock = { priority: INSPECTOR_DOCK_PRIORITY, isVisible: () => true, reveal: () => {} };
+    expect(selectVisibleHost([dock, docked])).toBe(docked);
+    expect(selectVisibleHost([{ ...docked, isVisible: () => false }, dock])).toBe(dock);
   });
 });

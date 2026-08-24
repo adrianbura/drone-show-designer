@@ -159,16 +159,17 @@ function StudioWorkspace() {
             </div>
           </div>
           <aside className="hidden w-[320px] shrink-0 overflow-y-auto border-l border-border bg-panel xl:block">
-            <Inspector />
+            {/* Highest-priority focus host: whenever this aside is visible it wins. */}
+            <Inspector focusHost focusHostPriority={20} />
           </aside>
         </div>
         <TimelineDock />
         {/*
-          NARROW-WINDOW PANEL FALLBACK. The Inspector (which owns the Lighting
-          panel) only docks at xl, so it must stay reachable below that width —
-          the left panel only needs the fallback below lg. Internally scrollable
-          so the 3D viewport and timeline never lose height. Command-driven
-          reveals below xl open `InspectorDock` instead, which is visible.
+          NARROW-WINDOW MANUAL FALLBACK. Below xl the docked Inspector is not
+          rendered visibly, so this stacked copy keeps every panel reachable by
+          manual scrolling (and the left panel below lg). It is deliberately NOT
+          a focus host: command-driven reveals below xl open `InspectorDock`, so
+          one command produces exactly one visible continuation.
         */}
         <div className="min-h-0 flex-1 overflow-y-auto border-t border-border xl:hidden">
           <div className="lg:hidden">
@@ -177,6 +178,7 @@ function StudioWorkspace() {
           <Inspector />
         </div>
         <InspectorDock />
+
     </>
 
   );
