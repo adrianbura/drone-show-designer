@@ -41,19 +41,35 @@ const CLIP_ID = "c-prod-wide";
 const SAMPLE_RATE = 8;
 const OPTIONS = { sampleRate: SAMPLE_RATE, assignmentStrategy: AUTHORED_STRATEGY } as const;
 
-function recipeFor(project: ShowProject) {
-  const participation = project.formations.find((f) => f.id === "f-prod-wide")!.points.length;
+function participationOf(project: ShowProject) {
+  return project.formations.find((f) => f.id === "f-prod-wide")!.points.length;
+}
+
+/**
+ * Fits the fixture's 140 x 140 m area at the 2.5 m minimum separation with 60
+ * drones. Longer words at this fleet size are NOT flyable here (see below).
+ */
+function feasibleRecipe(project: ShowProject) {
   return {
-    ...defaultTextRecipe(participation, "SUPER", 60),
-    widthMeters: 150,
-    heightMeters: 40,
+    ...defaultTextRecipe(participationOf(project), "GO", 60),
+    widthMeters: 130,
+    heightMeters: 60,
+  };
+}
+
+/** Real finding: 5 glyphs / 60 drones cannot hold spacing inside the area. */
+function infeasibleRecipe(project: ShowProject) {
+  return {
+    ...defaultTextRecipe(participationOf(project), "SUPER", 60),
+    widthMeters: 130,
+    heightMeters: 60,
   };
 }
 
 describe("text formation acceptance on the canonical authored fixture", () => {
   const project = authoredProductionProject(FLEET);
   const baseline = validateAuthored(project, SAMPLE_RATE);
-  const recipe = recipeFor(project);
+  const recipe = feasibleRecipe(project);
 
   it("baseline fixture is exportable BEFORE any text edit", () => {
     // Attributes any later failure to the edit, not to the fixture.
@@ -63,16 +79,44 @@ describe("text formation acceptance on the canonical authored fixture", () => {
   it("reports real feasibility diagnostics instead of trusting the point count", () => {
     const geometry = generateTextGeometry(recipe);
     const report = evaluateTextFeasibility(geometry, project.limits);
-    expect(geometry.points.length).toBe(recipe.participation);
     // Exactly N points is NOT feasibility: separation is measured.
-    expect(report.minPairSeparationMeters).toBeGreaterThan(0);
+    expect(geometry.points.length).toBe(recipe.participation);
     expect(report.requiredSeparationMeters).toBe(project.limits.minSeparation);
-    if (report.status === "INFEASIBLE") {
-      expect(report.violationPairCount).toBeGreaterThan(0);
-      expect(report.suggestedScale).toBeGreaterThan(1);
-    } else {
-      expect(report.violationPairCount).toBe(0);
-    }
+    expect(report.status).not.toBe("INFEASIBLE");
+    expect(report.violationPairCount).toBe(0);
+  });
+
+  it("calls a too-long word infeasible even though it generated exactly N points", () => {
+    const tooLong = infeasibleRecipe(project);
+    const geometry = generateTextGeometry(tooLong);
+    const report = evaluateTextFeasibility(geometry, project.limits);
+    expect(geometry.points.length).toBe(tooLong.participation);
+    expect(report.status).toBe("INFEASIBLE");
+    expect(report.violationPairCount).toBeGreaterThan(0);
+    expect(report.suggestedScale).toBeGreaterThan(1);
+  });
+
+  it("blocks Apply for an infeasible recipe before canonical validation", () => {
+    const prepared = prepareTextFormationApply({
+      project,
+      request: { clipId: CLIP_ID, recipe: infeasibleRecipe(project) },
+      // Even a READY report cannot make unflyable spacing applicable.
+      readiness: {
+        status: "READY",
+        canApply: true,
+        blockers: [],
+        warnings: [],
+        newlyPromotedClipIds: [],
+        note: "test",
+      },
+      formationId: "f-text-infeasible",
+      transitionOverrides: {},
+      assignmentStrategy: AUTHORED_STRATEGY,
+      promotedAt: FIXED_GENERATED_AT,
+    });
+    expect(prepared.ok).toBe(false);
+    if (prepared.ok) return;
+    expect(prepared.blockers).toContain("TEXT_INFEASIBLE");
   });
 
   it("runs preview -> preflight -> trajectory -> readiness -> apply -> undo/redo -> save/open", () => {
