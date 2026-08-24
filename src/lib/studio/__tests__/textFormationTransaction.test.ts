@@ -183,3 +183,77 @@ describe("text apply transaction", () => {
     expect(reopened.timeline.find((c) => c.id === clip.id)!.formationId).toBe("f-text-apply-4");
   });
 });
+
+describe("text apply guards", () => {
+  it("refuses to apply without canonical readiness evidence", async () => {
+    const { project, layer, request } = await scenario();
+    const base = {
+      project,
+      request,
+      formationId: "f-text-guard-1",
+      transitionOverrides: {},
+      referenceLayer: layer,
+      assignmentStrategy: STRATEGY,
+      promotedAt: "2026-01-01T00:00:00.000Z",
+    };
+    expect(prepareTextFormationApply({ ...base, readiness: null })).toMatchObject({
+      ok: false,
+      blockers: ["READINESS_MISSING"],
+    });
+    expect(prepareTextFormationApply({ ...base, readiness: readiness("BLOCKED") })).toMatchObject({
+      ok: false,
+      blockers: ["READINESS_BLOCKED"],
+    });
+  });
+
+  it("rejects a formation id that already exists", async () => {
+    const { project, layer, clip, request } = await scenario();
+    expect(
+      prepareTextFormationApply({
+        project,
+        request,
+        readiness: readiness("READY"),
+        formationId: clip.formationId,
+        transitionOverrides: {},
+        referenceLayer: layer,
+        assignmentStrategy: STRATEGY,
+        promotedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    ).toMatchObject({ ok: false, blockers: ["FORMATION_ID_COLLISION"] });
+  });
+
+  it("edits only the explicit scene object and leaves the legacy clip fallback intact", () => {
+    const { project, scene } = sceneFixture(2);
+    const target = scene.objects[0]!;
+    const formation = project.formations.find(
+      (f) => f.id === (target.source as { formationId: string }).formationId,
+    )!;
+    const prepared = prepareTextFormationApply({
+      project,
+      request: {
+        clipId: scene.id,
+        objectId: target.id,
+        recipe: recipeFor(formation.points.length),
+      },
+      readiness: readiness("READY"),
+      formationId: "f-text-object-1",
+      transitionOverrides: {},
+      referenceLayer: null,
+      assignmentStrategy: STRATEGY,
+      promotedAt: "2026-01-01T00:00:00.000Z",
+    });
+    expect(prepared.ok).toBe(true);
+    if (!prepared.ok) return;
+
+    const after = prepared.prepared.after.project;
+    // Legacy clip fallback is untouched.
+    expect(after.timeline).toEqual(project.timeline);
+    const afterScene = after.scenes!.find((s) => s.id === scene.id)!;
+    expect(afterScene.objects[0]!.source).toEqual({
+      kind: "STATIC",
+      formationId: "f-text-object-1",
+    });
+    // Sibling object keeps its own source.
+    expect(afterScene.objects[1]!.source).toEqual(scene.objects[1]!.source);
+  });
+});
