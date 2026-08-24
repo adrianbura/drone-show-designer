@@ -6,7 +6,13 @@
  */
 import { firstPixel, ringArea, targetFromLabels, traceContour } from "./contours";
 import { downscale, toLuminance } from "./luminance";
-import { buildMask, cleanMask, findHoleLabels, labelComponents } from "./mask";
+import {
+  buildMask,
+  cleanMask,
+  consolidateStipple,
+  findHoleLabels,
+  labelComponents,
+} from "./mask";
 import { simplifyRingBounded } from "./simplify2d";
 import {
   DETAIL_PROFILES,
@@ -50,7 +56,10 @@ export function analyzeImage(
   const small = downscale(image, profile.analysisEdge);
   const field = toLuminance(small);
   const built = buildMask(field, resolved.background);
-  const mask = cleanMask(built.mask, profile.morphRadius);
+  // Dotted / stippled references (drone renders) must be bridged into a solid
+  // silhouette before noise removal, otherwise every dot is eroded away.
+  const bridged = consolidateStipple(built.mask);
+  const mask = cleanMask(bridged, profile.morphRadius);
 
   const fgComponents = labelComponents(mask, 1);
   if (fgComponents.count === 0) {
