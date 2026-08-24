@@ -22,7 +22,7 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import TextFormationPanel from "@/components/studio/TextFormationPanel";
-import { serializeProject } from "@/lib/project/serialize";
+import { projectFileToJson, serializeProject } from "@/lib/project/serialize";
 import type { ShowProject } from "@/lib/show/types";
 import { StudioProvider, useStudio } from "@/lib/studio/store";
 import { importedFixture } from "@/lib/studio/__tests__/support/geometryApplyHarness";
@@ -37,7 +37,7 @@ function Harness() {
 }
 
 function projectFile(project: ShowProject): File {
-  return new File([serializeProject(project, "text-dom.dsp.json")], "text-dom.dsp.json", {
+  return new File([projectFileToJson(serializeProject(project, {}))], "text-dom.dsp.json", {
     type: "application/json",
   });
 }
