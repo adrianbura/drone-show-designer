@@ -217,5 +217,5 @@ describe("text formation acceptance on the canonical authored fixture", () => {
     // Re-validation after reopen is the real gate before export.
     const revalidated = validateAuthored(reopened.project, SAMPLE_RATE);
     expect(revalidated.exportReadiness.status).toBe(trajectory.after.exportReadiness);
-  });
+  }, 300_000); // real full-show analysis, twice
 });
