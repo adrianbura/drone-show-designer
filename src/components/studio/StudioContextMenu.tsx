@@ -6,11 +6,15 @@
  * menu primitive. It contains ZERO availability rules and ZERO mutations: the
  * owner passes `onCommand`, which dispatches into the canonical store actions.
  *
- * Radix gives us keyboard navigation, Escape-to-close, focus return and
- * collision-aware repositioning (menus reposition instead of clipping in small
- * windows), so none of that is re-implemented here.
+ * NO OPENING-GESTURE SUPPRESSION. An event-level trace at 1366, 1024 and 900 px
+ * proved native Radix never activates an item from the opening right-click: for
+ * a mouse the right-button release completes before `contextmenu` fires, so no
+ * item exists yet to receive it. The real cause of "dead" menu actions was the
+ * timeline track taking pointer capture on portal-bubbled pointerdowns; that is
+ * fixed at the track (see `src/lib/studio/menuSurface.ts`). Redundant gesture
+ * logic and timers were therefore deleted rather than maintained.
  */
-import { useEffect, useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import {
   ContextMenu,
@@ -25,7 +29,6 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import type { StudioCommand, StudioCommandId, StudioCommandMenu } from "@/lib/studio/commands";
-import { opensContextMenu, suppressOpeningRelease } from "@/lib/studio/contextMenuGesture";
 
 function Item({
   command,
@@ -61,47 +64,14 @@ export default function StudioContextMenu({
   children: ReactNode;
   asChild?: boolean;
 }) {
-  /**
-   * OPENING-GESTURE SUPPRESSION (no time window).
-   *
-   * Radix opens the menu directly under the cursor and activates items on
-   * pointerup, so the release of the very right-click that opened the menu
-   * would fire whichever item sits there — the menu looked like it "did
-   * nothing" while silently invoking Rename/Delete. `suppressOpeningRelease`
-   * swallows exactly that one release (and the click it synthesizes) and stands
-   * down the instant any new pointerdown happens, so an immediate intentional
-   * left click, submenu pointer navigation and keyboard activation all work.
-   */
-  const dispose = useRef<(() => void) | null>(null);
-  useEffect(() => () => dispose.current?.(), []);
-
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      dispose.current?.();
-      dispose.current = null;
-    }
-    onOpenChange?.(open);
-  };
-
   return (
-    <ContextMenu onOpenChange={handleOpenChange}>
-      <ContextMenuTrigger
-        asChild={asChild}
-        onPointerDown={(e) => {
-          if (!opensContextMenu(e)) return;
-          dispose.current?.();
-          dispose.current = suppressOpeningRelease();
-        }}
-      >
-        {children}
-      </ContextMenuTrigger>
+    <ContextMenu {...(onOpenChange ? { onOpenChange } : {})}>
+      <ContextMenuTrigger asChild={asChild}>{children}</ContextMenuTrigger>
       <ContextMenuContent
         data-testid="studio-context-menu"
         collisionPadding={8}
         className="max-h-[80vh] w-56 overflow-y-auto"
-
       >
-
         <ContextMenuLabel className="truncate py-1 text-[11px]">
           {menu.title}
           {menu.subtitle ? (
