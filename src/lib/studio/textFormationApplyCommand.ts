@@ -104,25 +104,38 @@ function plannedIntervals(layer: ReferenceTrajectoryLayer | null | undefined): S
   );
 }
 
-function readiness(clipId: string): GeometryApplyReadinessReport {
-  return {
-    status: "READY",
-    canApply: true,
-    blockers: [],
-    warnings: [],
-    newlyPromotedClipIds: [clipId],
-    note: `Deterministic text geometry is ready to replace the static geometry of ${clipId}.`,
-  };
-}
-
 /**
  * Prepares the complete revision. The caller must install `prepared.after`
  * (project + pruned overrides + reconciled reference layer) as ONE history
  * entry; a partial commit would break undo/redo and imported ownership.
  */
 export function prepareTextFormationApply(input: TextApplyInput): TextApplyPreparationResult {
+  const readiness = input.readiness;
+  if (!readiness) {
+    return {
+      ok: false,
+      blockers: ["READINESS_MISSING"],
+      note: "Apply requires the canonical geometry apply readiness report; it has not been produced for this proposal.",
+    };
+  }
+  if (!readiness.canApply || readiness.status === "BLOCKED") {
+    return {
+      ok: false,
+      blockers: ["READINESS_BLOCKED"],
+      note: `Canonical readiness evidence blocks Apply: ${readiness.blockers.join(" | ") || readiness.note}`,
+    };
+  }
+
   const preview = previewTextFormation(input.project, input.request);
   if (!preview.ok) return { ok: false, blockers: preview.blockers, note: preview.note };
+
+  if (input.project.formations.some((f) => f.id === input.formationId)) {
+    return {
+      ok: false,
+      blockers: ["FORMATION_ID_COLLISION"],
+      note: `Formation id ${input.formationId} already exists in the open show; Apply would overwrite or duplicate an existing asset.`,
+    };
+  }
 
   const { formation } = makeTextFormation({
     id: input.formationId,
@@ -134,9 +147,15 @@ export function prepareTextFormationApply(input: TextApplyInput): TextApplyPrepa
 
   // The replaced asset is kept: other clips and ESSP source recovery may use it.
   const formations = [...input.project.formations, formation];
-  const timeline = input.project.timeline.map((clip) =>
-    clip.id === preview.clipId ? { ...clip, formationId: formation.id } : clip,
-  );
+  // Explicit scene object edits touch ONLY that object's STATIC source; the
+  // legacy `clip.formationId` fallback is rewritten only when no scene object
+  // owns the geometry.
+  const timeline = preview.objectId
+    ? input.project.timeline
+    : input.project.timeline.map((clip) =>
+        clip.id === preview.clipId ? { ...clip, formationId: formation.id } : clip,
+      );
+
   const scenes: FormationScene[] | undefined = input.project.scenes?.map((scene) =>
     scene.id === preview.clipId && preview.objectId
       ? {
