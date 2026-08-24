@@ -137,44 +137,15 @@ export function prepareTextFormationApply(input: TextApplyInput): TextApplyPrepa
     };
   }
 
-  const { formation } = makeTextFormation({
-    id: input.formationId,
-    name: input.formationName ?? `Text — ${input.request.recipe.text}`,
-    recipe: input.request.recipe,
-    authoredForClipId: preview.clipId,
-    ...(preview.objectId ? { authoredForObjectId: preview.objectId } : {}),
+  const candidate = buildTextCandidateProject({
+    project: input.project,
+    preview,
+    formationId: input.formationId,
+    ...(input.formationName ? { formationName: input.formationName } : {}),
   });
+  const formation = candidate.formation;
+  const afterProject = candidate.project;
 
-  // The replaced asset is kept: other clips and ESSP source recovery may use it.
-  const formations = [...input.project.formations, formation];
-  // Explicit scene object edits touch ONLY that object's STATIC source; the
-  // legacy `clip.formationId` fallback is rewritten only when no scene object
-  // owns the geometry.
-  const timeline = preview.objectId
-    ? input.project.timeline
-    : input.project.timeline.map((clip) =>
-        clip.id === preview.clipId ? { ...clip, formationId: formation.id } : clip,
-      );
-
-  const scenes: FormationScene[] | undefined = input.project.scenes?.map((scene) =>
-    scene.id === preview.clipId && preview.objectId
-      ? {
-          ...scene,
-          objects: scene.objects.map((object) =>
-            object.id === preview.objectId
-              ? { ...object, source: { kind: "STATIC" as const, formationId: formation.id } }
-              : object,
-          ),
-        }
-      : scene,
-  );
-
-  const afterProject: ShowProject = {
-    ...input.project,
-    formations,
-    timeline,
-    ...(scenes ? { scenes } : {}),
-  };
 
   const prepared = prepareGeometryApplyCommand({
     beforeProject: input.project,
