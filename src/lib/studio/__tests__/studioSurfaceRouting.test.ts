@@ -82,6 +82,7 @@ describe("studio surface routing", () => {
       canCompareReference: false,
       canRestoreReference: false,
       experimentalEnabled: false,
+      textRebuild: { available: true },
     } as const;
     expect(primaryCommandFor(ctx)).toBe("EDIT_SCENE");
     expect(resolveStudioFocus({ surface: "SCENE" }).panel).toBe("scene-panel");

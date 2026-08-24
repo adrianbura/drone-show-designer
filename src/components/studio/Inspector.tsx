@@ -18,6 +18,7 @@ import LightingEffectsPanel from "./LightingEffectsPanel";
 import SimulationPanel from "./SimulationPanel";
 import DynamicPanel from "./DynamicPanel";
 import EsspPanel from "./EsspPanel";
+import TextFormationPanel from "./TextFormationPanel";
 import ExportPreflight from "./ExportPreflight";
 import ForensicsPanel from "./ForensicsPanel";
 import VerticalStackPanel from "./VerticalStackPanel";
@@ -514,6 +515,11 @@ export default function Inspector({
           converting it into an editable timeline is a first-class entry path. */}
       <div id="essp-panel" data-panel-id="essp-panel">
         <EsspPanel />
+      </div>
+
+      {/* Focused text rebuild for one eligible STATIC target. */}
+      <div id="text-panel" data-panel-id="text-panel">
+        <TextFormationPanel />
       </div>
 
       <section className="panel-card" id="clip-inspector" data-panel-id="clip-inspector">

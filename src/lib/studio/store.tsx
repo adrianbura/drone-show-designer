@@ -137,7 +137,25 @@ import {
   type OverrideBasisMap,
   type TimelineHistorySnapshot,
 } from "./planningIntegrity";
-import { prepareGeometryApplyCommand } from "./geometryApplyCommand";
+import { prepareGeometryApplyCommand, type GeometryApplyPreparationSuccess } from "./geometryApplyCommand";
+import {
+  prepareTextFormationApply,
+  type PromotedTextInterval,
+  type TextApplyBlocker,
+} from "./textFormationApplyCommand";
+import type { TextPreviewRequest } from "./textFormationPreview";
+
+/** Result of a deterministic text apply command. */
+export type TextApplyCommitResult =
+  | {
+      readonly ok: true;
+      readonly formationId: string;
+      readonly newlyPlannedIntervals: readonly PromotedTextInterval[];
+      readonly invalidatedTransitionOverrideClipIds: readonly string[];
+      readonly promotedReferenceClipIds: readonly string[];
+      readonly note: string;
+    }
+  | { readonly ok: false; readonly blockers: readonly TextApplyBlocker[]; readonly note: string };
 import {
   installPreparedGeometryApply,
   type GeometryApplyCommitResult,
@@ -606,6 +624,18 @@ interface StudioContextValue {
     readiness: GeometryApplyReadinessReport;
     promotedAt: string;
   }) => GeometryApplyCommitResult;
+  /**
+   * Applies deterministic text geometry to one eligible STATIC target as ONE
+   * undoable revision. The caller MUST pass the canonical readiness report it
+   * evaluated for the exact same proposal; readiness is never synthesized.
+   */
+  applyTextFormation: (input: {
+    request: TextPreviewRequest;
+    readiness: GeometryApplyReadinessReport | null;
+    formationId: string;
+    formationName?: string;
+    promotedAt: string;
+  }) => TextApplyCommitResult;
 
 
   // ---- Lighting, reveal & colour effects (Sprint 7.4) ---------------------
@@ -3829,24 +3859,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * values TOGETHER and invalidates derived analysis computed for the old
    * geometry. It never re-implements readiness, pruning or promotion.
    */
-  const applyGeometryProposal = useCallback(
-    (input: {
-      afterProject: ShowProject;
-      readiness: GeometryApplyReadinessReport;
-      promotedAt: string;
-    }): GeometryApplyCommitResult => {
-      const prepared = prepareGeometryApplyCommand({
-        beforeProject: projectRef.current,
-        afterProject: input.afterProject,
-        readiness: input.readiness,
-        transitionOverrides: transitionOverridesRef.current,
-        transitionDesigns: transitionDesignsRef.current,
-        referenceLayer: referenceLayerRef.current,
-        assignmentStrategy,
-        promotedAt: input.promotedAt,
-      });
-      if (!prepared.ok) return prepared;
-
+  /**
+   * ONE atomic install path for every prepared geometry revision (proposal apply
+   * and deterministic text apply). Extracted so a second authoring command can
+   * never grow a second history/ownership/derived-analysis install.
+   */
+  const installGeometryApplyRevision = useCallback(
+    (prepared: GeometryApplyPreparationSuccess) => {
       const installed = installPreparedGeometryApply(prepared, {
         past: timelineHistory.current.past,
         future: timelineHistory.current.future,
@@ -3891,13 +3910,74 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       reconcileSelectionRef.current(installed.project, nextClipId, nextClipId);
 
       return {
-        ok: true,
         invalidatedTransitionOverrideClipIds: installed.invalidatedTransitionOverrideClipIds,
         promotedReferenceClipIds: installed.promotedReferenceClipIds,
         note: prepared.note,
       };
     },
-    [assignmentStrategy, derivedAnalysisSetters],
+    [derivedAnalysisSetters],
+  );
+
+  const applyGeometryProposal = useCallback(
+    (input: {
+      afterProject: ShowProject;
+      readiness: GeometryApplyReadinessReport;
+      promotedAt: string;
+    }): GeometryApplyCommitResult => {
+      const prepared = prepareGeometryApplyCommand({
+        beforeProject: projectRef.current,
+        afterProject: input.afterProject,
+        readiness: input.readiness,
+        transitionOverrides: transitionOverridesRef.current,
+        transitionDesigns: transitionDesignsRef.current,
+        referenceLayer: referenceLayerRef.current,
+        assignmentStrategy,
+        promotedAt: input.promotedAt,
+      });
+      if (!prepared.ok) return prepared;
+      return { ok: true, ...installGeometryApplyRevision(prepared) };
+    },
+    [assignmentStrategy, installGeometryApplyRevision],
+  );
+
+  /**
+   * DETERMINISTIC TEXT APPLY. The canonical readiness report produced by the
+   * review UI is passed through UNCHANGED; this store action never constructs,
+   * patches or upgrades readiness, and a blocked/missing report is refused by
+   * `prepareTextFormationApply` before anything is installed.
+   */
+  const applyTextFormation = useCallback(
+    (input: {
+      request: TextPreviewRequest;
+      readiness: GeometryApplyReadinessReport | null;
+      formationId: string;
+      formationName?: string;
+      promotedAt: string;
+    }): TextApplyCommitResult => {
+      const prepared = prepareTextFormationApply({
+        project: projectRef.current,
+        request: input.request,
+        readiness: input.readiness,
+        formationId: input.formationId,
+        ...(input.formationName ? { formationName: input.formationName } : {}),
+        transitionOverrides: transitionOverridesRef.current,
+        transitionDesigns: transitionDesignsRef.current,
+        referenceLayer: referenceLayerRef.current,
+        assignmentStrategy,
+        promotedAt: input.promotedAt,
+      });
+      if (!prepared.ok) return { ok: false, blockers: prepared.blockers, note: prepared.note };
+      const installed = installGeometryApplyRevision(prepared.prepared);
+      return {
+        ok: true,
+        formationId: prepared.formation.id,
+        newlyPlannedIntervals: prepared.newlyPlannedIntervals,
+        invalidatedTransitionOverrideClipIds: installed.invalidatedTransitionOverrideClipIds,
+        promotedReferenceClipIds: installed.promotedReferenceClipIds,
+        note: prepared.note,
+      };
+    },
+    [assignmentStrategy, installGeometryApplyRevision],
   );
 
 
@@ -5288,6 +5368,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       resetSceneObject,
       duplicateSceneAsEditable,
       applyGeometryProposal,
+      applyTextFormation,
 
       lightingEffects,
       lightingReport,
@@ -5646,6 +5727,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       resetSceneObject,
       duplicateSceneAsEditable,
       applyGeometryProposal,
+      applyTextFormation,
 
       lightingEffects,
       lightingReport,
