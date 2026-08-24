@@ -10,7 +10,7 @@
  * collision-aware repositioning (menus reposition instead of clipping in small
  * windows), so none of that is re-implemented here.
  */
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import {
   ContextMenu,
@@ -60,13 +60,37 @@ export default function StudioContextMenu({
   children: ReactNode;
   asChild?: boolean;
 }) {
+  /**
+   * POINTER ARMING WINDOW. A right-click opens the menu directly under the
+   * cursor, so the *release* of that same click would otherwise land on
+   * whichever item sits under the pointer and fire it immediately — the menu
+   * looked like it "did nothing" while silently invoking Rename/Delete and
+   * closing again. Pointer input on items is ignored for a short grace period;
+   * keyboard navigation is unaffected.
+   */
+  const [armed, setArmed] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  const handleOpenChange = (open: boolean) => {
+    if (timer.current) clearTimeout(timer.current);
+    setArmed(false);
+    if (open) timer.current = setTimeout(() => setArmed(true), 350);
+    onOpenChange?.(open);
+  };
+
   return (
-    <ContextMenu {...(onOpenChange ? { onOpenChange } : {})}>
+    <ContextMenu onOpenChange={handleOpenChange}>
       <ContextMenuTrigger asChild={asChild}>{children}</ContextMenuTrigger>
       <ContextMenuContent
         data-testid="studio-context-menu"
         collisionPadding={8}
-        className="max-h-[80vh] w-56 overflow-y-auto"
+        className={`max-h-[80vh] w-56 overflow-y-auto ${armed ? "" : "[&_[role=menuitem]]:pointer-events-none"}`}
       >
         <ContextMenuLabel className="truncate py-1 text-[11px]">
           {menu.title}
