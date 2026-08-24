@@ -112,14 +112,14 @@ function plannedIntervals(layer: ReferenceTrajectoryLayer | null | undefined): S
  */
 export function buildTextCandidateProject(input: {
   readonly project: ShowProject;
-  readonly preview: { readonly clipId: string; readonly objectId: string | null };
+  readonly preview: TextPreviewSuccess;
   readonly formationId: string;
   readonly formationName?: string;
-  readonly recipe?: undefined;
-} & { readonly preview: TextPreviewSuccess }): {
+}): {
   readonly project: ShowProject;
   readonly formation: Formation;
 } {
+
   const { project, preview } = input;
   const { formation } = makeTextFormation({
     id: input.formationId,
