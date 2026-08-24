@@ -15,6 +15,7 @@ function recipeFor(participation: number, text = "RALLY") {
     style: "UPRIGHT",
     widthMeters: 90,
     heightMeters: 24,
+    centerAltitudeMeters: 45,
     letterSpacingEm: 0.8,
     alignment: "CENTER",
     participation,

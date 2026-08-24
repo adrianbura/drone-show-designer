@@ -18,6 +18,7 @@ function recipe(overrides: Partial<Omit<TextGeometryRecipe, "schemaVersion" | "a
     style: "UPRIGHT",
     widthMeters: 120,
     heightMeters: 30,
+    centerAltitudeMeters: 45,
     letterSpacingEm: 0.8,
     alignment: "CENTER",
     participation: 150,
