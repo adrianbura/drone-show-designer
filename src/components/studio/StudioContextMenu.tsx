@@ -61,7 +61,7 @@ export default function StudioContextMenu({
   asChild?: boolean;
 }) {
   return (
-    <ContextMenu onOpenChange={(o) => { (window as any).__scm = [...((window as any).__scm ?? []), `${menu.title}:${o}`]; onOpenChange?.(o); }}>
+    <ContextMenu onOpenChange={(o) => { console.log("[SCM]", menu.title, o, Math.round(performance.now()), o ? "" : new Error().stack?.slice(0, 900)); onOpenChange?.(o); }}>
       <ContextMenuTrigger asChild={asChild}>{children}</ContextMenuTrigger>
       <ContextMenuContent
         data-testid="studio-context-menu"
