@@ -17,6 +17,7 @@ export type InspectorPanelId =
   | "lighting-panel"
   | "transition-panel"
   | "essp-panel"
+  | "text-panel"
   | "forensics-panel";
 
 export type InspectorGroupId = "AUTHORING" | "VALIDATE" | "ADVANCED";
@@ -29,6 +30,7 @@ export const INSPECTOR_PANEL_GROUP: Readonly<Record<InspectorPanelId, InspectorG
   "lighting-panel": "AUTHORING",
   "transition-panel": "AUTHORING",
   "essp-panel": "AUTHORING",
+  "text-panel": "AUTHORING",
   "forensics-panel": "ADVANCED",
 };
 
@@ -44,6 +46,7 @@ export type StudioSurfaceId =
   | "LIGHTING"
   | "TRANSITION"
   | "REFERENCE"
+  | "TEXT"
   | "VALIDATION";
 
 export const STUDIO_SURFACE_PANEL: Readonly<Record<StudioSurfaceId, InspectorPanelId>> = {
@@ -54,6 +57,7 @@ export const STUDIO_SURFACE_PANEL: Readonly<Record<StudioSurfaceId, InspectorPan
   LIGHTING: "lighting-panel",
   TRANSITION: "transition-panel",
   REFERENCE: "essp-panel",
+  TEXT: "text-panel",
   VALIDATION: "forensics-panel",
 };
 

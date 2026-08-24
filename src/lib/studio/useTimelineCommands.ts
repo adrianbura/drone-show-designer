@@ -17,6 +17,7 @@ import { useStudio } from "@/lib/studio/store";
 import type { ClipCommandContext, ClipOwnership, StudioCommandId } from "./commands";
 import { focusStudioSurface, type StudioSurfaceId } from "./inspectorFocus";
 import { clipLabel, clipRepresentation } from "./selectionSummary";
+import { resolveTextRebuildEligibility } from "./textRebuild";
 
 export interface RenameRequest {
   readonly kind: "CLIP" | "MARKER";
@@ -85,6 +86,12 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
         // restored individually in the scene panel. Never pretend otherwise.
         canRestoreReference: false,
         experimentalEnabled: import.meta.env.DEV,
+        textRebuild: (() => {
+          const eligibility = resolveTextRebuildEligibility(project, clipId);
+          return eligibility.available
+            ? { available: true }
+            : { available: false, reason: eligibility.reason ?? "" };
+        })(),
       };
     },
     [beatGrid.beats, canEditClipAsScene, lightingEffects, ownershipOf, project],
@@ -149,8 +156,11 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
         case "COMPARE_REFERENCE":
           focusSurface("VALIDATION", clipId);
           return;
-        case "RESTORE_REFERENCE":
         case "REBUILD_AS_TEXT":
+          // Navigation only: the focused text editor mutates nothing on open.
+          focusSurface("TEXT", clipId);
+          return;
+        case "RESTORE_REFERENCE":
           // Presented as explicitly unavailable by the command authority.
           return;
         case "ADD_CLIP_HERE": {

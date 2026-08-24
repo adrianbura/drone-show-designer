@@ -107,6 +107,13 @@ export interface ClipCommandContext {
   readonly canRestoreReference: boolean;
   /** Development-only surfaces for planned capabilities. */
   readonly experimentalEnabled: boolean;
+  /**
+   * Deterministic text rebuild eligibility, resolved by the SAME authority the
+   * preview transaction uses (`resolveTextRebuildEligibility`). Unavailable
+   * targets (dynamic clip, dynamic object, multi-object scene) carry the
+   * explicit blocker reason produced there.
+   */
+  readonly textRebuild: { readonly available: boolean; readonly reason?: string };
 }
 
 export interface EmptyTimelineCommandContext {
@@ -133,9 +140,9 @@ export type TimelineCommandContext =
   | MarkerCommandContext
   | LightingEffectCommandContext;
 
-/** Reason surfaced for planned-but-unimplemented semantic reconstruction. */
+/** Fallback reason when no target-specific blocker was resolved. */
 export const REBUILD_AS_TEXT_REASON =
-  "Not implemented yet — semantic text reconstruction is planned (Scene 31 / SUPER RALLY).";
+  "This target cannot be rebuilt as deterministic text; only a single STATIC formation or STATIC scene object is supported.";
 
 function cmd(
   id: StudioCommandId,
@@ -208,12 +215,16 @@ function clipMenu(ctx: ClipCommandContext): StudioCommandMenu {
             : []),
         ];
 
-  // ADVANCED — planned semantic reconstruction, development surfaces only.
-  const advanced: StudioCommand[] = [];
-  const sceneCapable = ctx.representation === "SCENE" || ctx.canConvertToScene;
-  if (ctx.experimentalEnabled && sceneCapable) {
-    advanced.push(blocked("REBUILD_AS_TEXT", "Rebuild as Editable Text…", REBUILD_AS_TEXT_REASON));
-  }
+  // ADVANCED — deterministic text rebuild of a single STATIC target.
+  const advanced: StudioCommand[] = [
+    ctx.textRebuild.available
+      ? cmd("REBUILD_AS_TEXT", "Rebuild as Text…")
+      : blocked(
+          "REBUILD_AS_TEXT",
+          "Rebuild as Text…",
+          ctx.textRebuild.reason ?? REBUILD_AS_TEXT_REASON,
+        ),
+  ];
 
   const sections = [
     section("EDIT", edit),

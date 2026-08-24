@@ -25,6 +25,7 @@ function clip(patch: Partial<ClipCommandContext> = {}): ClipCommandContext {
     canCompareReference: false,
     canRestoreReference: false,
     experimentalEnabled: false,
+    textRebuild: { available: true },
     ...patch,
   };
 }
@@ -85,14 +86,23 @@ describe("command authority", () => {
     }
   });
 
-  it("surfaces planned text reconstruction only as an honest development affordance", () => {
-    expect(ids(clip({ experimentalEnabled: true }))).toContain("REBUILD_AS_TEXT");
-    expect(ids(clip({ experimentalEnabled: false }))).not.toContain("REBUILD_AS_TEXT");
-    const menu = resolveTimelineCommands(clip({ experimentalEnabled: true }));
-    expect(findCommand(menu, "REBUILD_AS_TEXT")).toMatchObject({
-      available: false,
-      unavailableReason: REBUILD_AS_TEXT_REASON,
+  it("offers text rebuild for eligible targets and blocks others with the real reason", () => {
+    expect(findCommand(resolveTimelineCommands(clip()), "REBUILD_AS_TEXT")).toMatchObject({
+      available: true,
+      label: "Rebuild as Text…",
     });
+    const blockedMenu = resolveTimelineCommands(
+      clip({
+        representation: "DYNAMIC",
+        textRebuild: { available: false, reason: "dynamic clip" },
+      }),
+    );
+    expect(findCommand(blockedMenu, "REBUILD_AS_TEXT")).toMatchObject({
+      available: false,
+      unavailableReason: "dynamic clip",
+    });
+    const fallback = resolveTimelineCommands(clip({ textRebuild: { available: false } }));
+    expect(findCommand(fallback, "REBUILD_AS_TEXT")?.unavailableReason).toBe(REBUILD_AS_TEXT_REASON);
   });
 
   it("keeps delete destructive and last", () => {
