@@ -10,7 +10,7 @@
  * collision-aware repositioning (menus reposition instead of clipping in small
  * windows), so none of that is re-implemented here.
  */
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import {
   ContextMenu,
