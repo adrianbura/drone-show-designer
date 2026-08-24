@@ -85,11 +85,44 @@ export function resolveStudioFocus(input: {
   };
 }
 
+/**
+ * VISIBLE SURFACE REGISTRATION. Several presentations of the same semantic
+ * surfaces can be mounted at once (docked Inspector at xl, narrow dock below
+ * it). Each presentation registers itself with a visibility predicate; a focus
+ * request is revealed by the highest-priority CURRENTLY VISIBLE host. There is
+ * exactly one authority — responsive presentation only decides HOW to reveal.
+ */
+export interface InspectorHost {
+  /** Higher wins when several hosts are visible. */
+  readonly priority: number;
+  isVisible(): boolean;
+  reveal(request: StudioFocusRequest): void;
+}
+
+const hosts = new Set<InspectorHost>();
+
+export function registerInspectorHost(host: InspectorHost): () => void {
+  hosts.add(host);
+  return () => hosts.delete(host);
+}
+
+/** Pure selection — exported for tests. */
+export function selectVisibleHost(candidates: Iterable<InspectorHost>): InspectorHost | null {
+  let best: InspectorHost | null = null;
+  for (const h of candidates) {
+    if (!h.isVisible()) continue;
+    if (!best || h.priority > best.priority) best = h;
+  }
+  return best;
+}
+
 export function focusStudioSurface(input: {
   surface: StudioSurfaceId;
   clipId?: string;
 }): StudioFocusRequest {
   const request = resolveStudioFocus(input);
+  const host = selectVisibleHost(hosts);
+  if (host) host.reveal(request);
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent<StudioFocusRequest>(EVENT, { detail: request }));
   }
@@ -102,3 +135,4 @@ export function onInspectorFocus(handler: (request: StudioFocusRequest) => void)
   window.addEventListener(EVENT, listener);
   return () => window.removeEventListener(EVENT, listener);
 }
+

@@ -3,6 +3,7 @@ import { ClientOnly } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 import Inspector from "@/components/studio/Inspector";
+import InspectorDock from "@/components/studio/InspectorDock";
 import LeftPanel from "@/components/studio/LeftPanel";
 import Timeline from "@/components/studio/Timeline";
 import TopBar from "@/components/studio/TopBar";
@@ -166,7 +167,8 @@ function StudioWorkspace() {
           NARROW-WINDOW PANEL FALLBACK. The Inspector (which owns the Lighting
           panel) only docks at xl, so it must stay reachable below that width —
           the left panel only needs the fallback below lg. Internally scrollable
-          so the 3D viewport and timeline never lose height.
+          so the 3D viewport and timeline never lose height. Command-driven
+          reveals below xl open `InspectorDock` instead, which is visible.
         */}
         <div className="min-h-0 flex-1 overflow-y-auto border-t border-border xl:hidden">
           <div className="lg:hidden">
@@ -174,6 +176,8 @@ function StudioWorkspace() {
           </div>
           <Inspector />
         </div>
+        <InspectorDock />
     </>
+
   );
 }
