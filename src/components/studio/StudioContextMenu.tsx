@@ -61,7 +61,7 @@ export default function StudioContextMenu({
   asChild?: boolean;
 }) {
   return (
-    <ContextMenu {...(onOpenChange ? { onOpenChange } : {})}>
+    <ContextMenu onOpenChange={(o) => { console.log("[SCM] openChange", menu.title, o); onOpenChange?.(o); }}>
       <ContextMenuTrigger asChild={asChild}>{children}</ContextMenuTrigger>
       <ContextMenuContent
         data-testid="studio-context-menu"
