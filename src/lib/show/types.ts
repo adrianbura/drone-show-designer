@@ -17,6 +17,7 @@ export type Vec3 = Vector3Tuple;
 export type RGB = readonly [number, number, number];
 
 import type { SvgFormationSource } from "./svg/types";
+import type { TextFormationSource } from "./text/types";
 import type { PreShowConfig } from "./preshow/types";
 import type { DynamicFormation } from "./dynamic/types";
 import type { MusicSection, TimelineMarker } from "./markers";
@@ -51,6 +52,13 @@ export interface Formation {
    * asset. Present only when `kind === "svg"`; every other layer ignores it.
    */
   svg?: SvgFormationSource;
+  /**
+   * Deterministic text recipe this formation was generated from. Present only
+   * for planner-owned text formations built by the bundled glyph pack; every
+   * other layer ignores it. Its presence is what makes the geometry
+   * reproducible after Save/Open without re-running any browser code.
+   */
+  text?: TextFormationSource;
 }
 
 export type LightEffect = "solid" | "pulse" | "rainbow" | "chase" | "twinkle";
