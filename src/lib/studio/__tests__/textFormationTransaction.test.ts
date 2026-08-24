@@ -172,7 +172,7 @@ describe("text apply transaction", () => {
     if (!prepared.ok) return;
 
     const applied = prepared.prepared.after.project;
-    const reopened = parseProjectFile(serializeProject(applied)).project;
+    const reopened = parseProjectFile(JSON.stringify(serializeProject(applied))).project;
     const before = applied.formations.find((f) => f.id === "f-text-apply-4")!;
     const after = reopened.formations.find((f) => f.id === "f-text-apply-4")!;
     expect(after.points).toEqual(before.points);
