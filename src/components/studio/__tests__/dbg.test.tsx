@@ -11,7 +11,7 @@ describe("dbg", () => {
     const { project } = await importedFixture();
     const clip = project.timeline[Math.floor(project.timeline.length / 2)]!;
     const f = project.formations.find((x) => x.id === clip.formationId)!;
-    const recipe = makeTextRecipe({ text: "RALLY", weight: "REGULAR", style: "UPRIGHT", widthMeters: 200, heightMeters: 55, centerAltitudeMeters: 60, letterSpacingEm: 0.8, alignment: "CENTER", participation: f.points.length, outlineRatio: 0.7, bandOffsetEm: 0.35, seed: 1 });
+    const recipe = makeTextRecipe({ text: "RALLY", weight: "REGULAR", style: "UPRIGHT", widthMeters: 140, heightMeters: 40, centerAltitudeMeters: 50, letterSpacingEm: 0.8, alignment: "CENTER", participation: f.points.length, outlineRatio: 0.7, bandOffsetEm: 0.35, seed: 1 });
     const p = previewTextFormation(project, { clipId: clip.id, recipe });
     if (!p.ok) throw new Error(JSON.stringify(p));
     const pre = analyzeGeometryProposalConsequences({ before: f.points, after: p.points.map((q) => [q[0], q[1], q[2]] as [number,number,number]), area: project.area, limits: project.limits });
