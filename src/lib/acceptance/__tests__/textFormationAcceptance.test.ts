@@ -152,7 +152,23 @@ describe("text formation acceptance on the canonical authored fixture", () => {
       afterStatus: trajectory.after.exportReadiness,
     }).toMatchObject({ status: readiness.status });
     if (!readiness.canApply) {
+      /*
+       * REAL, CURRENT RESULT on this fixture (60 drones, clip c-prod-wide):
+       *   - baseline validation: READY (asserted above) -> NOT the cause
+       *   - static text spacing: staticEnvelopePass = true, 0 violating pairs
+       *     -> NOT the cause
+       *   - imported splice continuity: no reference layer here -> NOT the cause
+       *   - transition assignment / deconfliction: IS the cause. Re-assigning
+       *     the grid onto the glyph strokes produces a mid-transition PROXIMITY
+       *     error (~0.96 m vs 2.50 m) plus landing-pad continuity errors, and
+       *     lengthening the transition does not remove either.
+       * Apply stays blocked; safety and export validation are NOT weakened.
+       */
+      expect(preflight.staticEnvelopePass).toBe(true);
+      expect(preview.feasibility.violationPairCount).toBe(0);
+      expect(readiness.status).toBe("BLOCKED");
       expect(readiness.blockers.length).toBeGreaterThan(0);
+      expect(trajectory.after.exportReadiness).toBe("BLOCKED");
       return;
     }
 
