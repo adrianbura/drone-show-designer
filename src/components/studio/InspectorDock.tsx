@@ -19,7 +19,16 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { registerInspectorHost, type StudioFocusRequest } from "@/lib/studio/inspectorFocus";
 
 /** The docked Inspector aside becomes visible at Tailwind's xl breakpoint. */
-const XL = 1280;
+export const XL = 1280;
+
+/** Priorities of the two command continuations — docked aside always wins. */
+export const DOCKED_INSPECTOR_PRIORITY = 20;
+export const INSPECTOR_DOCK_PRIORITY = 0;
+
+/** Pure: this dock is a valid visible continuation only below xl. */
+export function isNarrowLayout(width: number): boolean {
+  return width < XL;
+}
 
 export default function InspectorDock() {
   const [open, setOpen] = useState(false);
@@ -28,8 +37,8 @@ export default function InspectorDock() {
   useEffect(
     () =>
       registerInspectorHost({
-        priority: 0, // the docked desktop Inspector wins whenever it is visible
-        isVisible: () => typeof window !== "undefined" && window.innerWidth < XL,
+        priority: INSPECTOR_DOCK_PRIORITY, // the docked desktop Inspector wins whenever it is visible
+        isVisible: () => typeof window !== "undefined" && isNarrowLayout(window.innerWidth),
         reveal: (r) => {
           setRequest(r);
           setOpen(true);
@@ -37,6 +46,7 @@ export default function InspectorDock() {
       }),
     [],
   );
+
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>

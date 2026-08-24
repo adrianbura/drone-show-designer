@@ -10,7 +10,7 @@
  * collision-aware repositioning (menus reposition instead of clipping in small
  * windows), so none of that is re-implemented here.
  */
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import {
   ContextMenu,
@@ -25,6 +25,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import type { StudioCommand, StudioCommandId, StudioCommandMenu } from "@/lib/studio/commands";
+import { opensContextMenu, suppressOpeningRelease } from "@/lib/studio/contextMenuGesture";
 
 function Item({
   command,
@@ -61,37 +62,46 @@ export default function StudioContextMenu({
   asChild?: boolean;
 }) {
   /**
-   * POINTER ARMING WINDOW. A right-click opens the menu directly under the
-   * cursor, so the *release* of that same click would otherwise land on
-   * whichever item sits under the pointer and fire it immediately — the menu
-   * looked like it "did nothing" while silently invoking Rename/Delete and
-   * closing again. Pointer input on items is ignored for a short grace period;
-   * keyboard navigation is unaffected.
+   * OPENING-GESTURE SUPPRESSION (no time window).
+   *
+   * Radix opens the menu directly under the cursor and activates items on
+   * pointerup, so the release of the very right-click that opened the menu
+   * would fire whichever item sits there — the menu looked like it "did
+   * nothing" while silently invoking Rename/Delete. `suppressOpeningRelease`
+   * swallows exactly that one release (and the click it synthesizes) and stands
+   * down the instant any new pointerdown happens, so an immediate intentional
+   * left click, submenu pointer navigation and keyboard activation all work.
    */
-  const [armed, setArmed] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
+  const dispose = useRef<(() => void) | null>(null);
+  useEffect(() => () => dispose.current?.(), []);
 
   const handleOpenChange = (open: boolean) => {
-    if (timer.current) clearTimeout(timer.current);
-    setArmed(false);
-    if (open) timer.current = setTimeout(() => setArmed(true), 350);
+    if (!open) {
+      dispose.current?.();
+      dispose.current = null;
+    }
     onOpenChange?.(open);
   };
 
   return (
     <ContextMenu onOpenChange={handleOpenChange}>
-      <ContextMenuTrigger asChild={asChild}>{children}</ContextMenuTrigger>
+      <ContextMenuTrigger
+        asChild={asChild}
+        onPointerDown={(e) => {
+          if (!opensContextMenu(e)) return;
+          dispose.current?.();
+          dispose.current = suppressOpeningRelease();
+        }}
+      >
+        {children}
+      </ContextMenuTrigger>
       <ContextMenuContent
         data-testid="studio-context-menu"
         collisionPadding={8}
-        className={`max-h-[80vh] w-56 overflow-y-auto ${armed ? "" : "[&_[role=menuitem]]:pointer-events-none"}`}
+        className="max-h-[80vh] w-56 overflow-y-auto"
+
       >
+
         <ContextMenuLabel className="truncate py-1 text-[11px]">
           {menu.title}
           {menu.subtitle ? (

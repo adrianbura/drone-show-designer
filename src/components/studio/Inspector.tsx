@@ -40,7 +40,7 @@ import {
 
 import {
   focusStudioSurface,
-  onInspectorFocus,
+  registerInspectorHost,
   type InspectorGroupId,
   type StudioFocusRequest,
 } from "@/lib/studio/inspectorFocus";
@@ -263,29 +263,44 @@ function EsspSourceRecovery({
   );
 }
 
-export default function Inspector({ focusRequest }: { focusRequest?: StudioFocusRequest | null } = {}) {
+export default function Inspector({
+  focusRequest,
+  focusHost = false,
+  focusHostPriority = 10,
+}: {
+  focusRequest?: StudioFocusRequest | null;
+  /** Register this presentation with the ONE focus authority as a reveal host. */
+  focusHost?: boolean;
+  focusHostPriority?: number;
+} = {}) {
   const [group, setGroup] = useState<InspectorGroupId>("AUTHORING");
   const rootRef = useRef<HTMLDivElement | null>(null);
   /**
    * FOCUS REQUESTS from other surfaces (timeline context menu, double-click,
    * Inspector quick actions, later Ctrl+K). Reveal only — never a mutation.
    *
-   * Several Inspector presentations can be mounted (docked at xl, narrow dock
-   * below it), so the panel is resolved INSIDE this instance's own subtree and
-   * only revealed when this instance is actually visible. A request can also be
-   * handed in directly via `focusRequest` by the presentation that just made
-   * itself visible (narrow dock), which is how the same command completes
-   * visibly at every breakpoint.
+   * Several Inspector presentations can be mounted at once (docked aside at xl,
+   * narrow sheet dock below it, stacked manual-navigation copy). Exactly ONE of
+   * them reveals a given request: the focus authority picks the highest-priority
+   * VISIBLE host and calls it. Presentations that are not hosts (the stacked
+   * fallback) never react, so a single command produces a single scroll/focus
+   * side effect.
    */
   const [pendingFocus, setPendingFocus] = useState<StudioFocusRequest | null>(null);
-  useEffect(
-    () =>
-      onInspectorFocus((request) => {
-        setGroup(request.group);
-        setPendingFocus(request);
-      }),
-    [],
-  );
+  const reveal = (request: StudioFocusRequest) => {
+    setGroup(request.group);
+    setPendingFocus(request);
+  };
+  const revealRef = useRef(reveal);
+  revealRef.current = reveal;
+  useEffect(() => {
+    if (!focusHost) return;
+    return registerInspectorHost({
+      priority: focusHostPriority,
+      isVisible: () => rootRef.current?.offsetParent != null,
+      reveal: (r) => revealRef.current(r),
+    });
+  }, [focusHost, focusHostPriority]);
   useEffect(() => {
     if (!focusRequest) return;
     setGroup(focusRequest.group);
@@ -305,6 +320,7 @@ export default function Inspector({ focusRequest }: { focusRequest?: StudioFocus
     const t = window.setTimeout(() => el.removeAttribute("data-focused"), 2200);
     return () => window.clearTimeout(t);
   }, [pendingFocus, group]);
+
 
 
   const [sampleConfirm, setSampleConfirm] = useState(false);
