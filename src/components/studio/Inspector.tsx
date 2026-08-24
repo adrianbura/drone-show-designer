@@ -25,7 +25,7 @@ import GeometryProposalPanel from "./GeometryProposalPanel";
 import ConversionPanel from "./ConversionPanel";
 import NativeConversionPanel from "./NativeConversionPanel";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { DEPTH_STAGGER_DEMO_ID } from "@/lib/show/stories/depthStaggerDemo";
 import {
@@ -39,9 +39,10 @@ import {
 } from "@/lib/studio/productionStatus";
 
 import {
-  INSPECTOR_PANEL_GROUP,
+  focusStudioSurface,
   onInspectorFocus,
   type InspectorGroupId,
+  type StudioFocusRequest,
 } from "@/lib/studio/inspectorFocus";
 import { summarizeClipSelection } from "@/lib/studio/selectionSummary";
 import { formatShowTime } from "@/lib/studio/timelineEdit";
@@ -400,7 +401,7 @@ export default function Inspector() {
   const authority = authorityLabel(referenceOwnership);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col" ref={rootRef}>
       {/* INSPECTOR INFORMATION ARCHITECTURE — three operator-facing groups.
           Groups stay MOUNTED (hidden, not unmounted) so panel state, searches
           and diagnostics survive navigation. */}
@@ -522,7 +523,7 @@ export default function Inspector() {
               canConvert={canEditClipAsScene(clip.id)}
               isShowClip={clipPhase(clip) === "SHOW"}
               onConvert={() => {
-                if (editClipAsScene(clip.id)) scrollToPanel("scene-panel");
+                if (editClipAsScene(clip.id)) focusStudioSurface({ surface: "SCENE", clipId: clip.id });
               }}
               onDuplicate={() => duplicateClipForDesign(clip.id)}
             />
@@ -1180,11 +1181,6 @@ export default function Inspector() {
   );
 }
 
-/** Scrolls the inspector to the panel that actually edits the selected clip. */
-function scrollToPanel(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
 /**
  * CLIP -> DESIGN ROUTING. Read-only guidance plus two explicit commands; opening
  * or reading this block never mutates the project.
@@ -1211,7 +1207,7 @@ function ClipDesignActions({
       <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Design</p>
       {hasScene && (
         <button
-          onClick={() => scrollToPanel("scene-panel")}
+          onClick={() => focusStudioSurface({ surface: "SCENE", clipId })}
           className="chip-btn w-full justify-center"
           data-testid="clip-design-open-scene"
         >
@@ -1220,7 +1216,7 @@ function ClipDesignActions({
       )}
       {isDynamic && (
         <button
-          onClick={() => scrollToPanel("dynamic-panel")}
+          onClick={() => focusStudioSurface({ surface: "DYNAMIC", clipId })}
           className="chip-btn w-full justify-center"
           data-testid="clip-design-open-dynamic"
         >
