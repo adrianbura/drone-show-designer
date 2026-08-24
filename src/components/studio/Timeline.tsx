@@ -991,6 +991,10 @@ export default function Timeline({
                 <button
                   onPointerDown={(e) => {
                     e.stopPropagation();
+                    if (!shouldBeginTimelineGesture(e)) {
+                      selectClip(clip.id);
+                      return;
+                    }
                     selectClip(clip.id);
                     e.currentTarget.setPointerCapture(e.pointerId);
                     beginGesture("HOLD", clip.id, e.clientX);
