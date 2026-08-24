@@ -101,24 +101,20 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
 
       switch (id) {
         case "EDIT_SCENE":
-          if (clipId) selectClip(clipId);
           focusSurface("SCENE", clipId);
           return;
         case "EDIT_DYNAMIC":
-          if (clipId) selectClip(clipId);
           focusSurface("DYNAMIC", clipId);
           return;
         case "EDIT_FORMATION":
         case "SET_COLOR":
         case "EDIT_MOTION":
-          if (clipId) selectClip(clipId);
           focusSurface("CLIP", clipId);
           return;
         case "CONVERT_TO_SCENE":
           if (clipId && editClipAsScene(clipId)) focusSurface("SCENE", clipId);
           return;
         case "EDIT_LIGHTING":
-          if (clipId) selectClip(clipId);
           focusSurface("LIGHTING", clipId);
           return;
         case "VIEW_IMPORTED_RGB":
@@ -135,7 +131,6 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
         case "EDIT_TRANSITION":
         case "TRANSITION_DESIGN":
         case "REPLAN_ASSIGNMENT":
-          if (clipId) selectClip(clipId);
           focusSurface("TRANSITION", clipId);
           return;
         case "DUPLICATE_CLIP":

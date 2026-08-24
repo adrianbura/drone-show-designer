@@ -465,11 +465,11 @@ export default function Inspector() {
         >
       {/* Reference show sits at the TOP of AUTHORING: importing an ESSP and
           converting it into an editable timeline is a first-class entry path. */}
-      <div id="essp-panel">
+      <div id="essp-panel" data-panel-id="essp-panel">
         <EsspPanel />
       </div>
 
-      <section className="panel-card" id="clip-inspector">
+      <section className="panel-card" id="clip-inspector" data-panel-id="clip-inspector">
         <h2 className="panel-title">Clip inspector</h2>
         {!clip ? (
           <p className="text-xs text-muted-foreground">
@@ -612,7 +612,7 @@ export default function Inspector() {
         )}
       </section>
 
-      <div id="transition-panel">
+      <div id="transition-panel" data-panel-id="transition-panel">
         <TransitionDesignPanel />
       </div>
 
@@ -761,17 +761,17 @@ export default function Inspector() {
 
       <LaunchPanel />
 
-      <div id="scene-panel">
+      <div id="scene-panel" data-panel-id="scene-panel">
         <SceneObjectsPanel />
       </div>
 
-      <div id="lighting-panel">
+      <div id="lighting-panel" data-panel-id="lighting-panel">
         <LightingEffectsPanel />
       </div>
 
       <ParticipationPanel />
 
-      <div id="dynamic-panel">
+      <div id="dynamic-panel" data-panel-id="dynamic-panel">
         <DynamicPanel />
       </div>
         </div>
@@ -1126,7 +1126,7 @@ export default function Inspector() {
 
           <VerticalStackPanel />
           <GeometryProposalPanel />
-          <div id="forensics-panel">
+          <div id="forensics-panel" data-panel-id="forensics-panel">
             <ForensicsPanel />
           </div>
           <NativeConversionPanel />
