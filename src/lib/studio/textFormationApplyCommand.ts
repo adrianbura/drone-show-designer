@@ -179,7 +179,7 @@ export function prepareTextFormationApply(input: TextApplyInput): TextApplyPrepa
   const prepared = prepareGeometryApplyCommand({
     beforeProject: input.project,
     afterProject,
-    readiness: readiness(preview.clipId),
+    readiness,
     transitionOverrides: input.transitionOverrides,
     ...(input.transitionDesigns ? { transitionDesigns: input.transitionDesigns } : {}),
     referenceLayer: input.referenceLayer ?? null,

@@ -6,7 +6,7 @@ import { serializeProject, parseProjectFile } from "../../project/serialize";
 import { previewTextFormation, discardTextPreview } from "../textFormationPreview";
 import { prepareTextFormationApply } from "../textFormationApplyCommand";
 import { installPreparedGeometryApply } from "../geometryApplyStoreTransaction";
-import { STRATEGY, importedFixture } from "./support/geometryApplyHarness";
+import { STRATEGY, importedFixture, readiness, sceneFixture } from "./support/geometryApplyHarness";
 
 function recipeFor(participation: number, text = "RALLY") {
   return makeTextRecipe({
@@ -62,6 +62,7 @@ describe("text apply transaction", () => {
     const prepared = prepareTextFormationApply({
       project,
       request,
+      readiness: readiness("READY"),
       formationId: "f-text-apply-1",
       transitionOverrides: {},
       referenceLayer: layer,
@@ -100,6 +101,7 @@ describe("text apply transaction", () => {
     const prepared = prepareTextFormationApply({
       project,
       request,
+      readiness: readiness("READY"),
       formationId: "f-text-apply-2",
       transitionOverrides: {},
       referenceLayer: layer,
@@ -130,6 +132,7 @@ describe("text apply transaction", () => {
     const prepared = prepareTextFormationApply({
       project,
       request,
+      readiness: readiness("READY"),
       formationId: "f-text-apply-3",
       transitionOverrides: {},
       referenceLayer: layer,
@@ -160,6 +163,7 @@ describe("text apply transaction", () => {
     const prepared = prepareTextFormationApply({
       project,
       request,
+      readiness: readiness("READY"),
       formationId: "f-text-apply-4",
       transitionOverrides: {},
       referenceLayer: layer,
