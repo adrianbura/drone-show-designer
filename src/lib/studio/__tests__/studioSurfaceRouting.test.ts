@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 /**
  * SURFACE ROUTING — every navigation command must resolve to exactly one
  * existing Inspector panel, in the group that owns it. Routing is navigation:
@@ -44,6 +43,17 @@ describe("studio surface routing", () => {
   });
 
   it("broadcasts the request to listeners with the target clip preserved", () => {
+    // Minimal DOM event surface — the channel only needs addEventListener /
+    // dispatchEvent, so no browser environment is required to prove routing.
+    const target = new EventTarget();
+    (globalThis as { window?: unknown }).window = target;
+    (globalThis as { CustomEvent?: unknown }).CustomEvent ??= class extends Event {
+      detail: unknown;
+      constructor(type: string, init?: { detail?: unknown }) {
+        super(type);
+        this.detail = init?.detail;
+      }
+    };
     const seen: string[] = [];
     const off = onInspectorFocus((r) => seen.push(`${r.panel}:${r.clipId ?? "-"}`));
     focusStudioSurface({ surface: "TRANSITION", clipId: "clip-7" });
@@ -51,6 +61,7 @@ describe("studio surface routing", () => {
     off();
     focusStudioSurface({ surface: "SCENE", clipId: "clip-9" });
     expect(seen).toEqual(["transition-panel:clip-7", "essp-panel:-"]);
+    delete (globalThis as { window?: unknown }).window;
   });
 
   it("routes the double-click primary command to a real surface", () => {
