@@ -29,6 +29,7 @@ import {
 } from "../../import/essp/native/types";
 import type { ReferenceShow } from "../../import/essp/types";
 import { sampleTrajectorySet, type SamplablePlan } from "../trajectory/sampler";
+import { sampleScheduleBoundaryAt } from "../trajectory/schedule";
 import type { DroneTrajectory, TrajectorySample, TrajectorySet } from "../trajectory/types";
 import type { Vector3Tuple } from "../types";
 
@@ -132,10 +133,7 @@ function ownerAt(
 const dist = (a: Vector3Tuple, b: Vector3Tuple) =>
   Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
-function plannerOnly(
-  set: TrajectorySet,
-  requestedSampleRate: number,
-): EffectiveTrajectoryResult {
+function plannerOnly(set: TrajectorySet, requestedSampleRate: number): EffectiveTrajectoryResult {
   const count = set.drones.reduce((n, d) => n + d.samples.length, 0);
   return {
     set,
@@ -171,7 +169,9 @@ export function sampleEffectiveTrajectorySet(
 ): EffectiveTrajectoryResult {
   const reference = options.reference ?? null;
   const requested = options.sampleRate;
-  const rate = reference ? effectiveSampleRate(requested, reference.layer.positionRateHz) : requested;
+  const rate = reference
+    ? effectiveSampleRate(requested, reference.layer.positionRateHz)
+    : requested;
   const startTime = reference ? alignedStartTime(options.startTime, rate) : options.startTime;
   const plannerSet = sampleTrajectorySet(plan, {
     sampleRate: rate,
@@ -269,6 +269,24 @@ export function sampleEffectiveTrajectorySet(
     plannerSet,
     positionTolerance,
     velocityTolerance,
+    (time, side) => {
+      const constrained = plan.schedules.some((schedule) =>
+        schedule.segments.some(
+          (segment) =>
+            segment.planned.plannerId.includes("boundary-velocity") &&
+            Math.abs((side === "left" ? segment.end : segment.start) - time) <= 1e-6,
+        ),
+      );
+      if (!constrained) return undefined;
+      return plan.schedules.map((schedule, index) =>
+        sampleScheduleBoundaryAt(
+          schedule,
+          plan.drones[index]?.homePosition ?? ([0, 0, 0] as Vector3Tuple),
+          time,
+          side,
+        ),
+      );
+    },
   );
 
   return { set, plannerSet, authority, splice };
@@ -284,6 +302,10 @@ export function verifySpliceContinuity(
   plannerSet: TrajectorySet,
   positionToleranceMeters = SPLICE_TOLERANCE_METERS,
   velocityToleranceMps = SPLICE_VELOCITY_TOLERANCE_MPS,
+  plannerBoundarySamples?: (
+    time: number,
+    side: "left" | "right",
+  ) => readonly TrajectorySample[] | undefined,
 ): SpliceContinuityReport {
   const { show, layer } = reference;
   const intervals = resolveReferenceIntervals(layer);
@@ -299,13 +321,17 @@ export function verifySpliceContinuity(
     if (left.owner === right.owner) continue;
     const time = right.start;
     const frame = Math.round((time - start) * rate);
+    const boundarySamples = plannerBoundarySamples?.(
+      time,
+      left.owner === "PLANNER" ? "left" : "right",
+    );
     let maxPosition = 0;
     let maxVelocity = 0;
     let worstPositionDrone = -1;
     let worstVelocityDrone = -1;
     const droneCount = Math.min(show.drones.length, plannerSet.drones.length);
     for (let d = 0; d < droneCount; d += 1) {
-      const planned = plannerSet.drones[d]?.samples[frame];
+      const planned = boundarySamples?.[d] ?? plannerSet.drones[d]?.samples[frame];
       const source = show.drones[d];
       if (!planned || !source) continue;
       const k9 = referenceKinematicsAt(source, time, show.timing);

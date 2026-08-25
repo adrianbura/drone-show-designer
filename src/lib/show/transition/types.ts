@@ -12,7 +12,7 @@ import type { TrajectorySet } from "../trajectory/types";
 import type { Easing, SafetyLimits, Vector3Tuple } from "../types";
 
 /** Bumped whenever optimisation results can change for identical input. */
-export const TRANSITION_OPTIMIZER_VERSION = "0.1.0";
+export const TRANSITION_OPTIMIZER_VERSION = "0.2.0";
 
 export interface TransitionInput {
   readonly drones: readonly DroneDefinition[];
@@ -173,12 +173,7 @@ export interface TransitionAnalysis {
 }
 
 export type TransitionOptimizationStatus =
-  | "unchanged"
-  | "improved"
-  | "resolved"
-  | "unresolved"
-  | "failed"
-  | "cancelled";
+  "unchanged" | "improved" | "resolved" | "unresolved" | "failed" | "cancelled";
 
 export interface TransitionOptimizationResult {
   readonly status: TransitionOptimizationStatus;

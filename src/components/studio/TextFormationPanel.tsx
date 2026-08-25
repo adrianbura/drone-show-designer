@@ -32,7 +32,7 @@ import {
   type TextWeight,
 } from "@/lib/show/text";
 import type { Vector3Tuple } from "@/lib/show/types";
-import { optimizeCandidateClipTransition } from "@/lib/show/transition";
+import { optimizeCandidateGeometryTransitions } from "@/lib/show/transition";
 import type { ClipTransitionOverride } from "@/lib/show/trajectory";
 import { setGeometryProposalPreview } from "@/lib/studio/geometryProposalPreview";
 import { onInspectorFocus } from "@/lib/studio/inspectorFocus";
@@ -209,7 +209,7 @@ export default function TextFormationPanel() {
     key: string;
     preflight: GeometryConsequencePreflightReport | null;
     trajectory: GeometryTrajectoryConsequenceReport | null;
-    transitionOverride: ClipTransitionOverride | null;
+    transitionOverrides: Readonly<Record<string, ClipTransitionOverride>> | null;
     error: string | null;
   } | null>(null);
   const [evaluating, setEvaluating] = useState(false);
@@ -246,9 +246,9 @@ export default function TextFormationPanel() {
         preview: ok,
         formationId: textFormationIdFor(ok.clipId, ok.geometry.recipeHash),
       });
-      const optimized = optimizeCandidateClipTransition({
+      const optimized = optimizeCandidateGeometryTransitions({
         project: candidate.project,
-        clipId: ok.clipId,
+        editedClipId: ok.clipId,
         assignmentStrategy,
         ...(fullShowAnalysisOptions.sampleRate !== undefined
           ? { sampleRate: fullShowAnalysisOptions.sampleRate }
@@ -256,20 +256,19 @@ export default function TextFormationPanel() {
         ...(fullShowAnalysisOptions.transitionOverrides
           ? { transitionOverrides: fullShowAnalysisOptions.transitionOverrides }
           : {}),
+        ...(fullShowAnalysisOptions.reference
+          ? { reference: fullShowAnalysisOptions.reference }
+          : {}),
       });
-      const transitionOverrides = {
-        ...(fullShowAnalysisOptions.transitionOverrides ?? {}),
-        [ok.clipId]: optimized.override,
-      };
       const trajectory = evaluateGeometryTrajectoryConsequence(project, candidate.project, {
         ...fullShowAnalysisOptions,
-        transitionOverrides,
+        candidateTransitionOverrides: optimized.overrides,
       });
       setEvidence({
         key,
         preflight,
         trajectory,
-        transitionOverride: optimized.override,
+        transitionOverrides: optimized.overrides,
         error: null,
       });
     } catch (err) {
@@ -277,7 +276,7 @@ export default function TextFormationPanel() {
         key,
         preflight: null,
         trajectory: null,
-        transitionOverride: null,
+        transitionOverrides: null,
         error: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -300,8 +299,8 @@ export default function TextFormationPanel() {
       readiness,
       formationId: textFormationIdFor(ok.clipId, ok.geometry.recipeHash),
       formationName: `Text — ${ok.geometry.recipe.text}`,
-      ...(current?.transitionOverride
-        ? { candidateTransitionOverride: current.transitionOverride }
+      ...(current?.transitionOverrides
+        ? { candidateTransitionOverrides: current.transitionOverrides }
         : {}),
       promotedAt: new Date().toISOString(),
     });

@@ -16,7 +16,12 @@ import { composePreShow, launchHomePositions } from "../preshow/plan";
 import { resolvePreShowConfig } from "../preshow/config";
 import type { PreShowConfig, PreShowPhaseName, PreShowPlan } from "../preshow/types";
 import type { ShowPhase, ShowProject, Vector3Tuple } from "../types";
-import { clipPhase, resolveDynamicFormation, showDuration, TRAJECTORY_ALGORITHM_VERSION } from "../types";
+import {
+  clipPhase,
+  resolveDynamicFormation,
+  showDuration,
+  TRAJECTORY_ALGORITHM_VERSION,
+} from "../types";
 import { createDynamicEvaluator } from "../dynamic/sampler";
 import {
   createSceneEvaluator,
@@ -56,7 +61,6 @@ export interface ScheduleSegment {
   readonly preShowPhase?: PreShowPhaseName;
   /** Set on holds that play a dynamic (living) formation. */
   readonly dynamicFormationId?: string;
-
 }
 
 export interface DroneSchedule {
@@ -122,6 +126,12 @@ export interface ClipTransitionOverride {
   readonly startOffsets: readonly number[];
   /** Bounded signed vertical lane offset in metres, per drone. */
   readonly laneOffsets: readonly number[];
+  /** Exact per-drone imported positions at the start of this transition. */
+  readonly boundarySourcePositions?: readonly Vector3Tuple[];
+  /** Exact per-drone imported positions that this transition must reach. */
+  readonly boundaryTargetPositions?: readonly Vector3Tuple[];
+  readonly boundarySourceVelocities?: readonly Vector3Tuple[];
+  readonly boundaryTargetVelocities?: readonly Vector3Tuple[];
   readonly strategy: string;
 }
 
@@ -134,9 +144,6 @@ export interface BuildShowPlanOptions {
   /** Overrides `project.participation` (fleet participation settings). */
   readonly participation?: import("../participation").ParticipationSettings;
 }
-
-
-
 
 /**
  * Deterministic vertical layering of crossing morph paths. Not a collision
@@ -159,7 +166,8 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
   const preShowConfig =
     options.preShow === null
       ? null
-      : options.preShow ?? (project.preShow?.enabled ? resolvePreShowConfig(project.preShow) : null);
+      : (options.preShow ??
+        (project.preShow?.enabled ? resolvePreShowConfig(project.preShow) : null));
   const usePreShow = !!preShowConfig?.enabled;
 
   // With a launch plan the physical home positions are the LAUNCH PADS, so
@@ -214,7 +222,8 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
 
   // The artistic timeline starts from the staging formation when a pre-show
   // exists, otherwise from the home pads.
-  let current: Vector3Tuple[] = usePreShow && preShow ? preShow.targetByDrone.slice() : home.slice();
+  let current: Vector3Tuple[] =
+    usePreShow && preShow ? preShow.targetByDrone.slice() : home.slice();
 
   // Bounded look-ahead scene list for the participation planner. Only artistic
   // SHOW clips with resolvable geometry can absorb pre-positioning drones.
@@ -280,7 +289,9 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
     }
     // A dynamic clip animates during its HOLD. The transition still morphs to
     // the animation state the hold starts at, so continuity is exact.
-    const dynamicFormation = geometry.dynamicEvaluator ? geometry.dynamicEvaluator.formation : undefined;
+    const dynamicFormation = geometry.dynamicEvaluator
+      ? geometry.dynamicEvaluator.formation
+      : undefined;
     const dynamicEvaluator = geometry.dynamicEvaluator;
     const sceneEvaluator: SceneEvaluator | null = geometry.sceneEvaluator;
     /** Evaluator driving the HOLD: a scene composition, or a single dynamic asset. */
@@ -292,7 +303,6 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
       : (dynamicFormation?.points.length ?? 0);
 
     const scenePoints: readonly Vector3Tuple[] = phase === "LANDING" ? home : geometry.points;
-
 
     /**
      * PARTIAL FLEET PARTICIPATION. When a formation supplies FEWER points than
@@ -316,7 +326,11 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
     };
     if (partial) {
       const lookAhead: ParticipationScene[] = [];
-      for (let k = clipIndex + 1; k < clips.length && lookAhead.length < participationSettings.lookAheadScenes; k++) {
+      for (
+        let k = clipIndex + 1;
+        k < clips.length && lookAhead.length < participationSettings.lookAheadScenes;
+        k++
+      ) {
         const scene = sceneFor(clips[k]!);
         if (scene) lookAhead.push(scene);
       }
@@ -354,7 +368,7 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
       previousParticipation = participationPlan;
     }
 
-    const rawTarget = participationPlan
+    let rawTarget = participationPlan
       ? participationTargets(participationPlan)
       : padPoints(scenePoints, project.droneCount, home);
 
@@ -372,6 +386,11 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
       overrides[clip.id]?.targetPointIndex.length === drones.length
         ? overrides[clip.id]!
         : undefined;
+    if (override?.boundaryTargetPositions?.length === drones.length) {
+      rawTarget = override.boundaryTargetPositions.map(
+        (point) => [point[0], point[1], point[2]] as Vector3Tuple,
+      );
+    }
     let clipAssignments: DroneAssignment[];
     let strategyId: string;
     if (participationPlan) {
@@ -395,25 +414,32 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
       strategyId = override.strategy;
       optimizedClipIds.push(clip.id);
     } else {
-
       // LANDING: pads are interchangeable, so the globally optimal (minimum
       // total distance) pad assignment is used. On straight-line descents this
       // removes the path crossings that an index-identity mapping produces.
-      const strategy = getAssignmentStrategy(phase === "LANDING" ? "optimalDistance" : showStrategy);
+      const strategy = getAssignmentStrategy(
+        phase === "LANDING" ? "optimalDistance" : showStrategy,
+      );
       clipAssignments = strategy.assign({ source: current, target: rawTarget, drones });
       strategyId = strategy.id;
     }
-    assignments.push({ clipId: clip.id, phase, strategy: strategyId, assignments: clipAssignments });
+    assignments.push({
+      clipId: clip.id,
+      phase,
+      strategy: strategyId,
+      assignments: clipAssignments,
+    });
     const target = applyAssignment(clipAssignments, rawTarget);
-
 
     const transition = Math.max(0.01, clip.transition);
     for (const drone of drones) {
       const i = drone.index;
-      const from = current[i] ?? drone.homePosition;
+      const from = override?.boundarySourcePositions?.[i] ?? current[i] ?? drone.homePosition;
       const to = target[i] ?? drone.homePosition;
       const yawPolicy: YawPolicy =
-        phase === "SHOW" ? { kind: "faceDirectionOfTravel", fallbackYaw: 0 } : { kind: "fixed", yaw: 0 };
+        phase === "SHOW"
+          ? { kind: "faceDirectionOfTravel", fallbackYaw: 0 }
+          : { kind: "fixed", yaw: 0 };
       const startOffset = override
         ? Math.max(0, Math.min(override.startOffsets[i] ?? 0, transition * 0.5))
         : 0;
@@ -422,6 +448,12 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
         planned = minJerkPlanner.plan({
           start: from,
           end: to,
+          ...(override?.boundarySourceVelocities?.[i]
+            ? { startVelocity: override.boundarySourceVelocities[i] }
+            : {}),
+          ...(override?.boundaryTargetVelocities?.[i]
+            ? { endVelocity: override.boundaryTargetVelocities[i] }
+            : {}),
           duration: Math.max(0.01, transition - startOffset),
           maxVelocity: project.limits.maxVelocity,
           maxAcceleration: project.limits.maxAcceleration,
@@ -484,10 +516,11 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
                   faceDirectionOfTravel: phase === "SHOW",
                 })
               : planHold(to, clip.hold),
-          ...(dynamicFormation && !sceneEvaluator ? { dynamicFormationId: dynamicFormation.id } : {}),
+          ...(dynamicFormation && !sceneEvaluator
+            ? { dynamicFormationId: dynamicFormation.id }
+            : {}),
         });
       }
-
     }
     // After a dynamic hold the swarm sits wherever the animation ended, so the
     // NEXT clip's assignment starts from the true end state.
@@ -504,7 +537,6 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
     } else {
       current = target;
     }
-
   }
 
   return {
@@ -555,10 +587,25 @@ export function sampleScheduleAt(
   return { ...STATIC(t, last.planned.sample(last.planned.duration).position) };
 }
 
+/** Samples the explicitly requested side of a shared segment boundary. */
+export function sampleScheduleBoundaryAt(
+  schedule: DroneSchedule,
+  home: Vector3Tuple,
+  time: number,
+  side: "left" | "right",
+): TrajectorySample {
+  const match = schedule.segments.find(
+    (segment) => Math.abs((side === "left" ? segment.end : segment.start) - time) <= 1e-6,
+  );
+  if (!match) return sampleScheduleAt(schedule, home, time);
+  const local = side === "left" ? match.planned.duration : 0;
+  return { ...match.planned.sample(local), t: time };
+}
+
 /** Positions of every drone at absolute show time t — O(drones). */
 export function positionsAt(plan: ShowPlan, t: number): Vector3Tuple[] {
-  return plan.schedules.map((s, i) =>
-    sampleScheduleAt(s, plan.drones[i]?.homePosition ?? [0, 0, 0], t).position,
+  return plan.schedules.map(
+    (s, i) => sampleScheduleAt(s, plan.drones[i]?.homePosition ?? [0, 0, 0], t).position,
   );
 }
 

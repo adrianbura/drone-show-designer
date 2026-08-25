@@ -79,7 +79,10 @@ function validate(input: TransitionInput) {
     );
   }
   if (input.target.length === 0) {
-    throw new TransitionOptimizationError("INVALID_TARGET_FORMATION", "Target formation has no points");
+    throw new TransitionOptimizationError(
+      "INVALID_TARGET_FORMATION",
+      "Target formation has no points",
+    );
   }
   if (!(input.duration > 0)) {
     throw new TransitionOptimizationError("INVALID_CONSTRAINTS", "Transition duration must be > 0");
@@ -238,7 +241,10 @@ function evaluate(
     assignment,
     trajectorySet: planned.set,
     conflicts,
-    metrics: { ...partial, score: scoreOf(partial, conflicts, constraintViolations, settings.weights) },
+    metrics: {
+      ...partial,
+      score: scoreOf(partial, conflicts, constraintViolations, settings.weights),
+    },
     feasibility,
     dronePlans: planned.dronePlans,
     timeBase: "transition-relative",
@@ -451,8 +457,14 @@ export function optimizeTransition(
     }
     iterations++;
     const candidates: { name: string; state: TransitionState | null }[] = [
-      { name: "assignmentSwap", state: settings.enableSwaps ? trySwaps(best, state, settings) : null },
-      { name: "temporalStagger", state: settings.enableStagger ? tryStagger(best, state, settings) : null },
+      {
+        name: "assignmentSwap",
+        state: settings.enableSwaps ? trySwaps(best, state, settings) : null,
+      },
+      {
+        name: "temporalStagger",
+        state: settings.enableStagger ? tryStagger(best, state, settings) : null,
+      },
       {
         name: "verticalLane",
         state: settings.enableVerticalLanes
@@ -460,24 +472,24 @@ export function optimizeTransition(
           : null,
       },
     ];
-    let accepted = false;
+    let selected:
+      { name: string; state: TransitionState; analysis: TransitionAnalysis } | undefined;
     for (const candidate of candidates) {
       if (!candidate.state) continue;
       const evaluated = evaluate(input, candidate.state, columns, base, settings, iterations);
-      if (evaluated.metrics.score < best.metrics.score - 1e-9) {
-        best = evaluated;
-        state = candidate.state;
-        applied.push(candidate.name);
-        accepted = true;
-        break;
-      }
+      if (evaluated.metrics.score >= best.metrics.score - 1e-9) continue;
+      if (selected && evaluated.metrics.score >= selected.analysis.metrics.score - 1e-9) continue;
+      selected = { name: candidate.name, state: candidate.state, analysis: evaluated };
     }
-    if (!accepted) {
+    if (!selected) {
       warnings.push(
         `No deterministic improvement found at iteration ${iterations}; optimisation stopped early.`,
       );
       break;
     }
+    best = selected.analysis;
+    state = selected.state;
+    applied.push(selected.name);
   }
 
   const final: TransitionAnalysis = {
@@ -489,7 +501,8 @@ export function optimizeTransition(
   if (cancelled) status = "cancelled";
   else if (final.conflicts.conflictCount === 0) status = "resolved";
   else if (final.metrics.score < initial.metrics.score - 1e-9) status = "improved";
-  else if (applied.length === 0) status = initial.conflicts.conflictCount === 0 ? "unchanged" : "unresolved";
+  else if (applied.length === 0)
+    status = initial.conflicts.conflictCount === 0 ? "unchanged" : "unresolved";
   else status = "unresolved";
 
   if (status === "unresolved") {

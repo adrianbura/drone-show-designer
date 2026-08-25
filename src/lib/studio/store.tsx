@@ -634,7 +634,7 @@ interface StudioContextValue {
     readiness: GeometryApplyReadinessReport | null;
     formationId: string;
     formationName?: string;
-    candidateTransitionOverride?: ClipTransitionOverride;
+    candidateTransitionOverrides?: Readonly<Record<string, ClipTransitionOverride>>;
     promotedAt: string;
   }) => TextApplyCommitResult;
 
@@ -3953,7 +3953,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       readiness: GeometryApplyReadinessReport | null;
       formationId: string;
       formationName?: string;
-      candidateTransitionOverride?: ClipTransitionOverride;
+      candidateTransitionOverrides?: Readonly<Record<string, ClipTransitionOverride>>;
       promotedAt: string;
     }): TextApplyCommitResult => {
       const prepared = prepareTextFormationApply({
@@ -3963,8 +3963,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         formationId: input.formationId,
         ...(input.formationName ? { formationName: input.formationName } : {}),
         transitionOverrides: transitionOverridesRef.current,
-        ...(input.candidateTransitionOverride
-          ? { candidateTransitionOverride: input.candidateTransitionOverride }
+        ...(input.candidateTransitionOverrides
+          ? { candidateTransitionOverrides: input.candidateTransitionOverrides }
           : {}),
         transitionDesigns: transitionDesignsRef.current,
         referenceLayer: referenceLayerRef.current,

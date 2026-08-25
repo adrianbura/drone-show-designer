@@ -42,6 +42,9 @@ export type YawPolicy =
 export interface TrajectoryPlanInput {
   readonly start: Vector3Tuple;
   readonly end: Vector3Tuple;
+  /** Optional endpoint velocities for continuous imported-authority handoffs. */
+  readonly startVelocity?: Vector3Tuple;
+  readonly endVelocity?: Vector3Tuple;
   /** Segment duration in seconds. Must be > 0. */
   readonly duration: number;
   readonly maxVelocity: number;

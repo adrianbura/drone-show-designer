@@ -33,14 +33,24 @@ function optimizableClipId(project: ReturnType<typeof createDemoProject>): strin
 }
 
 /** Deterministic, structurally valid override (reversed target mapping). */
-function makeOverride(project: ReturnType<typeof createDemoProject>, clipId: string): ClipTransitionOverride {
+function makeOverride(
+  project: ReturnType<typeof createDemoProject>,
+  clipId: string,
+): ClipTransitionOverride {
   const clip = project.timeline.find((c) => c.id === clipId)!;
   const points = project.formations.find((f) => f.id === clip.formationId)!.points;
   const n = project.droneCount;
   return {
-    targetPointIndex: Array.from({ length: n }, (_, i) => (points.length - 1 - i + points.length * 2) % points.length),
+    targetPointIndex: Array.from(
+      { length: n },
+      (_, i) => (points.length - 1 - i + points.length * 2) % points.length,
+    ),
     startOffsets: Array.from({ length: n }, (_, i) => (i % 4) * 0.05),
     laneOffsets: Array.from({ length: n }, (_, i) => ((i % 3) - 1) * 0.5),
+    boundarySourcePositions: Array.from({ length: n }, (_, i) => [i, 20, 0] as const),
+    boundaryTargetPositions: Array.from({ length: n }, (_, i) => [i + 1, 30, 2] as const),
+    boundarySourceVelocities: Array.from({ length: n }, () => [0.5, 0, 0] as const),
+    boundaryTargetVelocities: Array.from({ length: n }, () => [0.25, 0, 0] as const),
     strategy: "optimalDistance+optimized",
   };
 }
@@ -78,7 +88,9 @@ describe("project planning round-trip", () => {
 
     expect(before.optimizedClipIds).toContain(clipId);
     expect(after.optimizedClipIds).toEqual(before.optimizedClipIds);
-    expect(reopened.planning!.transitionOverrides[clipId]).toEqual(planning.transitionOverrides[clipId]);
+    expect(reopened.planning!.transitionOverrides[clipId]).toEqual(
+      planning.transitionOverrides[clipId],
+    );
   });
 
   it("reproduces identical sampled trajectories after save -> open", () => {
@@ -86,7 +98,9 @@ describe("project planning round-trip", () => {
     const planning = planningFor(project);
     const reopened = parseProjectFile(projectFileToJson(serializeProject(project, { planning })));
 
-    const before = sampleTrajectorySet(buildShowPlan(project, planning), { sampleRate: SAMPLE_RATE });
+    const before = sampleTrajectorySet(buildShowPlan(project, planning), {
+      sampleRate: SAMPLE_RATE,
+    });
     const after = sampleTrajectorySet(
       buildShowPlan(reopened.project, {
         assignmentStrategy: reopened.planning!.assignmentStrategy,
@@ -112,7 +126,9 @@ describe("project planning round-trip", () => {
     const project = createDemoProject(24);
     const planning = planningFor(project);
     const reopened = parseProjectFile(projectFileToJson(serializeProject(project, { planning })));
-    const unoptimized = sampleTrajectorySet(buildShowPlan(project, {}), { sampleRate: SAMPLE_RATE });
+    const unoptimized = sampleTrajectorySet(buildShowPlan(project, {}), {
+      sampleRate: SAMPLE_RATE,
+    });
     const restored = sampleTrajectorySet(
       buildShowPlan(reopened.project, {
         assignmentStrategy: reopened.planning!.assignmentStrategy,
@@ -134,7 +150,9 @@ describe("project planning round-trip", () => {
     const project = createDemoProject(16);
     const selected = project.timeline[1]?.id ?? project.timeline[0]!.id;
     const file = parseProjectFile(
-      projectFileToJson(serializeProject(project, { editor: { selectedClipId: selected, sampleRate: 25 } })),
+      projectFileToJson(
+        serializeProject(project, { editor: { selectedClipId: selected, sampleRate: 25 } }),
+      ),
     );
     expect(file.editor?.selectedClipId).toBe(selected);
     expect(file.editor?.sampleRate).toBe(25);
@@ -154,7 +172,10 @@ describe("project planning round-trip", () => {
     await writeAutosave(store, {
       savedAt: "2026-01-01T00:00:00.000Z",
       fileName: "show.droneshow.json",
-      file: serializeProject(project, { planning, editor: { sampleRate: 25, selectedClipId: null } }),
+      file: serializeProject(project, {
+        planning,
+        editor: { sampleRate: 25, selectedClipId: null },
+      }),
     });
     const snapshot = await readAutosave(store);
     // Design descriptors are part of the planning section; an unauthored
@@ -163,7 +184,10 @@ describe("project planning round-trip", () => {
     expect(snapshot?.file.editor?.sampleRate).toBe(25);
   });
 
-  function legacyV1(project: ReturnType<typeof createDemoProject>, editor: Record<string, unknown>) {
+  function legacyV1(
+    project: ReturnType<typeof createDemoProject>,
+    editor: Record<string, unknown>,
+  ) {
     return JSON.stringify({
       kind: PROJECT_FILE_KIND,
       schemaVersion: 1,
@@ -187,7 +211,9 @@ describe("project planning round-trip", () => {
   });
 
   it("falls back to the default for an unknown legacy strategy", () => {
-    const unknown = parseProjectFile(legacyV1(createDemoProject(12), { assignmentStrategy: "warpDrive" }));
+    const unknown = parseProjectFile(
+      legacyV1(createDemoProject(12), { assignmentStrategy: "warpDrive" }),
+    );
     expect(unknown.planning?.assignmentStrategy).toBe("nearestNeighbor");
     const none = parseProjectFile(legacyV1(createDemoProject(12), { sampleRate: 10 }));
     expect(none.planning?.assignmentStrategy).toBe("nearestNeighbor");
@@ -199,14 +225,19 @@ describe("project planning round-trip", () => {
       planning: { assignmentStrategy: "nearestNeighbor", transitionOverrides: {} },
       editor: { assignmentStrategy: "optimalDistance" },
     });
-    expect(parseProjectFile(projectFileToJson(base)).planning?.assignmentStrategy).toBe("nearestNeighbor");
+    expect(parseProjectFile(projectFileToJson(base)).planning?.assignmentStrategy).toBe(
+      "nearestNeighbor",
+    );
   });
 
   it("degrades an unknown v2 strategy and rejects a structurally malformed override", () => {
     const project = createDemoProject(12);
     const base = serializeProject(project);
     const unknown = parseProjectFile(
-      JSON.stringify({ ...base, planning: { assignmentStrategy: "warpDrive", transitionOverrides: {} } }),
+      JSON.stringify({
+        ...base,
+        planning: { assignmentStrategy: "warpDrive", transitionOverrides: {} },
+      }),
     );
     expect(unknown.planning?.assignmentStrategy).toBe("nearestNeighbor");
 
@@ -214,7 +245,10 @@ describe("project planning round-trip", () => {
       parseProjectFile(
         JSON.stringify({
           ...base,
-          planning: { assignmentStrategy: "nearestNeighbor", transitionOverrides: { c1: { strategy: 3 } } },
+          planning: {
+            assignmentStrategy: "nearestNeighbor",
+            transitionOverrides: { c1: { strategy: 3 } },
+          },
         }),
       ),
     ).toThrowError(ProjectFileError);
@@ -251,7 +285,9 @@ describe("project planning round-trip", () => {
     });
 
     it("rejects a wrong targetPointIndex length", () => {
-      expectRejected({ [clipId]: { ...good, targetPointIndex: good.targetPointIndex.slice(0, 5) } });
+      expectRejected({
+        [clipId]: { ...good, targetPointIndex: good.targetPointIndex.slice(0, 5) },
+      });
     });
 
     it("rejects wrong startOffsets / laneOffsets lengths", () => {

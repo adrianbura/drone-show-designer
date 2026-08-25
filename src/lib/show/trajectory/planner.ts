@@ -85,7 +85,6 @@ function yawEvaluator(
   return () => heading;
 }
 
-
 /**
  * Polynomial point-to-point planner. `easing` selects the profile; `minJerk`
  * (default) has zero velocity, acceleration and jerk at both endpoints.
@@ -128,28 +127,70 @@ export const minJerkPlanner: TrajectoryPlanner = {
       }
     }
 
+    const hasBoundaryVelocity = !!input.startVelocity || !!input.endVelocity;
+    const startVelocity = input.startVelocity ?? ([0, 0, 0] as Vector3Tuple);
+    const endVelocity = input.endVelocity ?? ([0, 0, 0] as Vector3Tuple);
+    assertFinitePosition(startVelocity, "start velocity", input);
+    assertFinitePosition(endVelocity, "end velocity", input);
+    const coefficients = d.map((delta, axis) => {
+      const v0 = startVelocity[axis]!;
+      const v1 = endVelocity[axis]!;
+      return [
+        start[axis]!,
+        v0,
+        0,
+        (10 * delta - (6 * v0 + 4 * v1) * T) / T ** 3,
+        (-15 * delta + (8 * v0 + 7 * v1) * T) / T ** 4,
+        (6 * delta - (3 * v0 + 3 * v1) * T) / T ** 5,
+      ] as const;
+    });
+    const polynomial = (axis: number, t: number, derivative: 0 | 1 | 2 | 3): number => {
+      const [a0, a1, a2, a3, a4, a5] = coefficients[axis]!;
+      if (derivative === 0)
+        return a0 + a1 * t + a2 * t ** 2 + a3 * t ** 3 + a4 * t ** 4 + a5 * t ** 5;
+      if (derivative === 1)
+        return a1 + 2 * a2 * t + 3 * a3 * t ** 2 + 4 * a4 * t ** 3 + 5 * a5 * t ** 4;
+      if (derivative === 2) return 2 * a2 + 6 * a3 * t + 12 * a4 * t ** 2 + 20 * a5 * t ** 3;
+      return 6 * a3 + 24 * a4 * t + 60 * a5 * t ** 2;
+    };
     const positionAt = (t: number): Vector3Tuple => {
       const x = Math.max(0, Math.min(1, t / T));
+      const tc = x * T;
+      if (hasBoundaryVelocity) {
+        return [polynomial(0, tc, 0), polynomial(1, tc, 0), polynomial(2, tc, 0)];
+      }
       const [s] = easeProfile(easing, x);
       const bow = arc === 0 ? 0 : Math.sin(x * Math.PI) * arc;
       return [start[0] + d[0] * s, start[1] + d[1] * s + bow, start[2] + d[2] * s];
     };
     const velocityAt = (t: number): Vector3Tuple => {
       const x = Math.max(0, Math.min(1, t / T));
+      const tc = x * T;
+      if (hasBoundaryVelocity) {
+        return [polynomial(0, tc, 1), polynomial(1, tc, 1), polynomial(2, tc, 1)];
+      }
       const ds = easeProfile(easing, x)[1] / T;
-      const bow = arc === 0 ? 0 : ((Math.PI / T) * Math.cos(x * Math.PI) * arc);
+      const bow = arc === 0 ? 0 : (Math.PI / T) * Math.cos(x * Math.PI) * arc;
       return [d[0] * ds, d[1] * ds + bow, d[2] * ds];
     };
     const accelerationAt = (t: number): Vector3Tuple => {
       const x = Math.max(0, Math.min(1, t / T));
+      const tc = x * T;
+      if (hasBoundaryVelocity) {
+        return [polynomial(0, tc, 2), polynomial(1, tc, 2), polynomial(2, tc, 2)];
+      }
       const dds = easeProfile(easing, x)[2] / (T * T);
-      const bow = arc === 0 ? 0 : (-((Math.PI / T) ** 2) * Math.sin(x * Math.PI) * arc);
+      const bow = arc === 0 ? 0 : -((Math.PI / T) ** 2) * Math.sin(x * Math.PI) * arc;
       return [d[0] * dds, d[1] * dds + bow, d[2] * dds];
     };
     const jerkAt = (t: number): Vector3Tuple => {
       const x = Math.max(0, Math.min(1, t / T));
+      const tc = x * T;
+      if (hasBoundaryVelocity) {
+        return [polynomial(0, tc, 3), polynomial(1, tc, 3), polynomial(2, tc, 3)];
+      }
       const ddds = easeProfile(easing, x)[3] / (T * T * T);
-      const bow = arc === 0 ? 0 : (-((Math.PI / T) ** 3) * Math.cos(x * Math.PI) * arc);
+      const bow = arc === 0 ? 0 : -((Math.PI / T) ** 3) * Math.cos(x * Math.PI) * arc;
       return [d[0] * ddds, d[1] * ddds + bow, d[2] * ddds];
     };
 
@@ -164,7 +205,7 @@ export const minJerkPlanner: TrajectoryPlanner = {
 
     return {
       duration: T,
-      plannerId: minJerkPlanner.id,
+      plannerId: hasBoundaryVelocity ? `${minJerkPlanner.id}+boundary-velocity` : minJerkPlanner.id,
       sample(t: number): TrajectorySample {
         const tc = Math.max(0, Math.min(T, t));
         return {
@@ -182,11 +223,7 @@ export const minJerkPlanner: TrajectoryPlanner = {
 };
 
 /** Stationary hold. All derivatives are exactly zero. */
-export function planHold(
-  position: Vector3Tuple,
-  duration: number,
-  yaw = 0,
-): PlannedTrajectory {
+export function planHold(position: Vector3Tuple, duration: number, yaw = 0): PlannedTrajectory {
   if (!Number.isFinite(duration) || duration < 0) {
     throw new TrajectoryPlanningError("INVALID_DURATION", "Hold duration must be >= 0", {
       value: duration,

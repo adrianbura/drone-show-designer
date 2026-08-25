@@ -43,9 +43,7 @@ describe("geometry trajectory consequence evaluation", () => {
     const project = smallProject();
     const id = showFormationId(project);
     const formation = project.formations.find((f) => f.id === id)!;
-    const moved = formation.points.map(
-      (p) => [p[0] + 1000, p[1], p[2]] as Vector3Tuple,
-    );
+    const moved = formation.points.map((p) => [p[0] + 1000, p[1], p[2]] as Vector3Tuple);
     const candidate = projectWithFormationPoints(project, id, moved);
     const report = evaluateGeometryTrajectoryConsequence(project, candidate, options);
     expect(report.before.analysisRevision).not.toBe(report.after.analysisRevision);
@@ -55,14 +53,32 @@ describe("geometry trajectory consequence evaluation", () => {
     expect(report.after.blockingIssueCount).toBeGreaterThan(0);
   });
 
+  it("applies candidate transition overrides to AFTER without contaminating BEFORE", () => {
+    const project = smallProject();
+    const clip = project.timeline.find((item) => (item.phase ?? "SHOW") === "SHOW")!;
+    const control = evaluateGeometryTrajectoryConsequence(project, project, options);
+    const candidateOverride = {
+      targetPointIndex: Array.from({ length: project.droneCount }, (_, index) => index),
+      startOffsets: Array.from({ length: project.droneCount }, () => 0),
+      laneOffsets: Array.from({ length: project.droneCount }, () => 0),
+      strategy: "candidate-test",
+    };
+
+    const report = evaluateGeometryTrajectoryConsequence(project, project, {
+      ...options,
+      candidateTransitionOverrides: { [clip.id]: candidateOverride },
+    });
+
+    expect(report.before.analysisRevision).toBe(control.before.analysisRevision);
+    expect(report.after.analysisRevision).not.toBe(report.before.analysisRevision);
+  });
+
   it("materialises formation points without mutating the source project", () => {
     const project = smallProject();
     const before = JSON.stringify(project);
     const id = showFormationId(project);
     const formation = project.formations.find((f) => f.id === id)!;
-    const points = formation.points.map(
-      (p, i) => [p[0], p[1], p[2] + i * 0.1] as Vector3Tuple,
-    );
+    const points = formation.points.map((p, i) => [p[0], p[1], p[2] + i * 0.1] as Vector3Tuple);
     const candidate = projectWithFormationPoints(project, id, points);
     expect(JSON.stringify(project)).toBe(before);
     expect(candidate).not.toBe(project);
@@ -72,10 +88,14 @@ describe("geometry trajectory consequence evaluation", () => {
   it("rejects point-count changes because assignment identity would be ambiguous", () => {
     const project = smallProject();
     const id = showFormationId(project);
-    expect(() => projectWithFormationPoints(project, id, [[0, 0, 0]])).toThrow(/point-count mismatch/);
+    expect(() => projectWithFormationPoints(project, id, [[0, 0, 0]])).toThrow(
+      /point-count mismatch/,
+    );
   });
 
   it("rejects missing formation ids", () => {
-    expect(() => projectWithFormationPoints(smallProject(), "missing", [])).toThrow(/formation not found/);
+    expect(() => projectWithFormationPoints(smallProject(), "missing", [])).toThrow(
+      /formation not found/,
+    );
   });
 });

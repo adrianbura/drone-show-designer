@@ -22,7 +22,7 @@ import {
 import { evaluateTextFeasibility, generateTextGeometry } from "@/lib/show/text";
 import type { ShowProject } from "@/lib/show/types";
 import { analyzeFullShow } from "@/lib/show/fullshow";
-import { optimizeCandidateClipTransition } from "@/lib/show/transition";
+import { optimizeCandidateGeometryTransitions } from "@/lib/show/transition";
 import { installPreparedGeometryApply } from "@/lib/studio/geometryApplyStoreTransaction";
 import {
   buildTextCandidateProject,
@@ -139,16 +139,16 @@ describe("text formation acceptance on the canonical authored fixture", () => {
 
     const formationId = textFormationIdFor(CLIP_ID, preview.geometry.recipeHash);
     const candidate = buildTextCandidateProject({ project, preview, formationId });
-    const optimized = optimizeCandidateClipTransition({
+    const optimized = optimizeCandidateGeometryTransitions({
       project: candidate.project,
-      clipId: CLIP_ID,
+      editedClipId: CLIP_ID,
       assignmentStrategy: AUTHORED_STRATEGY,
       sampleRate: SAMPLE_RATE,
     });
-    const candidateOverrides = { [CLIP_ID]: optimized.override };
+    const candidateOverrides = optimized.overrides;
     const trajectory = evaluateGeometryTrajectoryConsequence(project, candidate.project, {
       ...OPTIONS,
-      transitionOverrides: candidateOverrides,
+      candidateTransitionOverrides: candidateOverrides,
     });
     const readiness = evaluateGeometryApplyReadiness({
       staticPreflight: preflight,
@@ -157,8 +157,11 @@ describe("text formation acceptance on the canonical authored fixture", () => {
     });
 
     expect(preflight.staticEnvelopePass).toBe(true);
+    expect(trajectory.before.analysisRevision).toBe(baseline.analysisRevision);
     expect(preview.feasibility.violationPairCount).toBe(0);
-    expect(optimized.result.status).toBe("resolved");
+    expect(optimized.clipIds).toEqual([CLIP_ID, "c-prod-wave"]);
+    expect(optimized.optimizations[CLIP_ID]?.result.status).toBe("resolved");
+    expect(optimized.optimizations["c-prod-wave"]).toBeDefined();
     expect(readiness.canApply).toBe(true);
     expect(trajectory.after.exportReadiness).toBe("READY_WITH_WARNINGS");
 
@@ -169,7 +172,7 @@ describe("text formation acceptance on the canonical authored fixture", () => {
       formationId,
       formationName: `Text — ${recipe.text}`,
       transitionOverrides: {},
-      candidateTransitionOverride: optimized.override,
+      candidateTransitionOverrides: candidateOverrides,
       assignmentStrategy: AUTHORED_STRATEGY,
       promotedAt: FIXED_GENERATED_AT,
     });
@@ -183,8 +186,10 @@ describe("text formation acceptance on the canonical authored fixture", () => {
     const after = installed.project;
     expect(after.formations.some((f) => f.id === formationId)).toBe(true);
     expect(after.timeline.find((c) => c.id === CLIP_ID)!.formationId).toBe(formationId);
-    expect(installed.transitionOverrides[CLIP_ID]).toEqual(optimized.override);
+    expect(installed.transitionOverrides[CLIP_ID]).toEqual(candidateOverrides[CLIP_ID]);
+    expect(installed.transitionOverrides["c-prod-wave"]).toEqual(candidateOverrides["c-prod-wave"]);
     expect(installed.history.past.at(-1)?.transitionOverrides[CLIP_ID]).toBeUndefined();
+    expect(installed.history.past.at(-1)?.transitionOverrides["c-prod-wave"]).toBeUndefined();
 
     // Undo / redo through the same bounded history authority.
     const undone = installed.history.past[installed.history.past.length - 1]!.project;

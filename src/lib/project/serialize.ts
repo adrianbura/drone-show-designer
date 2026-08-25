@@ -12,10 +12,7 @@ import { migrateReferenceLayer } from "../import/essp/native/layer";
 import { ReferenceLayerError, type ReferenceTrajectoryLayer } from "../import/essp/native/types";
 import { migrateProject } from "../show/defaultProject";
 import type { ClipTransitionOverride } from "../show/trajectory/schedule";
-import {
-  normalizeTransitionDesign,
-  type TransitionDesignState,
-} from "../show/transition/design";
+import { normalizeTransitionDesign, type TransitionDesignState } from "../show/transition/design";
 import { clipPhase, SCHEMA_VERSION, type ShowProject } from "../show/types";
 import {
   DEFAULT_PLANNING_STRATEGY,
@@ -99,6 +96,18 @@ function isFiniteNumberArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((n) => typeof n === "number" && Number.isFinite(n));
 }
 
+function isVector3Array(value: unknown): value is [number, number, number][] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (point) =>
+        Array.isArray(point) &&
+        point.length === 3 &&
+        point.every((coordinate) => typeof coordinate === "number" && Number.isFinite(coordinate)),
+    )
+  );
+}
+
 /**
  * OVERRIDE SEMANTIC INTEGRITY. A persisted override is a full drone -> target
  * mapping for one SHOW clip. If it no longer resolves against the migrated
@@ -124,6 +133,20 @@ function assertOverrideResolves(
       fail(`Transition override ${key} for clip ${clipId} does not cover the fleet.`, {
         expected: n,
         actual: override[key].length,
+      });
+    }
+  }
+  for (const key of [
+    "boundarySourcePositions",
+    "boundaryTargetPositions",
+    "boundarySourceVelocities",
+    "boundaryTargetVelocities",
+  ] as const) {
+    const positions = override[key];
+    if (positions !== undefined && positions.length !== n) {
+      fail(`Transition override ${key} for clip ${clipId} does not cover the fleet.`, {
+        expected: n,
+        actual: positions.length,
       });
     }
   }
@@ -209,6 +232,10 @@ export function migratePlanningState(
         !isFiniteNumberArray(o.targetPointIndex) ||
         !isFiniteNumberArray(o.startOffsets) ||
         !isFiniteNumberArray(o.laneOffsets) ||
+        (o.boundarySourcePositions !== undefined && !isVector3Array(o.boundarySourcePositions)) ||
+        (o.boundaryTargetPositions !== undefined && !isVector3Array(o.boundaryTargetPositions)) ||
+        (o.boundarySourceVelocities !== undefined && !isVector3Array(o.boundarySourceVelocities)) ||
+        (o.boundaryTargetVelocities !== undefined && !isVector3Array(o.boundaryTargetVelocities)) ||
         typeof o.strategy !== "string"
       ) {
         throw new ProjectFileError(
@@ -221,6 +248,34 @@ export function migratePlanningState(
         targetPointIndex: [...o.targetPointIndex],
         startOffsets: [...o.startOffsets],
         laneOffsets: [...o.laneOffsets],
+        ...(o.boundarySourcePositions
+          ? {
+              boundarySourcePositions: o.boundarySourcePositions.map(
+                (point) => [...point] as [number, number, number],
+              ),
+            }
+          : {}),
+        ...(o.boundaryTargetPositions
+          ? {
+              boundaryTargetPositions: o.boundaryTargetPositions.map(
+                (point) => [...point] as [number, number, number],
+              ),
+            }
+          : {}),
+        ...(o.boundarySourceVelocities
+          ? {
+              boundarySourceVelocities: o.boundarySourceVelocities.map(
+                (velocity) => [...velocity] as [number, number, number],
+              ),
+            }
+          : {}),
+        ...(o.boundaryTargetVelocities
+          ? {
+              boundaryTargetVelocities: o.boundaryTargetVelocities.map(
+                (velocity) => [...velocity] as [number, number, number],
+              ),
+            }
+          : {}),
         strategy: o.strategy,
       };
       if (context.project) assertOverrideResolves(context.project, clipId, override);
@@ -236,7 +291,11 @@ export function migratePlanningState(
       designs[clipId] = normalizeTransitionDesign(value);
     }
   }
-  return { assignmentStrategy: strategy, transitionOverrides: overrides, transitionDesigns: designs };
+  return {
+    assignmentStrategy: strategy,
+    transitionOverrides: overrides,
+    transitionDesigns: designs,
+  };
 }
 
 /**
@@ -254,7 +313,6 @@ export function projectFileToJson(file: ProjectFile): string {
 export function projectFileToPrettyJson(file: ProjectFile): string {
   return JSON.stringify(file, null, 2);
 }
-
 
 /** Deterministic, filesystem-safe default file name for a show. */
 export function suggestedProjectFileName(showName: string): string {
@@ -276,7 +334,9 @@ export function ensureProjectExtension(name: string): string {
 
 function isVec3(value: unknown): boolean {
   return (
-    Array.isArray(value) && value.length === 3 && value.every((n) => typeof n === "number" && Number.isFinite(n))
+    Array.isArray(value) &&
+    value.length === 3 &&
+    value.every((n) => typeof n === "number" && Number.isFinite(n))
   );
 }
 
@@ -292,9 +352,13 @@ function assertIntegrity(project: ShowProject): void {
       });
     }
     if (!formation.points.every(isVec3)) {
-      throw new ProjectFileError("FORMATION_INTEGRITY", `Formation ${formation.id} has invalid points.`, {
-        id: formation.id,
-      });
+      throw new ProjectFileError(
+        "FORMATION_INTEGRITY",
+        `Formation ${formation.id} has invalid points.`,
+        {
+          id: formation.id,
+        },
+      );
     }
   }
   for (const clip of project.timeline) {
@@ -318,9 +382,13 @@ function assertIntegrity(project: ShowProject): void {
     for (const object of scene.objects) {
       const source = object?.source as { kind?: string } | undefined;
       if (!object || typeof object.id !== "string" || !source?.kind) {
-        throw new ProjectFileError("MALFORMED_PROJECT", `Scene ${scene.id} has an invalid object.`, {
-          sceneId: scene.id,
-        });
+        throw new ProjectFileError(
+          "MALFORMED_PROJECT",
+          `Scene ${scene.id} has an invalid object.`,
+          {
+            sceneId: scene.id,
+          },
+        );
       }
       const t = object.transform;
       if (!t || !isVec3(t.position) || !isVec3(t.rotationDeg) || typeof t.scale !== "number") {
@@ -344,7 +412,10 @@ function assertIntegrity(project: ShowProject): void {
       typeof effect.duration !== "number" ||
       !(effect.duration > 0)
     ) {
-      throw new ProjectFileError("MALFORMED_PROJECT", `Lighting effect ${effect.id} has invalid timing.`);
+      throw new ProjectFileError(
+        "MALFORMED_PROJECT",
+        `Lighting effect ${effect.id} has invalid timing.`,
+      );
     }
   }
   for (const dynamic of project.dynamicFormations ?? []) {
@@ -352,24 +423,36 @@ function assertIntegrity(project: ShowProject): void {
       throw new ProjectFileError("DYNAMIC_INTEGRITY", "A dynamic formation is malformed.");
     }
     if (!(typeof dynamic.duration === "number" && dynamic.duration > 0)) {
-      throw new ProjectFileError("DYNAMIC_INTEGRITY", `Dynamic formation ${dynamic.id} has an invalid duration.`, {
-        id: dynamic.id,
-      });
+      throw new ProjectFileError(
+        "DYNAMIC_INTEGRITY",
+        `Dynamic formation ${dynamic.id} has an invalid duration.`,
+        {
+          id: dynamic.id,
+        },
+      );
     }
     const ids = new Set<string>();
     for (const point of dynamic.points) {
       if (!point || typeof point.id !== "string" || !isVec3(point.base)) {
-        throw new ProjectFileError("DYNAMIC_INTEGRITY", `Dynamic formation ${dynamic.id} has an invalid point.`, {
-          id: dynamic.id,
-        });
+        throw new ProjectFileError(
+          "DYNAMIC_INTEGRITY",
+          `Dynamic formation ${dynamic.id} has an invalid point.`,
+          {
+            id: dynamic.id,
+          },
+        );
       }
       ids.add(point.id);
     }
     for (const group of dynamic.groups ?? []) {
       if (!group || typeof group.id !== "string" || !Array.isArray(group.pointIds)) {
-        throw new ProjectFileError("DYNAMIC_INTEGRITY", `Dynamic formation ${dynamic.id} has an invalid group.`, {
-          id: dynamic.id,
-        });
+        throw new ProjectFileError(
+          "DYNAMIC_INTEGRITY",
+          `Dynamic formation ${dynamic.id} has an invalid group.`,
+          {
+            id: dynamic.id,
+          },
+        );
       }
       for (const pointId of group.pointIds) {
         if (!ids.has(pointId)) {
@@ -425,7 +508,10 @@ export function migrateProjectFile(raw: unknown): ProjectFile {
     planning: migratePlanningState((candidate as { planning?: unknown }).planning, {
       project,
       ...(version <= 1
-        ? { legacyStrategy: (candidate.editor as { assignmentStrategy?: unknown } | undefined)?.assignmentStrategy }
+        ? {
+            legacyStrategy: (candidate.editor as { assignmentStrategy?: unknown } | undefined)
+              ?.assignmentStrategy,
+          }
         : {}),
     }),
     ...readReferenceLayer(candidate, project),
@@ -457,7 +543,9 @@ function readReferenceLayer(
   }
   const clipIds = new Set(project.timeline.map((c) => c.id));
   const bindings = layer.bindings.filter((b) => clipIds.has(b.clipId));
-  return { referenceLayer: bindings.length === layer.bindings.length ? layer : { ...layer, bindings } };
+  return {
+    referenceLayer: bindings.length === layer.bindings.length ? layer : { ...layer, bindings },
+  };
 }
 
 /** Parses raw file text. Never mutates or replaces anything by itself. */
@@ -473,5 +561,8 @@ export function parseProjectFile(text: string): ProjectFile {
 
 export function toProjectFileError(err: unknown): ProjectFileError {
   if (err instanceof ProjectFileError) return err;
-  return new ProjectFileError("MALFORMED_PROJECT", err instanceof Error ? err.message : String(err));
+  return new ProjectFileError(
+    "MALFORMED_PROJECT",
+    err instanceof Error ? err.message : String(err),
+  );
 }

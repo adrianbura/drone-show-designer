@@ -17,7 +17,8 @@
  *              pivot, duration), playback rate and start offset
  *   timing     phase, start, transition, hold, easing
  *   fleet      drone count and the safety limits that shape every trajectory
- *   planning   assignment strategy and the applied transition override
+ *   planning   assignment strategy (transition overrides are interval-local and
+ *              must not promote an otherwise unchanged reference HOLD)
  *   people     per-clip and global fleet participation settings
  *   lighting   clip base colour/effect and every lighting effect targeting it
  *
@@ -28,7 +29,13 @@ import { buildDroneDefinitions } from "../../../show/drones";
 import { resolveParticipationSettings } from "../../../show/participation";
 import type { ClipTransitionOverride } from "../../../show/trajectory/schedule";
 import { canonicalClipTarget } from "../../../show/trajectory/target";
-import { clipPhase, resolveDynamicFormation, type ShowProject, type TimelineClip, type Vector3Tuple } from "../../../show/types";
+import {
+  clipPhase,
+  resolveDynamicFormation,
+  type ShowProject,
+  type TimelineClip,
+  type Vector3Tuple,
+} from "../../../show/types";
 import { dynamicFormationSignature } from "../conversion/convert";
 
 export interface ClipSignatureContext {
@@ -52,18 +59,6 @@ function fnv1a(text: string): string {
     h = (h * 0x01000193) >>> 0;
   }
   return h.toString(16).padStart(8, "0");
-}
-
-function overrideSignature(override: ClipTransitionOverride | undefined): string {
-  if (!override) return "-";
-  return fnv1a(
-    [
-      override.strategy,
-      override.targetPointIndex.join(","),
-      override.startOffsets.map(q).join(","),
-      override.laneOffsets.map(q).join(","),
-    ].join("|"),
-  );
 }
 
 function lightingSignature(project: ShowProject, clipId: string): string {
@@ -152,7 +147,6 @@ export function clipOutputSignature(
     q(project.altitudes.landing),
     project.preShow?.enabled ? "preshow" : "no-preshow",
     context.assignmentStrategy,
-    overrideSignature(context.transitionOverrides[clipId]),
     participationSignature(project, clipId),
     lightingSignature(project, clipId),
   ];

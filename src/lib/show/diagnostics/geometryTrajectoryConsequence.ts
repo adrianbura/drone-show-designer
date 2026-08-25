@@ -2,6 +2,7 @@ import { reconcileReferenceLayer } from "../../import/essp/native/intervals";
 import type { AnalyzeFullShowOptions, FullShowStatus } from "../fullshow/types";
 import { analyzeFullShow } from "../fullshow/validator";
 import type { ShowProject, Vector3Tuple } from "../types";
+import type { ClipTransitionOverride } from "../trajectory";
 
 /**
  * READ-ONLY GEOMETRY -> TRAJECTORY CONSEQUENCE EVALUATION.
@@ -55,6 +56,15 @@ export interface GeometryTrajectoryConsequenceReport {
   /** New hypothetical promotions caused by the candidate project. */
   readonly newlyPromotedClipIds: readonly string[];
   readonly note: string;
+}
+
+export interface GeometryTrajectoryConsequenceOptions extends AnalyzeFullShowOptions {
+  /**
+   * Overrides computed for the hypothetical geometry. They are merged into the
+   * AFTER analysis only; applying them to BEFORE would contaminate the baseline
+   * and may promote imported reference intervals that were never edited.
+   */
+  readonly candidateTransitionOverrides?: Readonly<Record<string, ClipTransitionOverride>>;
 }
 
 function snapshot(result: ReturnType<typeof analyzeFullShow>): GeometryTrajectorySnapshot {
@@ -122,10 +132,17 @@ function reconciledOptions(
 export function evaluateGeometryTrajectoryConsequence(
   beforeProject: ShowProject,
   afterProject: ShowProject,
-  options: AnalyzeFullShowOptions = {},
+  options: GeometryTrajectoryConsequenceOptions = {},
 ): GeometryTrajectoryConsequenceReport {
-  const beforeOptions = reconciledOptions(beforeProject, options);
-  const afterOptions = reconciledOptions(afterProject, options);
+  const { candidateTransitionOverrides, ...commonOptions } = options;
+  const beforeOptions = reconciledOptions(beforeProject, commonOptions);
+  const afterOptions = reconciledOptions(afterProject, {
+    ...commonOptions,
+    transitionOverrides: {
+      ...(commonOptions.transitionOverrides ?? {}),
+      ...(candidateTransitionOverrides ?? {}),
+    },
+  });
   const before = snapshot(analyzeFullShow(beforeProject, beforeOptions));
   const after = snapshot(analyzeFullShow(afterProject, afterOptions));
   const prior = new Set(before.promotedClipIds);
@@ -136,7 +153,10 @@ export function evaluateGeometryTrajectoryConsequence(
     before,
     after,
     delta: {
-      minimumDynamicSeparation: delta(after.minimumDynamicSeparation, before.minimumDynamicSeparation),
+      minimumDynamicSeparation: delta(
+        after.minimumDynamicSeparation,
+        before.minimumDynamicSeparation,
+      ),
       maximumVelocity: delta(after.maximumVelocity, before.maximumVelocity),
       maximumAcceleration: delta(after.maximumAcceleration, before.maximumAcceleration),
       maximumJerk: delta(after.maximumJerk, before.maximumJerk),
@@ -148,8 +168,7 @@ export function evaluateGeometryTrajectoryConsequence(
     canonicalProfilePass: after.status !== "FAIL" && after.exportReadiness !== "BLOCKED",
     candidateGeometryExercisedByPlanner,
     newlyPromotedClipIds,
-    note:
-      "CANONICAL PIPELINE COMPARISON ONLY. Imported reference ownership is reconciled hypothetically from output signatures before each analysis, so edited intervals are judged by the same planner/reference rules as real authoring. A passing result is not a certification or authorisation to fly.",
+    note: "CANONICAL PIPELINE COMPARISON ONLY. Imported reference ownership is reconciled hypothetically from output signatures before each analysis, so edited intervals are judged by the same planner/reference rules as real authoring. A passing result is not a certification or authorisation to fly.",
   };
 }
 

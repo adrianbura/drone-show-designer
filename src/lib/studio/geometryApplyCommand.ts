@@ -126,7 +126,15 @@ export function prepareGeometryApplyCommand(
       overrideBasis(input.afterProject, clipId) === null ||
       override.targetPointIndex.length !== input.afterProject.droneCount ||
       override.startOffsets.length !== input.afterProject.droneCount ||
-      override.laneOffsets.length !== input.afterProject.droneCount
+      override.laneOffsets.length !== input.afterProject.droneCount ||
+      (override.boundarySourcePositions !== undefined &&
+        override.boundarySourcePositions.length !== input.afterProject.droneCount) ||
+      (override.boundaryTargetPositions !== undefined &&
+        override.boundaryTargetPositions.length !== input.afterProject.droneCount) ||
+      (override.boundarySourceVelocities !== undefined &&
+        override.boundarySourceVelocities.length !== input.afterProject.droneCount) ||
+      (override.boundaryTargetVelocities !== undefined &&
+        override.boundaryTargetVelocities.length !== input.afterProject.droneCount)
     ) {
       return {
         ok: false,

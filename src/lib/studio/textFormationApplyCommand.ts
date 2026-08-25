@@ -55,8 +55,8 @@ export interface TextApplyInput {
   readonly formationId: string;
   readonly formationName?: string;
   readonly transitionOverrides: Readonly<Record<string, ClipTransitionOverride>>;
-  /** Exact candidate override used by the canonical consequence analysis. */
-  readonly candidateTransitionOverride?: ClipTransitionOverride;
+  /** Exact candidate overrides used by the canonical consequence analysis. */
+  readonly candidateTransitionOverrides?: Readonly<Record<string, ClipTransitionOverride>>;
   readonly transitionDesigns?: Readonly<Record<string, TransitionDesignState>>;
   readonly referenceLayer?: ReferenceTrajectoryLayer | null;
   readonly assignmentStrategy: AssignmentStrategyId;
@@ -220,8 +220,8 @@ export function prepareTextFormationApply(input: TextApplyInput): TextApplyPrepa
     afterProject,
     readiness,
     transitionOverrides: input.transitionOverrides,
-    ...(input.candidateTransitionOverride
-      ? { replacementTransitionOverrides: { [preview.clipId]: input.candidateTransitionOverride } }
+    ...(input.candidateTransitionOverrides
+      ? { replacementTransitionOverrides: input.candidateTransitionOverrides }
       : {}),
     ...(input.transitionDesigns ? { transitionDesigns: input.transitionDesigns } : {}),
     referenceLayer: input.referenceLayer ?? null,
