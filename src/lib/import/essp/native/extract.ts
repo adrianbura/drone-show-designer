@@ -58,9 +58,7 @@ import {
   type ReferenceExtractionResult,
   type ReferenceExtractedSceneSnapshot,
   type ReferenceTrajectoryLayer,
-
   type ReferenceSceneObjectDiagnostic,
-
   type ReferenceSceneRepresentation,
 } from "./types";
 
@@ -84,6 +82,8 @@ export interface ReferenceExtractionOptions {
 const REVEAL_DELAY_SECONDS = 2.5;
 const REVEAL_DURATION_SECONDS = 3;
 const FADE_OUT_DURATION_SECONDS = 2;
+/** Smallest representable native transition after millisecond quantisation. */
+const MIN_EXTRACTED_TRANSITION_SECONDS = 0.001;
 /** Mean brightness (0..1) below which a window counts as "dark travel". */
 const DARK_BRIGHTNESS = 0.12;
 /**
@@ -113,7 +113,6 @@ function deepCopy<T>(value: T): T {
 }
 
 function round(value: number, digits = 3): number {
-
   const f = 10 ** digits;
   return Math.round(value * f) / f;
 }
@@ -133,11 +132,7 @@ function meanColorAt(show: ReferenceShow, time: number): RGB {
 }
 
 /** Mean brightness (0..1) of one drone subset at one time. */
-function groupBrightnessAt(
-  show: ReferenceShow,
-  indices: readonly number[],
-  time: number,
-): number {
+function groupBrightnessAt(show: ReferenceShow, indices: readonly number[], time: number): number {
   if (!indices.length) return 0;
   let sum = 0;
   for (const index of indices) {
@@ -207,7 +202,12 @@ export function extractReferenceTimeline(
   if (droneCount === 0) {
     throw new ReferenceLayerError("NO_REFERENCE_SHOW", "The imported show has no drones.");
   }
-  const scenes = sceneSegments(report, minSceneSeconds);
+  let acceptedEnd = Number.NEGATIVE_INFINITY;
+  const scenes = sceneSegments(report, minSceneSeconds).filter((segment) => {
+    if (segment.endTime <= acceptedEnd + MIN_EXTRACTED_TRANSITION_SECONDS) return false;
+    acceptedEnd = segment.endTime;
+    return true;
+  });
   if (scenes.length === 0) {
     throw new ReferenceLayerError(
       "NO_SCENES",
@@ -363,8 +363,6 @@ export function extractReferenceTimeline(
       }),
     );
 
-
-
     bindings.push({
       clipId,
       order: index,
@@ -507,7 +505,9 @@ export function extractReferenceTimeline(
   /* ------------------------------------------------------------- TAKEOFF */
   const firstScene = scenes[0]!;
   const takeoff = report.takeoffInterval;
-  const takeoffEnd = takeoff ? Math.min(takeoff.endTime, firstScene.startTime) : firstScene.startTime;
+  const takeoffEnd = takeoff
+    ? Math.min(takeoff.endTime, firstScene.startTime)
+    : firstScene.startTime;
   pushClip({
     kind: "TAKEOFF",
     label: "Imported takeoff",
@@ -527,8 +527,18 @@ export function extractReferenceTimeline(
   /* -------------------------------------------------------------- SCENES */
   scenes.forEach((segment, index) => {
     const previousEnd = index === 0 ? firstScene.startTime : scenes[index - 1]!.endTime;
-    const transition = index === 0 ? 0 : Math.max(0, segment.startTime - previousEnd);
-    const hold = Math.max(0, segment.endTime - segment.startTime);
+    // Forensic windows can overlap by one analysis stride (commonly 0.25 s).
+    // Native clips may not overlap, so the next clip always starts at the prior
+    // accepted end and is clipped to the segment's real end. A one-millisecond
+    // transition represents an adjacent/overlapping boundary without creating
+    // a zero-duration planner segment or extending the imported show.
+    const available = Math.max(0, segment.endTime - previousEnd);
+    const observedTravel = Math.max(0, segment.startTime - previousEnd);
+    const transition = Math.min(
+      available,
+      Math.max(MIN_EXTRACTED_TRANSITION_SECONDS, observedTravel),
+    );
+    const hold = Math.max(0, available - transition);
     const clipWarnings: string[] = [];
     let dynamic: DynamicFormation | null = null;
     const holdMid = segment.startTime + hold / 2;
@@ -617,12 +627,17 @@ export function extractReferenceTimeline(
   const landing = report.landingInterval;
   const landingStart = landing ? Math.max(landing.startTime, lastScene.endTime) : lastScene.endTime;
   const landingEnd = landing ? Math.max(landing.endTime, landingStart) : duration;
+  const landingAvailable = Math.max(0, landingEnd - lastScene.endTime);
+  const landingTransition = Math.min(
+    landingAvailable,
+    Math.max(MIN_EXTRACTED_TRANSITION_SECONDS, landingStart - lastScene.endTime),
+  );
   pushClip({
     kind: "LANDING",
     label: "Imported landing",
     start: lastScene.endTime,
-    transition: Math.max(0, landingStart - lastScene.endTime),
-    hold: Math.max(0.1, landingEnd - landingStart),
+    transition: landingTransition,
+    hold: Math.max(0, landingAvailable - landingTransition),
     segment: null,
     points: staticPointsAt(show, Math.min(duration, landingEnd)),
     dynamic: null,
@@ -644,10 +659,13 @@ export function extractReferenceTimeline(
 
   const lighting: LightingProgram = { schemaVersion: LIGHTING_SCHEMA_VERSION, effects };
   const layer: ReferenceTrajectoryLayer = {
-    ...buildReferenceLayer(show, bindings, options.extractedAt ? { extractedAt: options.extractedAt } : {}),
+    ...buildReferenceLayer(
+      show,
+      bindings,
+      options.extractedAt ? { extractedAt: options.extractedAt } : {},
+    ),
     extractedScenes,
   };
-
 
   return {
     formations,

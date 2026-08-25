@@ -204,6 +204,18 @@ export function sampleEffectiveTrajectorySet(
     const samples: TrajectorySample[] = drone.samples.map((sample, k) => {
       if (!referenceOwned[k]) {
         plannerSampleCount += 1;
+        // At an exact REFERENCE -> PLANNER ownership boundary the generic
+        // scheduler samples the segment ending there (the left side). The
+        // effective authority owns the interval on the right, so take the
+        // explicitly constrained right-hand planner sample instead.
+        if (k > 0 && referenceOwned[k - 1]) {
+          return sampleScheduleBoundaryAt(
+            plan.schedules[index]!,
+            plan.drones[index]?.homePosition ?? ([0, 0, 0] as Vector3Tuple),
+            sample.t,
+            "right",
+          );
+        }
         return sample;
       }
       referenceSampleCount += 1;

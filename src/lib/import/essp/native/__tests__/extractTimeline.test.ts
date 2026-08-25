@@ -53,12 +53,13 @@ describe("reference timeline extraction", () => {
     expect(result.layer.bindings.length).toBe(result.timeline.length);
     // Clips stay inside the imported playback window, in monotonic order.
     const sorted = [...result.timeline].sort((a, b) => a.start - b.start);
-    let cursor = -1e-6;
+    let cursor = 0;
     for (const clip of sorted) {
       const end = clip.start + clip.transition + clip.hold;
-      expect(clip.start).toBeGreaterThanOrEqual(cursor - 1e-6);
+      expect(clip.start).toBeCloseTo(cursor, 3);
+      expect(clip.transition).toBeGreaterThan(0);
       expect(end).toBeLessThanOrEqual(show.timing.playbackDurationSeconds + 1e-6);
-      cursor = clip.start;
+      cursor = end;
     }
   });
 });

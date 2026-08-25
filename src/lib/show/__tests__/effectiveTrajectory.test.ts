@@ -19,7 +19,7 @@ import {
 } from "../../import/essp/native";
 import { sampleReferenceDrone } from "../../import/essp/playback";
 import { createDemoProject } from "../defaultProject";
-import { buildShowPlan } from "../trajectory/schedule";
+import { buildShowPlan, sampleScheduleBoundaryAt } from "../trajectory/schedule";
 import {
   alignedStartTime,
   computeAnalysisRevision,
@@ -140,6 +140,20 @@ describe("effective trajectory authority", () => {
     expect(after.authority.promotedClipIds).toContain(target.clipId);
     // Promotion of ONE clip never returns the whole show to the planner.
     expect(after.authority.referenceSampleCount).toBeGreaterThan(0);
+
+    const boundary = resolveReferenceIntervals(promoted.layer).find(
+      (interval, index, intervals) =>
+        interval.owner === "PLANNER" && index > 0 && intervals[index - 1]?.owner === "REFERENCE",
+    )!;
+    const frame = Math.round((boundary.start - (after.set.startTime ?? 0)) * after.set.sampleRate);
+    const expected = sampleScheduleBoundaryAt(
+      plan.schedules[0]!,
+      plan.drones[0]!.homePosition,
+      boundary.start,
+      "right",
+    );
+    expect(after.set.drones[0]!.samples[frame]!.position).toEqual(expected.position);
+    expect(after.set.drones[0]!.samples[frame]!.velocity).toEqual(expected.velocity);
   });
 
   it("falls back to a planner-only authority without an imported layer", () => {
