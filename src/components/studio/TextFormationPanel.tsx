@@ -104,9 +104,7 @@ function TransitionOptimizationSection({
 }) {
   const rows = optimizations.clipIds
     .map((clipId) => ({ clipId, opt: optimizations.optimizations[clipId] }))
-    .filter(
-      (row): row is { clipId: string; opt: NonNullable<typeof row.opt> } => row.opt != null,
-    );
+    .filter((row): row is { clipId: string; opt: NonNullable<typeof row.opt> } => row.opt != null);
 
   const before = trajectory.before;
   const after = trajectory.after;
@@ -155,15 +153,17 @@ function TransitionOptimizationSection({
                   {clipId} · {opt.result.status}
                 </p>
                 <p className="font-mono">
-                  critical conflicts {initial.criticalConflictCount} →{" "}
-                  {final.criticalConflictCount}
+                  critical conflicts {initial.criticalConflictCount} → {final.criticalConflictCount}
                 </p>
                 <p className="font-mono">
                   min separation {fmtM(initial.minimumDynamicSeparation)} →{" "}
                   {fmtM(final.minimumDynamicSeparation)}
                 </p>
                 <p className="font-mono">
-                  strategies {opt.result.appliedStrategies.length ? opt.result.appliedStrategies.join(", ") : "none"}
+                  strategies{" "}
+                  {opt.result.appliedStrategies.length
+                    ? opt.result.appliedStrategies.join(", ")
+                    : "none"}
                 </p>
                 <p className="font-mono">
                   drones with offsets — start {nonZero(opt.override.startOffsets)} · lane{" "}
@@ -188,8 +188,7 @@ function TransitionOptimizationSection({
           {fmtM(after.minimumDynamicSeparation)}
         </p>
         <p>
-          max velocity {before.maximumVelocity.toFixed(2)} → {after.maximumVelocity.toFixed(2)}{" "}
-          m/s
+          max velocity {before.maximumVelocity.toFixed(2)} → {after.maximumVelocity.toFixed(2)} m/s
         </p>
         <p>
           max acceleration {before.maximumAcceleration.toFixed(2)} →{" "}

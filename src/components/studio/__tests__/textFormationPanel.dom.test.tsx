@@ -106,22 +106,13 @@ describe("text formation editor DOM", () => {
     click("text-evaluate");
     await waitFor(() => expect(screen.queryByTestId("text-readiness")).not.toBeNull());
 
-    const section = screen.queryByTestId("text-transition-optimization");
-    if (screen.queryByTestId("text-evidence-error")) {
-      // Canonical analysis threw: no section, nothing mutated.
-      expect(section).toBeNull();
-    } else {
-      expect(section).not.toBeNull();
-      expect(screen.queryByTestId("text-fullshow-before-after")).not.toBeNull();
-      const empty = screen.queryByTestId("text-transition-optimization-empty");
-      if (!empty) {
-        // At least the edited clip's boundary is reported.
-        expect(screen.queryByTestId(`text-transition-row-${clipId}`)).not.toBeNull();
-      }
-    }
+    expect(screen.queryByTestId("text-evidence-error")).toBeNull();
+    expect(screen.queryByTestId("text-transition-optimization")).not.toBeNull();
+    expect(screen.queryByTestId("text-fullshow-before-after")).not.toBeNull();
+    expect(screen.queryByTestId(`text-transition-row-${clipId}`)).not.toBeNull();
     expect(JSON.stringify(api.project)).toBe(before);
 
-    // A recipe change makes the evidence stale but keeps it visible as before.
+    // A recipe change invalidates the evidence exactly like the existing flow.
     typeText("RALLYX");
     await waitFor(() => expect(screen.queryByTestId("text-evidence-stale")).not.toBeNull());
   });
