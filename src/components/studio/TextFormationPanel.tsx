@@ -274,6 +274,7 @@ export default function TextFormationPanel() {
         preflight,
         trajectory,
         transitionOverrides: optimized.overrides,
+        optimizations: optimized,
         error: null,
       });
     } catch (err) {
@@ -282,6 +283,7 @@ export default function TextFormationPanel() {
         preflight: null,
         trajectory: null,
         transitionOverrides: null,
+        optimizations: null,
         error: err instanceof Error ? err.message : String(err),
       });
     } finally {
