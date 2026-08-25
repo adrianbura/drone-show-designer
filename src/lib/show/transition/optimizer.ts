@@ -60,6 +60,7 @@ interface TransitionState {
   readonly targets: number[];
   readonly offsets: number[];
   readonly lanes: number[];
+  readonly lateral: number[];
 }
 
 function now(): number {
@@ -152,7 +153,8 @@ function scoreOf(
     weights.maxPath * metrics.maximumTravelDistance +
     weights.totalDistance * metrics.totalTravelDistance +
     weights.staggering * metrics.totalStartOffset +
-    weights.verticalOffset * metrics.totalVerticalOffset
+    weights.verticalOffset * metrics.totalVerticalOffset +
+    weights.verticalOffset * metrics.totalLateralOffset
   );
 }
 
@@ -172,12 +174,15 @@ function evaluate(
     drones: input.drones,
     from: input.source,
     to,
+    ...(input.sourceVelocities ? { sourceVelocities: input.sourceVelocities } : {}),
+    ...(input.targetVelocities ? { targetVelocities: input.targetVelocities } : {}),
     targetPointIndex: assignment.assignments.map((a) => a.targetPointIndex),
     duration: input.duration,
     easing: input.easing ?? "minJerk",
     limits: input.limits,
     startOffsets: state.offsets,
     laneOffsets: state.lanes,
+    lateralOffsets: state.lateral,
     laneSpacing: settings.verticalLaneSpacing,
     sampleRate: input.sampleRate ?? DEFAULT_SAMPLE_RATE,
   });
@@ -203,6 +208,13 @@ function evaluate(
       if (j > maxJ) maxJ = j;
       if (y > maxYaw) maxYaw = y;
       if (s.position[1] > input.limits.maxAltitude + 0.01 || s.position[1] < -0.01) {
+        constraintViolations++;
+      }
+      if (
+        input.area &&
+        (Math.abs(s.position[0]) > input.area.width / 2 + 0.01 ||
+          Math.abs(s.position[2]) > input.area.depth / 2 + 0.01)
+      ) {
         constraintViolations++;
       }
     }
@@ -234,6 +246,7 @@ function evaluate(
     assignmentStrategy: assignment.strategy,
     totalStartOffset: state.offsets.reduce((s, v) => s + v, 0),
     totalVerticalOffset: state.lanes.reduce((s, v) => s + Math.abs(v), 0),
+    totalLateralOffset: state.lateral.reduce((s, v) => s + Math.abs(v), 0),
   };
 
   const totalMs = now() - t0;
@@ -274,6 +287,7 @@ export function analyzeTransition(
     targets: initialTargets(base, input, columns),
     offsets: new Array<number>(n).fill(0),
     lanes: new Array<number>(n).fill(0),
+    lateral: new Array<number>(n).fill(0),
   };
   return evaluate(input, state, columns, base, settings, 0);
 }
@@ -401,7 +415,12 @@ function localCandidates(
       [targets[pair[0]], targets[pair[1]]] = [targets[pair[1]]!, targets[pair[0]]!];
       candidates.push({
         name: `assignmentSwap:${pair[0]}-${pair[1]}`,
-        state: { targets, offsets: state.offsets.slice(), lanes: state.lanes.slice() },
+        state: {
+          targets,
+          offsets: state.offsets.slice(),
+          lanes: state.lanes.slice(),
+          lateral: state.lateral.slice(),
+        },
       });
     }
     if (settings.enableStagger) {
@@ -416,7 +435,12 @@ function localCandidates(
         offsets[droneIndex] = desired;
         candidates.push({
           name: `temporalStagger:${droneIndex}`,
-          state: { targets: state.targets.slice(), offsets, lanes: state.lanes.slice() },
+          state: {
+            targets: state.targets.slice(),
+            offsets,
+            lanes: state.lanes.slice(),
+            lateral: state.lateral.slice(),
+          },
         });
       }
     }
@@ -441,7 +465,12 @@ function localCandidates(
         if (changed) {
           candidates.push({
             name: `verticalLanePair:${pair[0]}-${pair[1]}`,
-            state: { targets: state.targets.slice(), offsets: state.offsets.slice(), lanes },
+            state: {
+              targets: state.targets.slice(),
+              offsets: state.offsets.slice(),
+              lanes,
+              lateral: state.lateral.slice(),
+            },
           });
         }
       }
@@ -462,7 +491,41 @@ function localCandidates(
           lanes[droneIndex] = desired;
           candidates.push({
             name: `verticalLane:${droneIndex}:${direction > 0 ? "up" : "down"}`,
-            state: { targets: state.targets.slice(), offsets: state.offsets.slice(), lanes },
+            state: {
+              targets: state.targets.slice(),
+              offsets: state.offsets.slice(),
+              lanes,
+              lateral: state.lateral.slice(),
+            },
+          });
+        }
+      }
+    }
+    if (settings.enableLateralLanes) {
+      for (const direction of [-1, 1] as const) {
+        const lateral = state.lateral.slice();
+        let changed = false;
+        pair.forEach((droneIndex, rank) => {
+          const current = state.lateral[droneIndex] ?? 0;
+          const desired = Math.max(
+            -settings.maxLateralOffset,
+            Math.min(
+              settings.maxLateralOffset,
+              current + direction * (rank === 0 ? 1 : -1) * settings.lateralLaneSpacing,
+            ),
+          );
+          if (Math.abs(desired - current) > 1e-9) changed = true;
+          lateral[droneIndex] = desired;
+        });
+        if (changed) {
+          candidates.push({
+            name: `lateralLanePair:${pair[0]}-${pair[1]}`,
+            state: {
+              targets: state.targets.slice(),
+              offsets: state.offsets.slice(),
+              lanes: state.lanes.slice(),
+              lateral,
+            },
           });
         }
       }
@@ -491,7 +554,12 @@ function trySwaps(
     swaps++;
   }
   if (swaps === 0) return null;
-  return { targets, offsets: state.offsets.slice(), lanes: state.lanes.slice() };
+  return {
+    targets,
+    offsets: state.offsets.slice(),
+    lanes: state.lanes.slice(),
+    lateral: state.lateral.slice(),
+  };
 }
 
 function tryStagger(
@@ -511,7 +579,12 @@ function tryStagger(
     });
   }
   if (!changed) return null;
-  return { targets: state.targets.slice(), offsets, lanes: state.lanes.slice() };
+  return {
+    targets: state.targets.slice(),
+    offsets,
+    lanes: state.lanes.slice(),
+    lateral: state.lateral.slice(),
+  };
 }
 
 function tryVerticalLanes(
@@ -542,7 +615,12 @@ function tryVerticalLanes(
     });
   }
   if (!changed) return null;
-  return { targets: state.targets.slice(), offsets: state.offsets.slice(), lanes };
+  return {
+    targets: state.targets.slice(),
+    offsets: state.offsets.slice(),
+    lanes,
+    lateral: state.lateral.slice(),
+  };
 }
 
 export interface OptimizeOptions {
@@ -572,6 +650,7 @@ export function optimizeTransition(
     targets: initialTargets(base, input, columns),
     offsets: new Array<number>(n).fill(0),
     lanes: new Array<number>(n).fill(0),
+    lateral: new Array<number>(n).fill(0),
   };
   const initial = evaluate(input, state, columns, base, settings, 0);
   let best = initial;

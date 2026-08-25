@@ -9,10 +9,10 @@ import type { AssignmentResult, AssignmentStrategyId } from "../assignment";
 import type { ConflictReport } from "../conflicts";
 import type { DroneDefinition } from "../drones";
 import type { TrajectorySet } from "../trajectory/types";
-import type { Easing, SafetyLimits, Vector3Tuple } from "../types";
+import type { Easing, SafetyLimits, ShowArea, Vector3Tuple } from "../types";
 
 /** Bumped whenever optimisation results can change for identical input. */
-export const TRANSITION_OPTIMIZER_VERSION = "0.3.0";
+export const TRANSITION_OPTIMIZER_VERSION = "0.4.0";
 
 export interface TransitionInput {
   readonly drones: readonly DroneDefinition[];
@@ -20,8 +20,11 @@ export interface TransitionInput {
   readonly source: readonly Vector3Tuple[];
   /** Target formation points (may be padded/repeated by the assignment engine). */
   readonly target: readonly Vector3Tuple[];
+  readonly sourceVelocities?: readonly Vector3Tuple[];
+  readonly targetVelocities?: readonly Vector3Tuple[];
   readonly duration: number;
   readonly limits: SafetyLimits;
+  readonly area?: ShowArea;
   readonly strategy: AssignmentStrategyId;
   readonly easing?: Easing;
   readonly sampleRate?: number;
@@ -72,6 +75,8 @@ export interface TransitionOptimizationSettings {
   readonly enableStagger: boolean;
   /** Strategy C — bounded deterministic vertical lanes. */
   readonly enableVerticalLanes: boolean;
+  /** Strategy D — bounded horizontal detours perpendicular to the direct path. */
+  readonly enableLateralLanes: boolean;
   /** Hard bound on any single drone's start offset (seconds). */
   readonly maxStartOffsetSeconds: number;
   /** Offset step between staggered ranks (seconds). */
@@ -80,6 +85,8 @@ export interface TransitionOptimizationSettings {
   readonly verticalLaneSpacing: number;
   /** Hard bound on |lane offset| (metres). */
   readonly maxVerticalOffset: number;
+  readonly lateralLaneSpacing: number;
+  readonly maxLateralOffset: number;
   /** Extra clearance kept away from the altitude floor/ceiling (metres). */
   readonly verticalClearanceMargin: number;
   /** Maximum conflicting pairs considered for swapping per iteration. */
@@ -92,10 +99,13 @@ export const DEFAULT_OPTIMIZATION_SETTINGS: TransitionOptimizationSettings = {
   enableSwaps: true,
   enableStagger: true,
   enableVerticalLanes: true,
+  enableLateralLanes: true,
   maxStartOffsetSeconds: 6,
   startOffsetStep: 1,
   verticalLaneSpacing: 5,
   maxVerticalOffset: 20,
+  lateralLaneSpacing: 4,
+  maxLateralOffset: 12,
   verticalClearanceMargin: 1,
   maxSwapsPerIteration: 32,
   weights: DEFAULT_OPTIMIZATION_WEIGHTS,
@@ -134,6 +144,7 @@ export interface TransitionMetrics {
   readonly assignmentStrategy: AssignmentStrategyId;
   readonly totalStartOffset: number;
   readonly totalVerticalOffset: number;
+  readonly totalLateralOffset: number;
   /** Weighted optimisation score (lower is better). */
   readonly score: number;
 }
@@ -153,6 +164,7 @@ export interface TransitionDronePlan {
   readonly distance: number;
   readonly startOffset: number;
   readonly lane: DeconflictionLane;
+  readonly lateralOffsetMetres?: number;
 }
 
 export interface TransitionAnalysis {

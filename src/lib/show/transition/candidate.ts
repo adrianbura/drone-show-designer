@@ -55,6 +55,8 @@ export function optimizeCandidateClipTransition(input: {
     ...baseInput,
     ...(input.boundarySourcePositions ? { source: input.boundarySourcePositions } : {}),
     ...(input.boundaryTargetPositions ? { target: input.boundaryTargetPositions } : {}),
+    ...(input.boundarySourceVelocities ? { sourceVelocities: input.boundarySourceVelocities } : {}),
+    ...(input.boundaryTargetVelocities ? { targetVelocities: input.boundaryTargetVelocities } : {}),
   };
   const result = optimizeTransition(
     transitionInput,
@@ -66,6 +68,7 @@ export function optimizeCandidateClipTransition(input: {
     targetPointIndex: result.final.dronePlans.map((plan) => plan.targetPointIndex),
     startOffsets: result.final.dronePlans.map((plan) => plan.startOffset),
     laneOffsets: result.final.dronePlans.map((plan) => plan.lane.offsetMetres),
+    lateralOffsets: result.final.dronePlans.map((plan) => plan.lateralOffsetMetres ?? 0),
     ...(input.boundarySourcePositions
       ? {
           boundarySourcePositions: input.boundarySourcePositions.map(

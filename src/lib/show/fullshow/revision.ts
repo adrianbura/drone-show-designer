@@ -103,6 +103,7 @@ export function computeAnalysisRevision(project: ShowProject, inputs: RevisionIn
             o.targetPointIndex.join(","),
             o.startOffsets.map(round).join(","),
             o.laneOffsets.map(round).join(","),
+            o.lateralOffsets?.map(round).join(",") ?? "-",
             o.boundarySourcePositions?.map((p) => p.map(round).join(",")).join(";") ?? "-",
             o.boundaryTargetPositions?.map((p) => p.map(round).join(",")).join(";") ?? "-",
             o.boundarySourceVelocities?.map((p) => p.map(round).join(",")).join(";") ?? "-",

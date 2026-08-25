@@ -3064,6 +3064,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         targetPointIndex: analysis.dronePlans.map((p) => p.targetPointIndex),
         startOffsets: analysis.dronePlans.map((p) => p.startOffset),
         laneOffsets: analysis.dronePlans.map((p) => p.lane.offsetMetres),
+        lateralOffsets: analysis.dronePlans.map((p) => p.lateralOffsetMetres ?? 0),
         strategy: `${analysis.metrics.assignmentStrategy}+optimized`,
       };
     },
@@ -3263,6 +3264,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         );
       }
       const next: ClipTransitionOverride = {
+        ...override,
         targetPointIndex: [...override.targetPointIndex],
         startOffsets,
         laneOffsets,

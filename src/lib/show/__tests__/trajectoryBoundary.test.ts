@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { minJerkPlanner, planHold } from "../trajectory/planner";
+import { withLateralLane } from "../trajectory/offsets";
 import { sampleScheduleBoundaryAt, type DroneSchedule } from "../trajectory/schedule";
 
 const plan = (startVelocity = [1, 0.5, -0.25] as const, endVelocity = [-0.5, 0, 0.75] as const) =>
@@ -41,5 +42,24 @@ describe("trajectory boundary constraints", () => {
     expect(sampleScheduleBoundaryAt(schedule, [0, 0, 0], 5, "right").velocity).toEqual([
       1, 0.5, -0.25,
     ]);
+  });
+
+  it("adds a lateral waypoint without changing either splice boundary", () => {
+    const base = plan();
+    const detour = withLateralLane(base, 6, [0, 10, 0], [20, 15, 5]);
+    for (const time of [0, 8]) {
+      const expected = base.sample(time);
+      const actual = detour.sample(time);
+      actual.position.forEach((value, axis) =>
+        expect(value).toBeCloseTo(expected.position[axis]!, 9),
+      );
+      actual.velocity.forEach((value, axis) =>
+        expect(value).toBeCloseTo(expected.velocity[axis]!, 9),
+      );
+      actual.acceleration.forEach((value, axis) =>
+        expect(value).toBeCloseTo(expected.acceleration[axis]!, 9),
+      );
+    }
+    expect(detour.sample(4).position).not.toEqual(base.sample(4).position);
   });
 });

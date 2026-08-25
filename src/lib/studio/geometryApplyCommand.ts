@@ -127,6 +127,8 @@ export function prepareGeometryApplyCommand(
       override.targetPointIndex.length !== input.afterProject.droneCount ||
       override.startOffsets.length !== input.afterProject.droneCount ||
       override.laneOffsets.length !== input.afterProject.droneCount ||
+      (override.lateralOffsets !== undefined &&
+        override.lateralOffsets.length !== input.afterProject.droneCount) ||
       (override.boundarySourcePositions !== undefined &&
         override.boundarySourcePositions.length !== input.afterProject.droneCount) ||
       (override.boundaryTargetPositions !== undefined &&

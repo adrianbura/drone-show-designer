@@ -72,6 +72,50 @@ export function withVerticalLane(planned: PlannedTrajectory, amplitude: number):
 }
 
 /**
+ * Adds a smooth temporary horizontal detour perpendicular to the direct XZ
+ * path. The same endpoint-flat profile as the vertical lane keeps position,
+ * velocity and acceleration unchanged at both splice boundaries.
+ */
+export function withLateralLane(
+  planned: PlannedTrajectory,
+  amplitude: number,
+  from: Vector3Tuple,
+  to: Vector3Tuple,
+): PlannedTrajectory {
+  if (!amplitude) return planned;
+  const dx = to[0] - from[0];
+  const dz = to[2] - from[2];
+  const length = Math.hypot(dx, dz);
+  // Canonicalise the undirected path orientation so A→B and B→A obtain the
+  // same normal. Opposite signed lane amplitudes then really put a head-on pair
+  // on opposite sides instead of accidentally moving both to the same side.
+  const orientation = dx < -1e-9 || (Math.abs(dx) <= 1e-9 && dz < 0) ? -1 : 1;
+  const canonicalX = dx * orientation;
+  const canonicalZ = dz * orientation;
+  const nx = length > 1e-9 ? -canonicalZ / length : 1;
+  const nz = length > 1e-9 ? canonicalX / length : 0;
+  const profile = verticalLaneProfile(amplitude, planned.duration);
+  return {
+    duration: planned.duration,
+    plannerId: `${planned.plannerId}+lateral-lane`,
+    sample(t: number): TrajectorySample {
+      const s = planned.sample(t);
+      const p = profile.offset(t);
+      const v = profile.velocity(t);
+      const a = profile.acceleration(t);
+      const j = profile.jerk(t);
+      return {
+        ...s,
+        position: [s.position[0] + nx * p, s.position[1], s.position[2] + nz * p],
+        velocity: [s.velocity[0] + nx * v, s.velocity[1], s.velocity[2] + nz * v],
+        acceleration: [s.acceleration[0] + nx * a, s.acceleration[1], s.acceleration[2] + nz * a],
+        jerk: [s.jerk[0] + nx * j, s.jerk[1], s.jerk[2] + nz * j],
+      };
+    },
+  };
+}
+
+/**
  * Prefixes a stationary wait of `offset` seconds while keeping the same end
  * time, so show timing is preserved.
  */

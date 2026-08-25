@@ -5,6 +5,7 @@ import { detectConflicts } from "../conflicts";
 import {
   analyzeTransition,
   assessDurationFeasibility,
+  DEFAULT_OPTIMIZATION_SETTINGS,
   estimateMinimumDuration,
   optimizeTransition,
   type TransitionDronePlan,
@@ -177,6 +178,20 @@ describe("transition optimizer", () => {
       );
       expect(p.to[1] + p.lane.offsetMetres).toBeLessThanOrEqual(LIMITS.maxAltitude + 1e-6);
     }
+  });
+
+  it("uses opposite lateral waypoints to remove a head-on critical conflict", () => {
+    const input = crossingInput(2, 12);
+    const result = optimizeTransition(input, {
+      ...DEFAULT_OPTIMIZATION_SETTINGS,
+      enableSwaps: false,
+      enableStagger: false,
+      enableVerticalLanes: false,
+      enableLateralLanes: true,
+    });
+    expect(result.initial.conflicts.criticalCount).toBeGreaterThan(0);
+    expect(result.final.conflicts.criticalCount).toBe(0);
+    expect(result.appliedStrategies.some((name) => name.startsWith("lateralLanePair:"))).toBe(true);
   });
 
   it("handles a 200-drone transition within a bounded budget", () => {

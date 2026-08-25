@@ -41,7 +41,7 @@ import {
   type ParticipationWarningCode,
 } from "../participation";
 
-import { withStartOffset, withVerticalLane } from "./offsets";
+import { withLateralLane, withStartOffset, withVerticalLane } from "./offsets";
 import { minJerkPlanner, planHold } from "./planner";
 import {
   TrajectoryPlanningError,
@@ -126,6 +126,8 @@ export interface ClipTransitionOverride {
   readonly startOffsets: readonly number[];
   /** Bounded signed vertical lane offset in metres, per drone. */
   readonly laneOffsets: readonly number[];
+  /** Bounded signed horizontal detour amplitude in metres, per drone. */
+  readonly lateralOffsets?: readonly number[];
   /** Exact per-drone imported positions at the start of this transition. */
   readonly boundarySourcePositions?: readonly Vector3Tuple[];
   /** Exact per-drone imported positions that this transition must reach. */
@@ -469,7 +471,12 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
         });
         if (override) {
           planned = withStartOffset(
-            withVerticalLane(planned, override.laneOffsets[i] ?? 0),
+            withLateralLane(
+              withVerticalLane(planned, override.laneOffsets[i] ?? 0),
+              override.lateralOffsets?.[i] ?? 0,
+              from,
+              to,
+            ),
             startOffset,
             from,
             transition,

@@ -32,12 +32,7 @@ export const TRANSITION_MODES: readonly TransitionModeId[] = [
 ];
 
 export type StaggerPatternId =
-  | "LEFT_RIGHT"
-  | "RIGHT_LEFT"
-  | "FRONT_BACK"
-  | "BACK_FRONT"
-  | "CENTER_OUT"
-  | "OUTSIDE_IN";
+  "LEFT_RIGHT" | "RIGHT_LEFT" | "FRONT_BACK" | "BACK_FRONT" | "CENTER_OUT" | "OUTSIDE_IN";
 
 export const STAGGER_PATTERNS: readonly StaggerPatternId[] = [
   "LEFT_RIGHT",
@@ -98,9 +93,10 @@ export function isStaggerDistribution(v: unknown): v is StaggerDistributionId {
 /** Normalises any partial/untrusted design payload into a valid design. */
 export function normalizeTransitionDesign(raw: unknown): TransitionDesignState {
   const o = (raw ?? {}) as Partial<TransitionDesignState>;
-  const total = typeof o.totalStagger === "number" && Number.isFinite(o.totalStagger)
-    ? Math.max(0, Math.min(MAX_TOTAL_STAGGER, o.totalStagger))
-    : DEFAULT_TRANSITION_DESIGN.totalStagger;
+  const total =
+    typeof o.totalStagger === "number" && Number.isFinite(o.totalStagger)
+      ? Math.max(0, Math.min(MAX_TOTAL_STAGGER, o.totalStagger))
+      : DEFAULT_TRANSITION_DESIGN.totalStagger;
   return {
     mode: isTransitionMode(o.mode) ? o.mode : DEFAULT_TRANSITION_DESIGN.mode,
     pattern: isStaggerPattern(o.pattern) ? o.pattern : DEFAULT_TRANSITION_DESIGN.pattern,
@@ -129,11 +125,14 @@ export function describeTransitionDesign(design: TransitionDesignState): string 
  * Mode inferred from override data alone — used for legacy projects (v1/v2/v3)
  * that carry an override without an explicit design descriptor.
  */
-export function deriveTransitionMode(override: ClipTransitionOverride | undefined): TransitionModeId {
+export function deriveTransitionMode(
+  override: ClipTransitionOverride | undefined,
+): TransitionModeId {
   if (!override) return "AUTO";
   const flat =
     override.startOffsets.every((v) => Math.abs(v) < 1e-6) &&
-    override.laneOffsets.every((v) => Math.abs(v) < 1e-6);
+    override.laneOffsets.every((v) => Math.abs(v) < 1e-6) &&
+    (override.lateralOffsets ?? []).every((v) => Math.abs(v) < 1e-6);
   return flat ? "SYNCHRONIZED" : "MANUAL";
 }
 
@@ -185,7 +184,10 @@ export function staggerStartOffsets(
 ): number[] {
   const n = from.length;
   if (n === 0) return [];
-  const cap = Math.max(0, Math.min(Math.max(0, total), Math.max(0, duration) * 0.5, MAX_TOTAL_STAGGER));
+  const cap = Math.max(
+    0,
+    Math.min(Math.max(0, total), Math.max(0, duration) * 0.5, MAX_TOTAL_STAGGER),
+  );
   if (cap <= 0) return new Array<number>(n).fill(0);
   const keys = ranking(from, pattern);
   let min = Infinity;
@@ -223,6 +225,7 @@ export function buildDesignOverride(
       targetPointIndex,
       startOffsets: [...zeros],
       laneOffsets: [...zeros],
+      lateralOffsets: [...zeros],
       strategy: `${analysis.metrics.assignmentStrategy}+sync`,
     };
   }
@@ -236,6 +239,7 @@ export function buildDesignOverride(
       design.distribution,
     ),
     laneOffsets: [...zeros],
+    lateralOffsets: [...zeros],
     strategy: `${analysis.metrics.assignmentStrategy}+stagger:${design.pattern}`,
   };
 }

@@ -47,6 +47,7 @@ function makeOverride(
     ),
     startOffsets: Array.from({ length: n }, (_, i) => (i % 4) * 0.05),
     laneOffsets: Array.from({ length: n }, (_, i) => ((i % 3) - 1) * 0.5),
+    lateralOffsets: Array.from({ length: n }, (_, i) => ((i % 5) - 2) * 0.25),
     boundarySourcePositions: Array.from({ length: n }, (_, i) => [i, 20, 0] as const),
     boundaryTargetPositions: Array.from({ length: n }, (_, i) => [i + 1, 30, 2] as const),
     boundarySourceVelocities: Array.from({ length: n }, () => [0.5, 0, 0] as const),
@@ -290,9 +291,10 @@ describe("project planning round-trip", () => {
       });
     });
 
-    it("rejects wrong startOffsets / laneOffsets lengths", () => {
+    it("rejects wrong startOffsets / laneOffsets / lateralOffsets lengths", () => {
       expectRejected({ [clipId]: { ...good, startOffsets: good.startOffsets.slice(0, 3) } });
       expectRejected({ [clipId]: { ...good, laneOffsets: [...good.laneOffsets, 0] } });
+      expectRejected({ [clipId]: { ...good, lateralOffsets: [0] } });
     });
 
     it("rejects a fractional target index", () => {

@@ -136,6 +136,12 @@ function assertOverrideResolves(
       });
     }
   }
+  if (override.lateralOffsets !== undefined && override.lateralOffsets.length !== n) {
+    fail(`Transition override lateralOffsets for clip ${clipId} does not cover the fleet.`, {
+      expected: n,
+      actual: override.lateralOffsets.length,
+    });
+  }
   for (const key of [
     "boundarySourcePositions",
     "boundaryTargetPositions",
@@ -232,6 +238,7 @@ export function migratePlanningState(
         !isFiniteNumberArray(o.targetPointIndex) ||
         !isFiniteNumberArray(o.startOffsets) ||
         !isFiniteNumberArray(o.laneOffsets) ||
+        (o.lateralOffsets !== undefined && !isFiniteNumberArray(o.lateralOffsets)) ||
         (o.boundarySourcePositions !== undefined && !isVector3Array(o.boundarySourcePositions)) ||
         (o.boundaryTargetPositions !== undefined && !isVector3Array(o.boundaryTargetPositions)) ||
         (o.boundarySourceVelocities !== undefined && !isVector3Array(o.boundarySourceVelocities)) ||
@@ -248,6 +255,7 @@ export function migratePlanningState(
         targetPointIndex: [...o.targetPointIndex],
         startOffsets: [...o.startOffsets],
         laneOffsets: [...o.laneOffsets],
+        ...(o.lateralOffsets ? { lateralOffsets: [...o.lateralOffsets] } : {}),
         ...(o.boundarySourcePositions
           ? {
               boundarySourcePositions: o.boundarySourcePositions.map(

@@ -33,21 +33,13 @@ function planHome(plan: ShowPlan): Vector3Tuple[] {
   return plan.drones.map((d) => d.homePosition);
 }
 
-export function isOptimizableClip(
-  project: ShowProject,
-  clipId: string,
-  plan?: ShowPlan,
-): boolean {
+export function isOptimizableClip(project: ShowProject, clipId: string, plan?: ShowPlan): boolean {
   const home = plan ? planHome(plan) : project.formations.length ? [] : [];
   return clipOptimizability(project, clipId, home).optimizable;
 }
 
 /** Structured reason, for UI messaging. */
-export function clipOptimizabilityReason(
-  project: ShowProject,
-  clipId: string,
-  plan?: ShowPlan,
-) {
+export function clipOptimizabilityReason(project: ShowProject, clipId: string, plan?: ShowPlan) {
   return clipOptimizability(project, clipId, plan ? planHome(plan) : []);
 }
 
@@ -80,6 +72,7 @@ export function transitionInputForClip(
     target: resolved.rawTarget as Vector3Tuple[],
     duration: Math.max(0.1, options.duration ?? clip.transition),
     limits: project.limits,
+    area: project.area,
     strategy: options.strategy,
     easing: clip.easing,
     ...(options.sampleRate !== undefined ? { sampleRate: options.sampleRate } : {}),

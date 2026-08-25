@@ -8,7 +8,7 @@
  *
  * TIME BASE: t = 0 is the start of the transition (NOT of the show).
  */
-import { withStartOffset, withVerticalLane } from "../trajectory/offsets";
+import { withLateralLane, withStartOffset, withVerticalLane } from "../trajectory/offsets";
 import { minJerkPlanner, planHold } from "../trajectory/planner";
 import { TrajectoryPlanningError } from "../trajectory/types";
 import type {
@@ -27,6 +27,8 @@ export interface TransitionPlanSpec {
   readonly from: readonly Vector3Tuple[];
   /** Resolved per-drone target position (assignment already applied). */
   readonly to: readonly Vector3Tuple[];
+  readonly sourceVelocities?: readonly Vector3Tuple[];
+  readonly targetVelocities?: readonly Vector3Tuple[];
   readonly targetPointIndex: readonly number[];
   readonly duration: number;
   readonly easing: Easing;
@@ -35,6 +37,8 @@ export interface TransitionPlanSpec {
   readonly startOffsets: readonly number[];
   /** Signed vertical lane offsets in metres (already clamped to bounds). */
   readonly laneOffsets: readonly number[];
+  /** Signed horizontal detour amplitude in metres. */
+  readonly lateralOffsets?: readonly number[];
   readonly laneSpacing: number;
   readonly sampleRate: number;
 }
@@ -56,12 +60,15 @@ export function planTransition(spec: TransitionPlanSpec): PlannedTransition {
     const to = spec.to[i] ?? from;
     const offset = Math.max(0, Math.min(spec.startOffsets[i] ?? 0, T * 0.5));
     const lane = spec.laneOffsets[i] ?? 0;
+    const lateral = spec.lateralOffsets?.[i] ?? 0;
     const moveDuration = Math.max(0.05, T - offset);
     let trajectory: PlannedTrajectory;
     try {
       trajectory = minJerkPlanner.plan({
         start: from,
         end: to,
+        ...(spec.sourceVelocities?.[i] ? { startVelocity: spec.sourceVelocities[i] } : {}),
+        ...(spec.targetVelocities?.[i] ? { endVelocity: spec.targetVelocities[i] } : {}),
         duration: moveDuration,
         maxVelocity: spec.limits.maxVelocity,
         maxAcceleration: spec.limits.maxAcceleration,
@@ -77,7 +84,14 @@ export function planTransition(spec: TransitionPlanSpec): PlannedTransition {
       errors.push(planningError);
       trajectory = planHold(from, moveDuration);
     }
-    planned.push(withStartOffset(withVerticalLane(trajectory, lane), offset, from, T));
+    planned.push(
+      withStartOffset(
+        withLateralLane(withVerticalLane(trajectory, lane), lateral, from, to),
+        offset,
+        from,
+        T,
+      ),
+    );
     dronePlans.push({
       droneId: drone.id,
       index: i,
@@ -90,6 +104,7 @@ export function planTransition(spec: TransitionPlanSpec): PlannedTransition {
         index: spec.laneSpacing > 0 ? Math.round(lane / spec.laneSpacing) : 0,
         offsetMetres: lane,
       },
+      lateralOffsetMetres: lateral,
     });
   });
 
