@@ -25,8 +25,15 @@ import {
   type GeometryConsequencePreflightReport,
   type GeometryTrajectoryConsequenceReport,
 } from "@/lib/show/diagnostics";
-import { makeTextRecipe, type TextAlignment, type TextStyle, type TextWeight } from "@/lib/show/text";
+import {
+  makeTextRecipe,
+  type TextAlignment,
+  type TextStyle,
+  type TextWeight,
+} from "@/lib/show/text";
 import type { Vector3Tuple } from "@/lib/show/types";
+import { optimizeCandidateClipTransition } from "@/lib/show/transition";
+import type { ClipTransitionOverride } from "@/lib/show/trajectory";
 import { setGeometryProposalPreview } from "@/lib/studio/geometryProposalPreview";
 import { onInspectorFocus } from "@/lib/studio/inspectorFocus";
 import { useStudio } from "@/lib/studio/store";
@@ -202,6 +209,7 @@ export default function TextFormationPanel() {
     key: string;
     preflight: GeometryConsequencePreflightReport | null;
     trajectory: GeometryTrajectoryConsequenceReport | null;
+    transitionOverride: ClipTransitionOverride | null;
     error: string | null;
   } | null>(null);
   const [evaluating, setEvaluating] = useState(false);
@@ -238,17 +246,38 @@ export default function TextFormationPanel() {
         preview: ok,
         formationId: textFormationIdFor(ok.clipId, ok.geometry.recipeHash),
       });
-      const trajectory = evaluateGeometryTrajectoryConsequence(
-        project,
-        candidate.project,
-        fullShowAnalysisOptions,
-      );
-      setEvidence({ key, preflight, trajectory, error: null });
+      const optimized = optimizeCandidateClipTransition({
+        project: candidate.project,
+        clipId: ok.clipId,
+        assignmentStrategy,
+        ...(fullShowAnalysisOptions.sampleRate !== undefined
+          ? { sampleRate: fullShowAnalysisOptions.sampleRate }
+          : {}),
+        ...(fullShowAnalysisOptions.transitionOverrides
+          ? { transitionOverrides: fullShowAnalysisOptions.transitionOverrides }
+          : {}),
+      });
+      const transitionOverrides = {
+        ...(fullShowAnalysisOptions.transitionOverrides ?? {}),
+        [ok.clipId]: optimized.override,
+      };
+      const trajectory = evaluateGeometryTrajectoryConsequence(project, candidate.project, {
+        ...fullShowAnalysisOptions,
+        transitionOverrides,
+      });
+      setEvidence({
+        key,
+        preflight,
+        trajectory,
+        transitionOverride: optimized.override,
+        error: null,
+      });
     } catch (err) {
       setEvidence({
         key,
         preflight: null,
         trajectory: null,
+        transitionOverride: null,
         error: err instanceof Error ? err.message : String(err),
       });
     } finally {
@@ -271,6 +300,9 @@ export default function TextFormationPanel() {
       readiness,
       formationId: textFormationIdFor(ok.clipId, ok.geometry.recipeHash),
       formationName: `Text — ${ok.geometry.recipe.text}`,
+      ...(current?.transitionOverride
+        ? { candidateTransitionOverride: current.transitionOverride }
+        : {}),
       promotedAt: new Date().toISOString(),
     });
     if (!result.ok) {
@@ -473,9 +505,12 @@ export default function TextFormationPanel() {
           ) : null}
 
           {ok ? (
-            <p className="font-mono text-[10px] text-muted-foreground" data-testid="text-preview-info">
-              {ok.points.length} points · replaces {ok.replacedFormationId} ({ok.replacedPointCount})
-              · hash {ok.geometry.recipeHash}
+            <p
+              className="font-mono text-[10px] text-muted-foreground"
+              data-testid="text-preview-info"
+            >
+              {ok.points.length} points · replaces {ok.replacedFormationId} ({ok.replacedPointCount}
+              ) · hash {ok.geometry.recipeHash}
             </p>
           ) : null}
 
@@ -490,14 +525,12 @@ export default function TextFormationPanel() {
               }`}
               data-testid="text-feasibility"
             >
-              {ok.feasibility.status} · closest {ok.feasibility.minPairSeparationMeters.toFixed(2)} m
-              / {ok.feasibility.requiredSeparationMeters} m ·{" "}
-              {ok.feasibility.violationPairCount} violating pair(s) · capacity{" "}
-              {ok.feasibility.capacityPoints} of {ok.feasibility.participation} ·{" "}
-              {ok.feasibility.note}
+              {ok.feasibility.status} · closest {ok.feasibility.minPairSeparationMeters.toFixed(2)}{" "}
+              m / {ok.feasibility.requiredSeparationMeters} m · {ok.feasibility.violationPairCount}{" "}
+              violating pair(s) · capacity {ok.feasibility.capacityPoints} of{" "}
+              {ok.feasibility.participation} · {ok.feasibility.note}
             </p>
           ) : null}
-
 
           <div className="flex gap-2">
             <button
@@ -533,7 +566,10 @@ export default function TextFormationPanel() {
                 readiness · {readiness.status}
               </p>
               {readiness.blockers.length ? (
-                <ul className="space-y-[2px] text-[10px] text-destructive" data-testid="text-blockers">
+                <ul
+                  className="space-y-[2px] text-[10px] text-destructive"
+                  data-testid="text-blockers"
+                >
                   {readiness.blockers.map((b) => (
                     <li key={b}>{b}</li>
                   ))}

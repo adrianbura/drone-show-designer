@@ -21,6 +21,8 @@ import {
 } from "@/lib/show/diagnostics";
 import { evaluateTextFeasibility, generateTextGeometry } from "@/lib/show/text";
 import type { ShowProject } from "@/lib/show/types";
+import { analyzeFullShow } from "@/lib/show/fullshow";
+import { optimizeCandidateClipTransition } from "@/lib/show/transition";
 import { installPreparedGeometryApply } from "@/lib/studio/geometryApplyStoreTransaction";
 import {
   buildTextCandidateProject,
@@ -137,40 +139,28 @@ describe("text formation acceptance on the canonical authored fixture", () => {
 
     const formationId = textFormationIdFor(CLIP_ID, preview.geometry.recipeHash);
     const candidate = buildTextCandidateProject({ project, preview, formationId });
-    const trajectory = evaluateGeometryTrajectoryConsequence(project, candidate.project, OPTIONS);
+    const optimized = optimizeCandidateClipTransition({
+      project: candidate.project,
+      clipId: CLIP_ID,
+      assignmentStrategy: AUTHORED_STRATEGY,
+      sampleRate: SAMPLE_RATE,
+    });
+    const candidateOverrides = { [CLIP_ID]: optimized.override };
+    const trajectory = evaluateGeometryTrajectoryConsequence(project, candidate.project, {
+      ...OPTIONS,
+      transitionOverrides: candidateOverrides,
+    });
     const readiness = evaluateGeometryApplyReadiness({
       staticPreflight: preflight,
       trajectory,
       importedPromotionAcknowledged: false,
     });
 
-    // Real canonical evidence: report the blockers rather than forcing READY.
-    expect({
-      status: readiness.status,
-      blockers: readiness.blockers,
-      staticEnvelopePass: preflight.staticEnvelopePass,
-      afterStatus: trajectory.after.exportReadiness,
-    }).toMatchObject({ status: readiness.status });
-    if (!readiness.canApply) {
-      /*
-       * REAL, CURRENT RESULT on this fixture (60 drones, clip c-prod-wide):
-       *   - baseline validation: READY (asserted above) -> NOT the cause
-       *   - static text spacing: staticEnvelopePass = true, 0 violating pairs
-       *     -> NOT the cause
-       *   - imported splice continuity: no reference layer here -> NOT the cause
-       *   - transition assignment / deconfliction: IS the cause. Re-assigning
-       *     the grid onto the glyph strokes produces a mid-transition PROXIMITY
-       *     error (~0.96 m vs 2.50 m) plus landing-pad continuity errors, and
-       *     lengthening the transition does not remove either.
-       * Apply stays blocked; safety and export validation are NOT weakened.
-       */
-      expect(preflight.staticEnvelopePass).toBe(true);
-      expect(preview.feasibility.violationPairCount).toBe(0);
-      expect(readiness.status).toBe("BLOCKED");
-      expect(readiness.blockers.length).toBeGreaterThan(0);
-      expect(trajectory.after.exportReadiness).toBe("BLOCKED");
-      return;
-    }
+    expect(preflight.staticEnvelopePass).toBe(true);
+    expect(preview.feasibility.violationPairCount).toBe(0);
+    expect(optimized.result.status).toBe("resolved");
+    expect(readiness.canApply).toBe(true);
+    expect(trajectory.after.exportReadiness).toBe("READY_WITH_WARNINGS");
 
     const prepared = prepareTextFormationApply({
       project,
@@ -179,6 +169,7 @@ describe("text formation acceptance on the canonical authored fixture", () => {
       formationId,
       formationName: `Text — ${recipe.text}`,
       transitionOverrides: {},
+      candidateTransitionOverride: optimized.override,
       assignmentStrategy: AUTHORED_STRATEGY,
       promotedAt: FIXED_GENERATED_AT,
     });
@@ -192,6 +183,8 @@ describe("text formation acceptance on the canonical authored fixture", () => {
     const after = installed.project;
     expect(after.formations.some((f) => f.id === formationId)).toBe(true);
     expect(after.timeline.find((c) => c.id === CLIP_ID)!.formationId).toBe(formationId);
+    expect(installed.transitionOverrides[CLIP_ID]).toEqual(optimized.override);
+    expect(installed.history.past.at(-1)?.transitionOverrides[CLIP_ID]).toBeUndefined();
 
     // Undo / redo through the same bounded history authority.
     const undone = installed.history.past[installed.history.past.length - 1]!.project;
@@ -201,7 +194,7 @@ describe("text formation acceptance on the canonical authored fixture", () => {
     const file = serializeProject(after, {
       planning: {
         assignmentStrategy: AUTHORED_STRATEGY,
-        transitionOverrides: {},
+        transitionOverrides: installed.transitionOverrides,
         transitionDesigns: {},
       },
       referenceLayer: null,
@@ -215,7 +208,13 @@ describe("text formation acceptance on the canonical authored fixture", () => {
     );
 
     // Re-validation after reopen is the real gate before export.
-    const revalidated = validateAuthored(reopened.project, SAMPLE_RATE);
+    expect(reopened.planning).toBeDefined();
+    const reopenedPlanning = reopened.planning!;
+    const revalidated = analyzeFullShow(reopened.project, {
+      sampleRate: SAMPLE_RATE,
+      assignmentStrategy: reopenedPlanning.assignmentStrategy,
+      transitionOverrides: reopenedPlanning.transitionOverrides,
+    }).report;
     expect(revalidated.exportReadiness.status).toBe(trajectory.after.exportReadiness);
   }, 300_000); // real full-show analysis, twice
 });

@@ -55,6 +55,8 @@ export interface TextApplyInput {
   readonly formationId: string;
   readonly formationName?: string;
   readonly transitionOverrides: Readonly<Record<string, ClipTransitionOverride>>;
+  /** Exact candidate override used by the canonical consequence analysis. */
+  readonly candidateTransitionOverride?: ClipTransitionOverride;
   readonly transitionDesigns?: Readonly<Record<string, TransitionDesignState>>;
   readonly referenceLayer?: ReferenceTrajectoryLayer | null;
   readonly assignmentStrategy: AssignmentStrategyId;
@@ -95,7 +97,6 @@ export interface TextApplyPreparationFailure {
   readonly note: string;
 }
 
-
 export type TextApplyPreparationResult = TextApplyPreparationSuccess | TextApplyPreparationFailure;
 
 function plannedIntervals(layer: ReferenceTrajectoryLayer | null | undefined): Set<string> {
@@ -122,7 +123,6 @@ export function buildTextCandidateProject(input: {
   readonly project: ShowProject;
   readonly formation: Formation;
 } {
-
   const { project, preview } = input;
   const { formation } = makeTextFormation({
     id: input.formationId,
@@ -161,7 +161,6 @@ export function buildTextCandidateProject(input: {
     project: { ...project, formations, timeline, ...(scenes ? { scenes } : {}) },
   };
 }
-
 
 /**
  * Prepares the complete revision. The caller must install `prepared.after`
@@ -216,12 +215,14 @@ export function prepareTextFormationApply(input: TextApplyInput): TextApplyPrepa
   const formation = candidate.formation;
   const afterProject = candidate.project;
 
-
   const prepared = prepareGeometryApplyCommand({
     beforeProject: input.project,
     afterProject,
     readiness,
     transitionOverrides: input.transitionOverrides,
+    ...(input.candidateTransitionOverride
+      ? { replacementTransitionOverrides: { [preview.clipId]: input.candidateTransitionOverride } }
+      : {}),
     ...(input.transitionDesigns ? { transitionDesigns: input.transitionDesigns } : {}),
     referenceLayer: input.referenceLayer ?? null,
     assignmentStrategy: input.assignmentStrategy,

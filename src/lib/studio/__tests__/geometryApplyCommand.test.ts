@@ -131,6 +131,41 @@ describe("geometry apply command preparation", () => {
     expect(result.after.transitionOverrides[other.id]).toBe(override);
   });
 
+  it("installs a candidate override only in the after snapshot", () => {
+    const { project, after, clip } = changedProject();
+    const replacement = identityOverride(project.droneCount);
+    const result = prepareGeometryApplyCommand({
+      beforeProject: project,
+      afterProject: after,
+      readiness: ready(),
+      transitionOverrides: {},
+      replacementTransitionOverrides: { [clip.id]: replacement },
+      assignmentStrategy: "nearestNeighbor",
+      promotedAt: "2026-01-01T00:00:00.000Z",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.before.transitionOverrides[clip.id]).toBeUndefined();
+    expect(result.after.transitionOverrides[clip.id]).toBe(replacement);
+    expect(result.invalidatedTransitionOverrideClipIds).not.toContain(clip.id);
+  });
+
+  it("rejects a candidate override with the wrong fleet cardinality", () => {
+    const { project, after, clip } = changedProject();
+    const result = prepareGeometryApplyCommand({
+      beforeProject: project,
+      afterProject: after,
+      readiness: ready(),
+      transitionOverrides: {},
+      replacementTransitionOverrides: { [clip.id]: identityOverride(project.droneCount - 1) },
+      assignmentStrategy: "nearestNeighbor",
+      promotedAt: "2026-01-01T00:00:00.000Z",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.blocker).toBe("INVALID_REPLACEMENT_OVERRIDE");
+  });
+
   it("rejects cross-project replacement so Apply cannot silently switch project identity", () => {
     const { project, after } = changedProject();
     const result = prepareGeometryApplyCommand({

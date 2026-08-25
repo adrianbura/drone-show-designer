@@ -6,6 +6,7 @@ import type { ClipTransitionOverride } from "../show/trajectory";
 import type { TransitionDesignState } from "../show/transition";
 import {
   computeOverrideBasis,
+  overrideBasis,
   pruneTransitionOverrides,
   type TimelineHistorySnapshot,
 } from "./planningIntegrity";
@@ -29,13 +30,20 @@ import {
 export type GeometryApplyPreparationBlocker =
   | "READINESS_BLOCKED"
   | "PROJECT_ID_MISMATCH"
-  | "PROJECT_IDENTITY_UNCHANGED";
+  | "PROJECT_IDENTITY_UNCHANGED"
+  | "INVALID_REPLACEMENT_OVERRIDE";
 
 export interface GeometryApplyPreparationInput {
   readonly beforeProject: ShowProject;
   readonly afterProject: ShowProject;
   readonly readiness: GeometryApplyReadinessReport;
   readonly transitionOverrides: Readonly<Record<string, ClipTransitionOverride>>;
+  /**
+   * Candidate overrides validated against `afterProject`. They replace the
+   * corresponding old-geometry overrides in the AFTER snapshot only; Undo must
+   * restore the original planning state, not these replacements.
+   */
+  readonly replacementTransitionOverrides?: Readonly<Record<string, ClipTransitionOverride>>;
   readonly transitionDesigns?: Readonly<Record<string, TransitionDesignState>>;
   readonly referenceLayer?: ReferenceTrajectoryLayer | null;
   readonly assignmentStrategy: AssignmentStrategyId;
@@ -59,8 +67,7 @@ export interface GeometryApplyPreparationFailure {
 }
 
 export type GeometryApplyPreparationResult =
-  | GeometryApplyPreparationSuccess
-  | GeometryApplyPreparationFailure;
+  GeometryApplyPreparationSuccess | GeometryApplyPreparationFailure;
 
 function snapshot(
   project: ShowProject,
@@ -108,7 +115,27 @@ export function prepareGeometryApplyCommand(
   }
 
   const beforeBasis = computeOverrideBasis(input.beforeProject, input.transitionOverrides);
-  const pruned = pruneTransitionOverrides(input.afterProject, input.transitionOverrides, beforeBasis);
+  const pruned = pruneTransitionOverrides(
+    input.afterProject,
+    input.transitionOverrides,
+    beforeBasis,
+  );
+  const replacements = input.replacementTransitionOverrides ?? {};
+  for (const [clipId, override] of Object.entries(replacements)) {
+    if (
+      overrideBasis(input.afterProject, clipId) === null ||
+      override.targetPointIndex.length !== input.afterProject.droneCount ||
+      override.startOffsets.length !== input.afterProject.droneCount ||
+      override.laneOffsets.length !== input.afterProject.droneCount
+    ) {
+      return {
+        ok: false,
+        blocker: "INVALID_REPLACEMENT_OVERRIDE",
+        note: `Replacement transition override for ${clipId} does not match the candidate project.`,
+      };
+    }
+  }
+  const afterOverrides = { ...pruned.overrides, ...replacements };
 
   let nextLayer = input.referenceLayer ?? null;
   let promotedReferenceClipIds: string[] = [];
@@ -118,7 +145,7 @@ export function prepareGeometryApplyCommand(
       input.referenceLayer,
       {
         assignmentStrategy: input.assignmentStrategy,
-        transitionOverrides: pruned.overrides,
+        transitionOverrides: afterOverrides,
       },
       input.promotedAt,
     );
@@ -136,15 +163,11 @@ export function prepareGeometryApplyCommand(
       input.transitionDesigns,
       input.referenceLayer,
     ),
-    after: snapshot(
-      input.afterProject,
-      pruned.overrides,
-      input.transitionDesigns,
-      nextLayer,
+    after: snapshot(input.afterProject, afterOverrides, input.transitionDesigns, nextLayer),
+    invalidatedTransitionOverrideClipIds: pruned.invalidated.filter(
+      (clipId) => replacements[clipId] === undefined,
     ),
-    invalidatedTransitionOverrideClipIds: [...pruned.invalidated],
     promotedReferenceClipIds,
-    note:
-      "PREPARED ATOMIC AUTHORING REVISION. Store integration must commit project geometry, pruned transition overrides and reconciled imported ownership together as one undoable history entry; validation evidence becomes stale and must be recomputed.",
+    note: "PREPARED ATOMIC AUTHORING REVISION. Store integration must commit project geometry, pruned transition overrides and reconciled imported ownership together as one undoable history entry; validation evidence becomes stale and must be recomputed.",
   };
 }
