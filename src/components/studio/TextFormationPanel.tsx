@@ -738,6 +738,13 @@ export default function TextFormationPanel() {
             </div>
           ) : null}
 
+          {current && !current.error && current.optimizations && current.trajectory ? (
+            <TransitionOptimizationSection
+              optimizations={current.optimizations}
+              trajectory={current.trajectory}
+            />
+          ) : null}
+
           <button
             type="button"
             className="btn-primary w-full"
