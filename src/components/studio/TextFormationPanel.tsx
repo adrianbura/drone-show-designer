@@ -32,7 +32,10 @@ import {
   type TextWeight,
 } from "@/lib/show/text";
 import type { Vector3Tuple } from "@/lib/show/types";
-import { optimizeCandidateGeometryTransitions } from "@/lib/show/transition";
+import {
+  optimizeCandidateGeometryTransitions,
+  type CandidateGeometryTransitionOptimizations,
+} from "@/lib/show/transition";
 import type { ClipTransitionOverride } from "@/lib/show/trajectory";
 import { setGeometryProposalPreview } from "@/lib/studio/geometryProposalPreview";
 import { onInspectorFocus } from "@/lib/studio/inspectorFocus";
@@ -210,6 +213,8 @@ export default function TextFormationPanel() {
     preflight: GeometryConsequencePreflightReport | null;
     trajectory: GeometryTrajectoryConsequenceReport | null;
     transitionOverrides: Readonly<Record<string, ClipTransitionOverride>> | null;
+    /** Ephemeral optimizer evidence: displayed for transparency, never persisted. */
+    optimizations: CandidateGeometryTransitionOptimizations | null;
     error: string | null;
   } | null>(null);
   const [evaluating, setEvaluating] = useState(false);
