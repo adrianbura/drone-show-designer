@@ -12,7 +12,7 @@ import type { TrajectorySet } from "../trajectory/types";
 import type { Easing, SafetyLimits, Vector3Tuple } from "../types";
 
 /** Bumped whenever optimisation results can change for identical input. */
-export const TRANSITION_OPTIMIZER_VERSION = "0.2.0";
+export const TRANSITION_OPTIMIZER_VERSION = "0.3.0";
 
 export interface TransitionInput {
   readonly drones: readonly DroneDefinition[];
@@ -88,14 +88,14 @@ export interface TransitionOptimizationSettings {
 }
 
 export const DEFAULT_OPTIMIZATION_SETTINGS: TransitionOptimizationSettings = {
-  maxIterations: 10,
+  maxIterations: 50,
   enableSwaps: true,
   enableStagger: true,
   enableVerticalLanes: true,
-  maxStartOffsetSeconds: 1.5,
-  startOffsetStep: 0.5,
-  verticalLaneSpacing: 4,
-  maxVerticalOffset: 12,
+  maxStartOffsetSeconds: 6,
+  startOffsetStep: 1,
+  verticalLaneSpacing: 5,
+  maxVerticalOffset: 20,
   verticalClearanceMargin: 1,
   maxSwapsPerIteration: 32,
   weights: DEFAULT_OPTIMIZATION_WEIGHTS,

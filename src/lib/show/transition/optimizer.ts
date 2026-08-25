@@ -340,6 +340,137 @@ function groupsOf(analysis: TransitionAnalysis): ConflictGroup[] {
   return buildConflictGroups(analysis.conflicts.conflicts);
 }
 
+function separationShortfall(analysis: TransitionAnalysis): number {
+  return analysis.conflicts.conflicts.reduce(
+    (sum, conflict) => sum + Math.max(0, conflict.requiredDistance - conflict.minDistance),
+    0,
+  );
+}
+
+/**
+ * Selection is lexicographic: eliminating conflict pairs is always preferable
+ * to improving an aggregate weighted score. The latter remains the final
+ * deterministic tie-breaker once safety outcomes are equal.
+ */
+function isBetterAnalysis(candidate: TransitionAnalysis, incumbent: TransitionAnalysis): boolean {
+  if (candidate.conflicts.criticalCount !== incumbent.conflicts.criticalCount) {
+    return candidate.conflicts.criticalCount < incumbent.conflicts.criticalCount;
+  }
+  if (candidate.conflicts.conflictCount !== incumbent.conflicts.conflictCount) {
+    return candidate.conflicts.conflictCount < incumbent.conflicts.conflictCount;
+  }
+  const candidateShortfall = separationShortfall(candidate);
+  const incumbentShortfall = separationShortfall(incumbent);
+  if (Math.abs(candidateShortfall - incumbentShortfall) > 1e-9) {
+    return candidateShortfall < incumbentShortfall;
+  }
+  return candidate.metrics.score < incumbent.metrics.score - 1e-9;
+}
+
+interface StrategyCandidate {
+  readonly name: string;
+  readonly state: TransitionState;
+}
+
+/**
+ * Produces bounded, pair-local mutations. Batch-editing an entire connected
+ * component made unrelated drones collapse onto the same capped delay/lane;
+ * local candidates let the full trajectory evaluator choose the one concrete
+ * move that improves the actual conflict report.
+ */
+function localCandidates(
+  input: TransitionInput,
+  analysis: TransitionAnalysis,
+  state: TransitionState,
+  columns: readonly Vector3Tuple[],
+  settings: TransitionOptimizationSettings,
+): StrategyCandidate[] {
+  const candidates: StrategyCandidate[] = [];
+  const endpointEpsilon = 1 / (input.sampleRate ?? DEFAULT_SAMPLE_RATE);
+  const conflicts = analysis.conflicts.conflicts
+    .filter(
+      (conflict) =>
+        conflict.timeOfClosestApproach > endpointEpsilon &&
+        conflict.timeOfClosestApproach < input.duration - endpointEpsilon,
+    )
+    .slice(0, Math.min(1, settings.maxSwapsPerIteration));
+  for (const conflict of conflicts) {
+    const pair = [conflict.indexA, conflict.indexB] as const;
+    if (settings.enableSwaps) {
+      const targets = state.targets.slice();
+      [targets[pair[0]], targets[pair[1]]] = [targets[pair[1]]!, targets[pair[0]]!];
+      candidates.push({
+        name: `assignmentSwap:${pair[0]}-${pair[1]}`,
+        state: { targets, offsets: state.offsets.slice(), lanes: state.lanes.slice() },
+      });
+    }
+    if (settings.enableStagger) {
+      for (const droneIndex of pair) {
+        const current = state.offsets[droneIndex] ?? 0;
+        const desired = Math.min(
+          settings.maxStartOffsetSeconds,
+          current + settings.startOffsetStep,
+        );
+        if (desired <= current + 1e-9) continue;
+        const offsets = state.offsets.slice();
+        offsets[droneIndex] = desired;
+        candidates.push({
+          name: `temporalStagger:${droneIndex}`,
+          state: { targets: state.targets.slice(), offsets, lanes: state.lanes.slice() },
+        });
+      }
+    }
+    if (settings.enableVerticalLanes) {
+      for (const direction of [-1, 1] as const) {
+        const lanes = state.lanes.slice();
+        let changed = false;
+        pair.forEach((droneIndex, rank) => {
+          const from = input.source[droneIndex] ?? [0, 0, 0];
+          const to = columns[state.targets[droneIndex]!] ?? from;
+          const desired = clampLane(
+            (state.lanes[droneIndex] ?? 0) +
+              direction * (rank === 0 ? 1 : -1) * settings.verticalLaneSpacing,
+            from,
+            to,
+            input,
+            settings,
+          );
+          if (Math.abs(desired - (state.lanes[droneIndex] ?? 0)) > 1e-9) changed = true;
+          lanes[droneIndex] = desired;
+        });
+        if (changed) {
+          candidates.push({
+            name: `verticalLanePair:${pair[0]}-${pair[1]}`,
+            state: { targets: state.targets.slice(), offsets: state.offsets.slice(), lanes },
+          });
+        }
+      }
+      for (const droneIndex of pair) {
+        const from = input.source[droneIndex] ?? [0, 0, 0];
+        const to = columns[state.targets[droneIndex]!] ?? from;
+        for (const direction of [-1, 1] as const) {
+          const current = state.lanes[droneIndex] ?? 0;
+          const desired = clampLane(
+            current + direction * settings.verticalLaneSpacing,
+            from,
+            to,
+            input,
+            settings,
+          );
+          if (Math.abs(desired - current) <= 1e-9) continue;
+          const lanes = state.lanes.slice();
+          lanes[droneIndex] = desired;
+          candidates.push({
+            name: `verticalLane:${droneIndex}:${direction > 0 ? "up" : "down"}`,
+            state: { targets: state.targets.slice(), offsets: state.offsets.slice(), lanes },
+          });
+        }
+      }
+    }
+  }
+  return candidates;
+}
+
 function trySwaps(
   analysis: TransitionAnalysis,
   state: TransitionState,
@@ -456,7 +587,7 @@ export function optimizeTransition(
       break;
     }
     iterations++;
-    const candidates: { name: string; state: TransitionState | null }[] = [
+    const batchCandidates: { name: string; state: TransitionState | null }[] = [
       {
         name: "assignmentSwap",
         state: settings.enableSwaps ? trySwaps(best, state, settings) : null,
@@ -472,13 +603,18 @@ export function optimizeTransition(
           : null,
       },
     ];
+    const candidates: StrategyCandidate[] = [
+      ...batchCandidates.flatMap((candidate) =>
+        candidate.state ? [{ name: candidate.name, state: candidate.state }] : [],
+      ),
+      ...localCandidates(input, best, state, columns, settings),
+    ];
     let selected:
       { name: string; state: TransitionState; analysis: TransitionAnalysis } | undefined;
     for (const candidate of candidates) {
-      if (!candidate.state) continue;
       const evaluated = evaluate(input, candidate.state, columns, base, settings, iterations);
-      if (evaluated.metrics.score >= best.metrics.score - 1e-9) continue;
-      if (selected && evaluated.metrics.score >= selected.analysis.metrics.score - 1e-9) continue;
+      if (!isBetterAnalysis(evaluated, best)) continue;
+      if (selected && !isBetterAnalysis(evaluated, selected.analysis)) continue;
       selected = { name: candidate.name, state: candidate.state, analysis: evaluated };
     }
     if (!selected) {
