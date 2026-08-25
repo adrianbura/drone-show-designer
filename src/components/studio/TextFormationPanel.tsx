@@ -15,13 +15,12 @@
  *     recipe hash + assignment strategy). Any change discards it and disables
  *     Apply until it is recomputed.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Type } from "lucide-react";
 
 import {
   analyzeGeometryProposalConsequences,
   evaluateGeometryApplyReadiness,
-  evaluateGeometryTrajectoryConsequence,
   type GeometryConsequencePreflightReport,
   type GeometryTrajectoryConsequenceReport,
 } from "@/lib/show/diagnostics";
@@ -32,15 +31,16 @@ import {
   type TextWeight,
 } from "@/lib/show/text";
 import type { Vector3Tuple } from "@/lib/show/types";
-import {
-  optimizeCandidateGeometryTransitions,
-  type CandidateGeometryTransitionOptimizations,
-} from "@/lib/show/transition";
+import type { CandidateGeometryTransitionOptimizations } from "@/lib/show/transition";
 import type { ClipTransitionOverride } from "@/lib/show/trajectory";
 import { setGeometryProposalPreview } from "@/lib/studio/geometryProposalPreview";
 import { onInspectorFocus } from "@/lib/studio/inspectorFocus";
 import { useStudio } from "@/lib/studio/store";
 import { buildTextCandidateProject } from "@/lib/studio/textFormationApplyCommand";
+import {
+  startTextFormationEvaluation,
+  type TextFormationEvaluationTask,
+} from "@/lib/studio/textFormationEvaluation";
 import { previewTextFormation, discardTextPreview } from "@/lib/studio/textFormationPreview";
 import {
   defaultTextRecipe,
@@ -348,6 +348,9 @@ export default function TextFormationPanel() {
     error: string | null;
   } | null>(null);
   const [evaluating, setEvaluating] = useState(false);
+  const evaluationTaskRef = useRef<TextFormationEvaluationTask | null>(null);
+  const evidenceKeyRef = useRef(evidenceKey);
+  evidenceKeyRef.current = evidenceKey;
 
   const stale = !!evidence && evidence.key !== evidenceKey;
   const current = evidence && !stale ? evidence : null;
@@ -362,9 +365,10 @@ export default function TextFormationPanel() {
     [current, acknowledge],
   );
 
-  const evaluate = () => {
+  const evaluate = async () => {
     if (!ok) return;
     const key = evidenceKey;
+    evaluationTaskRef.current?.cancel();
     setEvaluating(true);
     setApplied(null);
     setApplyError(null);
@@ -381,33 +385,25 @@ export default function TextFormationPanel() {
         preview: ok,
         formationId: textFormationIdFor(ok.clipId, ok.geometry.recipeHash),
       });
-      const optimized = optimizeCandidateGeometryTransitions({
-        project: candidate.project,
+      const task = startTextFormationEvaluation({
+        beforeProject: project,
+        candidateProject: candidate.project,
         editedClipId: ok.clipId,
-        assignmentStrategy,
-        ...(fullShowAnalysisOptions.sampleRate !== undefined
-          ? { sampleRate: fullShowAnalysisOptions.sampleRate }
-          : {}),
-        ...(fullShowAnalysisOptions.transitionOverrides
-          ? { transitionOverrides: fullShowAnalysisOptions.transitionOverrides }
-          : {}),
-        ...(fullShowAnalysisOptions.reference
-          ? { reference: fullShowAnalysisOptions.reference }
-          : {}),
+        options: fullShowAnalysisOptions,
       });
-      const trajectory = evaluateGeometryTrajectoryConsequence(project, candidate.project, {
-        ...fullShowAnalysisOptions,
-        candidateTransitionOverrides: optimized.overrides,
-      });
+      evaluationTaskRef.current = task;
+      const { optimizations, trajectory } = await task.promise;
+      if (evidenceKeyRef.current !== key) return;
       setEvidence({
         key,
         preflight,
         trajectory,
-        transitionOverrides: optimized.overrides,
-        optimizations: optimized,
+        transitionOverrides: optimizations.overrides,
+        optimizations,
         error: null,
       });
     } catch (err) {
+      if (evidenceKeyRef.current !== key) return;
       setEvidence({
         key,
         preflight: null,
@@ -417,9 +413,22 @@ export default function TextFormationPanel() {
         error: err instanceof Error ? err.message : String(err),
       });
     } finally {
-      setEvaluating(false);
+      if (evidenceKeyRef.current === key) setEvaluating(false);
     }
   };
+
+  useEffect(() => {
+    evaluationTaskRef.current?.cancel();
+    evaluationTaskRef.current = null;
+    setEvaluating(false);
+  }, [evidenceKey]);
+
+  useEffect(
+    () => () => {
+      evaluationTaskRef.current?.cancel();
+    },
+    [],
+  );
 
   const canApply = !!ok && !!current && !stale && readiness.canApply;
 
