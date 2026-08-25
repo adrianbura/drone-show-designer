@@ -81,6 +81,137 @@ function Num({
   );
 }
 
+function nonZero(values: readonly number[] | undefined): number {
+  return values ? values.reduce((n, v) => n + (v !== 0 ? 1 : 0), 0) : 0;
+}
+
+function fmtM(value: number): string {
+  return `${value.toFixed(2)} m`;
+}
+
+/**
+ * Ephemeral, read-only transparency view of the canonical consequence
+ * evaluation. Every value shown here comes from
+ * `optimizeCandidateGeometryTransitions()` or
+ * `evaluateGeometryTrajectoryConsequence()` — this component computes nothing.
+ */
+function TransitionOptimizationSection({
+  optimizations,
+  trajectory,
+}: {
+  optimizations: CandidateGeometryTransitionOptimizations;
+  trajectory: GeometryTrajectoryConsequenceReport;
+}) {
+  const rows = optimizations.clipIds
+    .map((clipId) => ({ clipId, opt: optimizations.optimizations[clipId] }))
+    .filter(
+      (row): row is { clipId: string; opt: NonNullable<typeof row.opt> } => row.opt != null,
+    );
+
+  const before = trajectory.before;
+  const after = trajectory.after;
+  const degraded =
+    after.minimumDynamicSeparation < before.minimumDynamicSeparation ||
+    after.totalConflictCount > before.totalConflictCount ||
+    after.blockingIssueCount > before.blockingIssueCount;
+  const showTone =
+    after.blockingIssueCount > 0 || after.exportReadiness === "BLOCKED"
+      ? "text-destructive"
+      : degraded || after.exportReadiness === "READY_WITH_WARNINGS"
+        ? "text-warning"
+        : "text-muted-foreground";
+
+  return (
+    <div className="space-y-2" data-testid="text-transition-optimization">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">
+        Transition optimization
+      </p>
+      {rows.length === 0 ? (
+        <p
+          className="text-[10px] text-muted-foreground"
+          data-testid="text-transition-optimization-empty"
+        >
+          No optimizable transition boundary depends on this clip.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map(({ clipId, opt }) => {
+            const initial = opt.result.initial.metrics;
+            const final = opt.result.final.metrics;
+            const resolved = final.criticalConflictCount === 0;
+            const tone =
+              !resolved || opt.result.status === "failed" || opt.result.status === "unresolved"
+                ? "text-destructive"
+                : opt.result.status === "improved" || opt.result.status === "resolved"
+                  ? "text-muted-foreground"
+                  : "text-warning";
+            return (
+              <li
+                key={clipId}
+                className={`space-y-[2px] text-[10px] ${tone}`}
+                data-testid={`text-transition-row-${clipId}`}
+              >
+                <p className="font-mono">
+                  {clipId} · {opt.result.status}
+                </p>
+                <p className="font-mono">
+                  critical conflicts {initial.criticalConflictCount} →{" "}
+                  {final.criticalConflictCount}
+                </p>
+                <p className="font-mono">
+                  min separation {fmtM(initial.minimumDynamicSeparation)} →{" "}
+                  {fmtM(final.minimumDynamicSeparation)}
+                </p>
+                <p className="font-mono">
+                  strategies {opt.result.appliedStrategies.length ? opt.result.appliedStrategies.join(", ") : "none"}
+                </p>
+                <p className="font-mono">
+                  drones with offsets — start {nonZero(opt.override.startOffsets)} · lane{" "}
+                  {nonZero(opt.override.laneOffsets)} · lateral{" "}
+                  {nonZero(opt.override.lateralOffsets)}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">
+        Full-show consequence · BEFORE → AFTER
+      </p>
+      <div
+        className={`space-y-[2px] font-mono text-[10px] ${showTone}`}
+        data-testid="text-fullshow-before-after"
+      >
+        <p>
+          min dynamic separation {fmtM(before.minimumDynamicSeparation)} →{" "}
+          {fmtM(after.minimumDynamicSeparation)}
+        </p>
+        <p>
+          max velocity {before.maximumVelocity.toFixed(2)} → {after.maximumVelocity.toFixed(2)}{" "}
+          m/s
+        </p>
+        <p>
+          max acceleration {before.maximumAcceleration.toFixed(2)} →{" "}
+          {after.maximumAcceleration.toFixed(2)} m/s²
+        </p>
+        <p>
+          total conflicts {before.totalConflictCount} → {after.totalConflictCount}
+        </p>
+        <p>
+          blocking issues {before.blockingIssueCount} → {after.blockingIssueCount}
+        </p>
+        <p data-testid="text-promoted-clip-ids">
+          REFERENCE → PLANNER{" "}
+          {trajectory.newlyPromotedClipIds.length
+            ? trajectory.newlyPromotedClipIds.join(", ")
+            : "none"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function TextFormationPanel() {
   const {
     project,
