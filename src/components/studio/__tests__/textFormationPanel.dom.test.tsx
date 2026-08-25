@@ -91,6 +91,41 @@ describe("text formation editor DOM", () => {
     expect(screen.queryByTestId("text-open-editor")).not.toBeNull();
   });
 
+  it("shows transition optimization evidence after Evaluate, without mutating the project", async () => {
+    const { project, clipId } = await scenario();
+    await mount(project, clipId);
+    const before = JSON.stringify(api.project);
+
+    click("text-open-editor");
+    typeText("RALLY");
+    await waitFor(() => expect(screen.queryByTestId("text-preview-info")).not.toBeNull());
+
+    // No evaluation yet -> no optimization evidence.
+    expect(screen.queryByTestId("text-transition-optimization")).toBeNull();
+
+    click("text-evaluate");
+    await waitFor(() => expect(screen.queryByTestId("text-readiness")).not.toBeNull());
+
+    const section = screen.queryByTestId("text-transition-optimization");
+    if (screen.queryByTestId("text-evidence-error")) {
+      // Canonical analysis threw: no section, nothing mutated.
+      expect(section).toBeNull();
+    } else {
+      expect(section).not.toBeNull();
+      expect(screen.queryByTestId("text-fullshow-before-after")).not.toBeNull();
+      const empty = screen.queryByTestId("text-transition-optimization-empty");
+      if (!empty) {
+        // At least the edited clip's boundary is reported.
+        expect(screen.queryByTestId(`text-transition-row-${clipId}`)).not.toBeNull();
+      }
+    }
+    expect(JSON.stringify(api.project)).toBe(before);
+
+    // A recipe change makes the evidence stale but keeps it visible as before.
+    typeText("RALLYX");
+    await waitFor(() => expect(screen.queryByTestId("text-evidence-stale")).not.toBeNull());
+  });
+
   it("requires canonical evidence, discards it when the recipe changes, and applies once", async () => {
     const { project, clipId } = await scenario();
     await mount(project, clipId);
