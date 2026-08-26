@@ -214,18 +214,20 @@ describe("scene composer acceptance — 150 drones", () => {
       assignmentStrategy: "nearestNeighbor",
     });
     expect(report.exportReadiness.status).toBeDefined();
-    expect(report.drones.length).toBeGreaterThan(0);
+    expect(report.droneCount).toBe(FLEET);
 
     const eligibility = evaluateExportEligibility(report, false);
     expect(eligibility.canExportProjectFile).toBe(true);
 
-    const forced = {
-      ...report,
-      exportReadiness: { status: "READY", blockers: [], warnings: [] },
-    } as typeof report;
-    const pkg = buildEsspExportPackage(project, forced, {
+    const result = buildEsspExportPackage({
+      project,
+      plan: planFor(project),
+      fullShow: forcedReady(report),
+      fullShowStale: false,
       generatedAt: "2026-01-01T00:00:00.000Z",
     });
-    expect(pkg.files.length).toBeGreaterThan(0);
+    expect(result.blockers).toEqual([]);
+    expect(result.zip).not.toBeNull();
   });
+
 });
