@@ -255,12 +255,20 @@ export default function EffectStackPanel() {
 
         <ul className="space-y-1" data-testid="effect-stack-list">
           {scoped.length === 0 && (
-            <li className="font-mono text-[10px] text-muted-foreground">No effects yet.</li>
+            <li className="font-mono text-[10px] text-muted-foreground" data-testid="effect-stack-empty">
+              No effects yet. Pick a colour and apply one of the quick actions above.
+            </li>
           )}
           {scoped.map((effect, index) => (
             <li
               key={effect.id}
-              className="flex items-center gap-1 rounded border border-border bg-surface-sunken px-1.5 py-1"
+              data-testid={`effect-stack-row-${effect.id}`}
+              data-selected={selectedLightingEffectId === effect.id ? "1" : "0"}
+              className={`flex items-center gap-1 rounded border bg-surface-sunken px-1.5 py-1 ${
+                selectedLightingEffectId === effect.id
+                  ? "border-accent ring-1 ring-accent"
+                  : "border-border"
+              }`}
             >
               <input
                 type="checkbox"
@@ -269,9 +277,16 @@ export default function EffectStackPanel() {
                 data-testid={`effect-stack-enabled-${effect.id}`}
                 onChange={(e) => patchLightingEffect(effect.id, { enabled: e.target.checked })}
               />
-              <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-foreground">
+              <button
+                type="button"
+                data-testid={`effect-stack-select-${effect.id}`}
+                onClick={() => selectLightingEffect(effect.id)}
+                title="Focus on the lighting timeline"
+                className="min-w-0 flex-1 truncate text-left font-mono text-[10px] text-foreground"
+              >
                 {index + 1}. {effect.type}
-              </span>
+              </button>
+
               <input
                 type="number"
                 step={0.25}
