@@ -44,6 +44,7 @@ import type { FullShowValidationReport } from "../show/fullshow/types";
 import { emittedColor, projectLightingAt } from "../show/lighting";
 import type { ShowPlan, TrajectorySet } from "../show/trajectory";
 import type { RGB, ShowProject, Vector3Tuple } from "../show/types";
+import { DETERMINISTIC_ZIP_MTIME } from "./deterministicZip";
 import { evaluateExportEligibility, type ExportEligibility } from "./exportEligibility";
 
 /** Rates used when NO imported archive justifies a source rate. */
@@ -117,9 +118,6 @@ export interface EsspExportInput {
 
 const MANIFEST_NAME = "manifest.json";
 
-/** Fixed ZIP timestamp (earliest value the format allows) — determinism. */
-const ZIP_EPOCH = new Date(Date.UTC(1980, 0, 1, 0, 0, 0));
-
 function fileNameFor(index: number, numericSourceId: number | null): string {
   return `${numericSourceId ?? index + 1}.essp`;
 }
@@ -137,7 +135,11 @@ function positionsAtFactory(set: TrajectorySet) {
     return set.drones.map((d) => {
       const a = d.samples[i0]?.position ?? ([0, 0, 0] as Vector3Tuple);
       const b = d.samples[i1]?.position ?? a;
-      return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f] as Vector3Tuple;
+      return [
+        a[0] + (b[0] - a[0]) * f,
+        a[1] + (b[1] - a[1]) * f,
+        a[2] + (b[2] - a[2]) * f,
+      ] as Vector3Tuple;
     });
   };
 }
@@ -287,7 +289,10 @@ export function buildEsspExportPackage(input: EsspExportInput): EsspExportResult
     projectName: project.name,
     droneCount: files.length,
     durationSeconds: Number(
-      Math.max((positionSampleCount - 1) / positionRateHz, (rgbSampleCount - 1) / rgbRateHz).toFixed(6),
+      Math.max(
+        (positionSampleCount - 1) / positionRateHz,
+        (rgbSampleCount - 1) / rgbRateHz,
+      ).toFixed(6),
     ),
     positionRateHz,
     rgbRateHz,
@@ -315,9 +320,19 @@ export function buildEsspExportPackage(input: EsspExportInput): EsspExportResult
   for (const file of files) entries[file.name] = file.bytes;
   entries[MANIFEST_NAME] = new TextEncoder().encode(JSON.stringify(manifest, null, 2));
   // level 0 + fixed mtime keeps the archive byte-deterministic.
-  const zip = zipSync(entries, { level: 0, mtime: ZIP_EPOCH });
+  const zip = zipSync(entries, { level: 0, mtime: DETERMINISTIC_ZIP_MTIME });
 
-  return { ok: true, blockers: [], warnings, mode, profileStatus, files, manifest, zip, zipFileName };
+  return {
+    ok: true,
+    blockers: [],
+    warnings,
+    mode,
+    profileStatus,
+    files,
+    manifest,
+    zip,
+    zipFileName,
+  };
 }
 
 function gateMessage(eligibility: ExportEligibility): string {
@@ -385,7 +400,10 @@ function sampleShow(input: SampleInput): {
 
   const fleet = project.droneCount;
   // Position stream (per drone), on the ESSP position clock.
-  const xyz: Int16Array[] = Array.from({ length: fleet }, () => new Int16Array(positionSampleCount * 3));
+  const xyz: Int16Array[] = Array.from(
+    { length: fleet },
+    () => new Int16Array(positionSampleCount * 3),
+  );
   for (let k = 0; k < positionSampleCount; k += 1) {
     const t = startTime + k / positionRateHz;
     const positions = positionsAt(t);

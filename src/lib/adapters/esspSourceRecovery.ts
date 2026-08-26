@@ -15,6 +15,7 @@ import { zipSync } from "fflate";
 
 import { base64ToBytes } from "../import/essp/native/layer";
 import type { ReferenceTrajectoryLayer } from "../import/essp/native/types";
+import { DETERMINISTIC_ZIP_MTIME } from "./deterministicZip";
 
 export const ESSP_SOURCE_RECOVERY_KIND = "SOURCE_RECOVERY" as const;
 
@@ -48,8 +49,6 @@ export interface EsspSourceRecoveryResult {
   readonly referenceShowHash: string | null;
 }
 
-/** Fixed ZIP timestamp (earliest the format allows) — determinism. */
-const ZIP_EPOCH = new Date(Date.UTC(1980, 0, 1, 0, 0, 0));
 const MANIFEST_NAME = "source-recovery.json";
 
 function slug(name: string): string {
@@ -66,9 +65,7 @@ function nameFor(
   return { name: `${drone.numericSourceId || index + 1}.essp`, nameFromSource: false };
 }
 
-export function hasEsspSourceBytes(
-  layer: ReferenceTrajectoryLayer | null | undefined,
-): boolean {
+export function hasEsspSourceBytes(layer: ReferenceTrajectoryLayer | null | undefined): boolean {
   return !!layer && layer.drones.length > 0 && layer.drones.every((d) => !!d.fileBase64);
 }
 
@@ -120,7 +117,7 @@ export function buildOriginalEsspDownload(input: {
   const entries: Record<string, Uint8Array> = {};
   for (const file of files) entries[file.name] = file.bytes;
   entries[MANIFEST_NAME] = new TextEncoder().encode(JSON.stringify(manifest, null, 2));
-  const zip = zipSync(entries, { level: 0, mtime: ZIP_EPOCH });
+  const zip = zipSync(entries, { level: 0, mtime: DETERMINISTIC_ZIP_MTIME });
 
   return {
     ok: true,
