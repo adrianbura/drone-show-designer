@@ -168,3 +168,16 @@ export function reorderEffect(
   const priorities = new Map(next.map((e, i) => [e.id, i]));
   return effects.map((e) => (priorities.has(e.id) ? { ...e, priority: priorities.get(e.id)! } : e));
 }
+
+/** Canonical lighting preset id backing an everyday stack entry. */
+export function canonicalStackPresetId(preset: EffectStackPresetId): string {
+  return CANONICAL_PRESET[preset];
+}
+
+/** Everyday colour parameters for a stack entry (empty when not colour driven). */
+export function stackColorParameters(
+  preset: EffectStackPresetId,
+  color: RGB,
+): LightingEffectParameters {
+  return colorParameters(preset, color);
+}
