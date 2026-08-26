@@ -237,6 +237,16 @@ export function generatePoints(
     case "text":
       pts = textPoints(String(params["text"] ?? "SHOW"), count, size, alt);
       break;
+    case "line":
+      pts = linePoints(
+        count,
+        num("length", size),
+        alt,
+        num("rotationDeg", 0),
+        num("rows", 1),
+        num("rowSpacing", 1.5),
+      );
+      break;
     default:
       pts = gridPoints(count, size, alt);
   }
