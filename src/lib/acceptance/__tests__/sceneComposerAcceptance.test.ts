@@ -23,7 +23,7 @@ import { applyPreset, dynamicFromFormation } from "@/lib/show/dynamic";
 import { makeFormation } from "@/lib/show/formations";
 import { analyzeFullShow } from "@/lib/show/fullshow";
 import { createEffectFromPreset, findLightingPreset, EMPTY_LIGHTING_PROGRAM } from "@/lib/show/lighting";
-import { addObject, patchObject, sceneBudget, sceneForClip, upsertScene } from "@/lib/show/scene";
+import { addObject, emptyScene, patchObject, sceneBudget, upsertScene } from "@/lib/show/scene";
 import { generateSvgFormationPoints, makeSvgFormation, parseSvg, resolveSvgParams } from "@/lib/show/svg";
 import type { FormationScene } from "@/lib/show/scene/types";
 import type { ShowProject, TimelineClip } from "@/lib/show/types";
@@ -76,7 +76,7 @@ function composedProject(textDrones: number): {
     lighting: EMPTY_LIGHTING_PROGRAM,
   };
 
-  let scene = sceneForClip(project, clip);
+  let scene = emptyScene(clip.id, "Scene");
   const a = addObject(project, scene, {
     source: { kind: "STATIC", formationId: text.id },
     name: "SUPER RALY",
