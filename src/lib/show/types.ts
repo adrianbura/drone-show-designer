@@ -36,6 +36,7 @@ export type FormationKind =
   | "wave"
   | "heart"
   | "text"
+  | "line"
   | "svg"
   | "custom";
 
