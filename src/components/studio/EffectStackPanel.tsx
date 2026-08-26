@@ -15,7 +15,6 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
-  
   canonicalStackPresetId,
   stackColorParameters,
   stackOrder,
@@ -255,10 +254,12 @@ export default function EffectStackPanel() {
           {(["PULSE", "CHASE", "TWINKLE"] as const).map((preset) => presetButton(preset, false))}
         </div>
 
-
         <ul className="space-y-1" data-testid="effect-stack-list">
           {scoped.length === 0 && (
-            <li className="font-mono text-[10px] text-muted-foreground" data-testid="effect-stack-empty">
+            <li
+              className="font-mono text-[10px] text-muted-foreground"
+              data-testid="effect-stack-empty"
+            >
               No effects yet. Pick a colour and apply one of the quick actions above.
             </li>
           )}

@@ -195,7 +195,6 @@ export default function SceneComposerPanel() {
   const [renameDraft, setRenameDraft] = useState("");
   const [confirmDeleteGroupId, setConfirmDeleteGroupId] = useState<string | null>(null);
 
-
   if (!selectedClipId || !selectedScene) {
     return (
       <section className="panel-card" data-testid="scene-composer">
@@ -428,7 +427,6 @@ export default function SceneComposerPanel() {
           </ul>
         </div>
       ) : null}
-
 
       <ul className="mt-2 space-y-1" data-testid="composer-object-list">
         {selectedScene.objects.map((object) => {
