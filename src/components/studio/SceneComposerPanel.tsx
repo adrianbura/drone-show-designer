@@ -11,7 +11,7 @@
  * remain the only authorities. Unused drones are handled as RESERVE by the
  * planner — the operator never places placeholders.
  */
-import { Copy, Eye, EyeOff, Layers, Plus, Trash2 } from "lucide-react";
+import { Copy, Eye, EyeOff, Layers, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { useStudio } from "@/lib/studio/store";
@@ -191,6 +191,10 @@ export default function SceneComposerPanel() {
     selectScenePointGroup,
   } = useStudio();
   const [groupName, setGroupName] = useState("Group");
+  const [renamingGroupId, setRenamingGroupId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [confirmDeleteGroupId, setConfirmDeleteGroupId] = useState<string | null>(null);
+
 
   if (!selectedClipId || !selectedScene) {
     return (
