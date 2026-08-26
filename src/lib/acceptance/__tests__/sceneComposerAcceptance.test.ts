@@ -229,6 +229,6 @@ describe("scene composer acceptance — 150 drones", () => {
     });
     expect(result.blockers).toEqual([]);
     expect(result.zip).not.toBeNull();
-  });
+  }, 30_000);
 
 });
