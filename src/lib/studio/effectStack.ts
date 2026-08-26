@@ -18,7 +18,8 @@ import {
 } from "../show/lighting";
 
 /** The six everyday stack entries offered to a normal operator. */
-export type EffectStackPresetId = "BASE_COLOR" | "FADE" | "PULSE" | "CHASE" | "TWINKLE" | "GRADIENT";
+export type EffectStackPresetId =
+  "BASE_COLOR" | "FADE" | "PULSE" | "CHASE" | "TWINKLE" | "GRADIENT";
 
 export const EFFECT_STACK_PRESETS: readonly EffectStackPresetId[] = [
   "BASE_COLOR",

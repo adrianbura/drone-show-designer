@@ -37,7 +37,13 @@ const PRESET_LABEL: Record<EffectStackPresetId, string> = {
 };
 
 const toHex = (rgb: RGB): string =>
-  `#${rgb.map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, "0")).join("")}`;
+  `#${rgb
+    .map((c) =>
+      Math.max(0, Math.min(255, Math.round(c)))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
 
 const fromHex = (hex: string): RGB => [
   parseInt(hex.slice(1, 3), 16) || 0,
@@ -66,9 +72,7 @@ export default function EffectStackPanel() {
         <h2 className="panel-title flex items-center gap-1.5">
           <Sparkles className="size-3" /> Effects
         </h2>
-        <p className="font-mono text-[10px] text-muted-foreground">
-          Select a clip to add effects.
-        </p>
+        <p className="font-mono text-[10px] text-muted-foreground">Select a clip to add effects.</p>
       </section>
     );
   }

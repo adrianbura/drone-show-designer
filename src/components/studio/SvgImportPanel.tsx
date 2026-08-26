@@ -140,8 +140,6 @@ export default function SvgImportPanel() {
             max={project.droneCount}
           />
 
-
-
           <Slider
             label="Width"
             value={params.width}
@@ -222,7 +220,13 @@ export default function SvgImportPanel() {
               </div>
               <div className="flex justify-between">
                 <dt>min gap</dt>
-                <dd className={report.minSpacing < project.limits.minSeparation ? "text-destructive" : "text-accent"}>
+                <dd
+                  className={
+                    report.minSpacing < project.limits.minSeparation
+                      ? "text-destructive"
+                      : "text-accent"
+                  }
+                >
                   {report.minSpacing.toFixed(2)} m
                 </dd>
               </div>
@@ -246,7 +250,10 @@ export default function SvgImportPanel() {
           {report && report.warnings.length > 0 ? (
             <ul className="space-y-1">
               {report.warnings.map((w, i) => (
-                <li key={`${w.code}-${i}`} className="flex gap-1.5 text-[10px] leading-relaxed text-warning">
+                <li
+                  key={`${w.code}-${i}`}
+                  className="flex gap-1.5 text-[10px] leading-relaxed text-warning"
+                >
                   <AlertTriangle className="mt-px size-3 shrink-0" />
                   <span>{w.message}</span>
                 </li>
@@ -296,7 +303,6 @@ export default function SvgImportPanel() {
               </button>
             </div>
           </div>
-
         </div>
       ) : null}
     </section>

@@ -49,7 +49,11 @@ export function spherePoints(count: number, radius: number, altitude: number): V
     const y = count === 1 ? 0 : 1 - (i / (count - 1)) * 2;
     const r = Math.sqrt(Math.max(0, 1 - y * y));
     const theta = GOLDEN * i;
-    return [Math.cos(theta) * r * radius, altitude + y * radius, Math.sin(theta) * r * radius] as Vec3;
+    return [
+      Math.cos(theta) * r * radius,
+      altitude + y * radius,
+      Math.sin(theta) * r * radius,
+    ] as Vec3;
   });
 }
 
@@ -76,7 +80,12 @@ export function cubePoints(count: number, size: number, altitude: number): Vec3[
   return out;
 }
 
-export function wavePoints(count: number, size: number, altitude: number, amplitude: number): Vec3[] {
+export function wavePoints(
+  count: number,
+  size: number,
+  altitude: number,
+  amplitude: number,
+): Vec3[] {
   return gridPoints(count, size, altitude).map(([x, y, z]) => [
     x,
     y + Math.sin((x / size) * TAU) * amplitude + Math.cos((z / size) * TAU) * amplitude * 0.5,
@@ -152,17 +161,11 @@ export function linePoints(
   return out;
 }
 
-
 /**
  * Text formation via glyph-mask sampling. Runs in the browser only (needs
  * canvas); callers must invoke it from an effect/handler, never during SSR.
  */
-export function textPoints(
-  text: string,
-  count: number,
-  size: number,
-  altitude: number,
-): Vec3[] {
+export function textPoints(text: string, count: number, size: number, altitude: number): Vec3[] {
   if (typeof document === "undefined" || !text.trim()) {
     return circlePoints(count, size / 3, altitude);
   }
@@ -262,4 +265,36 @@ export function makeFormation(
   params: Record<string, number | string> = {},
 ): Formation {
   return { id, name, kind, params, points: generatePoints(kind, count, area, params) };
+}
+
+/**
+ * Creates reusable geometry centred around its own local origin.
+ *
+ * Ordinary formations are generated directly in show space and therefore carry
+ * an altitude. Scene objects add their own transform on top, so native visuals
+ * created inside a scene must not retain that global placement or the inspector
+ * position would be applied twice.
+ */
+export function makeSceneLocalFormation(
+  id: string,
+  name: string,
+  kind: FormationKind,
+  count: number,
+  area: ShowArea,
+  params: Record<string, number | string> = {},
+): Formation {
+  const formation = makeFormation(id, name, kind, count, area, params);
+  if (formation.points.length === 0) return formation;
+  const center = formation.points.reduce(
+    (sum, point) => [sum[0] + point[0], sum[1] + point[1], sum[2] + point[2]] as Vec3,
+    [0, 0, 0] as Vec3,
+  );
+  const n = formation.points.length;
+  const origin: Vec3 = [center[0] / n, center[1] / n, center[2] / n];
+  return {
+    ...formation,
+    points: formation.points.map(
+      (point) => [point[0] - origin[0], point[1] - origin[1], point[2] - origin[2]] as Vec3,
+    ),
+  };
 }

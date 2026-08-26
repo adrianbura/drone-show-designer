@@ -17,14 +17,28 @@ import { describe, expect, it } from "vitest";
 import { buildEsspExportPackage } from "@/lib/adapters/esspExport";
 import { forcedReady, planFor } from "./support/productionFixtures";
 import { evaluateExportEligibility } from "@/lib/adapters/exportEligibility";
-import { defaultPlanningState, parseProjectFile, projectFileToJson, serializeProject } from "@/lib/project";
+import {
+  defaultPlanningState,
+  parseProjectFile,
+  projectFileToJson,
+  serializeProject,
+} from "@/lib/project";
 import { createDefaultProject } from "@/lib/show/defaultProject";
 import { applyPreset, dynamicFromFormation } from "@/lib/show/dynamic";
-import { makeFormation } from "@/lib/show/formations";
+import { makeSceneLocalFormation } from "@/lib/show/formations";
 import { analyzeFullShow } from "@/lib/show/fullshow";
-import { createEffectFromPreset, findLightingPreset, EMPTY_LIGHTING_PROGRAM } from "@/lib/show/lighting";
+import {
+  createEffectFromPreset,
+  findLightingPreset,
+  EMPTY_LIGHTING_PROGRAM,
+} from "@/lib/show/lighting";
 import { addObject, emptyScene, patchObject, sceneBudget, upsertScene } from "@/lib/show/scene";
-import { generateSvgFormationPoints, makeSvgFormation, parseSvg, resolveSvgParams } from "@/lib/show/svg";
+import {
+  generateSvgFormationPoints,
+  makeSvgFormation,
+  parseSvg,
+  resolveSvgParams,
+} from "@/lib/show/svg";
 import type { FormationScene } from "@/lib/show/scene/types";
 import type { ShowProject, TimelineClip } from "@/lib/show/types";
 
@@ -42,7 +56,12 @@ function svgTextFormation(project: ShowProject, count: number) {
   const geometry = parseSvg(SVG_SOURCE, { fileName: "text.svg", byteLength: SVG_SOURCE.length });
   const params = resolveSvgParams(count, { mode: "fill", width: 80, altitude: 60 });
   const result = generateSvgFormationPoints(geometry, params);
-  return makeSvgFormation("f-text", "SUPER RALY", { id: "svg-1", name: "text.svg", fileName: "text.svg", geometry }, result);
+  return makeSvgFormation(
+    "f-text",
+    "SUPER RALY",
+    { id: "svg-1", name: "text.svg", fileName: "text.svg", geometry },
+    result,
+  );
 }
 
 /** Builds the composer scene: SVG text + two underlines, in one clip. */
@@ -53,10 +72,9 @@ function composedProject(textDrones: number): {
 } {
   const base = createDefaultProject(FLEET);
   const text = svgTextFormation(base, textDrones);
-  const line = makeFormation("f-line", "Line", "line", LINE_DRONES, base.area, {
+  const line = makeSceneLocalFormation("f-line", "Line", "line", LINE_DRONES, base.area, {
     length: 70,
     rows: 1,
-    altitude: 40,
   });
   const clip: TimelineClip = {
     id: "c-scene",
@@ -81,7 +99,7 @@ function composedProject(textDrones: number): {
     source: { kind: "STATIC", formationId: text.id },
     name: "SUPER RALY",
     requestedDroneCount: textDrones,
-    position: [0, 60, 0],
+    position: [0, 0, 0],
   });
   const b = addObject(project, a.scene, {
     source: { kind: "STATIC", formationId: line.id },
@@ -132,6 +150,11 @@ describe("scene composer acceptance — 150 drones", () => {
     expect(budget.active).toBe(FLEET);
     expect(budget.availableDrones).toBe(0);
     expect(budget.overCapacity).toBe(false);
+    const lineSources = project.formations.filter((formation) => formation.kind === "line");
+    expect(lineSources).toHaveLength(1);
+    expect(lineSources[0]!.points.every((point) => Math.abs(point[1]) <= 1e-9)).toBe(true);
+    expect(scene.objects[1]!.transform.position[1]).toBe(40);
+    expect(scene.objects[2]!.transform.position[1]).toBe(34);
   });
 
   it("reports the canonical reserve when the composition uses fewer drones", () => {
@@ -163,7 +186,9 @@ describe("scene composer acceptance — 150 drones", () => {
         { anchor: "SCENE_START", start: 0, priority: i, idSeed: 100 + i },
       ),
     );
-    const targets = effects.map((e) => (e.target.kind === "SCENE_OBJECT" ? e.target.instanceId : "SCENE"));
+    const targets = effects.map((e) =>
+      e.target.kind === "SCENE_OBJECT" ? e.target.instanceId : "SCENE",
+    );
     expect(targets).toEqual([composed.ids.text, composed.ids.line1]);
     expect(targets).not.toContain(composed.ids.line2);
     const byObject = composed.scene.objects.map((o) => o.lighting?.color ?? null);
@@ -230,5 +255,4 @@ describe("scene composer acceptance — 150 drones", () => {
     expect(result.blockers).toEqual([]);
     expect(result.zip).not.toBeNull();
   }, 30_000);
-
 });

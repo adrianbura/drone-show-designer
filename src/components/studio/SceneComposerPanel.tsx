@@ -18,7 +18,13 @@ import { useStudio } from "@/lib/studio/store";
 import type { RGB } from "@/lib/show/types";
 
 const toHex = (rgb: RGB): string =>
-  `#${rgb.map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, "0")).join("")}`;
+  `#${rgb
+    .map((c) =>
+      Math.max(0, Math.min(255, Math.round(c)))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
 
 const fromHex = (hex: string): RGB => [
   parseInt(hex.slice(1, 3), 16) || 0,
@@ -84,12 +90,27 @@ function AddNativeLine({ clipId }: { clipId: string }) {
   }
 
   return (
-    <div className="mt-2 space-y-1.5 rounded border border-border bg-surface-sunken p-2" data-testid="composer-add-line">
+    <div
+      className="mt-2 space-y-1.5 rounded border border-border bg-surface-sunken p-2"
+      data-testid="composer-add-line"
+    >
       <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
         Native line
       </p>
-      <NumberField label="Drones" value={drones} step={1} testId="line-drones" onChange={setDrones} />
-      <NumberField label="Length m" value={length} step={1} testId="line-length" onChange={setLength} />
+      <NumberField
+        label="Drones"
+        value={drones}
+        step={1}
+        testId="line-drones"
+        onChange={setDrones}
+      />
+      <NumberField
+        label="Length m"
+        value={length}
+        step={1}
+        testId="line-length"
+        onChange={setLength}
+      />
       <NumberField label="Rows" value={rows} step={1} testId="line-rows" onChange={setRows} />
       <div className="grid grid-cols-3 gap-1">
         <NumberField label="X" value={x} step={0.5} testId="line-x" onChange={setX} />
@@ -290,10 +311,11 @@ export default function SceneComposerPanel() {
         </div>
       )}
 
-
-
       {primary && (
-        <div className="mt-2 space-y-1.5 border-t border-border pt-2" data-testid="composer-inspector">
+        <div
+          className="mt-2 space-y-1.5 border-t border-border pt-2"
+          data-testid="composer-inspector"
+        >
           <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
             <span className="uppercase tracking-[0.14em]">Name</span>
             <input

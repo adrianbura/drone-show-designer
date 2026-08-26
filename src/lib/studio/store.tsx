@@ -45,7 +45,7 @@ import { isAutosaveWriteAuthorized, isRecoveryOfferable } from "./autosaveAuthor
 import { projectPersistenceOptions } from "./projectPersistence";
 import { createAnalysisRunAuthority } from "./analysisRunAuthority";
 import { findSampleShow } from "../show/stories/samples";
-import { generatePoints, makeFormation } from "../show/formations";
+import { generatePoints, makeFormation, makeSceneLocalFormation } from "../show/formations";
 import { buildShowPlan, samplesAt, sampleTrajectorySet, DEFAULT_SAMPLE_RATE } from "../show/trajectory";
 import type { ClipTransitionOverride, ShowPlan, TrajectorySample, TrajectorySet } from "../show/trajectory";
 import { validateShow, type SafetyReport } from "../show/safety";
@@ -2455,7 +2455,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setProject((p) => {
         const clip = p.timeline.find((c) => c.id === clipId);
         if (!clip) return p;
-        const formation = makeFormation(
+        const formation = makeSceneLocalFormation(
           formationId,
           input.name,
           input.kind,
