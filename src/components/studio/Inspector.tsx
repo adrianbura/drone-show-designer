@@ -14,6 +14,8 @@ import TransitionDesignPanel from "./TransitionDesignPanel";
 import LaunchPanel from "./LaunchPanel";
 import ParticipationPanel from "./ParticipationPanel";
 import SceneObjectsPanel from "./SceneObjectsPanel";
+import SceneComposerPanel from "./SceneComposerPanel";
+import EffectStackPanel from "./EffectStackPanel";
 import LightingEffectsPanel from "./LightingEffectsPanel";
 import SimulationPanel from "./SimulationPanel";
 import DynamicPanel from "./DynamicPanel";
@@ -511,11 +513,22 @@ export default function Inspector({
           hidden={group !== "AUTHORING"}
           className={`flex flex-col gap-5 ${group === "AUTHORING" ? "" : "hidden"}`}
         >
-      {/* Reference show sits at the TOP of AUTHORING: importing an ESSP and
-          converting it into an editable timeline is a first-class entry path. */}
+      {/* EVERYDAY COMPOSER — selection-primary authoring sits first: visuals,
+          artistic properties and effect stacks. Technical evidence lives below
+          and in ADVANCED. */}
+      <div id="composer-panel" data-panel-id="composer-panel">
+        <SceneComposerPanel />
+      </div>
+      <div id="effect-stack-panel" data-panel-id="effect-stack-panel">
+        <EffectStackPanel />
+      </div>
+
+      {/* Reference show: importing an ESSP and converting it into an editable
+          timeline is a first-class entry path. */}
       <div id="essp-panel" data-panel-id="essp-panel">
         <EsspPanel />
       </div>
+
 
       {/* Focused text rebuild for one eligible STATIC target. */}
       <div id="text-panel" data-panel-id="text-panel">

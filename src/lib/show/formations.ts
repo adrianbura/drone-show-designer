@@ -120,6 +120,38 @@ export function heartPoints(count: number, scale: number, altitude: number): Vec
   }, count);
 }
 
+/**
+ * NATIVE LINE GEOMETRY — deterministic evenly spaced row(s) of points.
+ *
+ * Geometry only: it feeds the same static-source path as any library asset, so
+ * assignment, trajectory and safety stay untouched. `rows` > 1 builds a thicker
+ * bar (underline) by stacking rows on the local Y axis.
+ */
+export function linePoints(
+  count: number,
+  length: number,
+  altitude: number,
+  rotationDeg = 0,
+  rows = 1,
+  rowSpacing = 1.5,
+): Vec3[] {
+  const n = Math.max(1, Math.round(count));
+  const r = Math.max(1, Math.round(rows));
+  const perRow = Math.ceil(n / r);
+  const rad = (rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const out: Vec3[] = [];
+  for (let i = 0; i < n; i++) {
+    const row = Math.floor(i / perRow);
+    const col = i % perRow;
+    const x = perRow === 1 ? 0 : (col / (perRow - 1) - 0.5) * length;
+    const y = (row - (r - 1) / 2) * rowSpacing;
+    out.push([x * cos - y * sin, altitude + (x * sin + y * cos), 0]);
+  }
+  return out;
+}
+
 
 /**
  * Text formation via glyph-mask sampling. Runs in the browser only (needs
@@ -204,6 +236,16 @@ export function generatePoints(
       break;
     case "text":
       pts = textPoints(String(params["text"] ?? "SHOW"), count, size, alt);
+      break;
+    case "line":
+      pts = linePoints(
+        count,
+        num("length", size),
+        alt,
+        num("rotationDeg", 0),
+        num("rows", 1),
+        num("rowSpacing", 1.5),
+      );
       break;
     default:
       pts = gridPoints(count, size, alt);
