@@ -138,3 +138,85 @@ describe("scene composer drone budget DOM", () => {
     expect(api.project.lighting?.effects[0]?.target.kind).toBe("POINT_GROUP");
   });
 });
+
+describe("drone group lighting authoring UX", () => {
+  it("explains modes, renames inline, confirms reusable deletion and authors at the playhead", async () => {
+    const { project, clipId } = projectWithReserve();
+    await mount(project, clipId);
+
+    expect(screen.getByTestId("composer-mode-hint").textContent).toContain("whole SVG");
+    fireEvent.click(screen.getByTestId("composer-mode-point"));
+    expect(screen.getByTestId("composer-selection-mode").getAttribute("data-mode")).toBe("POINT");
+    expect(screen.getByTestId("composer-mode-hint").textContent).toContain("points inside");
+    expect(screen.getByTestId("composer-point-groups-empty")).toBeTruthy();
+
+    act(() => api.selectScenePointForDrone(0, false));
+    act(() => api.selectScenePointForDrone(1, true));
+    act(() => api.setTime(4.25));
+    await waitFor(() =>
+      expect(screen.getByTestId("composer-selection-summary").textContent).toContain(
+        "2 drone points",
+      ),
+    );
+
+    fireEvent.change(screen.getByLabelText("Drone group name"), {
+      target: { value: "Diamond sparkle" },
+    });
+    fireEvent.click(screen.getByTestId("composer-save-point-group"));
+    await waitFor(() => expect(api.project.scenes?.[0]?.pointGroups).toHaveLength(1));
+    const groupId = api.project.scenes![0]!.pointGroups![0]!.id;
+    expect(screen.getByTestId(`composer-group-count-${groupId}`).textContent).toBe("2");
+
+    // Inline rename (no window.prompt).
+    fireEvent.click(screen.getByTestId(`composer-group-rename-${groupId}`));
+    const renameInput = screen.getByTestId(`composer-group-rename-input-${groupId}`);
+    fireEvent.change(renameInput, { target: { value: "Diamond sparkle B" } });
+    fireEvent.keyDown(renameInput, { key: "Enter" });
+    await waitFor(() =>
+      expect(api.project.scenes?.[0]?.pointGroups?.[0]?.name).toBe("Diamond sparkle B"),
+    );
+
+    // Reusable group deletion asks for confirmation and can be cancelled.
+    fireEvent.click(screen.getByTestId(`composer-group-delete-${groupId}`));
+    expect(screen.getByTestId(`composer-group-delete-confirm-${groupId}`)).toBeTruthy();
+
+    // Reselect the group and author lighting at the playhead.
+    fireEvent.click(screen.getByTestId(`composer-group-select-${groupId}`));
+    await waitFor(() => expect(api.selectedScenePointIds).toHaveLength(2));
+
+    expect(screen.getByTestId("effect-target-summary").getAttribute("data-target")).toBe("POINTS");
+    expect(screen.getByTestId("effect-start-readout").getAttribute("data-start")).toBe("4.25");
+
+    fireEvent.click(screen.getByTestId("effect-stack-add-BASE_COLOR"));
+    await waitFor(() => expect(api.project.lighting?.effects).toHaveLength(1));
+    expect(api.project.lighting!.effects[0]!.start).toBe(4.25);
+
+    act(() => api.setTime(6.5));
+    fireEvent.click(screen.getByTestId("effect-stack-add-FADE"));
+    await waitFor(() => expect(api.project.lighting?.effects).toHaveLength(2));
+    expect(api.project.lighting!.effects[1]!.start).toBe(6.5);
+
+    fireEvent.change(screen.getByTestId("effect-stack-gradient-axis"), { target: { value: "Y" } });
+    fireEvent.click(screen.getByTestId("effect-stack-add-GRADIENT"));
+    await waitFor(() => expect(api.project.lighting?.effects).toHaveLength(3));
+    const gradient = api.project.lighting!.effects[2]!;
+    expect(gradient.parameters.stops).toHaveLength(2);
+    expect(gradient.parameters.direction).toEqual([0, 1, 0]);
+
+    // Selecting a row focuses the canonical effect.
+    fireEvent.click(screen.getByTestId(`effect-stack-select-${gradient.id}`));
+    await waitFor(() => expect(api.selectedLightingEffectId).toBe(gradient.id));
+
+    act(() => api.undoTimeline());
+    expect(api.project.lighting?.effects).toHaveLength(2);
+    act(() => api.redoTimeline());
+    expect(api.project.lighting?.effects).toHaveLength(3);
+
+    const saved = projectFile(api.project);
+    await act(async () => {
+      await api.openProjectFile(saved);
+    });
+    expect(api.project.scenes?.[0]?.pointGroups?.[0]?.name).toBe("Diamond sparkle B");
+    expect(api.project.lighting?.effects).toHaveLength(3);
+  });
+});

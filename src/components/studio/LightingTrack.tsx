@@ -95,7 +95,10 @@ function ColorSwatch({ color }: { color: EffectColorPresentation }) {
     );
   }
   const stops = color.colors
-    .map((c, i) => `${rgbToHex(c)} ${((color.positions[i] ?? i / Math.max(1, color.colors.length - 1)) * 100).toFixed(0)}%`)
+    .map(
+      (c, i) =>
+        `${rgbToHex(c)} ${((color.positions[i] ?? i / Math.max(1, color.colors.length - 1)) * 100).toFixed(0)}%`,
+    )
     .join(", ");
   return (
     <span
@@ -196,8 +199,6 @@ export default function LightingTrack({
     // selected id so a drag never fights the operator's own scrolling.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLightingEffectId]);
-
-
 
   const snapContext = useCallback(
     (altKey: boolean): EffectSnapContext => ({
@@ -308,7 +309,10 @@ export default function LightingTrack({
         ref={measure}
         data-testid="lighting-lane"
         className="relative overflow-x-hidden overflow-y-auto rounded border border-border bg-panel-2"
-        style={{ height: visibleLanes * LANE_HEIGHT + 6, maxHeight: MAX_VISIBLE_LANES * LANE_HEIGHT + 6 }}
+        style={{
+          height: visibleLanes * LANE_HEIGHT + 6,
+          maxHeight: MAX_VISIBLE_LANES * LANE_HEIGHT + 6,
+        }}
         onPointerMove={(e) => move(e.clientX, e.altKey)}
         onPointerUp={end}
         onPointerLeave={cancel}
@@ -318,7 +322,9 @@ export default function LightingTrack({
             {t("lighting.trackEmpty")}
           </p>
         )}
-        <div style={{ height: Math.max(1, layout.laneCount) * LANE_HEIGHT + 4, position: "relative" }}>
+        <div
+          style={{ height: Math.max(1, layout.laneCount) * LANE_HEIGHT + 4, position: "relative" }}
+        >
           {layout.blocks.map((block) => {
             const selected = selectedLightingEffectId === block.id;
             const effect = block.effect;

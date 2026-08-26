@@ -11,7 +11,7 @@
  * remain the only authorities. Unused drones are handled as RESERVE by the
  * planner — the operator never places placeholders.
  */
-import { Copy, Eye, EyeOff, Layers, Plus, Trash2 } from "lucide-react";
+import { Copy, Eye, EyeOff, Layers, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { useStudio } from "@/lib/studio/store";
@@ -191,6 +191,9 @@ export default function SceneComposerPanel() {
     selectScenePointGroup,
   } = useStudio();
   const [groupName, setGroupName] = useState("Group");
+  const [renamingGroupId, setRenamingGroupId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [confirmDeleteGroupId, setConfirmDeleteGroupId] = useState<string | null>(null);
 
   if (!selectedClipId || !selectedScene) {
     return (
@@ -222,19 +225,51 @@ export default function SceneComposerPanel() {
         {used} of {project.droneCount} drones used · {reserve} reserve
       </p>
 
-      <div className="mt-2 grid grid-cols-2 gap-1" data-testid="composer-selection-mode">
-        {(["OBJECT", "POINT"] as const).map((mode) => (
-          <button
-            key={mode}
-            type="button"
-            data-testid={`composer-mode-${mode.toLowerCase()}`}
-            onClick={() => setSceneSelectionMode(mode)}
-            className={`chip-btn justify-center ${sceneSelectionMode === mode ? "mini-btn-accent" : ""}`}
-          >
-            {mode === "OBJECT" ? "Objects" : "Drones"}
-          </button>
-        ))}
+      <div
+        className="mt-2 grid grid-cols-2 gap-1"
+        role="group"
+        aria-label="Selection mode"
+        data-testid="composer-selection-mode"
+        data-mode={sceneSelectionMode}
+      >
+        {(["OBJECT", "POINT"] as const).map((mode) => {
+          const active = sceneSelectionMode === mode;
+          return (
+            <button
+              key={mode}
+              type="button"
+              aria-pressed={active}
+              data-active={active ? "1" : "0"}
+              data-testid={`composer-mode-${mode.toLowerCase()}`}
+              onClick={() => setSceneSelectionMode(mode)}
+              className={`chip-btn justify-center ${
+                active ? "mini-btn-accent border-accent ring-1 ring-accent" : "opacity-70"
+              }`}
+            >
+              {mode === "OBJECT" ? "Objects" : "Drones"}
+            </button>
+          );
+        })}
       </div>
+
+      <p
+        className="mt-1 font-mono text-[10px] leading-relaxed text-muted-foreground"
+        data-testid="composer-mode-hint"
+      >
+        {sceneSelectionMode === "OBJECT"
+          ? "Objects — edit whole SVG or line objects."
+          : "Drones — select points inside one object."}
+      </p>
+
+      <p
+        className="font-mono text-[10px] text-muted-foreground"
+        data-testid="composer-selection-summary"
+      >
+        {primary ? primary.name : "No object selected"}
+        {" · "}
+        {selectedScenePointIds.length} drone point
+        {selectedScenePointIds.length === 1 ? "" : "s"} selected
+      </p>
 
       {sceneSelectionMode === "POINT" ? (
         <div className="mt-2 space-y-1.5 rounded border border-border bg-surface-sunken p-2">
@@ -243,9 +278,17 @@ export default function SceneComposerPanel() {
             data-testid="composer-point-count"
           >
             {selectedScenePointIds.length} drone point
-            {selectedScenePointIds.length === 1 ? "" : "s"}
-            selected · Shift-click to add
+            {selectedScenePointIds.length === 1 ? "" : "s"} selected · click to select, Shift-click
+            to add
           </p>
+          {!primary ? (
+            <p
+              className="font-mono text-[10px] text-warning"
+              data-testid="composer-point-no-object"
+            >
+              Select an object first, then pick drone points inside it.
+            </p>
+          ) : null}
           <div className="flex gap-1">
             <input
               value={groupName}
@@ -266,38 +309,121 @@ export default function SceneComposerPanel() {
               Clear
             </button>
           </div>
+          {scenePointGroups.length === 0 ? (
+            <p
+              className="font-mono text-[10px] leading-relaxed text-muted-foreground"
+              data-testid="composer-point-groups-empty"
+            >
+              No named groups yet. Select drone points and save them to reuse the same selection
+              later.
+            </p>
+          ) : null}
           <ul className="space-y-1" data-testid="composer-point-groups">
-            {scenePointGroups.map((group) => (
-              <li key={group.id} className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => selectScenePointGroup(group.id)}
-                  className="chip-btn min-w-0 flex-1 justify-start"
-                >
-                  <span className="truncate">{group.name}</span>
-                  <span className="ml-auto text-muted-foreground">{group.pointIds.length}</span>
-                </button>
-                <button
-                  type="button"
-                  title="Rename"
-                  onClick={() => {
-                    const name = window.prompt("Group name", group.name);
-                    if (name?.trim()) renameScenePointGroup(group.id, name);
-                  }}
-                  className="chip-btn"
-                >
-                  Rename
-                </button>
-                <button
-                  type="button"
-                  title="Delete group"
-                  onClick={() => removeScenePointGroupById(group.id)}
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="size-3" />
-                </button>
-              </li>
-            ))}
+            {scenePointGroups.map((group) => {
+              const editing = renamingGroupId === group.id;
+              const confirming = confirmDeleteGroupId === group.id;
+              const reusable = group.pointIds.length > 1;
+              return (
+                <li key={group.id} className="space-y-1">
+                  <div className="flex items-center gap-1">
+                    {editing ? (
+                      <input
+                        autoFocus
+                        value={renameDraft}
+                        aria-label={`Rename group ${group.name}`}
+                        data-testid={`composer-group-rename-input-${group.id}`}
+                        onChange={(event) => setRenameDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            if (renameDraft.trim()) renameScenePointGroup(group.id, renameDraft);
+                            setRenamingGroupId(null);
+                          }
+                          if (event.key === "Escape") setRenamingGroupId(null);
+                        }}
+                        onBlur={() => {
+                          if (renameDraft.trim()) renameScenePointGroup(group.id, renameDraft);
+                          setRenamingGroupId(null);
+                        }}
+                        className="studio-input min-w-0 flex-1 font-mono"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        data-testid={`composer-group-select-${group.id}`}
+                        onClick={() => selectScenePointGroup(group.id)}
+                        className="chip-btn min-w-0 flex-1 justify-start"
+                      >
+                        <span className="truncate">{group.name}</span>
+                        <span
+                          className="ml-auto text-muted-foreground"
+                          data-testid={`composer-group-count-${group.id}`}
+                        >
+                          {group.pointIds.length}
+                        </span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      title="Rename group"
+                      data-testid={`composer-group-rename-${group.id}`}
+                      onClick={() => {
+                        setConfirmDeleteGroupId(null);
+                        setRenameDraft(group.name);
+                        setRenamingGroupId(group.id);
+                      }}
+                      className="chip-btn"
+                    >
+                      <Pencil className="size-3" />
+                    </button>
+                    <button
+                      type="button"
+                      title="Delete group"
+                      aria-label={`Delete group ${group.name}`}
+                      data-testid={`composer-group-delete-${group.id}`}
+                      onClick={() => {
+                        if (reusable) {
+                          setConfirmDeleteGroupId(group.id);
+                          return;
+                        }
+                        removeScenePointGroupById(group.id);
+                      }}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  </div>
+                  {confirming ? (
+                    <div
+                      className="flex items-center gap-1 rounded border border-border bg-panel px-1.5 py-1"
+                      data-testid={`composer-group-delete-confirm-${group.id}`}
+                    >
+                      <span className="min-w-0 flex-1 font-mono text-[10px] text-muted-foreground">
+                        Delete “{group.name}” ({group.pointIds.length} drones)? Existing lighting
+                        effects keep their own selection.
+                      </span>
+                      <button
+                        type="button"
+                        data-testid={`composer-group-delete-yes-${group.id}`}
+                        onClick={() => {
+                          removeScenePointGroupById(group.id);
+                          setConfirmDeleteGroupId(null);
+                        }}
+                        className="chip-btn mini-btn-accent"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteGroupId(null)}
+                        className="chip-btn"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         </div>
       ) : null}
