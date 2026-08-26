@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it } from "vitest";
 
 import SceneComposerPanel from "@/components/studio/SceneComposerPanel";
+import EffectStackPanel from "@/components/studio/EffectStackPanel";
 import { projectFileToJson, serializeProject } from "@/lib/project/serialize";
 import { createDefaultProject } from "@/lib/show/defaultProject";
 import { addObject, emptyScene, sceneBudget, upsertScene } from "@/lib/show/scene";
@@ -15,7 +16,12 @@ let api: Studio;
 
 function Harness() {
   api = useStudio();
-  return <SceneComposerPanel />;
+  return (
+    <>
+      <SceneComposerPanel />
+      <EffectStackPanel />
+    </>
+  );
 }
 
 function projectFile(project: ShowProject): File {
@@ -92,5 +98,43 @@ describe("scene composer drone budget DOM", () => {
     await waitFor(() =>
       expect(screen.getByTestId("composer-budget").textContent).toContain("50 reserve"),
     );
+  });
+
+  it("saves a reusable drone group and applies a point-targeted colour at the playhead", async () => {
+    const { project, clipId } = projectWithReserve();
+    await mount(project, clipId);
+
+    act(() => {
+      api.setSceneSelectionMode("POINT");
+      api.selectScenePointForDrone(0, false);
+      api.setTime(4.25);
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("composer-point-count").textContent).toContain("1 drone point"),
+    );
+
+    fireEvent.change(screen.getByLabelText("Drone group name"), { target: { value: "Diamond" } });
+    fireEvent.click(screen.getByTestId("composer-save-point-group"));
+    await waitFor(() => expect(api.project.scenes?.[0]?.pointGroups?.[0]?.name).toBe("Diamond"));
+
+    fireEvent.click(screen.getByTestId("effect-stack-add-BASE_COLOR"));
+    await waitFor(() => expect(api.project.lighting?.effects).toHaveLength(1));
+    const effect = api.project.lighting!.effects[0]!;
+    expect(effect.anchor).toBe("ABSOLUTE");
+    expect(effect.start).toBe(4.25);
+    expect(effect.target.kind).toBe("POINT_GROUP");
+    if (effect.target.kind === "POINT_GROUP") expect(effect.target.pointIds).toHaveLength(1);
+
+    act(() => api.undoTimeline());
+    expect(api.project.lighting?.effects ?? []).toHaveLength(0);
+    act(() => api.redoTimeline());
+    expect(api.project.lighting?.effects).toHaveLength(1);
+
+    const saved = projectFile(api.project);
+    await act(async () => {
+      await api.openProjectFile(saved);
+    });
+    expect(api.project.scenes?.[0]?.pointGroups?.[0]?.name).toBe("Diamond");
+    expect(api.project.lighting?.effects[0]?.target.kind).toBe("POINT_GROUP");
   });
 });

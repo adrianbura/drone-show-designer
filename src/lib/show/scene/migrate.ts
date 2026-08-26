@@ -17,6 +17,7 @@ import {
   type FormationScene,
   type InstanceTransform,
   type SceneFormationInstance,
+  type ScenePointGroup,
 } from "./types";
 import { isIdentityTransform } from "./resolve";
 
@@ -103,7 +104,9 @@ export function removeScene(project: ShowProject, sceneId: string): ShowProject 
 function sanitizeTransform(value: unknown): InstanceTransform {
   const t = (value ?? {}) as Partial<InstanceTransform>;
   const vec = (v: unknown, fallback: readonly [number, number, number]) =>
-    Array.isArray(v) && v.length === 3 && v.every((n) => typeof n === "number" && Number.isFinite(n))
+    Array.isArray(v) &&
+    v.length === 3 &&
+    v.every((n) => typeof n === "number" && Number.isFinite(n))
       ? ([v[0], v[1], v[2]] as [number, number, number])
       : ([...fallback] as [number, number, number]);
   return {
@@ -153,11 +156,37 @@ export function sanitizeScenes(raw: unknown): FormationScene[] {
       });
     }
     if (objects.length === 0) continue;
+    const objectIds = new Set(objects.map((object) => object.id));
+    const pointGroups: ScenePointGroup[] = [];
+    if (Array.isArray(scene.pointGroups)) {
+      for (const rawGroup of scene.pointGroups) {
+        const group = rawGroup as Partial<ScenePointGroup> | null;
+        if (
+          !group ||
+          typeof group.id !== "string" ||
+          typeof group.instanceId !== "string" ||
+          !objectIds.has(group.instanceId) ||
+          !Array.isArray(group.pointIds)
+        )
+          continue;
+        const pointIds = [
+          ...new Set(group.pointIds.filter((id): id is string => typeof id === "string")),
+        ];
+        if (pointIds.length === 0) continue;
+        pointGroups.push({
+          id: group.id,
+          name: typeof group.name === "string" && group.name ? group.name : group.id,
+          instanceId: group.instanceId,
+          pointIds,
+        });
+      }
+    }
     out.push({
       id: scene.id,
       name: typeof scene.name === "string" && scene.name ? scene.name : scene.id,
       schemaVersion: SCENE_SCHEMA_VERSION,
       objects,
+      ...(pointGroups.length > 0 ? { pointGroups } : {}),
       transform: sanitizeTransform(scene.transform),
       ...(scene.expanded ? { expanded: true } : {}),
     });

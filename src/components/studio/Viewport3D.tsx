@@ -76,7 +76,6 @@ function Swarm({
   const highlightSet = useMemo(() => new Set(highlighted), [highlighted]);
   const selectedSet = useMemo(() => new Set(dynamicSelected), [dynamicSelected]);
 
-
   useFrame(() => {
     const bodyMesh = bodies.current;
     const haloMesh = halos.current;
@@ -212,6 +211,9 @@ export default function Viewport3D() {
     selectedSceneObjectIds,
     selectSceneObject,
     sceneObjectIdForDrone,
+    sceneSelectionMode,
+    selectScenePointForDrone,
+    selectedScenePointDroneIndices,
     gizmoMode,
     gizmoTranslateSnap,
     gizmoRotateSnap,
@@ -224,6 +226,10 @@ export default function Viewport3D() {
   const proposalPreview = useGeometryProposalPreview();
   const handleSelectDrone = useCallback(
     (index: number, additive: boolean) => {
+      if (sceneSelectionMode === "POINT" && sceneObjectIdForDrone(index)) {
+        selectScenePointForDrone(index, additive);
+        return;
+      }
       // SCENE-FIRST PICKING: clicking a drone selects the SCENE OBJECT whose
       // resolved points that drone flies. Ctrl/Shift toggles membership.
       const sceneObjectId = sceneObjectIdForDrone(index);
@@ -238,7 +244,9 @@ export default function Viewport3D() {
     },
     [
       pointIdForDrone,
+      sceneSelectionMode,
       sceneObjectIdForDrone,
+      selectScenePointForDrone,
       selectSceneObject,
       setSelectedPointIds,
       togglePointSelection,
@@ -330,24 +338,27 @@ export default function Viewport3D() {
         />
       ) : null}
       {reference ? null : (
-      <Swarm
-        project={project}
-        time={time}
-        samplesAtTime={samplesAtTime}
-        highlighted={highlighted}
-        preShowPlan={plan.preShow}
-        showGroups={showLaunchGroups}
-        groupIdByDrone={preShowOverlay?.groupIdByDrone ?? []}
-        groupRgbByDrone={groupRgbByDrone}
-        selectedGroupId={selectedLaunchGroupId}
-        dynamicSelected={
-          sceneSelectedDrones.length > 0 ? sceneSelectedDrones : selectedDroneIndices
-        }
-        dynamicGroupRgbByDrone={dynamicGroupRgbByDrone}
-        lightingStatesAt={lightingStatesAt}
-        onSelectDrone={handleSelectDrone}
-
-      />
+        <Swarm
+          project={project}
+          time={time}
+          samplesAtTime={samplesAtTime}
+          highlighted={highlighted}
+          preShowPlan={plan.preShow}
+          showGroups={showLaunchGroups}
+          groupIdByDrone={preShowOverlay?.groupIdByDrone ?? []}
+          groupRgbByDrone={groupRgbByDrone}
+          selectedGroupId={selectedLaunchGroupId}
+          dynamicSelected={
+            sceneSelectionMode === "POINT"
+              ? selectedScenePointDroneIndices
+              : sceneSelectedDrones.length > 0
+                ? sceneSelectedDrones
+                : selectedDroneIndices
+          }
+          dynamicGroupRgbByDrone={dynamicGroupRgbByDrone}
+          lightingStatesAt={lightingStatesAt}
+          onSelectDrone={handleSelectDrone}
+        />
       )}
       {!reference && preShowOverlay && plan.preShow && (showLaunchPads || showStaging) ? (
         <PreShowOverlay
@@ -368,11 +379,7 @@ export default function Viewport3D() {
       ) : null}
       {!reference && svgDraft ? <SvgDraftPreview draft={svgDraft} /> : null}
       {!reference && overlayAnalysis && (showPaths || showConflicts) ? (
-        <TransitionOverlay
-          analysis={overlayAnalysis}
-          paths={showPaths}
-          conflicts={showConflicts}
-        />
+        <TransitionOverlay analysis={overlayAnalysis} paths={showPaths} conflicts={showConflicts} />
       ) : null}
       {!reference && sceneGizmoPivot ? (
         <>

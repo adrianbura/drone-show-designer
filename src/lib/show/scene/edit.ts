@@ -16,6 +16,7 @@ import {
   type InstanceTransform,
   type SceneFormationInstance,
   type SceneObjectSource,
+  type ScenePointGroup,
 } from "./types";
 
 export function emptyScene(id: string, name: string): FormationScene {
@@ -166,7 +167,56 @@ export function duplicateObject(
 }
 
 export function removeObject(scene: FormationScene, objectId: string): FormationScene {
-  return { ...scene, objects: scene.objects.filter((o) => o.id !== objectId) };
+  const pointGroups = scene.pointGroups?.filter((group) => group.instanceId !== objectId);
+  return {
+    ...scene,
+    objects: scene.objects.filter((o) => o.id !== objectId),
+    ...(pointGroups ? { pointGroups } : {}),
+  };
+}
+
+export function addScenePointGroup(
+  scene: FormationScene,
+  instanceId: string,
+  name: string,
+  pointIds: readonly string[],
+): { readonly scene: FormationScene; readonly groupId: string } {
+  const used = new Set((scene.pointGroups ?? []).map((group) => group.id));
+  let index = (scene.pointGroups?.length ?? 0) + 1;
+  let groupId = `${scene.id}-points-${index}`;
+  while (used.has(groupId)) groupId = `${scene.id}-points-${++index}`;
+  const group: ScenePointGroup = {
+    id: groupId,
+    name: name.trim() || `Group ${index}`,
+    instanceId,
+    pointIds: [...new Set(pointIds)],
+  };
+  return { scene: { ...scene, pointGroups: [...(scene.pointGroups ?? []), group] }, groupId };
+}
+
+export function patchScenePointGroup(
+  scene: FormationScene,
+  groupId: string,
+  patch: Partial<Pick<ScenePointGroup, "name" | "pointIds">>,
+): FormationScene {
+  const pointGroups = scene.pointGroups?.map((group) =>
+    group.id === groupId
+      ? {
+          ...group,
+          ...(patch.name !== undefined ? { name: patch.name.trim() || group.name } : {}),
+          ...(patch.pointIds ? { pointIds: [...new Set(patch.pointIds)] } : {}),
+        }
+      : group,
+  );
+  return {
+    ...scene,
+    ...(pointGroups ? { pointGroups } : {}),
+  };
+}
+
+export function removeScenePointGroup(scene: FormationScene, groupId: string): FormationScene {
+  const pointGroups = scene.pointGroups?.filter((group) => group.id !== groupId);
+  return { ...scene, ...(pointGroups ? { pointGroups } : {}) };
 }
 
 export function mirrorObjectX(scene: FormationScene, objectId: string): FormationScene {
@@ -188,7 +238,8 @@ export function alignObjects(
     const base =
       o.source.kind === "STATIC"
         ? (findStaticSource(project, o.source.formationId)?.points ?? [])
-        : (findDynamicSource(project, o.source.dynamicFormationId)?.points.map((p) => p.base) ?? []);
+        : (findDynamicSource(project, o.source.dynamicFormationId)?.points.map((p) => p.base) ??
+          []);
     const pivot = instancePivot(o.transform, base);
     const centre = geometricCentre(base);
     return {

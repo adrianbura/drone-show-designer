@@ -23,7 +23,7 @@
 import type { LightEffect, RGB, Vector3Tuple } from "../types";
 
 /** Persisted schema version of the scene structures. */
-export const SCENE_SCHEMA_VERSION = 1;
+export const SCENE_SCHEMA_VERSION = 2;
 /** Bumped whenever identical scene input can resolve to different geometry. */
 export const SCENE_ALGORITHM_VERSION = "0.1.0";
 
@@ -112,12 +112,22 @@ export interface SceneFormationInstance {
   readonly metadata?: SceneObjectMetadata;
 }
 
+/** Reusable artistic selection inside one scene object. Point ids, never drone ids. */
+export interface ScenePointGroup {
+  readonly id: string;
+  readonly name: string;
+  readonly instanceId: string;
+  readonly pointIds: readonly string[];
+}
+
 export interface FormationScene {
   /** Always equal to the timeline clip id that plays this scene. */
   readonly id: string;
   readonly name: string;
   readonly schemaVersion: number;
   readonly objects: readonly SceneFormationInstance[];
+  /** Named point selections used to author effects; they never affect flight geometry. */
+  readonly pointGroups?: readonly ScenePointGroup[];
   /** Parent transform applied to the whole composition. */
   readonly transform: InstanceTransform;
   /** EDITOR-ONLY timeline expansion state. */

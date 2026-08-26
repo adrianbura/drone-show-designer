@@ -33,7 +33,7 @@ export const EFFECT_STACK_PRESETS: readonly EffectStackPresetId[] = [
 /** Everyday preset -> canonical lighting preset id. No new effect types. */
 const CANONICAL_PRESET: Readonly<Record<EffectStackPresetId, string>> = {
   BASE_COLOR: "COLOR_TRANSITION",
-  FADE: "FADE_IN",
+  FADE: "COLOR_TRANSITION",
   PULSE: "PULSE_2",
   CHASE: "DIRECTIONAL_SWEEP",
   TWINKLE: "PULSE_4",
@@ -43,6 +43,7 @@ const CANONICAL_PRESET: Readonly<Record<EffectStackPresetId, string>> = {
 function colorParameters(preset: EffectStackPresetId, color: RGB): LightingEffectParameters {
   switch (preset) {
     case "BASE_COLOR":
+    case "FADE":
       return { toColor: color };
     case "GRADIENT":
       return {

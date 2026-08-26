@@ -319,6 +319,7 @@ import {
 } from "../library";
 import {
   addObject,
+  addScenePointGroup,
   alignObjects,
   applySceneClick,
   EMPTY_SCENE_SELECTION,
@@ -332,7 +333,9 @@ import {
   objectProximityWarnings,
   patchObject,
   patchObjectTransform,
+  patchScenePointGroup,
   removeObject,
+  removeScenePointGroup,
   removeSceneObjects,
   resolveSceneAt,
   sceneBudget,
@@ -355,6 +358,7 @@ import {
   type SceneDesignActionKind,
   type SceneAlignMode,
   type SceneFormationInstance,
+  type ScenePointGroup,
   type SceneGizmoMode,
   type SceneSelection,
   type SceneGroupDelta,
@@ -523,6 +527,18 @@ interface StudioContextValue {
   sceneSelectionMixed: MixedTransformFlags;
   /** Scene object owning the resolved points a drone flies (viewport picking). */
   sceneObjectIdForDrone: (droneIndex: number) => string | null;
+  /** Everyday viewport mode: select whole visuals or points inside one visual. */
+  sceneSelectionMode: "OBJECT" | "POINT";
+  setSceneSelectionMode: (mode: "OBJECT" | "POINT") => void;
+  selectedScenePointIds: string[];
+  selectedScenePointDroneIndices: number[];
+  scenePointGroups: readonly ScenePointGroup[];
+  selectScenePointForDrone: (droneIndex: number, additive: boolean) => void;
+  clearScenePointSelection: () => void;
+  createScenePointGroup: (name: string) => string | null;
+  renameScenePointGroup: (groupId: string, name: string) => void;
+  removeScenePointGroupById: (groupId: string) => void;
+  selectScenePointGroup: (groupId: string) => void;
 
   // ---- Batch scene gestures (ONE mutation, ONE undo entry) ----------------
   transformSceneObjects: (clipId: string, objectIds: readonly string[], delta: SceneGroupDelta) => void;
@@ -678,6 +694,7 @@ interface StudioContextValue {
     presetId: string,
     targets: readonly LightingTarget[],
     parameters?: Partial<LightingEffectParameters>,
+    timing?: { readonly anchor: "ABSOLUTE"; readonly start: number; readonly duration?: number },
   ) => string[];
 
   patchLightingEffect: (id: string, patch: Partial<Omit<LightingEffectInstance, "id">>) => void;
@@ -2079,6 +2096,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [dynamicHistoryDepth, setDynamicHistoryDepth] = useState({ past: 0, future: 0 });
   const [explicitDynamicId, setExplicitDynamicId] = useState<string | null>(null);
   const [selectedPointIds, setSelectedPointIdsState] = useState<string[]>([]);
+  const [sceneSelectionMode, setSceneSelectionModeState] = useState<"OBJECT" | "POINT">("OBJECT");
+  const [selectedScenePointIds, setSelectedScenePointIds] = useState<string[]>([]);
   const [selectedMotionGroupId, setSelectedMotionGroupId] = useState<string | null>(null);
   const [dynamicEditTime, setDynamicEditTime] = useState(0);
 
@@ -2087,6 +2106,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     const clip = project.timeline.find((c) => c.id === selectedClipId);
     return clip ? sceneForClip(project, clip) : null;
   }, [project, selectedClipId]);
+
+  useEffect(() => {
+    setSelectedScenePointIds([]);
+    setSceneSelectionModeState("OBJECT");
+  }, [selectedClipId]);
 
   /** Latest selected scene, so selection callbacks stay dependency-free. */
   const sceneRef = useRef<FormationScene | null>(null);
@@ -2104,6 +2128,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
   const resolvedSceneObjectId = sceneSelection.primaryId;
   const selectedSceneObjectIds = useMemo(() => [...sceneSelection.ids], [sceneSelection]);
+  const scenePointGroups = useMemo(
+    () => selectedScene?.pointGroups ?? [],
+    [selectedScene?.pointGroups],
+  );
+
+  const setSceneSelectionMode = useCallback((mode: "OBJECT" | "POINT") => {
+    setSceneSelectionModeState(mode);
+    if (mode === "OBJECT") setSelectedScenePointIds([]);
+  }, []);
 
   const setSelectedSceneObjectIds = useCallback(
     (ids: readonly string[], primaryId: string | null = null) => {
@@ -2384,7 +2417,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * combined point index belongs to. No new identity mapping is invented, and
    * padded (non-participating) drones resolve to null.
    */
-  const sceneObjectIdByDrone = useMemo<(string | null)[]>(() => {
+  const sceneTargetByDrone = useMemo<{ objectId: string | null; pointId: string | null }[]>(() => {
     if (!selectedScene || !selectedClipId) return [];
     let resolved;
     try {
@@ -2398,14 +2431,91 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       const group = resolved.groups.find(
         (g) => target >= g.offset && target < g.offset + g.pointCount,
       );
-      return group?.instanceId ?? null;
+      return {
+        objectId: group?.instanceId ?? null,
+        pointId: resolved.pointIds[target] ?? null,
+      };
     });
   }, [plan, project, selectedClipId, selectedScene]);
 
   const sceneObjectIdForDrone = useCallback(
-    (droneIndex: number) => sceneObjectIdByDrone[droneIndex] ?? null,
-    [sceneObjectIdByDrone],
+    (droneIndex: number) => sceneTargetByDrone[droneIndex]?.objectId ?? null,
+    [sceneTargetByDrone],
   );
+
+  const selectScenePointForDrone = useCallback(
+    (droneIndex: number, additive: boolean) => {
+      const target = sceneTargetByDrone[droneIndex];
+      if (!target?.objectId || !target.pointId) return;
+      if (sceneSelection.primaryId !== target.objectId) {
+        setSceneSelectionState({ ids: [target.objectId], primaryId: target.objectId });
+        setSelectedScenePointIds([target.pointId]);
+        return;
+      }
+      setSelectedScenePointIds((current) =>
+        additive
+          ? current.includes(target.pointId!)
+            ? current.filter((id) => id !== target.pointId)
+            : [...current, target.pointId!]
+          : [target.pointId!],
+      );
+    },
+    [sceneSelection.primaryId, sceneTargetByDrone],
+  );
+
+  const selectedScenePointDroneIndices = useMemo(() => {
+    const wanted = new Set(selectedScenePointIds);
+    return sceneTargetByDrone.reduce<number[]>((indices, target, index) => {
+      if (target.pointId && wanted.has(target.pointId)) indices.push(index);
+      return indices;
+    }, []);
+  }, [sceneTargetByDrone, selectedScenePointIds]);
+
+  const clearScenePointSelection = useCallback(() => setSelectedScenePointIds([]), []);
+
+  const createScenePointGroup = useCallback(
+    (name: string): string | null => {
+      if (!selectedClipId || !sceneSelection.primaryId || selectedScenePointIds.length === 0)
+        return null;
+      let createdId: string | null = null;
+      editScene(selectedClipId, (scene) => {
+        const result = addScenePointGroup(
+          scene,
+          sceneSelection.primaryId!,
+          name,
+          selectedScenePointIds,
+        );
+        createdId = result.groupId;
+        return result.scene;
+      });
+      return createdId;
+    },
+    [editScene, sceneSelection.primaryId, selectedClipId, selectedScenePointIds],
+  );
+
+  const renameScenePointGroup = useCallback(
+    (groupId: string, name: string) => {
+      if (!selectedClipId) return;
+      editScene(selectedClipId, (scene) => patchScenePointGroup(scene, groupId, { name }));
+    },
+    [editScene, selectedClipId],
+  );
+
+  const removeScenePointGroupById = useCallback(
+    (groupId: string) => {
+      if (!selectedClipId) return;
+      editScene(selectedClipId, (scene) => removeScenePointGroup(scene, groupId));
+    },
+    [editScene, selectedClipId],
+  );
+
+  const selectScenePointGroup = useCallback((groupId: string) => {
+    const group = sceneRef.current?.pointGroups?.find((candidate) => candidate.id === groupId);
+    if (!group) return;
+    setSceneSelectionModeState("POINT");
+    setSceneSelectionState({ ids: [group.instanceId], primaryId: group.instanceId });
+    setSelectedScenePointIds([...group.pointIds]);
+  }, []);
 
   const addSceneObject = useCallback(
     (
@@ -5176,12 +5286,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       presetId: string,
       targets: readonly LightingTarget[],
       parameters?: Partial<LightingEffectParameters>,
+      timing?: { readonly anchor: "ABSOLUTE"; readonly start: number; readonly duration?: number },
     ): string[] => {
       const preset = findLightingPreset(presetId);
       if (!preset || targets.length === 0) return [];
       const created: LightingEffectInstance[] = targets.map((target) => ({
-        ...createEffectFromPreset(preset, target, parameters ? { parameters } : {}),
+        ...createEffectFromPreset(preset, target, {
+          ...(parameters ? { parameters } : {}),
+          ...(timing ? { anchor: timing.anchor, start: timing.start } : {}),
+        }),
         id: newLightingEffectId(Date.now() + lightingSeed.current++),
+        ...(timing?.duration !== undefined ? { duration: timing.duration } : {}),
       }));
       // ONE revision for the whole multi-selection = ONE undo entry.
       editLighting((list) => [...list, ...created]);
@@ -5451,6 +5566,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectAllSceneObjectsInScene,
       sceneSelectionMixed,
       sceneObjectIdForDrone,
+      sceneSelectionMode,
+      setSceneSelectionMode,
+      selectedScenePointIds,
+      selectedScenePointDroneIndices,
+      scenePointGroups,
+      selectScenePointForDrone,
+      clearScenePointSelection,
+      createScenePointGroup,
+      renameScenePointGroup,
+      removeScenePointGroupById,
+      selectScenePointGroup,
       transformSceneObjects,
       mirrorSceneObjectsBatch,
       duplicateSceneObjectsBatch,
@@ -5816,6 +5942,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectAllSceneObjectsInScene,
       sceneSelectionMixed,
       sceneObjectIdForDrone,
+      sceneSelectionMode,
+      setSceneSelectionMode,
+      selectedScenePointIds,
+      selectedScenePointDroneIndices,
+      scenePointGroups,
+      selectScenePointForDrone,
+      clearScenePointSelection,
+      createScenePointGroup,
+      renameScenePointGroup,
+      removeScenePointGroupById,
+      selectScenePointGroup,
       transformSceneObjects,
       mirrorSceneObjectsBatch,
       duplicateSceneObjectsBatch,

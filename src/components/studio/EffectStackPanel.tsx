@@ -28,8 +28,8 @@ import type { RGB } from "@/lib/show/types";
 import { useStudio } from "@/lib/studio/store";
 
 const PRESET_LABEL: Record<EffectStackPresetId, string> = {
-  BASE_COLOR: "Base colour",
-  FADE: "Fade",
+  BASE_COLOR: "Set colour",
+  FADE: "Fade to",
   PULSE: "Pulse",
   CHASE: "Chase",
   TWINKLE: "Twinkle",
@@ -53,10 +53,16 @@ const fromHex = (hex: string): RGB => [
 
 export default function EffectStackPanel() {
   const [color, setColor] = useState<RGB>([255, 200, 120]);
+  const [gradientColor, setGradientColor] = useState<RGB>([80, 120, 255]);
+  const [gradientAxis, setGradientAxis] = useState<"X" | "Y" | "Z">("X");
   const {
     selectedClipId,
     selectedScene,
     selectedSceneObjectIds,
+    primarySceneObjectId,
+    sceneSelectionMode,
+    selectedScenePointIds,
+    time,
     lightingEffects,
     addLightingEffectsFromPreset,
     patchLightingEffect,
@@ -78,14 +84,24 @@ export default function EffectStackPanel() {
   }
 
   const clipId = selectedClipId;
+  const primaryId = primarySceneObjectId;
   const targets: LightingTarget[] =
-    selectedSceneObjectIds.length > 0
-      ? selectedSceneObjectIds.map((instanceId) => ({
-          kind: "SCENE_OBJECT" as const,
-          clipId,
-          instanceId,
-        }))
-      : [{ kind: "SCENE" as const, clipId }];
+    sceneSelectionMode === "POINT" && primaryId && selectedScenePointIds.length > 0
+      ? [
+          {
+            kind: "POINT_GROUP" as const,
+            clipId,
+            instanceId: primaryId,
+            pointIds: selectedScenePointIds,
+          },
+        ]
+      : selectedSceneObjectIds.length > 0
+        ? selectedSceneObjectIds.map((instanceId) => ({
+            kind: "SCENE_OBJECT" as const,
+            clipId,
+            instanceId,
+          }))
+        : [{ kind: "SCENE" as const, clipId }];
 
   const scoped = stackOrder(
     lightingEffects.filter((e) =>
@@ -96,7 +112,6 @@ export default function EffectStackPanel() {
   );
   const scopeIds = scoped.map((e) => e.id);
 
-  const primaryId = selectedSceneObjectIds[selectedSceneObjectIds.length - 1] ?? null;
   const primary = selectedScene.objects.find((o) => o.id === primaryId) ?? null;
   const staticFormationId =
     primary && primary.source.kind === "STATIC" ? primary.source.formationId : null;
@@ -118,9 +133,11 @@ export default function EffectStackPanel() {
       </h2>
 
       <p className="font-mono text-[10px] text-muted-foreground">
-        {selectedSceneObjectIds.length > 0
-          ? `${selectedSceneObjectIds.length} object(s) selected`
-          : "Whole scene selected"}
+        {sceneSelectionMode === "POINT" && selectedScenePointIds.length > 0
+          ? `${selectedScenePointIds.length} drone point(s) selected · effects start at ${time.toFixed(2)}s`
+          : selectedSceneObjectIds.length > 0
+            ? `${selectedSceneObjectIds.length} object(s) selected · effects start at ${time.toFixed(2)}s`
+            : "Whole scene selected"}
       </p>
 
       <div className="mt-2 space-y-1.5">
@@ -137,6 +154,31 @@ export default function EffectStackPanel() {
             className="h-6 w-16 cursor-pointer rounded border border-border bg-transparent"
           />
         </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+            <span>Gradient to</span>
+            <input
+              type="color"
+              value={toHex(gradientColor)}
+              data-testid="effect-stack-gradient-color"
+              onChange={(event) => setGradientColor(fromHex(event.target.value))}
+              className="h-6 w-14 cursor-pointer rounded border border-border bg-transparent"
+            />
+          </label>
+          <label className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+            <span>Axis</span>
+            <select
+              value={gradientAxis}
+              data-testid="effect-stack-gradient-axis"
+              onChange={(event) => setGradientAxis(event.target.value as "X" | "Y" | "Z")}
+              className="studio-input w-14 font-mono"
+            >
+              <option value="X">X</option>
+              <option value="Y">Y</option>
+              <option value="Z">Z</option>
+            </select>
+          </label>
+        </div>
         <div className="flex flex-wrap gap-1" data-testid="effect-stack-presets">
           {EFFECT_STACK_PRESETS.map((preset) => (
             <Button
@@ -151,7 +193,25 @@ export default function EffectStackPanel() {
                   clipId,
                   canonicalStackPresetId(preset),
                   targets,
-                  stackColorParameters(preset, color),
+                  preset === "GRADIENT"
+                    ? {
+                        stops: [
+                          { position: 0, color },
+                          { position: 1, color: gradientColor },
+                        ],
+                        direction:
+                          gradientAxis === "X"
+                            ? [1, 0, 0]
+                            : gradientAxis === "Y"
+                              ? [0, 1, 0]
+                              : [0, 0, 1],
+                      }
+                    : stackColorParameters(preset, color),
+                  {
+                    anchor: "ABSOLUTE",
+                    start: time,
+                    ...(preset === "BASE_COLOR" ? { duration: 0.05 } : {}),
+                  },
                 )
               }
             >

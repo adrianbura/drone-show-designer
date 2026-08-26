@@ -180,7 +180,17 @@ export default function SceneComposerPanel() {
     transformSceneObjects,
     duplicateSceneObject,
     removeSceneObject,
+    sceneSelectionMode,
+    setSceneSelectionMode,
+    selectedScenePointIds,
+    scenePointGroups,
+    clearScenePointSelection,
+    createScenePointGroup,
+    renameScenePointGroup,
+    removeScenePointGroupById,
+    selectScenePointGroup,
   } = useStudio();
+  const [groupName, setGroupName] = useState("Group");
 
   if (!selectedClipId || !selectedScene) {
     return (
@@ -211,6 +221,86 @@ export default function SceneComposerPanel() {
       <p className="font-mono text-[10px] text-muted-foreground" data-testid="composer-budget">
         {used} of {project.droneCount} drones used · {reserve} reserve
       </p>
+
+      <div className="mt-2 grid grid-cols-2 gap-1" data-testid="composer-selection-mode">
+        {(["OBJECT", "POINT"] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            data-testid={`composer-mode-${mode.toLowerCase()}`}
+            onClick={() => setSceneSelectionMode(mode)}
+            className={`chip-btn justify-center ${sceneSelectionMode === mode ? "mini-btn-accent" : ""}`}
+          >
+            {mode === "OBJECT" ? "Objects" : "Drones"}
+          </button>
+        ))}
+      </div>
+
+      {sceneSelectionMode === "POINT" ? (
+        <div className="mt-2 space-y-1.5 rounded border border-border bg-surface-sunken p-2">
+          <p
+            className="font-mono text-[10px] text-muted-foreground"
+            data-testid="composer-point-count"
+          >
+            {selectedScenePointIds.length} drone point
+            {selectedScenePointIds.length === 1 ? "" : "s"}
+            selected · Shift-click to add
+          </p>
+          <div className="flex gap-1">
+            <input
+              value={groupName}
+              onChange={(event) => setGroupName(event.target.value)}
+              className="studio-input min-w-0 flex-1 font-mono"
+              aria-label="Drone group name"
+            />
+            <button
+              type="button"
+              data-testid="composer-save-point-group"
+              disabled={!primary || selectedScenePointIds.length === 0}
+              onClick={() => createScenePointGroup(groupName)}
+              className="chip-btn mini-btn-accent justify-center disabled:opacity-40"
+            >
+              Save group
+            </button>
+            <button type="button" onClick={clearScenePointSelection} className="chip-btn">
+              Clear
+            </button>
+          </div>
+          <ul className="space-y-1" data-testid="composer-point-groups">
+            {scenePointGroups.map((group) => (
+              <li key={group.id} className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => selectScenePointGroup(group.id)}
+                  className="chip-btn min-w-0 flex-1 justify-start"
+                >
+                  <span className="truncate">{group.name}</span>
+                  <span className="ml-auto text-muted-foreground">{group.pointIds.length}</span>
+                </button>
+                <button
+                  type="button"
+                  title="Rename"
+                  onClick={() => {
+                    const name = window.prompt("Group name", group.name);
+                    if (name?.trim()) renameScenePointGroup(group.id, name);
+                  }}
+                  className="chip-btn"
+                >
+                  Rename
+                </button>
+                <button
+                  type="button"
+                  title="Delete group"
+                  onClick={() => removeScenePointGroupById(group.id)}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="size-3" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <ul className="mt-2 space-y-1" data-testid="composer-object-list">
         {selectedScene.objects.map((object) => {
