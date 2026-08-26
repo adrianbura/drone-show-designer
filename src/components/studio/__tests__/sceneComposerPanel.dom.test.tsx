@@ -150,11 +150,9 @@ describe("drone group lighting authoring UX", () => {
     expect(screen.getByTestId("composer-mode-hint").textContent).toContain("points inside");
     expect(screen.getByTestId("composer-point-groups-empty")).toBeTruthy();
 
-    act(() => {
-      api.selectScenePointForDrone(0, false);
-      api.selectScenePointForDrone(1, true);
-      api.setTime(4.25);
-    });
+    act(() => api.selectScenePointForDrone(0, false));
+    act(() => api.selectScenePointForDrone(1, true));
+    act(() => api.setTime(4.25));
     await waitFor(() =>
       expect(screen.getByTestId("composer-selection-summary").textContent).toContain(
         "2 drone points",
