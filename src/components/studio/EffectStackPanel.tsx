@@ -15,7 +15,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
-  EFFECT_STACK_PRESETS,
+  
   canonicalStackPresetId,
   stackColorParameters,
   stackOrder,
@@ -64,6 +64,9 @@ export default function EffectStackPanel() {
     selectedScenePointIds,
     time,
     lightingEffects,
+    selectedLightingEffectId,
+    selectLightingEffect,
+
     addLightingEffectsFromPreset,
     patchLightingEffect,
     removeLightingEffect,
