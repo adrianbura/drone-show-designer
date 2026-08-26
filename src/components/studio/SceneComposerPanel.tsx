@@ -36,12 +36,14 @@ function NumberField({
   label,
   value,
   step,
+  max,
   onChange,
   testId,
 }: {
   label: string;
   value: number;
   step: number;
+  max?: number;
   onChange: (next: number) => void;
   testId?: string;
 }) {
@@ -51,6 +53,7 @@ function NumberField({
       <input
         type="number"
         step={step}
+        max={max}
         value={Number.isFinite(value) ? Number(value.toFixed(2)) : 0}
         data-testid={testId}
         onChange={(e) => onChange(Number(e.target.value))}
@@ -65,7 +68,7 @@ function NumberField({
  * the selected scene. Geometry comes from the deterministic `line` formation
  * kind; drone identity, safety and assignment stay with the existing engines.
  */
-function AddNativeLine({ clipId }: { clipId: string }) {
+function AddNativeLine({ clipId, availableDrones }: { clipId: string; availableDrones: number }) {
   const { addNativeVisual } = useStudio();
   const [open, setOpen] = useState(false);
   const [drones, setDrones] = useState(20);
@@ -75,6 +78,8 @@ function AddNativeLine({ clipId }: { clipId: string }) {
   const [y, setY] = useState(45);
   const [z, setZ] = useState(0);
   const [color, setColor] = useState("#ffffff");
+  const requestedDrones = Math.max(2, Math.round(drones));
+  const exceedsReserve = requestedDrones > availableDrones;
 
   if (!open) {
     return (
@@ -101,9 +106,16 @@ function AddNativeLine({ clipId }: { clipId: string }) {
         label="Drones"
         value={drones}
         step={1}
+        max={availableDrones}
         testId="line-drones"
         onChange={setDrones}
       />
+      <p
+        className={`font-mono text-[10px] ${exceedsReserve ? "text-destructive" : "text-muted-foreground"}`}
+        data-testid="line-reserve"
+      >
+        {availableDrones} reserve drone{availableDrones === 1 ? "" : "s"} available
+      </p>
       <NumberField
         label="Length m"
         value={length}
@@ -131,18 +143,19 @@ function AddNativeLine({ clipId }: { clipId: string }) {
         <button
           type="button"
           data-testid="composer-add-line-commit"
+          disabled={availableDrones < 2 || exceedsReserve}
           onClick={() => {
             addNativeVisual(clipId, {
               kind: "line",
               name: "Line",
-              droneCount: Math.max(2, Math.round(drones)),
+              droneCount: requestedDrones,
               params: { length: Math.max(1, length), rows: Math.max(1, Math.round(rows)) },
               position: [x, y, z],
               color: fromHex(color),
             });
             setOpen(false);
           }}
-          className="chip-btn mini-btn-accent flex-1 justify-center"
+          className="chip-btn mini-btn-accent flex-1 justify-center disabled:opacity-40"
         >
           Add to scene
         </button>
@@ -256,7 +269,7 @@ export default function SceneComposerPanel() {
         })}
       </ul>
 
-      <AddNativeLine clipId={clipId} />
+      <AddNativeLine clipId={clipId} availableDrones={reserve} />
 
       {selectedSceneObjectIds.length > 1 && (
         <div
@@ -331,12 +344,19 @@ export default function SceneComposerPanel() {
             label="Drones"
             value={primary.requestedDroneCount ?? 0}
             step={1}
-            testId="composer-drones"
-            onChange={(v) =>
-              patchSceneObject(clipId, primary.id, {
-                requestedDroneCount: v > 0 ? Math.round(v) : null,
-              })
+            max={
+              (budget?.objects.find((object) => object.instanceId === primary.id)?.count ?? 0) +
+              reserve
             }
+            testId="composer-drones"
+            onChange={(v) => {
+              const current =
+                budget?.objects.find((object) => object.instanceId === primary.id)?.count ?? 0;
+              const maximum = current + reserve;
+              patchSceneObject(clipId, primary.id, {
+                requestedDroneCount: v > 0 ? Math.min(maximum, Math.round(v)) : null,
+              });
+            }}
           />
 
           <div className="grid grid-cols-3 gap-1">

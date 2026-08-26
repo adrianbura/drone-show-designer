@@ -60,12 +60,16 @@ export default function SvgImportPanel() {
     cancelSvgDraft,
     commitSvgDraft,
     selectedClipId,
+    selectedSceneBudget,
   } = useStudio();
   const [name, setName] = useState("");
 
   const draft = svgDraft;
   const report = draft?.result?.report;
   const params = draft?.params;
+  const sceneReserve = selectedClipId ? (selectedSceneBudget?.availableDrones ?? 0) : null;
+  const exceedsSceneReserve =
+    sceneReserve !== null && params !== undefined && params.targetCount > sceneReserve;
 
   return (
     <section className="panel-card">
@@ -88,8 +92,8 @@ export default function SvgImportPanel() {
         />
       </label>
       <p className="text-[10px] leading-relaxed text-muted-foreground">
-        Outlines and filled regions are converted into exactly {project.droneCount} drone positions.
-        Files are parsed locally as inert geometry — scripts, links and raster images are ignored.
+        Choose how many available drones form this visual. Files are parsed locally as inert
+        geometry — scripts, links and raster images are ignored.
       </p>
 
       {svgError ? (
@@ -137,8 +141,17 @@ export default function SvgImportPanel() {
             value={params.targetCount}
             onChange={(targetCount) => updateSvgDraft({ targetCount })}
             min={4}
-            max={project.droneCount}
+            max={Math.max(4, sceneReserve ?? project.droneCount)}
           />
+
+          {sceneReserve !== null ? (
+            <p
+              className={`font-mono text-[10px] ${exceedsSceneReserve ? "text-destructive" : "text-muted-foreground"}`}
+              data-testid="svg-scene-reserve"
+            >
+              {sceneReserve} reserve drone{sceneReserve === 1 ? "" : "s"} available in this scene
+            </p>
+          ) : null}
 
           <Slider
             label="Width"
@@ -272,7 +285,7 @@ export default function SvgImportPanel() {
                 });
                 setName("");
               }}
-              disabled={!draft.result || !selectedClipId}
+              disabled={!draft.result || !selectedClipId || exceedsSceneReserve}
               title={
                 selectedClipId
                   ? "Places one visual inside the selected scene"
