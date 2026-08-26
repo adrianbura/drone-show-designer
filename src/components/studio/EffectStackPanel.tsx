@@ -237,8 +237,12 @@ export default function EffectStackPanel() {
 
       <div className="mt-2 space-y-1.5 border-t border-border pt-2">
         <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
-          Motion stack
+          Motion
         </p>
+        <p className="font-mono text-[9px] leading-relaxed text-muted-foreground">
+          One motion per object.
+        </p>
+
         {staticFormationId ? (
           <div className="flex flex-wrap gap-1" data-testid="motion-stack-presets">
             {DYNAMIC_PRESETS.map((preset) => (

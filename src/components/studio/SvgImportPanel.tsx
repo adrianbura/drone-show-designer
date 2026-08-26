@@ -59,6 +59,7 @@ export default function SvgImportPanel() {
     updateSvgDraft,
     cancelSvgDraft,
     commitSvgDraft,
+    selectedClipId,
   } = useStudio();
   const [name, setName] = useState("");
 
@@ -130,6 +131,16 @@ export default function SvgImportPanel() {
               </button>
             ))}
           </div>
+
+          <Slider
+            label="Drones for this visual"
+            value={params.targetCount}
+            onChange={(targetCount) => updateSvgDraft({ targetCount })}
+            min={4}
+            max={project.droneCount}
+          />
+
+
 
           <Slider
             label="Width"
@@ -243,21 +254,49 @@ export default function SvgImportPanel() {
             </ul>
           ) : null}
 
-          <div className="flex gap-2">
+          <div className="space-y-2">
             <button
+              data-testid="svg-add-to-scene"
               onClick={() => {
-                commitSvgDraft(name.trim() ? { name } : {});
+                commitSvgDraft({
+                  ...(name.trim() ? { name } : {}),
+                  target: "SCENE",
+                  droneCount: params.targetCount,
+                });
                 setName("");
               }}
-              disabled={!draft.result}
-              className="chip-btn mini-btn-accent flex-1 justify-center disabled:opacity-40"
+              disabled={!draft.result || !selectedClipId}
+              title={
+                selectedClipId
+                  ? "Places one visual inside the selected scene"
+                  : "Select a scene in the timeline first"
+              }
+              className="chip-btn mini-btn-accent w-full justify-center disabled:opacity-40"
             >
-              <Check className="size-3" /> Add to show
+              <Check className="size-3" /> Add to current scene
             </button>
-            <button onClick={cancelSvgDraft} className="chip-btn justify-center">
-              <X className="size-3" /> Discard
-            </button>
+            <div className="flex gap-2">
+              <button
+                data-testid="svg-add-as-clip"
+                onClick={() => {
+                  commitSvgDraft({
+                    ...(name.trim() ? { name } : {}),
+                    target: "NEW_CLIP",
+                    droneCount: params.targetCount,
+                  });
+                  setName("");
+                }}
+                disabled={!draft.result}
+                className="chip-btn flex-1 justify-center disabled:opacity-40"
+              >
+                New scene
+              </button>
+              <button onClick={cancelSvgDraft} className="chip-btn justify-center">
+                <X className="size-3" /> Discard
+              </button>
+            </div>
           </div>
+
         </div>
       ) : null}
     </section>

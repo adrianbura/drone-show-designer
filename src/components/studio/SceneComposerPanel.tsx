@@ -11,7 +11,8 @@
  * remain the only authorities. Unused drones are handled as RESERVE by the
  * planner — the operator never places placeholders.
  */
-import { Copy, Eye, EyeOff, Layers, Trash2 } from "lucide-react";
+import { Copy, Eye, EyeOff, Layers, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import { useStudio } from "@/lib/studio/store";
 import type { RGB } from "@/lib/show/types";
@@ -53,6 +54,85 @@ function NumberField({
   );
 }
 
+/**
+ * ADD VISUAL — everyday creation of a NATIVE line/underline object directly in
+ * the selected scene. Geometry comes from the deterministic `line` formation
+ * kind; drone identity, safety and assignment stay with the existing engines.
+ */
+function AddNativeLine({ clipId }: { clipId: string }) {
+  const { addNativeVisual } = useStudio();
+  const [open, setOpen] = useState(false);
+  const [drones, setDrones] = useState(20);
+  const [length, setLength] = useState(40);
+  const [rows, setRows] = useState(1);
+  const [x, setX] = useState(0);
+  const [y, setY] = useState(45);
+  const [z, setZ] = useState(0);
+  const [color, setColor] = useState("#ffffff");
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        data-testid="composer-add-visual"
+        onClick={() => setOpen(true)}
+        className="chip-btn mt-2 w-full justify-center"
+      >
+        <Plus className="size-3" /> Add visual
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 space-y-1.5 rounded border border-border bg-surface-sunken p-2" data-testid="composer-add-line">
+      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+        Native line
+      </p>
+      <NumberField label="Drones" value={drones} step={1} testId="line-drones" onChange={setDrones} />
+      <NumberField label="Length m" value={length} step={1} testId="line-length" onChange={setLength} />
+      <NumberField label="Rows" value={rows} step={1} testId="line-rows" onChange={setRows} />
+      <div className="grid grid-cols-3 gap-1">
+        <NumberField label="X" value={x} step={0.5} testId="line-x" onChange={setX} />
+        <NumberField label="Y" value={y} step={0.5} testId="line-y" onChange={setY} />
+        <NumberField label="Z" value={z} step={0.5} testId="line-z" onChange={setZ} />
+      </div>
+      <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+        <span className="uppercase tracking-[0.14em]">Colour</span>
+        <input
+          type="color"
+          value={color}
+          data-testid="line-color"
+          onChange={(e) => setColor(e.target.value)}
+          className="h-6 w-16 cursor-pointer rounded border border-border bg-transparent"
+        />
+      </label>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          data-testid="composer-add-line-commit"
+          onClick={() => {
+            addNativeVisual(clipId, {
+              kind: "line",
+              name: "Line",
+              droneCount: Math.max(2, Math.round(drones)),
+              params: { length: Math.max(1, length), rows: Math.max(1, Math.round(rows)) },
+              position: [x, y, z],
+              color: fromHex(color),
+            });
+            setOpen(false);
+          }}
+          className="chip-btn mini-btn-accent flex-1 justify-center"
+        >
+          Add to scene
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="chip-btn justify-center">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function SceneComposerPanel() {
   const {
     project,
@@ -63,6 +143,7 @@ export default function SceneComposerPanel() {
     selectSceneObject,
     patchSceneObject,
     patchSceneObjectTransform,
+    transformSceneObjects,
     duplicateSceneObject,
     removeSceneObject,
   } = useStudio();
@@ -153,6 +234,63 @@ export default function SceneComposerPanel() {
           );
         })}
       </ul>
+
+      <AddNativeLine clipId={clipId} />
+
+      {selectedSceneObjectIds.length > 1 && (
+        <div
+          className="mt-2 space-y-1.5 border-t border-border pt-2"
+          data-testid="composer-group-transform"
+        >
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+            Group · {selectedSceneObjectIds.length} objects
+          </p>
+          <div className="grid grid-cols-3 gap-1">
+            {(["X", "Y", "Z"] as const).map((axis, i) => (
+              <NumberField
+                key={axis}
+                label={`Move ${axis}`}
+                value={0}
+                step={1}
+                testId={`composer-group-move-${axis}`}
+                onChange={(v) => {
+                  if (!v) return;
+                  const position: [number, number, number] = [0, 0, 0];
+                  position[i] = v;
+                  transformSceneObjects(clipId, selectedSceneObjectIds, { position });
+                }}
+              />
+            ))}
+          </div>
+          <div className="flex gap-2">
+            {[0.9, 1.1].map((factor) => (
+              <button
+                key={factor}
+                type="button"
+                data-testid={`composer-group-scale-${factor}`}
+                onClick={() =>
+                  transformSceneObjects(clipId, selectedSceneObjectIds, { scaleFactor: factor })
+                }
+                className="chip-btn flex-1 justify-center"
+              >
+                Scale {factor < 1 ? "−10%" : "+10%"}
+              </button>
+            ))}
+            <button
+              type="button"
+              data-testid="composer-group-rotate"
+              onClick={() =>
+                transformSceneObjects(clipId, selectedSceneObjectIds, { rotationDeg: [0, 15, 0] })
+              }
+              className="chip-btn flex-1 justify-center"
+            >
+              Rotate 15°
+            </button>
+          </div>
+        </div>
+      )}
+
+
 
       {primary && (
         <div className="mt-2 space-y-1.5 border-t border-border pt-2" data-testid="composer-inspector">

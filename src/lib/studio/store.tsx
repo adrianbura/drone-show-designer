@@ -579,6 +579,21 @@ interface StudioContextValue {
       requestedDroneCount?: number | null;
     },
   ) => string | null;
+  /**
+   * Creates a NATIVE formation asset (e.g. a line / underline bar) and places
+   * one instance of it in the clip's scene — ONE undoable revision.
+   */
+  addNativeVisual: (
+    clipId: string,
+    input: {
+      readonly kind: FormationKind;
+      readonly name: string;
+      readonly droneCount: number;
+      readonly params?: Record<string, number | string>;
+      readonly position?: Vector3Tuple;
+      readonly color?: RGB;
+    },
+  ) => string | null;
   patchSceneObject: (
     clipId: string,
     objectId: string,
@@ -720,8 +735,17 @@ interface StudioContextValue {
   importSvg: (file: File) => Promise<void>;
   updateSvgDraft: (patch: Partial<SvgFormationParams>) => void;
   cancelSvgDraft: () => void;
-  /** Commits the current draft as an exact-N formation and returns it. */
-  commitSvgDraft: (options?: { name?: string; addToTimeline?: boolean }) => Formation | null;
+  /**
+   * Commits the current draft as an exact-N formation. By default the instance
+   * lands in the CURRENT clip's scene; a new clip is created only when the
+   * caller explicitly asks for `target: "NEW_CLIP"`.
+   */
+  commitSvgDraft: (options?: {
+    name?: string;
+    target?: "SCENE" | "NEW_CLIP" | "ASSET_ONLY";
+    clipId?: string;
+    droneCount?: number | null;
+  }) => Formation | null;
   patchClip: (id: string, patch: Partial<TimelineClip>) => void;
   removeClip: (id: string) => void;
 
@@ -1814,38 +1838,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setSvgError(null);
   }, []);
 
-  const commitSvgDraft = useCallback(
-    (options: { name?: string; addToTimeline?: boolean } = {}) => {
-      if (!svgDraft?.result) return null;
-      const formation = makeSvgFormation(
-        nextId("f"),
-        options.name?.trim() || defaultFormationName(svgDraft.asset, svgDraft.params.mode),
-        svgDraft.asset,
-        svgDraft.result,
-      );
-      const clipId = nextId("c");
-      setProject((p) => {
-        const next: ShowProject = { ...p, formations: [...p.formations, formation] };
-        if (options.addToTimeline === false) return next;
-        const clip: TimelineClip = {
-          id: clipId,
-          formationId: formation.id,
-          start: 0,
-          transition: 10,
-          hold: 8,
-          easing: "minJerk",
-          color: [140, 220, 255],
-          effect: "solid",
-          phase: "SHOW",
-        };
-        return { ...next, timeline: insertClipBeforeLanding(p.timeline, clip) };
-      });
-      if (options.addToTimeline !== false) setSelectedClipId(clipId);
-      setSvgDraft(null);
-      return formation;
-    },
-    [svgDraft],
-  );
 
   const addClip = useCallback((formationId: string, timing?: { transition?: number; hold?: number }) => {
     const id = nextId("c");
@@ -2436,6 +2428,133 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     },
     [editScene],
   );
+
+  /**
+   * ADD VISUAL — creates a native formation ASSET and places ONE instance of it
+   * in the scene of `clipId` in a SINGLE undoable revision.
+   *
+   * Geometry only: the asset feeds the same static-source path as any library
+   * formation, so participation, assignment, trajectory and safety stay the sole
+   * authorities. `requestedDroneCount` is an artistic budget, never an identity.
+   */
+  const addNativeVisual = useCallback(
+    (
+      clipId: string,
+      input: {
+        readonly kind: FormationKind;
+        readonly name: string;
+        readonly droneCount: number;
+        readonly params?: Record<string, number | string>;
+        readonly position?: Vector3Tuple;
+        readonly color?: RGB;
+      },
+    ): string | null => {
+      const droneCount = Math.max(1, Math.round(input.droneCount));
+      const formationId = nextId("f");
+      let createdId: string | null = null;
+      setProject((p) => {
+        const clip = p.timeline.find((c) => c.id === clipId);
+        if (!clip) return p;
+        const formation = makeFormation(
+          formationId,
+          input.name,
+          input.kind,
+          droneCount,
+          p.area,
+          input.params ?? {},
+        );
+        const withAsset: ShowProject = { ...p, formations: [...p.formations, formation] };
+        const added = addObject(withAsset, sceneForClip(withAsset, clip), {
+          source: { kind: "STATIC", formationId },
+          name: input.name,
+          requestedDroneCount: droneCount,
+          ...(input.position ? { position: input.position } : {}),
+        });
+        createdId = added.objectId;
+        const scene = input.color
+          ? patchObject(added.scene, added.objectId, { lighting: { color: input.color } })
+          : added.scene;
+        pushSnapshot(p);
+        return upsertScene(withAsset, scene);
+      });
+      if (createdId) setSelectedSceneObjectId(createdId);
+      return createdId;
+    },
+    [pushSnapshot],
+  );
+
+  /**
+   * COMMIT AN IMPORTED SVG.
+   *
+   * `target` decides where the asset lands:
+   *   "SCENE"     one instance inside the CURRENT clip's scene (default when a
+   *               clip is selected) — no new clip is ever created implicitly.
+   *   "NEW_CLIP"  an explicitly requested new timeline clip.
+   *   "ASSET_ONLY" library asset only.
+   * `droneCount` is the artistic budget of the placed instance.
+   */
+  const commitSvgDraft = useCallback(
+    (
+      options: {
+        name?: string;
+        target?: "SCENE" | "NEW_CLIP" | "ASSET_ONLY";
+        clipId?: string;
+        droneCount?: number | null;
+      } = {},
+    ) => {
+      if (!svgDraft?.result) return null;
+      const formation = makeSvgFormation(
+        nextId("f"),
+        options.name?.trim() || defaultFormationName(svgDraft.asset, svgDraft.params.mode),
+        svgDraft.asset,
+        svgDraft.result,
+      );
+      const sceneClipId = options.clipId ?? selectedClipId;
+      const target =
+        options.target ?? (sceneClipId ? ("SCENE" as const) : ("NEW_CLIP" as const));
+      const newClipId = nextId("c");
+      let createdObjectId: string | null = null;
+      setProject((p) => {
+        const withAsset: ShowProject = { ...p, formations: [...p.formations, formation] };
+        if (target === "ASSET_ONLY") return withAsset;
+        if (target === "SCENE") {
+          const clip = sceneClipId ? p.timeline.find((c) => c.id === sceneClipId) : null;
+          if (!clip) return withAsset;
+          const added = addObject(withAsset, sceneForClip(withAsset, clip), {
+            source: { kind: "STATIC", formationId: formation.id },
+            name: formation.name,
+            ...(formation.svg ? { assetId: formation.svg.assetId } : {}),
+            ...(options.droneCount
+              ? { requestedDroneCount: Math.max(1, Math.round(options.droneCount)) }
+              : {}),
+          });
+          createdObjectId = added.objectId;
+          pushSnapshot(p);
+          return upsertScene(withAsset, added.scene);
+        }
+        const clip: TimelineClip = {
+          id: newClipId,
+          formationId: formation.id,
+          start: 0,
+          transition: 10,
+          hold: 8,
+          easing: "minJerk",
+          color: [140, 220, 255],
+          effect: "solid",
+          phase: "SHOW",
+        };
+        return { ...withAsset, timeline: insertClipBeforeLanding(p.timeline, clip) };
+      });
+      if (target === "NEW_CLIP") setSelectedClipId(newClipId);
+      if (target === "SCENE" && createdObjectId) setSelectedSceneObjectId(createdObjectId);
+      setSvgDraft(null);
+      return formation;
+    },
+    [svgDraft, selectedClipId, pushSnapshot],
+
+  );
+
+
 
   const patchSceneObject = useCallback(
     (clipId: string, objectId: string, patch: Partial<SceneFormationInstance>) => {
@@ -5356,6 +5475,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       commitSceneGizmo,
       cancelSceneGizmo,
       addSceneObject,
+      addNativeVisual,
       patchSceneObject,
       patchSceneObjectTransform,
       duplicateSceneObject,
@@ -5717,6 +5837,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       commitSceneGizmo,
       cancelSceneGizmo,
       addSceneObject,
+      addNativeVisual,
       patchSceneObject,
       patchSceneObjectTransform,
       duplicateSceneObject,
