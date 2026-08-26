@@ -15,6 +15,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildEsspExportPackage } from "@/lib/adapters/esspExport";
+import { forcedReady, planFor } from "./support/productionFixtures";
 import { evaluateExportEligibility } from "@/lib/adapters/exportEligibility";
 import { defaultPlanningState, parseProjectFile, projectFileToJson, serializeProject } from "@/lib/project";
 import { createDefaultProject } from "@/lib/show/defaultProject";
