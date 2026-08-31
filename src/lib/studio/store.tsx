@@ -85,6 +85,8 @@ import {
   DEFAULT_TRANSITION_DESIGN,
   deriveTransitionMode,
   normalizeTransitionDesign,
+  applyTransitionDesignToShow,
+  type BulkTransitionDesignResult,
   type TransitionDesignState,
   type TransitionAnalysis,
   type TransitionOptimizationResult,
