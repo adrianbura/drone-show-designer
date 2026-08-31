@@ -3472,6 +3472,71 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [project, plan, assignmentStrategy, sampleRate, overrideFromAnalysis, pushSnapshot],
   );
 
+  const [bulkTransitionResult, setBulkTransitionResult] =
+    useState<BulkTransitionDesignResult | null>(null);
+
+  /**
+   * SHOW-WIDE DESIGN APPLICATION. One undo entry for the whole timeline, using
+   * exactly the per-clip translation authority (`applyTransitionDesignToShow`).
+   * MANUAL is rejected: it edits existing per-drone data, not a pattern.
+   */
+  const applyTransitionDesignToAllClips = useCallback(
+    (patch?: Partial<TransitionDesignState>) => {
+      const seed =
+        transitionDesignsRef.current[selectedClipIdRef.current ?? ""] ??
+        DEFAULT_TRANSITION_DESIGN;
+      const design = normalizeTransitionDesign({ ...seed, ...patch });
+      if (design.mode === "MANUAL") {
+        setTransitionError({
+          code: "OPTIMIZATION_FAILED",
+          message: "MANUAL offsets are authored per drone and cannot be applied show-wide.",
+        });
+        return;
+      }
+      setTransitionError(null);
+      try {
+        const result = applyTransitionDesignToShow(project, plan, design, {
+          strategy: assignmentStrategy,
+          sampleRate,
+        });
+        pushSnapshot(projectRef.current);
+        setTransitionOverrides((prev) => {
+          const next = { ...prev };
+          const basis = { ...overrideBasisRef.current };
+          for (const outcome of result.outcomes) {
+            if (outcome.status === "applied") {
+              next[outcome.clipId] = outcome.override;
+              Object.assign(
+                basis,
+                computeOverrideBasis(project, { [outcome.clipId]: outcome.override }),
+              );
+            } else if (outcome.status === "cleared") {
+              delete next[outcome.clipId];
+              delete basis[outcome.clipId];
+            }
+          }
+          overrideBasisRef.current = basis;
+          return next;
+        });
+        setTransitionDesigns((prev) => {
+          const next = { ...prev };
+          for (const outcome of result.outcomes) {
+            if (outcome.status === "applied" || outcome.status === "cleared") {
+              next[outcome.clipId] = design;
+            }
+          }
+          return next;
+        });
+        setBulkTransitionResult(result);
+      } catch (err) {
+        setTransitionError(describeTransitionError(err));
+      }
+    },
+    [project, plan, assignmentStrategy, sampleRate, pushSnapshot],
+  );
+
+
+
   /**
    * MANUAL per-drone editing of the EXISTING override arrays. Bounds follow the
    * scheduler contract (start offset <= transition * 0.5) and the optimiser's
