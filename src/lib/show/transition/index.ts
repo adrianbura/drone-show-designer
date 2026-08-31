@@ -5,3 +5,4 @@ export * from "./optimizer";
 export * from "./project";
 export * from "./design";
 export * from "./candidate";
+export * from "./bulk";
