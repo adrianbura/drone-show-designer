@@ -793,6 +793,13 @@ interface StudioContextValue {
   transitionDesignNeedsRecalculation: (clipId: string) => boolean;
   /** One designer change = one undo entry; rebuilds the canonical override. */
   setTransitionDesign: (clipId: string, patch: Partial<TransitionDesignState>) => void;
+  /**
+   * Applies ONE design to every eligible clip in a single undo entry. Ineligible
+   * clips are reported in `bulkTransitionResult`, never silently skipped.
+   */
+  applyTransitionDesignToAllClips: (patch?: Partial<TransitionDesignState>) => void;
+  /** Outcome of the last show-wide application (null until one runs). */
+  bulkTransitionResult: BulkTransitionDesignResult | null;
   /** MANUAL mode: edits the existing per-drone start/lane offset data. */
   patchTransitionDroneOffset: (
     clipId: string,
