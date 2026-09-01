@@ -3,6 +3,7 @@ import { Layers, Timer } from "lucide-react";
 
 import {
   departureGroups,
+  describeBulkTransitionResult,
   describeTransitionDesign,
   staggerPatternLabel,
   STAGGER_DISTRIBUTIONS,
@@ -38,6 +39,8 @@ export default function TransitionDesignPanel() {
     transitionDesignFor,
     transitionDesignNeedsRecalculation,
     setTransitionDesign,
+    applyTransitionDesignToAllClips,
+    bulkTransitionResult,
     patchTransitionDroneOffset,
   } = useStudio();
   const [manualOpen, setManualOpen] = useState(false);
@@ -214,6 +217,30 @@ export default function TransitionDesignPanel() {
               </p>
             </div>
           )}
+
+          {/* SHOW-WIDE APPLICATION — one undo entry over every eligible clip. */}
+          {design.mode !== "MANUAL" && (
+            <div className="space-y-1 border-t border-border/60 pt-2">
+              <button
+                data-testid="transition-design-apply-all"
+                onClick={() => applyTransitionDesignToAllClips()}
+                className="chip-btn w-full justify-center"
+              >
+                <Layers className="size-3" /> Apply this design to the whole show
+              </button>
+              {bulkTransitionResult && (
+                <p
+                  data-testid="transition-design-apply-all-summary"
+                  className="font-mono text-[10px] text-muted-foreground"
+                >
+                  {describeTransitionDesign(bulkTransitionResult.design)} —{" "}
+                  {describeBulkTransitionResult(bulkTransitionResult)}
+                </p>
+              )}
+            </div>
+          )}
+
+
 
           {design.mode === "MANUAL" && override && (
             <div className="space-y-2 pt-1">
