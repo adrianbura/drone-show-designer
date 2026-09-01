@@ -1,6 +1,6 @@
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Grid, OrbitControls } from "@react-three/drei";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { useStudio } from "@/lib/studio/store";
@@ -20,6 +20,14 @@ import ReferenceGhostSwarm from "./ReferenceGhostSwarm";
 import GeometryProposalGhost from "./GeometryProposalGhost";
 import SceneGizmo from "./SceneGizmo";
 import SceneGizmoPreview from "./SceneGizmoPreview";
+import {
+  indicesInsideBox,
+  indicesInsideLasso,
+  indicesNearBrush,
+  type ScenePointSelectionOperation,
+  type ScenePointSelectionTool,
+  type ScreenPoint,
+} from "@/lib/studio/scenePointSelection";
 
 /**
  * Instanced drone swarm. One InstancedMesh + per-instance colour keeps draw
@@ -173,6 +181,100 @@ function ShowVolume({ width, depth, height }: { width: number; depth: number; he
   );
 }
 
+function SelectionGesture({
+  active,
+  tool,
+  time,
+  samplesAtTime,
+  onPathChange,
+  onCommit,
+}: {
+  active: boolean;
+  tool: ScenePointSelectionTool;
+  time: number;
+  samplesAtTime: (time: number) => TrajectorySample[];
+  onPathChange: (path: ScreenPoint[]) => void;
+  onCommit: (indices: number[], operation: ScenePointSelectionOperation) => void;
+}) {
+  const { camera, gl } = useThree();
+
+  useEffect(() => {
+    if (!active || tool === "CLICK") {
+      onPathChange([]);
+      return;
+    }
+    const canvas = gl.domElement;
+    let path: ScreenPoint[] = [];
+    let drawing = false;
+    let operation: ScenePointSelectionOperation = "REPLACE";
+    const relativePoint = (event: PointerEvent): ScreenPoint => {
+      const bounds = canvas.getBoundingClientRect();
+      return { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+    };
+    const stop = (event: PointerEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+    };
+    const pointerDown = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      stop(event);
+      drawing = true;
+      operation = event.altKey ? "SUBTRACT" : event.shiftKey ? "ADD" : "REPLACE";
+      path = [relativePoint(event)];
+      onPathChange(path);
+      canvas.setPointerCapture?.(event.pointerId);
+    };
+    const pointerMove = (event: PointerEvent) => {
+      if (!drawing) return;
+      stop(event);
+      const point = relativePoint(event);
+      if (tool === "BOX") path = [path[0]!, point];
+      else {
+        const previous = path[path.length - 1];
+        if (!previous || Math.hypot(point.x - previous.x, point.y - previous.y) >= 2)
+          path = [...path, point];
+      }
+      onPathChange(path);
+    };
+    const pointerUp = (event: PointerEvent) => {
+      if (!drawing) return;
+      stop(event);
+      drawing = false;
+      const bounds = canvas.getBoundingClientRect();
+      const screenPoints = samplesAtTime(time).map((sample) => {
+        const projected = new THREE.Vector3(...sample.position).project(camera);
+        return {
+          x: ((projected.x + 1) * bounds.width) / 2,
+          y: ((1 - projected.y) * bounds.height) / 2,
+        };
+      });
+      const indices =
+        tool === "BOX"
+          ? indicesInsideBox(screenPoints, path)
+          : tool === "LASSO"
+            ? indicesInsideLasso(screenPoints, path)
+            : indicesNearBrush(screenPoints, path, 18);
+      onCommit(indices, operation);
+      onPathChange([]);
+      canvas.releasePointerCapture?.(event.pointerId);
+    };
+    canvas.addEventListener("pointerdown", pointerDown, true);
+    canvas.addEventListener("pointermove", pointerMove, true);
+    canvas.addEventListener("pointerup", pointerUp, true);
+    canvas.addEventListener("pointercancel", pointerUp, true);
+    return () => {
+      canvas.removeEventListener("pointerdown", pointerDown, true);
+      canvas.removeEventListener("pointermove", pointerMove, true);
+      canvas.removeEventListener("pointerup", pointerUp, true);
+      canvas.removeEventListener("pointercancel", pointerUp, true);
+      onPathChange([]);
+    };
+  }, [active, camera, gl, onCommit, onPathChange, samplesAtTime, time, tool]);
+
+  return null;
+}
+
 export default function Viewport3D() {
   const {
     project,
@@ -212,7 +314,9 @@ export default function Viewport3D() {
     selectSceneObject,
     sceneObjectIdForDrone,
     sceneSelectionMode,
+    scenePointSelectionTool,
     selectScenePointForDrone,
+    selectScenePointsForDrones,
     selectedScenePointDroneIndices,
     gizmoMode,
     gizmoTranslateSnap,
@@ -223,6 +327,12 @@ export default function Viewport3D() {
     updateSceneGizmo,
     commitSceneGizmo,
   } = useStudio();
+  const [selectionPath, setSelectionPath] = useState<ScreenPoint[]>([]);
+  const commitGestureSelection = useCallback(
+    (indices: number[], operation: ScenePointSelectionOperation) =>
+      selectScenePointsForDrones(indices, operation),
+    [selectScenePointsForDrones],
+  );
   const proposalPreview = useGeometryProposalPreview();
   const handleSelectDrone = useCallback(
     (index: number, additive: boolean) => {
@@ -292,118 +402,163 @@ export default function Viewport3D() {
     return map;
   }, [preShowOverlay]);
 
-  return (
-    <Canvas
-      camera={{ position: [90, 60, 110], fov: 42, near: 0.5, far: 3000 }}
-      dpr={[1, 1.75]}
-      gl={{ antialias: true }}
-    >
-      <color attach="background" args={["#05070d"]} />
-      <fog attach="fog" args={["#05070d", 220, 700]} />
-      <ambientLight intensity={0.4} />
-      <Grid
-        args={[project.area.width * 2, project.area.depth * 2]}
-        cellSize={5}
-        cellColor="#152232"
-        sectionSize={25}
-        sectionColor="#1d3b52"
-        infiniteGrid
-        fadeDistance={520}
-        fadeStrength={1.4}
-        position={[0, 0, 0]}
-      />
-      {conversionComparisonFrame ? (
-        <ConversionOverlay
-          frame={conversionComparisonFrame}
-          mode={comparisonMode}
-          vectorScale={errorVectorScale}
-        />
-      ) : null}
-      {sceneGhostFrame && !reference ? (
-        <ReferenceGhostSwarm
-          frame={sceneGhostFrame}
-          selectedObjectId={selectedSceneObjectId}
-          correspondence={sceneCorrespondence}
-        />
-      ) : null}
+  const gestureActive = sceneSelectionMode === "POINT" && scenePointSelectionTool !== "CLICK";
 
-      {reference ? null : <ShowVolume {...project.area} />}
-      {reference ? (
-        <ReferenceSwarm
-          show={reference}
-          time={time}
-          showPaths={showReferencePaths}
-          selectedDroneId={selectedReferenceDroneId}
-          activeDroneIds={forensicActiveDroneIds}
+  return (
+    <div className="relative h-full w-full" data-testid="viewport-3d">
+      <Canvas
+        camera={{ position: [90, 60, 110], fov: 42, near: 0.5, far: 3000 }}
+        dpr={[1, 1.75]}
+        gl={{ antialias: true }}
+      >
+        <color attach="background" args={["#05070d"]} />
+        <fog attach="fog" args={["#05070d", 220, 700]} />
+        <ambientLight intensity={0.4} />
+        <Grid
+          args={[project.area.width * 2, project.area.depth * 2]}
+          cellSize={5}
+          cellColor="#152232"
+          sectionSize={25}
+          sectionColor="#1d3b52"
+          infiniteGrid
+          fadeDistance={520}
+          fadeStrength={1.4}
+          position={[0, 0, 0]}
         />
-      ) : null}
-      {reference ? null : (
-        <Swarm
-          project={project}
+        {conversionComparisonFrame ? (
+          <ConversionOverlay
+            frame={conversionComparisonFrame}
+            mode={comparisonMode}
+            vectorScale={errorVectorScale}
+          />
+        ) : null}
+        {sceneGhostFrame && !reference ? (
+          <ReferenceGhostSwarm
+            frame={sceneGhostFrame}
+            selectedObjectId={selectedSceneObjectId}
+            correspondence={sceneCorrespondence}
+          />
+        ) : null}
+
+        {reference ? null : <ShowVolume {...project.area} />}
+        {reference ? (
+          <ReferenceSwarm
+            show={reference}
+            time={time}
+            showPaths={showReferencePaths}
+            selectedDroneId={selectedReferenceDroneId}
+            activeDroneIds={forensicActiveDroneIds}
+          />
+        ) : null}
+        {reference ? null : (
+          <Swarm
+            project={project}
+            time={time}
+            samplesAtTime={samplesAtTime}
+            highlighted={highlighted}
+            preShowPlan={plan.preShow}
+            showGroups={showLaunchGroups}
+            groupIdByDrone={preShowOverlay?.groupIdByDrone ?? []}
+            groupRgbByDrone={groupRgbByDrone}
+            selectedGroupId={selectedLaunchGroupId}
+            dynamicSelected={
+              sceneSelectionMode === "POINT"
+                ? selectedScenePointDroneIndices
+                : sceneSelectedDrones.length > 0
+                  ? sceneSelectedDrones
+                  : selectedDroneIndices
+            }
+            dynamicGroupRgbByDrone={dynamicGroupRgbByDrone}
+            lightingStatesAt={lightingStatesAt}
+            onSelectDrone={handleSelectDrone}
+          />
+        )}
+        {!reference && preShowOverlay && plan.preShow && (showLaunchPads || showStaging) ? (
+          <PreShowOverlay
+            overlay={preShowOverlay}
+            plan={plan.preShow}
+            time={time}
+            showPads={showLaunchPads}
+            showStaging={showStaging}
+            showGroups={showLaunchGroups}
+            selectedGroupId={selectedLaunchGroupId}
+          />
+        ) : null}
+        {!reference && proposalPreview.enabled ? (
+          <GeometryProposalGhost
+            original={proposalPreview.original}
+            proposed={proposalPreview.proposed}
+          />
+        ) : null}
+        {!reference && svgDraft ? <SvgDraftPreview draft={svgDraft} /> : null}
+        {!reference && overlayAnalysis && (showPaths || showConflicts) ? (
+          <TransitionOverlay
+            analysis={overlayAnalysis}
+            paths={showPaths}
+            conflicts={showConflicts}
+          />
+        ) : null}
+        {!reference && sceneGizmoPivot ? (
+          <>
+            <SceneGizmoPreview points={sceneGizmoPreviewPoints} />
+            <SceneGizmo
+              pivot={sceneGizmoPivot}
+              mode={gizmoMode}
+              translateSnap={gizmoTranslateSnap}
+              rotateSnap={gizmoRotateSnap}
+              onBegin={beginSceneGizmo}
+              onUpdate={updateSceneGizmo}
+              onCommit={commitSceneGizmo}
+            />
+          </>
+        ) : null}
+        <OrbitControls
+          makeDefault
+          enableDamping
+          dampingFactor={0.08}
+          maxPolarAngle={Math.PI / 2.05}
+          target={[0, project.area.height * 0.35, 0]}
+          minDistance={20}
+          maxDistance={600}
+          enabled={!gestureActive}
+        />
+        <SelectionGesture
+          active={gestureActive}
+          tool={scenePointSelectionTool}
           time={time}
           samplesAtTime={samplesAtTime}
-          highlighted={highlighted}
-          preShowPlan={plan.preShow}
-          showGroups={showLaunchGroups}
-          groupIdByDrone={preShowOverlay?.groupIdByDrone ?? []}
-          groupRgbByDrone={groupRgbByDrone}
-          selectedGroupId={selectedLaunchGroupId}
-          dynamicSelected={
-            sceneSelectionMode === "POINT"
-              ? selectedScenePointDroneIndices
-              : sceneSelectedDrones.length > 0
-                ? sceneSelectedDrones
-                : selectedDroneIndices
-          }
-          dynamicGroupRgbByDrone={dynamicGroupRgbByDrone}
-          lightingStatesAt={lightingStatesAt}
-          onSelectDrone={handleSelectDrone}
+          onPathChange={setSelectionPath}
+          onCommit={commitGestureSelection}
         />
-      )}
-      {!reference && preShowOverlay && plan.preShow && (showLaunchPads || showStaging) ? (
-        <PreShowOverlay
-          overlay={preShowOverlay}
-          plan={plan.preShow}
-          time={time}
-          showPads={showLaunchPads}
-          showStaging={showStaging}
-          showGroups={showLaunchGroups}
-          selectedGroupId={selectedLaunchGroupId}
-        />
+      </Canvas>
+      {selectionPath.length > 0 ? (
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full"
+          data-testid="viewport-selection-overlay"
+        >
+          {scenePointSelectionTool === "BOX" && selectionPath.length > 1 ? (
+            <rect
+              x={Math.min(selectionPath[0]!.x, selectionPath[1]!.x)}
+              y={Math.min(selectionPath[0]!.y, selectionPath[1]!.y)}
+              width={Math.abs(selectionPath[1]!.x - selectionPath[0]!.x)}
+              height={Math.abs(selectionPath[1]!.y - selectionPath[0]!.y)}
+              fill="rgba(56, 224, 208, 0.12)"
+              stroke="#38e0d0"
+              strokeDasharray="5 4"
+            />
+          ) : (
+            <polyline
+              points={selectionPath.map((point) => `${point.x},${point.y}`).join(" ")}
+              fill={scenePointSelectionTool === "LASSO" ? "rgba(56, 224, 208, 0.1)" : "none"}
+              stroke="#38e0d0"
+              strokeWidth={scenePointSelectionTool === "BRUSH" ? 36 : 2}
+              strokeOpacity={scenePointSelectionTool === "BRUSH" ? 0.28 : 1}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
+        </svg>
       ) : null}
-      {!reference && proposalPreview.enabled ? (
-        <GeometryProposalGhost
-          original={proposalPreview.original}
-          proposed={proposalPreview.proposed}
-        />
-      ) : null}
-      {!reference && svgDraft ? <SvgDraftPreview draft={svgDraft} /> : null}
-      {!reference && overlayAnalysis && (showPaths || showConflicts) ? (
-        <TransitionOverlay analysis={overlayAnalysis} paths={showPaths} conflicts={showConflicts} />
-      ) : null}
-      {!reference && sceneGizmoPivot ? (
-        <>
-          <SceneGizmoPreview points={sceneGizmoPreviewPoints} />
-          <SceneGizmo
-            pivot={sceneGizmoPivot}
-            mode={gizmoMode}
-            translateSnap={gizmoTranslateSnap}
-            rotateSnap={gizmoRotateSnap}
-            onBegin={beginSceneGizmo}
-            onUpdate={updateSceneGizmo}
-            onCommit={commitSceneGizmo}
-          />
-        </>
-      ) : null}
-      <OrbitControls
-        makeDefault
-        enableDamping
-        dampingFactor={0.08}
-        maxPolarAngle={Math.PI / 2.05}
-        target={[0, project.area.height * 0.35, 0]}
-        minDistance={20}
-        maxDistance={600}
-      />
-    </Canvas>
+    </div>
   );
 }

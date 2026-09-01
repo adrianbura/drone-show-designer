@@ -128,6 +128,11 @@ import {
 import { timelineContentRange } from "./timelineLayout";
 import { insertClipBeforeLanding } from "./clipInsertion";
 import { canConvertClipToScene, convertClipToScene, duplicateShowClip } from "./clipDesign";
+import {
+  applyPointSelection,
+  type ScenePointSelectionOperation,
+  type ScenePointSelectionTool,
+} from "./scenePointSelection";
 import { insertLibraryAsset, type AssetInsertionTiming } from "./assetInsertion";
 import {
   reconcileEditorSelection,
@@ -532,10 +537,16 @@ interface StudioContextValue {
   /** Everyday viewport mode: select whole visuals or points inside one visual. */
   sceneSelectionMode: "OBJECT" | "POINT";
   setSceneSelectionMode: (mode: "OBJECT" | "POINT") => void;
+  scenePointSelectionTool: ScenePointSelectionTool;
+  setScenePointSelectionTool: (tool: ScenePointSelectionTool) => void;
   selectedScenePointIds: string[];
   selectedScenePointDroneIndices: number[];
   scenePointGroups: readonly ScenePointGroup[];
   selectScenePointForDrone: (droneIndex: number, additive: boolean) => void;
+  selectScenePointsForDrones: (
+    droneIndices: readonly number[],
+    operation: ScenePointSelectionOperation,
+  ) => void;
   clearScenePointSelection: () => void;
   createScenePointGroup: (name: string) => string | null;
   renameScenePointGroup: (groupId: string, name: string) => void;
@@ -2106,6 +2117,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [explicitDynamicId, setExplicitDynamicId] = useState<string | null>(null);
   const [selectedPointIds, setSelectedPointIdsState] = useState<string[]>([]);
   const [sceneSelectionMode, setSceneSelectionModeState] = useState<"OBJECT" | "POINT">("OBJECT");
+  const [scenePointSelectionTool, setScenePointSelectionTool] =
+    useState<ScenePointSelectionTool>("CLICK");
   const [selectedScenePointIds, setSelectedScenePointIds] = useState<string[]>([]);
   const [selectedMotionGroupId, setSelectedMotionGroupId] = useState<string | null>(null);
   const [dynamicEditTime, setDynamicEditTime] = useState(0);
@@ -2119,6 +2132,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setSelectedScenePointIds([]);
     setSceneSelectionModeState("OBJECT");
+    setScenePointSelectionTool("CLICK");
   }, [selectedClipId]);
 
   /** Latest selected scene, so selection callbacks stay dependency-free. */
@@ -2144,7 +2158,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const setSceneSelectionMode = useCallback((mode: "OBJECT" | "POINT") => {
     setSceneSelectionModeState(mode);
-    if (mode === "OBJECT") setSelectedScenePointIds([]);
+    if (mode === "OBJECT") {
+      setSelectedScenePointIds([]);
+      setScenePointSelectionTool("CLICK");
+    }
   }, []);
 
   const setSelectedSceneObjectIds = useCallback(
@@ -2468,6 +2485,36 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             : [...current, target.pointId!]
           : [target.pointId!],
       );
+    },
+    [sceneSelection.primaryId, sceneTargetByDrone],
+  );
+
+  const selectScenePointsForDrones = useCallback(
+    (droneIndices: readonly number[], operation: ScenePointSelectionOperation) => {
+      const requested = droneIndices
+        .map((index) => sceneTargetByDrone[index])
+        .filter(
+          (target): target is { objectId: string; pointId: string } =>
+            Boolean(target?.objectId && target.pointId),
+        );
+      const objectId =
+        (sceneSelection.primaryId &&
+          requested.some((target) => target.objectId === sceneSelection.primaryId)
+          ? sceneSelection.primaryId
+          : requested[0]?.objectId) ?? null;
+      if (!objectId) {
+        if (operation === "REPLACE") setSelectedScenePointIds([]);
+        return;
+      }
+      const pointIds = requested
+        .filter((target) => target.objectId === objectId)
+        .map((target) => target.pointId);
+      if (sceneSelection.primaryId !== objectId) {
+        setSceneSelectionState({ ids: [objectId], primaryId: objectId });
+        setSelectedScenePointIds(applyPointSelection([], pointIds, operation));
+        return;
+      }
+      setSelectedScenePointIds((current) => applyPointSelection(current, pointIds, operation));
     },
     [sceneSelection.primaryId, sceneTargetByDrone],
   );
@@ -5642,10 +5689,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       sceneObjectIdForDrone,
       sceneSelectionMode,
       setSceneSelectionMode,
+      scenePointSelectionTool,
+      setScenePointSelectionTool,
       selectedScenePointIds,
       selectedScenePointDroneIndices,
       scenePointGroups,
       selectScenePointForDrone,
+      selectScenePointsForDrones,
       clearScenePointSelection,
       createScenePointGroup,
       renameScenePointGroup,
@@ -6020,10 +6070,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       sceneObjectIdForDrone,
       sceneSelectionMode,
       setSceneSelectionMode,
+      scenePointSelectionTool,
       selectedScenePointIds,
       selectedScenePointDroneIndices,
       scenePointGroups,
       selectScenePointForDrone,
+      selectScenePointsForDrones,
       clearScenePointSelection,
       createScenePointGroup,
       renameScenePointGroup,

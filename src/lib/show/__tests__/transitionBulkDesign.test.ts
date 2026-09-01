@@ -41,8 +41,9 @@ describe("applyTransitionDesignToShow", () => {
   it("applies the stagger to at least one SHOW clip and reports the rest", () => {
     const result = applyTransitionDesignToShow(project, plan, staggered, options);
     expect(result.appliedCount).toBeGreaterThan(0);
-    expect(result.appliedCount + result.clearedCount + result.skippedCount + result.failedCount)
-      .toBe(project.timeline.length);
+    expect(
+      result.appliedCount + result.clearedCount + result.skippedCount + result.failedCount,
+    ).toBe(project.timeline.length);
     expect(result.failedCount).toBe(0);
     for (const outcome of result.outcomes) {
       if (outcome.status !== "skipped") continue;

@@ -11,7 +11,19 @@
  * remain the only authorities. Unused drones are handled as RESERVE by the
  * planner — the operator never places placeholders.
  */
-import { Copy, Eye, EyeOff, Layers, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  BoxSelect,
+  Brush,
+  Copy,
+  Eye,
+  EyeOff,
+  LassoSelect,
+  Layers,
+  MousePointer2,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 
 import { useStudio } from "@/lib/studio/store";
@@ -182,6 +194,8 @@ export default function SceneComposerPanel() {
     removeSceneObject,
     sceneSelectionMode,
     setSceneSelectionMode,
+    scenePointSelectionTool,
+    setScenePointSelectionTool,
     selectedScenePointIds,
     scenePointGroups,
     clearScenePointSelection,
@@ -273,13 +287,41 @@ export default function SceneComposerPanel() {
 
       {sceneSelectionMode === "POINT" ? (
         <div className="mt-2 space-y-1.5 rounded border border-border bg-surface-sunken p-2">
+          <div
+            className="grid grid-cols-4 gap-1"
+            role="group"
+            aria-label="Drone selection tool"
+            data-testid="composer-point-tools"
+          >
+            {(
+              [
+                ["CLICK", MousePointer2, "Click"],
+                ["BOX", BoxSelect, "Box"],
+                ["LASSO", LassoSelect, "Lasso"],
+                ["BRUSH", Brush, "Brush"],
+              ] as const
+            ).map(([tool, Icon, label]) => (
+              <button
+                key={tool}
+                type="button"
+                title={`${label} selection`}
+                aria-pressed={scenePointSelectionTool === tool}
+                data-testid={`composer-point-tool-${tool.toLowerCase()}`}
+                onClick={() => setScenePointSelectionTool(tool)}
+                className={`chip-btn justify-center ${
+                  scenePointSelectionTool === tool ? "mini-btn-accent border-accent" : ""
+                }`}
+              >
+                <Icon className="size-3" /> {label}
+              </button>
+            ))}
+          </div>
           <p
             className="font-mono text-[10px] text-muted-foreground"
             data-testid="composer-point-count"
           >
             {selectedScenePointIds.length} drone point
-            {selectedScenePointIds.length === 1 ? "" : "s"} selected · click to select, Shift-click
-            to add
+            {selectedScenePointIds.length === 1 ? "" : "s"} selected · Shift adds · Alt removes
           </p>
           {!primary ? (
             <p

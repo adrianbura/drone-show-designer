@@ -240,8 +240,6 @@ export default function TransitionDesignPanel() {
             </div>
           )}
 
-
-
           {design.mode === "MANUAL" && override && (
             <div className="space-y-2 pt-1">
               <button
@@ -288,8 +286,8 @@ export default function TransitionDesignPanel() {
                 </div>
               )}
               <p className="text-[10px] leading-relaxed text-muted-foreground">
-                Columns: start offset (s) and vertical lane offset (m) — the same arrays the
-                planner flies.
+                Columns: start offset (s) and vertical lane offset (m) — the same arrays the planner
+                flies.
               </p>
             </div>
           )}
