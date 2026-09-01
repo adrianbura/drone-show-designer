@@ -215,6 +215,30 @@ export default function TransitionDesignPanel() {
             </div>
           )}
 
+          {/* SHOW-WIDE APPLICATION — one undo entry over every eligible clip. */}
+          {design.mode !== "MANUAL" && (
+            <div className="space-y-1 border-t border-border/60 pt-2">
+              <button
+                data-testid="transition-design-apply-all"
+                onClick={() => applyTransitionDesignToAllClips()}
+                className="chip-btn w-full justify-center"
+              >
+                <Layers className="size-3" /> Apply this design to the whole show
+              </button>
+              {bulkTransitionResult && (
+                <p
+                  data-testid="transition-design-apply-all-summary"
+                  className="font-mono text-[10px] text-muted-foreground"
+                >
+                  {describeTransitionDesign(bulkTransitionResult.design)} —{" "}
+                  {describeBulkTransitionResult(bulkTransitionResult)}
+                </p>
+              )}
+            </div>
+          )}
+
+
+
           {design.mode === "MANUAL" && override && (
             <div className="space-y-2 pt-1">
               <button
