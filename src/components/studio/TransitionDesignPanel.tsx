@@ -3,6 +3,7 @@ import { Layers, Timer } from "lucide-react";
 
 import {
   departureGroups,
+  describeBulkTransitionResult,
   describeTransitionDesign,
   staggerPatternLabel,
   STAGGER_DISTRIBUTIONS,
@@ -38,6 +39,8 @@ export default function TransitionDesignPanel() {
     transitionDesignFor,
     transitionDesignNeedsRecalculation,
     setTransitionDesign,
+    applyTransitionDesignToAllClips,
+    bulkTransitionResult,
     patchTransitionDroneOffset,
   } = useStudio();
   const [manualOpen, setManualOpen] = useState(false);
