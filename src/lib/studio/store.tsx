@@ -2655,6 +2655,88 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     ],
   );
 
+  /* ------------------------------------------- everyday motion inspector */
+
+  /** Per-instance playback edit: ONE scene revision == ONE undo entry. */
+  const patchSceneObjectAnimation = useCallback(
+    (clipId: string, objectId: string, patch: SceneObjectAnimation) => {
+      editScene(clipId, (scene) => {
+        const object = scene.objects.find((candidate) => candidate.id === objectId);
+        if (!object) return scene;
+        return patchObject(scene, objectId, {
+          animation: { ...(object.animation ?? {}), ...patch },
+        });
+      });
+    },
+    [editScene],
+  );
+
+  /**
+   * Canonical dynamic-asset edit committed through the TIMELINE history, so an
+   * everyday motion edit is exactly one undo entry alongside the scene edits.
+   */
+  const patchSceneMotion = useCallback(
+    (dynamicFormationId: string, patch: Partial<DynamicFormation>) => {
+      setProject((p) => {
+        const list = p.dynamicFormations ?? [];
+        if (!list.some((candidate) => candidate.id === dynamicFormationId)) return p;
+        pushSnapshot(p);
+        return {
+          ...p,
+          dynamicFormations: list.map((candidate) =>
+            candidate.id === dynamicFormationId ? { ...candidate, ...patch } : candidate,
+          ),
+        };
+      });
+    },
+    [pushSnapshot],
+  );
+
+  const patchSceneMotionGroup = useCallback(
+    (dynamicFormationId: string, groupId: string, patch: Partial<MotionGroup>) => {
+      setProject((p) => {
+        const list = p.dynamicFormations ?? [];
+        const target = list.find((candidate) => candidate.id === dynamicFormationId);
+        if (!target || !target.groups.some((group) => group.id === groupId)) return p;
+        pushSnapshot(p);
+        return {
+          ...p,
+          dynamicFormations: list.map((candidate) =>
+            candidate.id === dynamicFormationId
+              ? patchMotionGroup(candidate, groupId, patch)
+              : candidate,
+          ),
+        };
+      });
+    },
+    [pushSnapshot],
+  );
+
+  const duplicateSceneObjectMotion = useCallback(
+    (clipId: string, objectId: string) => {
+      const newId = nextId("dyn");
+      const next = duplicateObjectMotion(projectRef.current, clipId, objectId, newId);
+      if (next === projectRef.current) return null;
+      pushTimelineHistory();
+      setProject(next);
+      setExplicitDynamicId(newId);
+      return newId;
+    },
+    [pushTimelineHistory],
+  );
+
+  const removeSceneObjectMotion = useCallback(
+    (clipId: string, objectId: string) => {
+      const next = removeObjectMotion(projectRef.current, clipId, objectId);
+      if (next === projectRef.current) return;
+      pushTimelineHistory();
+      setProject(next);
+      setExplicitDynamicId(null);
+    },
+    [pushTimelineHistory],
+  );
+
+
   const addSceneObject = useCallback(
     (
       clipId: string,
