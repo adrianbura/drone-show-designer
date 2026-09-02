@@ -766,6 +766,16 @@ export default function AddVisualWizard({
 
       {mode === "AI" ? (
         <div className="space-y-1.5" data-testid="wizard-ai">
+          <ol
+            className="flex flex-wrap gap-1 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground"
+            data-testid="wizard-ai-steps"
+          >
+            <li>1 Describe</li>
+            <li>· 2 Generate preview</li>
+            <li>· 3 Choose drones</li>
+            <li>· 4 Place</li>
+            <li>· 5 Add to scene</li>
+          </ol>
           <label className="block space-y-1 text-[11px] text-muted-foreground">
             <span className="uppercase tracking-[0.14em]">Describe the visual</span>
             <textarea
@@ -785,23 +795,81 @@ export default function AddVisualWizard({
           >
             <Sparkles className="size-3" /> {aiBusy ? "Generating…" : "Generate preview"}
           </button>
+          {aiBusy ? (
+            <p className="font-mono text-[10px] text-muted-foreground" data-testid="wizard-ai-loading">
+              Generating an artistic proposal… nothing is added to the show yet.
+            </p>
+          ) : null}
           {aiError ? (
-            <p className="font-mono text-[10px] text-destructive" data-testid="wizard-ai-error">
-              {aiError.message}
+            <div className="space-y-1" data-testid="wizard-ai-error">
+              <p className="font-mono text-[10px] text-destructive">{aiError.message}</p>
+              <button
+                type="button"
+                data-testid="wizard-ai-retry"
+                disabled={aiBusy || aiPrompt.trim().length < 3}
+                onClick={() => void generateAiProposal(aiPrompt.trim())}
+                className="chip-btn w-full justify-center disabled:opacity-40"
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
+          {!aiProposal && !aiBusy && !aiError ? (
+            <p
+              className="font-mono text-[10px] text-muted-foreground"
+              data-testid="wizard-ai-empty"
+            >
+              No proposal yet — describe the visual and generate a preview.
             </p>
           ) : null}
           {aiProposal ? (
-            <div className="rounded border border-border p-1.5" data-testid="wizard-ai-proposal">
+            <div className="space-y-1 rounded border border-border p-1.5" data-testid="wizard-ai-proposal">
               <p className="text-xs font-medium text-foreground">{aiProposal.title}</p>
+              <p className="font-mono text-[10px] text-muted-foreground">
+                {aiProposal.description}
+              </p>
               <p className="font-mono text-[10px] text-muted-foreground">
                 {aiProposal.concept} · {aiProposal.animationSpec.dynamic ? "animated" : "static"} ·
                 source geometry {aiProposal.fleetCount} points
               </p>
-              {aiProposalErrors.map((error) => (
-                <p key={error} className="font-mono text-[10px] text-destructive">
-                  {error}
+              <p className="font-mono text-[10px] text-muted-foreground">
+                {aiProposal.formationSpec.width.toFixed(0)} ×{" "}
+                {aiProposal.formationSpec.height.toFixed(0)} ×{" "}
+                {aiProposal.formationSpec.depth.toFixed(0)} m · altitude{" "}
+                {aiProposal.formationSpec.altitude.toFixed(0)} m
+              </p>
+              <p className="font-mono text-[10px] text-muted-foreground">
+                transition {aiProposal.timing.recommendedTransition.toFixed(1)} s · hold{" "}
+                {aiProposal.timing.hold.toFixed(1)} s
+                {aiProposal.animationSpec.dynamic
+                  ? ` · cycle ${aiProposal.animationSpec.cycleDuration.toFixed(1)} s × ${aiProposal.animationSpec.cycles}`
+                  : ""}
+              </p>
+              {aiProposal.assumptions.map((assumption) => (
+                <p key={assumption} className="font-mono text-[10px] text-muted-foreground">
+                  assumption · {assumption}
                 </p>
               ))}
+              {aiProposal.warnings.map((warning) => (
+                <p key={warning} className="font-mono text-[10px] text-warning">
+                  warning · {warning}
+                </p>
+              ))}
+              {aiProposalErrors.length > 0 ? (
+                <div data-testid="wizard-ai-validation">
+                  {aiProposalErrors.map((error) => (
+                    <p key={error} className="font-mono text-[10px] text-destructive">
+                      {error}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+              <p
+                className="font-mono text-[10px] text-muted-foreground"
+                data-testid="wizard-ai-disclaimer"
+              >
+                This is an artistic preview. Normal trajectory and safety validation still applies.
+              </p>
             </div>
           ) : null}
           <NumberField
@@ -811,20 +879,33 @@ export default function AddVisualWizard({
             testId="wizard-drones"
             onChange={setAiDrones}
           />
-          <div className="grid grid-cols-3 gap-1">
-            <NumberField label="X" value={aiX} step={0.5} testId="wizard-ai-x" onChange={setAiX} />
-            <NumberField label="Y" value={aiY} step={0.5} testId="wizard-ai-y" onChange={setAiY} />
-            <NumberField label="Z" value={aiZ} step={0.5} testId="wizard-ai-z" onChange={setAiZ} />
-          </div>
-          <NumberField
-            label="Rotation"
-            value={aiRotation}
-            step={5}
-            testId="wizard-ai-rotation"
-            onChange={setAiRotation}
-          />
+          <button
+            type="button"
+            data-testid="wizard-ai-placement-toggle"
+            onClick={() => setAdvanced((v) => !v)}
+            className="chip-btn w-full justify-center"
+          >
+            {advanced ? "Hide placement" : "Placement"}
+          </button>
+          {advanced ? (
+            <div className="space-y-1.5" data-testid="wizard-ai-placement">
+              <div className="grid grid-cols-3 gap-1">
+                <NumberField label="X" value={aiX} step={0.5} testId="wizard-ai-x" onChange={setAiX} />
+                <NumberField label="Y" value={aiY} step={0.5} testId="wizard-ai-y" onChange={setAiY} />
+                <NumberField label="Z" value={aiZ} step={0.5} testId="wizard-ai-z" onChange={setAiZ} />
+              </div>
+              <NumberField
+                label="Rotation"
+                value={aiRotation}
+                step={5}
+                testId="wizard-ai-rotation"
+                onChange={setAiRotation}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
+
 
       {mode !== null ? (
         <div className="space-y-1.5 border-t border-border pt-1.5">
