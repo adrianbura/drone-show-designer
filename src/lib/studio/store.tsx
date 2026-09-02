@@ -367,6 +367,7 @@ import {
   type SceneDesignActionKind,
   type SceneAlignMode,
   type SceneFormationInstance,
+  type SceneObjectAnimation,
   type ScenePointGroup,
   type SceneGizmoMode,
   type SceneSelection,
