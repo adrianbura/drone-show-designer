@@ -148,6 +148,10 @@ export default function AddVisualWizard({
   // Existing asset inputs
   const [assetId, setAssetId] = useState("");
   const [assetDrones, setAssetDrones] = useState(20);
+  const [assetX, setAssetX] = useState(0);
+  const [assetY, setAssetY] = useState(50);
+  const [assetZ, setAssetZ] = useState(0);
+  const [assetRotation, setAssetRotation] = useState(0);
 
   const reset = useCallback(() => {
     setOpen(false);
@@ -270,6 +274,10 @@ export default function AddVisualWizard({
         source: { kind: "STATIC", formationId: assetId },
         name: name.trim() || asset?.name || "Visual",
         requestedDroneCount: Math.round(assetDrones),
+        position: [assetX, assetY, assetZ],
+        rotationDeg: [0, 0, assetRotation],
+        mirrorX: mirror,
+        color,
       });
     } else {
       return;
@@ -281,6 +289,10 @@ export default function AddVisualWizard({
     addTextVisual,
     assetDrones,
     assetId,
+    assetRotation,
+    assetX,
+    assetY,
+    assetZ,
     clipId,
     colour,
     commitSvgDraft,
@@ -679,6 +691,36 @@ export default function AddVisualWizard({
             testId="wizard-drones"
             onChange={setAssetDrones}
           />
+          <div className="grid grid-cols-3 gap-1">
+            <NumberField
+              label="X"
+              value={assetX}
+              step={0.5}
+              testId="wizard-asset-x"
+              onChange={setAssetX}
+            />
+            <NumberField
+              label="Y"
+              value={assetY}
+              step={0.5}
+              testId="wizard-asset-y"
+              onChange={setAssetY}
+            />
+            <NumberField
+              label="Z"
+              value={assetZ}
+              step={0.5}
+              testId="wizard-asset-z"
+              onChange={setAssetZ}
+            />
+          </div>
+          <NumberField
+            label="Rotation"
+            value={assetRotation}
+            step={5}
+            testId="wizard-asset-rotation"
+            onChange={setAssetRotation}
+          />
         </div>
       ) : null}
 
@@ -710,17 +752,15 @@ export default function AddVisualWizard({
             />
           </label>
           <ColourField value={colour} onChange={setColour} testId="wizard-color" />
-          {mode !== "ASSET" ? (
-            <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-              <span className="uppercase tracking-[0.14em]">Mirror</span>
-              <input
-                type="checkbox"
-                checked={mirror}
-                data-testid="wizard-mirror"
-                onChange={(event) => setMirror(event.target.checked)}
-              />
-            </label>
-          ) : null}
+          <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span className="uppercase tracking-[0.14em]">Mirror</span>
+            <input
+              type="checkbox"
+              checked={mirror}
+              data-testid="wizard-mirror"
+              onChange={(event) => setMirror(event.target.checked)}
+            />
+          </label>
           <div className="flex gap-2">
             <button
               type="button"

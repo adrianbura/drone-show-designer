@@ -174,6 +174,33 @@ describe("scene composer acceptance — 150 drones", () => {
     expect(budget.overCapacity).toBe(false);
   });
 
+  it("reallocates the exact 150-drone budget without silently changing requests", () => {
+    const composed = composedProject(TEXT_DRONES);
+    expect(sceneBudget(composed.project, composed.scene, FLEET).availableDrones).toBe(0);
+
+    const reduced = patchObject(composed.scene, composed.ids.text, {
+      requestedDroneCount: 100,
+    });
+    expect(sceneBudget(composed.project, reduced, FLEET).availableDrones).toBe(10);
+
+    const blocked = addObject(composed.project, reduced, {
+      source: { kind: "STATIC", formationId: "f-line" },
+      name: "Underline 3 invalid",
+      requestedDroneCount: 11,
+    });
+    expect(sceneBudget(composed.project, blocked.scene, FLEET).overCapacity).toBe(true);
+
+    const accepted = addObject(composed.project, reduced, {
+      source: { kind: "STATIC", formationId: "f-line" },
+      name: "Underline 3",
+      requestedDroneCount: 10,
+    });
+    const budget = sceneBudget(composed.project, accepted.scene, FLEET);
+    expect(budget.active).toBe(FLEET);
+    expect(budget.availableDrones).toBe(0);
+    expect(accepted.scene.objects.at(-1)?.requestedDroneCount).toBe(10);
+  });
+
   it("applies WAVE only to the SVG object and leaves the lines static", () => {
     const composed = composedProject(TEXT_DRONES);
     const { project, scene } = waveOnObject(composed.project, composed.scene, composed.ids.text);

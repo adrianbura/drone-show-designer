@@ -51,7 +51,7 @@ describe("create visual decisions", () => {
         droneCount: 40,
         widthMeters: 60,
         heightMeters: 15,
-      altitudeMeters: 0,
+        altitudeMeters: 0,
       }).ok,
     ).toBe(false);
     const built = buildTextVisualRecipe({

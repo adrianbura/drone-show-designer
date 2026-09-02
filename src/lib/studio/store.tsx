@@ -610,6 +610,10 @@ interface StudioContextValue {
       name: string;
       assetId?: string;
       requestedDroneCount?: number | null;
+      position?: Vector3Tuple;
+      rotationDeg?: Vector3Tuple;
+      mirrorX?: boolean;
+      color?: RGB;
     },
   ) => string | null;
   /**
@@ -2641,13 +2645,24 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         name: string;
         assetId?: string;
         requestedDroneCount?: number | null;
+        position?: Vector3Tuple;
+        rotationDeg?: Vector3Tuple;
+        mirrorX?: boolean;
+        color?: RGB;
       },
     ) => {
       let createdId: string | null = null;
       editScene(clipId, (scene, p) => {
         const result = addObject(p, scene, input);
         createdId = result.objectId;
-        return result.scene;
+        let next = input.mirrorX ? mirrorObjectX(result.scene, result.objectId) : result.scene;
+        if (input.rotationDeg) {
+          next = patchObjectTransform(next, result.objectId, { rotationDeg: input.rotationDeg });
+        }
+        if (input.color) {
+          next = patchObject(next, result.objectId, { lighting: { color: input.color } });
+        }
+        return next;
       });
       if (createdId) setSelectedSceneObjectId(createdId);
       return createdId;
