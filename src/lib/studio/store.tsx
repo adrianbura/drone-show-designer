@@ -196,6 +196,7 @@ import {
   type SvgFormationParams,
   type SvgFormationResult,
 } from "../show/svg";
+import { makeTextFormation, type TextGeometryRecipe } from "../show/text";
 import {
   analyzePreShow,
   compareGroupOrders,
@@ -624,6 +625,24 @@ interface StudioContextValue {
       readonly params?: Record<string, number | string>;
       readonly position?: Vector3Tuple;
       readonly color?: RGB;
+      readonly mirrorX?: boolean;
+      readonly rotationDeg?: Vector3Tuple;
+    },
+  ) => string | null;
+  /**
+   * Creates a DETERMINISTIC TEXT formation asset from a canonical recipe and
+   * places one instance of it in the clip's scene — ONE undoable revision.
+   * Returns null when the recipe cannot produce geometry (nothing is mutated).
+   */
+  addTextVisual: (
+    clipId: string,
+    input: {
+      readonly recipe: TextGeometryRecipe;
+      readonly name: string;
+      readonly position?: Vector3Tuple;
+      readonly color?: RGB;
+      readonly mirrorX?: boolean;
+      readonly rotationDeg?: Vector3Tuple;
     },
   ) => string | null;
   patchSceneObject: (
@@ -784,6 +803,8 @@ interface StudioContextValue {
     target?: "SCENE" | "NEW_CLIP" | "ASSET_ONLY";
     clipId?: string;
     droneCount?: number | null;
+    mirrorX?: boolean;
+    color?: RGB;
   }) => Formation | null;
   patchClip: (id: string, patch: Partial<TimelineClip>) => void;
   removeClip: (id: string) => void;
@@ -1870,7 +1891,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         d
           ? regenerateDraft(
               d.asset,
-              { ...d.params, ...patch, targetCount: patch.targetCount ?? project.droneCount },
+              // The operator's requested drone count is NEVER silently changed
+              // by an unrelated placement edit (width, altitude, rotation…).
+              { ...d.params, ...patch, targetCount: patch.targetCount ?? d.params.targetCount },
               project,
             )
           : d,
@@ -2650,6 +2673,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         readonly params?: Record<string, number | string>;
         readonly position?: Vector3Tuple;
         readonly color?: RGB;
+        readonly mirrorX?: boolean;
+        readonly rotationDeg?: Vector3Tuple;
       },
     ): string | null => {
       const droneCount = Math.max(1, Math.round(input.droneCount));
@@ -2674,9 +2699,71 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           ...(input.position ? { position: input.position } : {}),
         });
         createdId = added.objectId;
-        const scene = input.color
-          ? patchObject(added.scene, added.objectId, { lighting: { color: input.color } })
-          : added.scene;
+        let scene = input.mirrorX ? mirrorObjectX(added.scene, added.objectId) : added.scene;
+        if (input.rotationDeg) {
+          scene = patchObjectTransform(scene, added.objectId, { rotationDeg: input.rotationDeg });
+        }
+        if (input.color) {
+          scene = patchObject(scene, added.objectId, { lighting: { color: input.color } });
+        }
+        pushSnapshot(p);
+        return upsertScene(withAsset, scene);
+      });
+      if (createdId) setSelectedSceneObjectId(createdId);
+      return createdId;
+    },
+    [pushSnapshot],
+  );
+
+  /**
+   * ADD TEXT VISUAL — deterministic stroke text as a NORMAL scene object.
+   *
+   * The recipe comes from the canonical text pipeline; geometry is produced by
+   * `makeTextFormation` and nothing else. Participation (the drone budget) is
+   * used exactly as requested. Failure mutates nothing.
+   */
+  const addTextVisual = useCallback(
+    (
+      clipId: string,
+      input: {
+        readonly recipe: TextGeometryRecipe;
+        readonly name: string;
+        readonly position?: Vector3Tuple;
+        readonly color?: RGB;
+        readonly mirrorX?: boolean;
+        readonly rotationDeg?: Vector3Tuple;
+      },
+    ): string | null => {
+      let built: ReturnType<typeof makeTextFormation>;
+      try {
+        built = makeTextFormation({
+          id: nextId("f"),
+          name: input.name,
+          recipe: input.recipe,
+          authoredForClipId: clipId,
+        });
+      } catch {
+        return null;
+      }
+      let createdId: string | null = null;
+      setProject((p) => {
+        const clip = p.timeline.find((c) => c.id === clipId);
+        if (!clip) return p;
+        const withAsset: ShowProject = { ...p, formations: [...p.formations, built.formation] };
+        const added = addObject(withAsset, sceneForClip(withAsset, clip), {
+          source: { kind: "STATIC", formationId: built.formation.id },
+          name: input.name,
+          requestedDroneCount: input.recipe.participation,
+          ...(input.position ? { position: input.position } : {}),
+        });
+        createdId = added.objectId;
+        let scene = input.mirrorX ? mirrorObjectX(added.scene, added.objectId) : added.scene;
+        if (input.rotationDeg) {
+          scene = patchObjectTransform(scene, added.objectId, { rotationDeg: input.rotationDeg });
+        }
+        if (input.color) {
+          scene = patchObject(scene, added.objectId, { lighting: { color: input.color } });
+        }
         pushSnapshot(p);
         return upsertScene(withAsset, scene);
       });
@@ -2703,6 +2790,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         target?: "SCENE" | "NEW_CLIP" | "ASSET_ONLY";
         clipId?: string;
         droneCount?: number | null;
+        /** SCENE target only: initial mirror of the placed instance. */
+        mirrorX?: boolean;
+        /** SCENE target only: base colour of the placed instance. */
+        color?: RGB;
       } = {},
     ) => {
       if (!svgDraft?.result) return null;
@@ -2732,8 +2823,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
               : {}),
           });
           createdObjectId = added.objectId;
+          let scene = added.scene;
+          if (options.mirrorX) scene = mirrorObjectX(scene, added.objectId);
+          if (options.color) {
+            scene = patchObject(scene, added.objectId, { lighting: { color: options.color } });
+          }
           pushSnapshot(p);
-          return upsertScene(withAsset, added.scene);
+          return upsertScene(withAsset, scene);
         }
         const clip: TimelineClip = {
           id: newClipId,
@@ -5785,6 +5881,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       cancelSceneGizmo,
       addSceneObject,
       addNativeVisual,
+      addTextVisual,
       patchSceneObject,
       patchSceneObjectTransform,
       duplicateSceneObject,
@@ -6165,6 +6262,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       cancelSceneGizmo,
       addSceneObject,
       addNativeVisual,
+      addTextVisual,
       patchSceneObject,
       patchSceneObjectTransform,
       duplicateSceneObject,
