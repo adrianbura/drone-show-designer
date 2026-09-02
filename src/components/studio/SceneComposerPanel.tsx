@@ -437,7 +437,6 @@ export default function SceneComposerPanel() {
         </p>
       ) : null}
 
-
       {selectedSceneObjectIds.length > 1 && (
         <div
           className="mt-2 space-y-1.5 border-t border-border pt-2"
