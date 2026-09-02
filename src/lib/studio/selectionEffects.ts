@@ -248,9 +248,16 @@ export function effectsForSelection(
 ): readonly LightingEffectInstance[] {
   if (!context.canApply) return [];
   const scope = new Set(context.objectIds);
-  return effects.filter(
-    (effect) => effect.target.kind !== "SCENE" && scope.has(effect.target.instanceId),
-  );
+  const selectedPoints = new Set(context.pointIds);
+  return effects.filter((effect) => {
+    if (effect.target.kind === "SCENE" || !scope.has(effect.target.instanceId)) return false;
+    if (context.kind === "OBJECTS") return effect.target.kind === "SCENE_OBJECT";
+    if (effect.target.kind !== "POINT_GROUP") return false;
+    return (
+      effect.target.pointIds.length === selectedPoints.size &&
+      effect.target.pointIds.every((id) => selectedPoints.has(id))
+    );
+  });
 }
 
 /* --------------------------------------------------------------- parameters */

@@ -142,6 +142,34 @@ describe("effect scoping", () => {
     expect(effectsForSelection(effects, context).map((e) => e.id)).toEqual(["b"]);
   });
 
+  it("isolates an exact drone-point group from object and sibling-group effects", () => {
+    const objectEffect = effect("object", "text");
+    const pointEffect = {
+      ...effect("points", "text"),
+      target: {
+        kind: "POINT_GROUP" as const,
+        clipId: "c-scene",
+        instanceId: "text",
+        pointIds: ["p1", "p2"],
+      },
+    };
+    const siblingEffect = {
+      ...pointEffect,
+      id: "sibling",
+      target: { ...pointEffect.target, pointIds: ["p3"] },
+    };
+    const context = selectionEffectContext({
+      ...base,
+      selectionMode: "POINT",
+      objectIds: ["text"],
+      primaryObjectId: "text",
+      pointIds: ["p2", "p1"],
+    });
+    expect(
+      effectsForSelection([objectEffect, pointEffect, siblingEffect], context).map((e) => e.id),
+    ).toEqual(["points"]);
+  });
+
   it("labels effects with their operator preset name", () => {
     expect(effectPresetLabel(effect("a", "text"))).toBe("Solid colour");
   });
