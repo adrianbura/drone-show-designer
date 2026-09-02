@@ -134,6 +134,7 @@ import {
   type ScenePointSelectionTool,
 } from "./scenePointSelection";
 import { authorSceneMotion } from "./sceneMotionAuthoring";
+import { duplicateObjectMotion, removeObjectMotion } from "./sceneMotionInspector";
 import { insertLibraryAsset, type AssetInsertionTiming } from "./assetInsertion";
 import {
   reconcileEditorSelection,
@@ -5971,6 +5972,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       removeScenePointGroupById,
       selectScenePointGroup,
       applyMotionPresetToSceneSelection,
+      patchSceneObjectAnimation,
+      patchSceneMotion,
+      patchSceneMotionGroup,
+      duplicateSceneObjectMotion,
+      removeSceneObjectMotion,
       transformSceneObjects,
       mirrorSceneObjectsBatch,
       duplicateSceneObjectsBatch,
@@ -6355,6 +6361,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       removeScenePointGroupById,
       selectScenePointGroup,
       applyMotionPresetToSceneSelection,
+      patchSceneObjectAnimation,
+      patchSceneMotion,
+      patchSceneMotionGroup,
+      duplicateSceneObjectMotion,
+      removeSceneObjectMotion,
       transformSceneObjects,
       mirrorSceneObjectsBatch,
       duplicateSceneObjectsBatch,
