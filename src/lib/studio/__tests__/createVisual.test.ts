@@ -47,7 +47,7 @@ describe("create visual decisions", () => {
     expect(
       buildTextVisualRecipe({
         text: "  ",
-        weight: "regular",
+        weight: "REGULAR",
         droneCount: 40,
         widthMeters: 60,
         heightMeters: 15,
@@ -55,7 +55,7 @@ describe("create visual decisions", () => {
     ).toBe(false);
     const built = buildTextVisualRecipe({
       text: "SUPER RALY",
-      weight: "regular",
+      weight: "REGULAR",
       droneCount: 60,
       widthMeters: 60,
       heightMeters: 15,
