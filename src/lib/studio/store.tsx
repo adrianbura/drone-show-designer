@@ -1871,7 +1871,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         d
           ? regenerateDraft(
               d.asset,
-              { ...d.params, ...patch, targetCount: patch.targetCount ?? project.droneCount },
+              // The operator's requested drone count is NEVER silently changed
+              // by an unrelated placement edit (width, altitude, rotation…).
+              { ...d.params, ...patch, targetCount: patch.targetCount ?? d.params.targetCount },
               project,
             )
           : d,
