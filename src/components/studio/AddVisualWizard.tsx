@@ -828,13 +828,38 @@ export default function AddVisualWizard({
 
       {mode !== null ? (
         <div className="space-y-1.5 border-t border-border pt-1.5">
-          <p
-            className="font-mono text-[10px] text-muted-foreground"
-            data-testid="wizard-allocation"
-          >
-            fleet {allocation.fleet} · used {allocation.used} · reserve {allocation.reserve} ·
-            requested {allocation.requested}
-          </p>
+          <div className="space-y-1 rounded border border-border/70 p-1.5" data-testid="wizard-allocation-panel">
+            <p
+              className="font-mono text-[10px] text-muted-foreground"
+              data-testid="wizard-allocation"
+            >
+              fleet {allocation.fleet} · used {allocation.used} · reserve {allocation.reserve} ·
+              requested {allocation.requested}
+            </p>
+            <p
+              className="font-mono text-[10px] text-muted-foreground"
+              data-testid="wizard-allocation-reserve"
+              data-reserve={allocation.reserve}
+            >
+              {allocation.reserve === 0
+                ? "No reserve drones left in this scene."
+                : `${allocation.reserve} drone${allocation.reserve === 1 ? "" : "s"} available for this visual.`}
+            </p>
+            {allocation.problem === "EXCEEDS_RESERVE" ? (
+              <p
+                className="font-mono text-[10px] text-destructive"
+                data-testid="wizard-allocation-deficit"
+                data-deficit={allocation.requested - allocation.reserve}
+              >
+                {allocation.requested - allocation.reserve} drone
+                {allocation.requested - allocation.reserve === 1 ? "" : "s"} too many — reduce the
+                requested count.
+              </p>
+            ) : null}
+            <p className="font-mono text-[10px] text-muted-foreground">
+              Unused drones remain available for another visual or effect.
+            </p>
+          </div>
           {allocation.message ? (
             <p
               className="font-mono text-[10px] text-destructive"
@@ -843,6 +868,7 @@ export default function AddVisualWizard({
               {allocation.message}
             </p>
           ) : null}
+
           <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
             <span className="uppercase tracking-[0.14em]">Name</span>
             <input
