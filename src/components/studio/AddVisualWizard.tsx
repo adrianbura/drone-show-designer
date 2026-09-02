@@ -263,6 +263,7 @@ export default function AddVisualWizard({
         droneCount: Math.round(lineDrones),
         params: { length: Math.max(1, lineLength), rows: Math.max(1, Math.round(lineRows)) },
         position: [lineX, lineY, lineZ],
+        rotationDeg: [0, 0, lineRotation],
         color,
         mirrorX: mirror,
       });

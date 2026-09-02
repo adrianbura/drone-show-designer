@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import AddVisualWizard from "@/components/studio/AddVisualWizard";
 import { useStudio } from "@/lib/studio/store";
 import type { RGB } from "@/lib/show/types";
 
@@ -72,110 +73,6 @@ function NumberField({
         className="studio-input w-20 text-right font-mono"
       />
     </label>
-  );
-}
-
-/**
- * ADD VISUAL — everyday creation of a NATIVE line/underline object directly in
- * the selected scene. Geometry comes from the deterministic `line` formation
- * kind; drone identity, safety and assignment stay with the existing engines.
- */
-function AddNativeLine({ clipId, availableDrones }: { clipId: string; availableDrones: number }) {
-  const { addNativeVisual } = useStudio();
-  const [open, setOpen] = useState(false);
-  const [drones, setDrones] = useState(20);
-  const [length, setLength] = useState(40);
-  const [rows, setRows] = useState(1);
-  const [x, setX] = useState(0);
-  const [y, setY] = useState(45);
-  const [z, setZ] = useState(0);
-  const [color, setColor] = useState("#ffffff");
-  const requestedDrones = Math.max(2, Math.round(drones));
-  const exceedsReserve = requestedDrones > availableDrones;
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        data-testid="composer-add-visual"
-        onClick={() => setOpen(true)}
-        className="chip-btn mt-2 w-full justify-center"
-      >
-        <Plus className="size-3" /> Add visual
-      </button>
-    );
-  }
-
-  return (
-    <div
-      className="mt-2 space-y-1.5 rounded border border-border bg-surface-sunken p-2"
-      data-testid="composer-add-line"
-    >
-      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-        Native line
-      </p>
-      <NumberField
-        label="Drones"
-        value={drones}
-        step={1}
-        max={availableDrones}
-        testId="line-drones"
-        onChange={setDrones}
-      />
-      <p
-        className={`font-mono text-[10px] ${exceedsReserve ? "text-destructive" : "text-muted-foreground"}`}
-        data-testid="line-reserve"
-      >
-        {availableDrones} reserve drone{availableDrones === 1 ? "" : "s"} available
-      </p>
-      <NumberField
-        label="Length m"
-        value={length}
-        step={1}
-        testId="line-length"
-        onChange={setLength}
-      />
-      <NumberField label="Rows" value={rows} step={1} testId="line-rows" onChange={setRows} />
-      <div className="grid grid-cols-3 gap-1">
-        <NumberField label="X" value={x} step={0.5} testId="line-x" onChange={setX} />
-        <NumberField label="Y" value={y} step={0.5} testId="line-y" onChange={setY} />
-        <NumberField label="Z" value={z} step={0.5} testId="line-z" onChange={setZ} />
-      </div>
-      <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-        <span className="uppercase tracking-[0.14em]">Colour</span>
-        <input
-          type="color"
-          value={color}
-          data-testid="line-color"
-          onChange={(e) => setColor(e.target.value)}
-          className="h-6 w-16 cursor-pointer rounded border border-border bg-transparent"
-        />
-      </label>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          data-testid="composer-add-line-commit"
-          disabled={availableDrones < 2 || exceedsReserve}
-          onClick={() => {
-            addNativeVisual(clipId, {
-              kind: "line",
-              name: "Line",
-              droneCount: requestedDrones,
-              params: { length: Math.max(1, length), rows: Math.max(1, Math.round(rows)) },
-              position: [x, y, z],
-              color: fromHex(color),
-            });
-            setOpen(false);
-          }}
-          className="chip-btn mini-btn-accent flex-1 justify-center disabled:opacity-40"
-        >
-          Add to scene
-        </button>
-        <button type="button" onClick={() => setOpen(false)} className="chip-btn justify-center">
-          Cancel
-        </button>
-      </div>
-    </div>
   );
 }
 
@@ -527,7 +424,7 @@ export default function SceneComposerPanel() {
         })}
       </ul>
 
-      <AddNativeLine clipId={clipId} availableDrones={reserve} />
+      <AddVisualWizard clipId={clipId} fleet={project.droneCount} used={used} />
 
       {selectedSceneObjectIds.length > 1 && (
         <div
