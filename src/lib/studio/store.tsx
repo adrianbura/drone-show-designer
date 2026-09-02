@@ -5526,7 +5526,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [editLighting],
   );
 
-
   /**
    * ATOMIC CLIP DELETION (referential integrity).
    *
