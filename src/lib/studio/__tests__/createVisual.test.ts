@@ -51,6 +51,7 @@ describe("create visual decisions", () => {
         droneCount: 40,
         widthMeters: 60,
         heightMeters: 15,
+      altitudeMeters: 0,
       }).ok,
     ).toBe(false);
     const built = buildTextVisualRecipe({
@@ -59,6 +60,7 @@ describe("create visual decisions", () => {
       droneCount: 60,
       widthMeters: 60,
       heightMeters: 15,
+      altitudeMeters: 0,
     });
     expect(built.ok).toBe(true);
   });
