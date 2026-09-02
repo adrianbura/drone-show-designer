@@ -39,7 +39,16 @@ import {
   parseSvg,
   resolveSvgParams,
 } from "@/lib/show/svg";
+import {
+  lightingPresetParameters,
+  lightingPresetTiming,
+  lightingSelectionPreset,
+  selectionEffectContext,
+  type LightingSelectionPresetId,
+  type SelectionEffectContext,
+} from "@/lib/studio/selectionEffects";
 import type { FormationScene } from "@/lib/show/scene/types";
+import type { LightingTarget } from "@/lib/show/lighting";
 import type { ShowProject, TimelineClip } from "@/lib/show/types";
 
 const FLEET = 150;
@@ -245,6 +254,133 @@ describe("scene composer acceptance — 150 drones", () => {
     const eligibility = evaluateExportEligibility(report, false);
     expect(eligibility.canExportProjectFile).toBe(true);
 
+    const result = buildEsspExportPackage({
+      project,
+      plan: planFor(project),
+      fullShow: forcedReady(report),
+      fullShowStale: false,
+      generatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    expect(result.blockers).toEqual([]);
+    expect(result.zip).not.toBeNull();
+  }, 30_000);
+});
+
+/**
+ * SELECTION EFFECTS ISOLATION — every authored effect stays on the object or the
+ * drone group it was applied to, through the canonical lighting targets only.
+ */
+describe("selection effects isolation acceptance", () => {
+  function authored() {
+    const composed = composedProject(TEXT_DRONES);
+    const { text, line1, line2 } = composed.ids;
+    const clipId = "c-scene";
+    const context = (mode: "OBJECT" | "POINT", objectIds: string[], pointIds: string[] = []) =>
+      selectionEffectContext({
+        clipId,
+        selectionMode: mode,
+        objectIds,
+        primaryObjectId: objectIds[0] ?? null,
+        pointIds,
+        objectNames: new Map(composed.scene.objects.map((o) => [o.id, o.name])),
+        objectDroneCounts: new Map(
+          sceneBudget(composed.project, composed.scene, composed.project.droneCount).objects.map(
+            (o) => [o.instanceId, o.count],
+          ),
+        ),
+      });
+
+    const plans: { preset: LightingSelectionPresetId; ctx: SelectionEffectContext }[] = [
+      { preset: "COLOUR_WAVE", ctx: context("OBJECT", [text]) },
+      { preset: "GRADIENT_SWEEP", ctx: context("OBJECT", [line1]) },
+      { preset: "PULSE", ctx: context("OBJECT", [line2]) },
+      { preset: "SPARKLE", ctx: context("POINT", [text], ["p-0", "p-1", "p-2"]) },
+    ];
+
+    const effects = plans.flatMap((plan, index) => {
+      const selection = lightingSelectionPreset(plan.preset);
+      const preset = findLightingPreset(selection.canonicalPresetId)!;
+      const timing = lightingPresetTiming(plan.preset, 2 + index);
+      return plan.ctx.targets.map((target: LightingTarget, targetIndex: number) =>
+        createEffectFromPreset(preset, target, {
+          anchor: timing.anchor,
+          start: timing.start,
+          priority: index,
+          idSeed: 500 + index * 10 + targetIndex,
+          parameters: lightingPresetParameters(plan.preset, {
+            primary: [255, 120, 40],
+            secondary: [40, 120, 255],
+            axis: "Y",
+          }),
+        }),
+      );
+    });
+
+    const withMotion = waveOnObject(composed.project, composed.scene, text);
+    const project: ShowProject = {
+      ...withMotion.project,
+      lighting: { schemaVersion: EMPTY_LIGHTING_PROGRAM.schemaVersion, effects },
+    };
+    return { composed, project, effects, context };
+  }
+
+  it("keeps every authored effect on its own object or drone group", () => {
+    const { composed, effects } = authored();
+    const { text, line1, line2 } = composed.ids;
+    const byTarget = (instanceId: string) =>
+      effects.filter((e) => e.target.kind !== "SCENE" && e.target.instanceId === instanceId);
+
+    // SVG: colour wave (object) + sparkle (drone group only).
+    expect(byTarget(text).map((e) => e.target.kind)).toEqual(["SCENE_OBJECT", "POINT_GROUP"]);
+    const sparkle = byTarget(text).find((e) => e.target.kind === "POINT_GROUP")!;
+    expect(sparkle.target.kind === "POINT_GROUP" && sparkle.target.pointIds).toHaveLength(3);
+
+    // Each underline carries exactly one, different effect.
+    expect(byTarget(line1)).toHaveLength(1);
+    expect(byTarget(line2)).toHaveLength(1);
+    expect(byTarget(line1)[0]!.parameters.stops).toHaveLength(2);
+    expect(byTarget(line2)[0]!.type).toBe("PULSE");
+    expect(effects.some((e) => e.target.kind === "SCENE")).toBe(false);
+  });
+
+  it("applies motion only to the SVG object", () => {
+    const { composed, project } = authored();
+    const scene = project.scenes!.find((s) => s.id === "c-scene")!;
+    const byId = new Map(scene.objects.map((o) => [o.id, o]));
+    expect(byId.get(composed.ids.text)!.source.kind).toBe("DYNAMIC");
+    expect(byId.get(composed.ids.line1)!.source.kind).toBe("STATIC");
+    expect(byId.get(composed.ids.line2)!.source.kind).toBe("STATIC");
+  });
+
+  it("survives save / reopen and stays undoable as immutable revisions", () => {
+    const { project, effects } = authored();
+    const json = projectFileToJson(
+      serializeProject(project, {
+        planning: defaultPlanningState(),
+        referenceLayer: null,
+        savedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+    const reopened = parseProjectFile(json).project;
+    expect(reopened.lighting?.effects).toHaveLength(effects.length);
+    expect(reopened.lighting!.effects.map((e) => e.target.kind)).toEqual(
+      effects.map((e) => e.target.kind),
+    );
+    // UNDO of the authoring step is the previous immutable snapshot.
+    const before = composedProject(TEXT_DRONES).project;
+    expect(before.lighting?.effects ?? []).toHaveLength(0);
+    // REDO is deterministic.
+    expect(JSON.stringify(authored().effects)).toBe(JSON.stringify(effects));
+  });
+
+  it("validates and exports with the authored effects in place", () => {
+    const { project } = authored();
+    const { report } = analyzeFullShow(project, {
+      sampleRate: 8,
+      assignmentStrategy: "nearestNeighbor",
+    });
+    expect(report.droneCount).toBe(FLEET);
+    expect(evaluateExportEligibility(report, false).canExportProjectFile).toBe(true);
     const result = buildEsspExportPackage({
       project,
       plan: planFor(project),

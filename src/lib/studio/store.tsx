@@ -716,6 +716,12 @@ interface StudioContextValue {
   patchLightingEffect: (id: string, patch: Partial<Omit<LightingEffectInstance, "id">>) => void;
   patchLightingParameters: (id: string, patch: Partial<LightingEffectParameters>) => void;
   removeLightingEffect: (id: string) => void;
+  /**
+   * Copies one canonical lighting effect (same target, same parameters) as ONE
+   * undoable revision and selects the copy. No new effect type is introduced.
+   */
+  duplicateLightingEffect: (id: string) => string | null;
+
   /** One undoable commit of a timeline gesture on a lighting effect. */
   commitLightingTiming: (id: string, timing: { start?: number; duration?: number }) => void;
   /** Deterministic per-drone LED state at show time `t` (empty = no lighting). */
@@ -5500,6 +5506,27 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   /**
+   * DUPLICATE — a copy of the same canonical effect, one revision, and the copy
+   * becomes the selected effect so the inspector follows the operator.
+   */
+  const duplicateLightingEffect = useCallback(
+    (id: string): string | null => {
+      const source = (projectRef.current.lighting?.effects ?? []).find((e) => e.id === id);
+      if (!source) return null;
+      const copyId = newLightingEffectId(Date.now() + lightingSeed.current++);
+      editLighting((list) => {
+        const index = list.findIndex((e) => e.id === id);
+        if (index < 0) return list;
+        const copy: LightingEffectInstance = { ...list[index]!, id: copyId };
+        return [...list.slice(0, index + 1), copy, ...list.slice(index + 1)];
+      });
+      setSelectedLightingEffectId(copyId);
+      return copyId;
+    },
+    [editLighting],
+  );
+
+  /**
    * ATOMIC CLIP DELETION (referential integrity).
    *
    * ONE undo entry, ONE project update: the clip, its composed scene, its
@@ -5790,6 +5817,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       patchLightingEffect,
       patchLightingParameters,
       removeLightingEffect,
+      duplicateLightingEffect,
+
       commitLightingTiming,
       lightingStatesAt: lightingStatesAtTime,
       lightingPreview,
@@ -6165,6 +6194,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       patchLightingEffect,
       patchLightingParameters,
       removeLightingEffect,
+      duplicateLightingEffect,
+
       commitLightingTiming,
       lightingStatesAtTime,
       lightingPreview,
