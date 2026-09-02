@@ -711,6 +711,18 @@ interface StudioContextValue {
   ) => string[];
 
   patchLightingEffect: (id: string, patch: Partial<Omit<LightingEffectInstance, "id">>) => void;
+  /** Copies one effect (same target, same parameters) in ONE undoable revision. */
+  duplicateLightingEffect: (id: string) => string | null;
+  /**
+   * Promotes a STATIC scene object to a DYNAMIC one carrying a canonical motion
+   * preset, in exactly ONE undoable project mutation.
+   */
+  applyMotionPresetToSceneObject: (
+    clipId: string,
+    objectId: string,
+    preset: DynamicPresetId,
+    amount?: number,
+  ) => boolean;
   patchLightingParameters: (id: string, patch: Partial<LightingEffectParameters>) => void;
   removeLightingEffect: (id: string) => void;
   /** One undoable commit of a timeline gesture on a lighting effect. */
@@ -5469,6 +5481,69 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   /**
+   * DUPLICATE — one canonical copy of an existing effect in ONE revision. The
+   * copy keeps the same target and parameters and is selected immediately, so
+   * "duplicate then retime" is two clear undo steps, never a hidden one.
+   */
+  const duplicateLightingEffect = useCallback(
+    (id: string): string | null => {
+      const source = (project.lighting?.effects ?? []).find((e) => e.id === id);
+      if (!source) return null;
+      const copyId = newLightingEffectId(Date.now() + lightingSeed.current++);
+      editLighting((list) => [...list, { ...source, id: copyId }]);
+      setSelectedLightingEffectId(copyId);
+      return copyId;
+    },
+    [editLighting, project.lighting],
+  );
+
+  /**
+   * MOTION ON A SELECTED OBJECT — ONE undoable project mutation.
+   *
+   * Promoting a STATIC scene object to a DYNAMIC source touches three things
+   * (a new dynamic formation, its preset keyframes, the object's source), so all
+   * three land in a SINGLE `setProject` behind ONE history snapshot. The
+   * keyframes come from the canonical `applyPreset`; nothing is animated here.
+   */
+  const applyMotionPresetToSceneObject = useCallback(
+    (clipId: string, objectId: string, preset: DynamicPresetId, amount = 1): boolean => {
+      const dynamicId = nextId("dyn");
+      let applied = false;
+      setProject((p) => {
+        const clip = p.timeline.find((c) => c.id === clipId);
+        if (!clip) return p;
+        const scene = sceneForClip(p, clip);
+        const object = scene.objects.find((o) => o.id === objectId);
+        const source = object?.source;
+        if (!source || source.kind !== "STATIC") return p;
+        const formation = p.formations.find((f) => f.id === source.formationId);
+        if (!formation) return p;
+        const created = applyPreset(
+          dynamicFromFormation(formation, { id: dynamicId, duration: 8, seed: p.seed }),
+          preset,
+          amount,
+        );
+        pushSnapshot(p);
+        const withDynamic = {
+          ...p,
+          dynamicFormations: [...(p.dynamicFormations ?? []), created],
+        };
+        applied = true;
+        return upsertScene(
+          withDynamic,
+          patchObject(scene, objectId, {
+            source: { kind: "DYNAMIC", dynamicFormationId: created.id },
+          }),
+        );
+      });
+      return applied;
+    },
+    [pushSnapshot],
+  );
+
+
+
+  /**
    * ATOMIC CLIP DELETION (referential integrity).
    *
    * ONE undo entry, ONE project update: the clip, its composed scene, its
@@ -5756,6 +5831,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       addLightingEffectsFromPreset,
 
       patchLightingEffect,
+      duplicateLightingEffect,
+      applyMotionPresetToSceneObject,
       patchLightingParameters,
       removeLightingEffect,
       commitLightingTiming,
@@ -6130,6 +6207,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       addLightingEffectsFromPreset,
 
       patchLightingEffect,
+      duplicateLightingEffect,
+      applyMotionPresetToSceneObject,
       patchLightingParameters,
       removeLightingEffect,
       commitLightingTiming,

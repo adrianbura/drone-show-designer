@@ -31,7 +31,13 @@ import {
   createEffectFromPreset,
   findLightingPreset,
   EMPTY_LIGHTING_PROGRAM,
+  projectLightingAt,
 } from "@/lib/show/lighting";
+import {
+  findSelectionLightingPreset,
+  selectionLightingParameters,
+  selectionLightingTargets,
+} from "@/lib/studio/selectionEffects";
 import { addObject, emptyScene, patchObject, sceneBudget, upsertScene } from "@/lib/show/scene";
 import {
   generateSvgFormationPoints,
@@ -254,5 +260,97 @@ describe("scene composer acceptance — 150 drones", () => {
     });
     expect(result.blockers).toEqual([]);
     expect(result.zip).not.toBeNull();
+  }, 30_000);
+});
+
+/**
+ * OBJECT ISOLATION OF SELECTION EFFECTS.
+ *
+ * The everyday selection authority must never widen an effect: an effect
+ * authored while the SVG text object is selected may only change the LEDs of
+ * the drones that belong to that object. Evaluation is the canonical engine.
+ */
+describe("selection effect isolation — SVG text + native underlines", () => {
+  const PLAYHEAD = 30;
+  /** Leaves a reserve, so participation attributes drones per scene object. */
+  const ISO_TEXT = 70;
+
+  function withSelectionEffect(objectIds: readonly string[]) {
+    const composed = composedProject(ISO_TEXT);
+    const targets = selectionLightingTargets("c-scene", {
+      mode: "OBJECT",
+      objects: composed.scene.objects.map((o) => ({ id: o.id, name: o.name })),
+      selectedObjectIds: objectIds,
+      primaryObjectId: objectIds[0] ?? null,
+      selectedPointIds: [],
+      droneCountOf: () => 0,
+    });
+    const preset = findSelectionLightingPreset("SOLID_COLOUR");
+    const effects = targets.map((target, i) =>
+      createEffectFromPreset(findLightingPreset(preset.canonicalPresetId)!, target, {
+        anchor: "ABSOLUTE",
+        start: PLAYHEAD,
+        priority: i,
+        idSeed: 500 + i,
+        parameters: selectionLightingParameters(preset, {
+          primary: [10, 240, 30],
+          secondary: [10, 240, 30],
+          axis: "X",
+        }),
+      }),
+    );
+    const project: ShowProject = {
+      ...composed.project,
+      lighting: { schemaVersion: 1, effects },
+    };
+    return { composed, project, effects };
+  }
+
+  const changedCount = (
+    project: ShowProject,
+    baseline: readonly { readonly r: number; readonly g: number; readonly b: number }[],
+    participation: readonly import("@/lib/show/participation").FleetParticipationPlan[],
+  ) =>
+    projectLightingAt({ project, participation }, PLAYHEAD).filter(
+      (state, i) =>
+        state.r !== baseline[i]!.r || state.g !== baseline[i]!.g || state.b !== baseline[i]!.b,
+    );
+
+  it("targets only the selected object and leaves the other objects untouched", () => {
+    const ids = composedProject(ISO_TEXT).ids;
+    const selected = withSelectionEffect([ids.text]);
+    expect(selected.effects).toHaveLength(1);
+    expect(selected.effects[0]!.target.kind).toBe("SCENE_OBJECT");
+    expect(selected.effects[0]!.anchor).toBe("ABSOLUTE");
+    expect(selected.effects[0]!.start).toBe(PLAYHEAD);
+
+    const baselineProject = composedProject(ISO_TEXT).project;
+    const participation = planFor(baselineProject).participation;
+    const baseline = projectLightingAt({ project: baselineProject, participation }, PLAYHEAD);
+    const changed = changedCount(selected.project, baseline, participation);
+
+    expect(baseline).toHaveLength(FLEET);
+    expect(changed.length).toBeGreaterThan(0);
+    expect(changed.length).toBeLessThanOrEqual(ISO_TEXT);
+    expect(changed.every((state) => state.r === 10 && state.g === 240 && state.b === 30)).toBe(
+      true,
+    );
+  }, 30_000);
+
+  it("covers strictly more drones when both underlines are selected too", () => {
+    const ids = composedProject(ISO_TEXT).ids;
+    const one = withSelectionEffect([ids.text]);
+    const all = withSelectionEffect([ids.text, ids.line1, ids.line2]);
+    expect(all.effects).toHaveLength(3);
+    expect(
+      all.effects.map((e) => (e.target.kind === "SCENE_OBJECT" ? e.target.instanceId : "")),
+    ).toEqual([ids.text, ids.line1, ids.line2]);
+
+    const baselineProject = composedProject(ISO_TEXT).project;
+    const participation = planFor(baselineProject).participation;
+    const baseline = projectLightingAt({ project: baselineProject, participation }, PLAYHEAD);
+    expect(changedCount(all.project, baseline, participation).length).toBeGreaterThan(
+      changedCount(one.project, baseline, participation).length,
+    );
   }, 30_000);
 });

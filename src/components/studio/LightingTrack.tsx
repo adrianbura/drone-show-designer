@@ -33,6 +33,7 @@ import {
   type EffectSnapContext,
   type LightingBlock,
 } from "@/lib/studio/lightingTimeline";
+import { effectDisplayLabel } from "@/lib/studio/selectionEffects";
 import { pixelsPerSecond } from "@/lib/studio/timelineEdit";
 
 /** Absolute show time an anchor resolves to for one clip. */
@@ -349,7 +350,7 @@ export default function LightingTrack({
                     start: effect.start + (e.key === "ArrowLeft" ? -step : step),
                   });
                 }}
-                title={`${effect.type} · ${block.target.badge} · ${block.start.toFixed(2)}s · ${block.duration.toFixed(2)}s · ${t(
+                title={`${effectDisplayLabel(effect)} · ${effect.type} · ${block.target.badge} · ${block.start.toFixed(2)}s · ${block.duration.toFixed(2)}s · ${t(
                   `lighting.anchor.${effect.anchor}` as "lighting.anchor.SCENE_START",
                 )}`}
                 className={`absolute cursor-grab touch-none rounded border text-[10px] ${
@@ -367,7 +368,11 @@ export default function LightingTrack({
               >
                 <span className="pointer-events-none absolute inset-0 flex items-center gap-1 overflow-hidden px-1 text-foreground">
                   <ColorSwatch color={block.color} />
-                  {block.density !== "COMPACT" && <span className="truncate">{block.glyph}</span>}
+                  {block.density !== "COMPACT" && (
+                    <span className="truncate" data-testid={`lighting-block-label-${block.id}`}>
+                      {effectDisplayLabel(effect)}
+                    </span>
+                  )}
                   {block.density === "RICH" && (
                     <span className="truncate text-[9px] text-muted-foreground">
                       {block.target.badge}
