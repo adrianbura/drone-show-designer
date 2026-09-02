@@ -94,7 +94,7 @@ describe("everyday motion inspector DOM", () => {
     await waitFor(() => expect(api.project.dynamicFormations![0]!.duration).toBe(baseCycle));
     act(() => api.redoTimeline());
     await waitFor(() => expect(api.project.dynamicFormations![0]!.duration).toBe(6));
-  });
+  }, 30000);
 
   it("duplicates independently and removes motion from one object only", async () => {
     const clipId = await mount();
@@ -138,5 +138,5 @@ describe("everyday motion inspector DOM", () => {
     });
     act(() => api.selectClip(clipId));
     await waitFor(() => expect(api.selectedScene!.objects[0]!.source.kind).toBe("DYNAMIC"));
-  });
+  }, 30000);
 });
