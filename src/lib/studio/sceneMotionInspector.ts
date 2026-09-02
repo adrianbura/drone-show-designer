@@ -133,9 +133,8 @@ export function sceneMotionState(input: SceneMotionStateInput): SceneMotionState
   if (!scene || !primaryObjectId) return null;
   const object = scene.objects.find((candidate) => candidate.id === primaryObjectId);
   if (!object || object.source.kind !== "DYNAMIC") return null;
-  const dynamic = input.dynamics.find(
-    (candidate) => candidate.id === object.source.dynamicFormationId,
-  );
+  const dynamicId = object.source.dynamicFormationId;
+  const dynamic = input.dynamics.find((candidate) => candidate.id === dynamicId);
   if (!dynamic) return null;
   const scope: MotionScope = input.selectionMode === "DRONES" ? "DRONES" : "OBJECT";
   const group =
@@ -216,10 +215,9 @@ export function duplicateObjectMotion(
   if (!scene) return project;
   const object = scene.objects.find((candidate) => candidate.id === objectId);
   if (!object || object.source.kind !== "DYNAMIC") return project;
+  const sourceDynamicId = object.source.dynamicFormationId;
   const dynamic = (project.dynamicFormations ?? []).find(
-    (candidate) => candidate.id === object.source.kind === undefined
-      ? false
-      : candidate.id === (object.source as { dynamicFormationId: string }).dynamicFormationId,
+    (candidate) => candidate.id === sourceDynamicId,
   );
   if (!dynamic) return project;
   const copy: DynamicFormation = {
