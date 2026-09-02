@@ -2805,8 +2805,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
               : {}),
           });
           createdObjectId = added.objectId;
+          let scene = added.scene;
+          if (options.mirrorX) scene = mirrorObjectX(scene, added.objectId);
+          if (options.color) {
+            scene = patchObject(scene, added.objectId, { lighting: { color: options.color } });
+          }
           pushSnapshot(p);
-          return upsertScene(withAsset, added.scene);
+          return upsertScene(withAsset, scene);
         }
         const clip: TimelineClip = {
           id: newClipId,
