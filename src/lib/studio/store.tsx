@@ -626,6 +626,7 @@ interface StudioContextValue {
       readonly position?: Vector3Tuple;
       readonly color?: RGB;
       readonly mirrorX?: boolean;
+      readonly rotationDeg?: Vector3Tuple;
     },
   ) => string | null;
   /**
@@ -641,6 +642,7 @@ interface StudioContextValue {
       readonly position?: Vector3Tuple;
       readonly color?: RGB;
       readonly mirrorX?: boolean;
+      readonly rotationDeg?: Vector3Tuple;
     },
   ) => string | null;
   patchSceneObject: (
@@ -801,6 +803,8 @@ interface StudioContextValue {
     target?: "SCENE" | "NEW_CLIP" | "ASSET_ONLY";
     clipId?: string;
     droneCount?: number | null;
+    mirrorX?: boolean;
+    color?: RGB;
   }) => Formation | null;
   patchClip: (id: string, patch: Partial<TimelineClip>) => void;
   removeClip: (id: string) => void;
@@ -2670,6 +2674,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         readonly position?: Vector3Tuple;
         readonly color?: RGB;
         readonly mirrorX?: boolean;
+        readonly rotationDeg?: Vector3Tuple;
       },
     ): string | null => {
       const droneCount = Math.max(1, Math.round(input.droneCount));
@@ -2695,6 +2700,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         });
         createdId = added.objectId;
         let scene = input.mirrorX ? mirrorObjectX(added.scene, added.objectId) : added.scene;
+        if (input.rotationDeg) {
+          scene = patchObjectTransform(scene, added.objectId, { rotationDeg: input.rotationDeg });
+        }
         if (input.color) {
           scene = patchObject(scene, added.objectId, { lighting: { color: input.color } });
         }
@@ -2723,6 +2731,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         readonly position?: Vector3Tuple;
         readonly color?: RGB;
         readonly mirrorX?: boolean;
+        readonly rotationDeg?: Vector3Tuple;
       },
     ): string | null => {
       let built: ReturnType<typeof makeTextFormation>;
@@ -2749,6 +2758,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         });
         createdId = added.objectId;
         let scene = input.mirrorX ? mirrorObjectX(added.scene, added.objectId) : added.scene;
+        if (input.rotationDeg) {
+          scene = patchObjectTransform(scene, added.objectId, { rotationDeg: input.rotationDeg });
+        }
         if (input.color) {
           scene = patchObject(scene, added.objectId, { lighting: { color: input.color } });
         }
