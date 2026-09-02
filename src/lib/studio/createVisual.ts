@@ -89,11 +89,7 @@ export interface DroneAllocationInput {
 }
 
 export type DroneAllocationProblem =
-  | "NONE"
-  | "BELOW_MINIMUM"
-  | "EXCEEDS_RESERVE"
-  | "NO_RESERVE"
-  | "NOT_AN_INTEGER";
+  "NONE" | "BELOW_MINIMUM" | "EXCEEDS_RESERVE" | "NO_RESERVE" | "NOT_AN_INTEGER";
 
 export interface DroneAllocationView {
   readonly fleet: number;
