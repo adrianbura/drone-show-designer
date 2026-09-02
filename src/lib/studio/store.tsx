@@ -133,6 +133,7 @@ import {
   type ScenePointSelectionOperation,
   type ScenePointSelectionTool,
 } from "./scenePointSelection";
+import { authorSceneMotion } from "./sceneMotionAuthoring";
 import { insertLibraryAsset, type AssetInsertionTiming } from "./assetInsertion";
 import {
   reconcileEditorSelection,
@@ -552,6 +553,8 @@ interface StudioContextValue {
   renameScenePointGroup: (groupId: string, name: string) => void;
   removeScenePointGroupById: (groupId: string) => void;
   selectScenePointGroup: (groupId: string) => void;
+  /** Promotes and animates the current object/point selection in one undo revision. */
+  applyMotionPresetToSceneSelection: (preset: DynamicPresetId) => readonly string[];
 
   // ---- Batch scene gestures (ONE mutation, ONE undo entry) ----------------
   transformSceneObjects: (clipId: string, objectIds: readonly string[], delta: SceneGroupDelta) => void;
@@ -2572,6 +2575,34 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setSceneSelectionState({ ids: [group.instanceId], primaryId: group.instanceId });
     setSelectedScenePointIds([...group.pointIds]);
   }, []);
+
+  const applyMotionPresetToSceneSelection = useCallback(
+    (preset: DynamicPresetId): readonly string[] => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return [];
+      const result = authorSceneMotion(projectRef.current, {
+        clipId,
+        objectIds: sceneSelection.ids,
+        primaryObjectId: sceneSelection.primaryId,
+        selectedPointIds:
+          sceneSelectionMode === "POINT" ? selectedScenePointIds : [],
+        preset,
+        createId: () => nextId("dyn"),
+      });
+      if (result.project === projectRef.current || result.dynamicFormationIds.length === 0) return [];
+      pushTimelineHistory();
+      setProject(result.project);
+      setExplicitDynamicId(result.dynamicFormationIds.at(-1) ?? null);
+      return result.dynamicFormationIds;
+    },
+    [
+      pushTimelineHistory,
+      sceneSelection.ids,
+      sceneSelection.primaryId,
+      sceneSelectionMode,
+      selectedScenePointIds,
+    ],
+  );
 
   const addSceneObject = useCallback(
     (
@@ -5701,6 +5732,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       renameScenePointGroup,
       removeScenePointGroupById,
       selectScenePointGroup,
+      applyMotionPresetToSceneSelection,
       transformSceneObjects,
       mirrorSceneObjectsBatch,
       duplicateSceneObjectsBatch,
@@ -6081,6 +6113,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       renameScenePointGroup,
       removeScenePointGroupById,
       selectScenePointGroup,
+      applyMotionPresetToSceneSelection,
       transformSceneObjects,
       mirrorSceneObjectsBatch,
       duplicateSceneObjectsBatch,

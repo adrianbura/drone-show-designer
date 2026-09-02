@@ -224,3 +224,29 @@ describe("drone group lighting authoring UX", () => {
     expect(api.project.lighting?.effects).toHaveLength(3);
   });
 });
+
+describe("selection-scoped motion authoring", () => {
+  it("applies point motion as one project revision and restores it with undo/redo", async () => {
+    const { project, clipId } = projectWithReserve();
+    await mount(project, clipId);
+    act(() => {
+      api.setSceneSelectionMode("POINT");
+      api.selectScenePointsForDrones([0, 1, 2], "REPLACE");
+    });
+    const historyBefore = api.timelineHistoryDepth.past;
+
+    fireEvent.click(screen.getByTestId("motion-stack-add-WAVE"));
+    await waitFor(() => expect(api.project.dynamicFormations).toHaveLength(1));
+    expect(api.timelineHistoryDepth.past).toBe(historyBefore + 1);
+    expect(api.project.dynamicFormations![0]!.groups[0]!.pointIds).toHaveLength(3);
+    expect(api.selectedScene!.objects[0]!.source.kind).toBe("DYNAMIC");
+
+    act(() => api.undoTimeline());
+    await waitFor(() => expect(api.project.dynamicFormations ?? []).toHaveLength(0));
+    expect(api.selectedScene!.objects[0]!.source.kind).toBe("STATIC");
+
+    act(() => api.redoTimeline());
+    await waitFor(() => expect(api.project.dynamicFormations).toHaveLength(1));
+    expect(api.selectedScene!.objects[0]!.source.kind).toBe("DYNAMIC");
+  });
+});

@@ -69,9 +69,7 @@ export default function EffectStackPanel() {
     addLightingEffectsFromPreset,
     patchLightingEffect,
     removeLightingEffect,
-    createDynamicFromFormation,
-    applyDynamicPreset,
-    patchSceneObject,
+    applyMotionPresetToSceneSelection,
   } = useStudio();
 
   if (!selectedClipId || !selectedScene) {
@@ -115,18 +113,7 @@ export default function EffectStackPanel() {
   const scopeIds = scoped.map((e) => e.id);
 
   const primary = selectedScene.objects.find((o) => o.id === primaryId) ?? null;
-  const staticFormationId =
-    primary && primary.source.kind === "STATIC" ? primary.source.formationId : null;
-
-  const addMotion = (preset: DynamicPresetId) => {
-    if (!primary || !staticFormationId) return;
-    const dynamic = createDynamicFromFormation(staticFormationId);
-    if (!dynamic) return;
-    applyDynamicPreset(dynamic.id, preset);
-    patchSceneObject(clipId, primary.id, {
-      source: { kind: "DYNAMIC", dynamicFormationId: dynamic.id },
-    });
-  };
+  const addMotion = (preset: DynamicPresetId) => applyMotionPresetToSceneSelection(preset);
 
   const targetKind: "SCENE" | "OBJECTS" | "POINTS" =
     sceneSelectionMode === "POINT" && primaryId && selectedScenePointIds.length > 0
@@ -356,10 +343,10 @@ export default function EffectStackPanel() {
           Motion
         </p>
         <p className="font-mono text-[9px] leading-relaxed text-muted-foreground">
-          One motion per object.
+          Applied to the selected object(s), or only the selected drone points.
         </p>
 
-        {staticFormationId ? (
+        {selectedSceneObjectIds.length > 0 ? (
           <div className="flex flex-wrap gap-1" data-testid="motion-stack-presets">
             {DYNAMIC_PRESETS.map((preset) => (
               <Button
@@ -378,9 +365,7 @@ export default function EffectStackPanel() {
           </div>
         ) : (
           <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
-            {primary
-              ? "This object already animates. Edit its motion in the Dynamic formations panel."
-              : "Select a static object to add motion."}
+            Select an object or drone points to add motion.
           </p>
         )}
       </div>
