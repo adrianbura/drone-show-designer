@@ -76,12 +76,13 @@ describe("scene composer drone budget DOM", () => {
     const historyBefore = api.timelineHistoryDepth.past;
 
     fireEvent.click(screen.getByTestId("composer-add-visual"));
+    fireEvent.click(screen.getByTestId("composer-choice-LINE"));
     const drones = screen.getByTestId("line-drones");
     const commit = screen.getByTestId("composer-add-line-commit") as HTMLButtonElement;
 
     fireEvent.change(drones, { target: { value: "51" } });
     expect(commit.disabled).toBe(true);
-    expect(screen.getByTestId("line-reserve").className).toContain("text-destructive");
+    expect(screen.getByTestId("wizard-allocation-warning")).toBeTruthy();
 
     fireEvent.change(drones, { target: { value: "50" } });
     expect(commit.disabled).toBe(false);
