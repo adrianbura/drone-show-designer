@@ -33,7 +33,7 @@ describe("create visual decisions", () => {
   it("describes SVG facts and spacing only from canonical data", () => {
     const facts = describeSvgGeometry("logo.svg", {
       contours: [{ points: [] }, { points: [] }],
-      bounds: { minX: 0, minY: 0, maxX: 200, maxY: 100 },
+      bounds: { minX: 0, minY: 0, maxX: 200, maxY: 100, width: 200, height: 100 },
     } as never);
     expect(facts.widthUnits).toBe(200);
     expect(facts.contours).toBe(2);
