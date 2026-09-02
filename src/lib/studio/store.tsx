@@ -2704,6 +2704,58 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   /**
+   * ADD TEXT VISUAL — deterministic stroke text as a NORMAL scene object.
+   *
+   * The recipe comes from the canonical text pipeline; geometry is produced by
+   * `makeTextFormation` and nothing else. Participation (the drone budget) is
+   * used exactly as requested. Failure mutates nothing.
+   */
+  const addTextVisual = useCallback(
+    (
+      clipId: string,
+      input: {
+        readonly recipe: TextGeometryRecipe;
+        readonly name: string;
+        readonly position?: Vector3Tuple;
+        readonly color?: RGB;
+      },
+    ): string | null => {
+      let built: ReturnType<typeof makeTextFormation>;
+      try {
+        built = makeTextFormation({
+          id: nextId("f"),
+          name: input.name,
+          recipe: input.recipe,
+          authoredForClipId: clipId,
+        });
+      } catch {
+        return null;
+      }
+      let createdId: string | null = null;
+      setProject((p) => {
+        const clip = p.timeline.find((c) => c.id === clipId);
+        if (!clip) return p;
+        const withAsset: ShowProject = { ...p, formations: [...p.formations, built.formation] };
+        const added = addObject(withAsset, sceneForClip(withAsset, clip), {
+          source: { kind: "STATIC", formationId: built.formation.id },
+          name: input.name,
+          requestedDroneCount: input.recipe.participation,
+          ...(input.position ? { position: input.position } : {}),
+        });
+        createdId = added.objectId;
+        const scene = input.color
+          ? patchObject(added.scene, added.objectId, { lighting: { color: input.color } })
+          : added.scene;
+        pushSnapshot(p);
+        return upsertScene(withAsset, scene);
+      });
+      if (createdId) setSelectedSceneObjectId(createdId);
+      return createdId;
+    },
+    [pushSnapshot],
+  );
+
+  /**
    * COMMIT AN IMPORTED SVG.
    *
    * `target` decides where the asset lands:
