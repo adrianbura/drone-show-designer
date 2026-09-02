@@ -627,6 +627,20 @@ interface StudioContextValue {
       readonly color?: RGB;
     },
   ) => string | null;
+  /**
+   * Creates a DETERMINISTIC TEXT formation asset from a canonical recipe and
+   * places one instance of it in the clip's scene — ONE undoable revision.
+   * Returns null when the recipe cannot produce geometry (nothing is mutated).
+   */
+  addTextVisual: (
+    clipId: string,
+    input: {
+      readonly recipe: TextGeometryRecipe;
+      readonly name: string;
+      readonly position?: Vector3Tuple;
+      readonly color?: RGB;
+    },
+  ) => string | null;
   patchSceneObject: (
     clipId: string,
     objectId: string,
