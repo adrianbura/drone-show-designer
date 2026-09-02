@@ -272,9 +272,11 @@ describe("scene composer acceptance — 150 drones", () => {
  */
 describe("selection effect isolation — SVG text + native underlines", () => {
   const PLAYHEAD = 30;
+  /** Leaves a reserve, so participation attributes drones per scene object. */
+  const ISO_TEXT = 70;
 
   function withSelectionEffect(objectIds: readonly string[]) {
-    const composed = composedProject(TEXT_DRONES);
+    const composed = composedProject(ISO_TEXT);
     const targets = selectionLightingTargets("c-scene", {
       mode: "OBJECT",
       objects: composed.scene.objects.map((o) => ({ id: o.id, name: o.name })),
@@ -304,45 +306,49 @@ describe("selection effect isolation — SVG text + native underlines", () => {
     return { composed, project, effects };
   }
 
+  const changedCount = (
+    project: ShowProject,
+    baseline: readonly { readonly r: number; readonly g: number; readonly b: number }[],
+    participation: Parameters<typeof projectLightingAt>[0]["participation"],
+  ) =>
+    projectLightingAt({ project, participation }, PLAYHEAD).filter(
+      (state, i) =>
+        state.r !== baseline[i]!.r || state.g !== baseline[i]!.g || state.b !== baseline[i]!.b,
+    );
+
   it("targets only the selected object and leaves the other objects untouched", () => {
-    const selected = withSelectionEffect([composedProject(TEXT_DRONES).ids.text]);
+    const ids = composedProject(ISO_TEXT).ids;
+    const selected = withSelectionEffect([ids.text]);
     expect(selected.effects).toHaveLength(1);
     expect(selected.effects[0]!.target.kind).toBe("SCENE_OBJECT");
     expect(selected.effects[0]!.anchor).toBe("ABSOLUTE");
     expect(selected.effects[0]!.start).toBe(PLAYHEAD);
 
-    const baseline = composedProject(TEXT_DRONES).project;
-    const participation = planFor(baseline).participation;
-    const before = projectLightingAt({ project: baseline, participation }, PLAYHEAD);
-    const after = projectLightingAt({ project: selected.project, participation }, PLAYHEAD);
+    const baselineProject = composedProject(ISO_TEXT).project;
+    const participation = planFor(baselineProject).participation;
+    const baseline = projectLightingAt({ project: baselineProject, participation }, PLAYHEAD);
+    const changed = changedCount(selected.project, baseline, participation);
 
-    expect(after).toHaveLength(FLEET);
-    const changed = after.filter(
-      (state, i) =>
-        state.r !== before[i]!.r || state.g !== before[i]!.g || state.b !== before[i]!.b,
-    );
-    // Some drones changed, and strictly fewer than the whole fleet.
+    expect(baseline).toHaveLength(FLEET);
     expect(changed.length).toBeGreaterThan(0);
-    expect(changed.length).toBeLessThan(FLEET);
-    expect(changed.length).toBeLessThanOrEqual(TEXT_DRONES);
+    expect(changed.length).toBeLessThanOrEqual(ISO_TEXT);
     expect(changed.every((state) => state.r === 10 && state.g === 240 && state.b === 30)).toBe(true);
   }, 30_000);
 
   it("covers strictly more drones when both underlines are selected too", () => {
-    const ids = composedProject(TEXT_DRONES).ids;
+    const ids = composedProject(ISO_TEXT).ids;
     const one = withSelectionEffect([ids.text]);
     const all = withSelectionEffect([ids.text, ids.line1, ids.line2]);
     expect(all.effects).toHaveLength(3);
-    expect(all.effects.map((e) => (e.target.kind === "SCENE_OBJECT" ? e.target.instanceId : ""))).
-      toEqual([ids.text, ids.line1, ids.line2]);
+    expect(
+      all.effects.map((e) => (e.target.kind === "SCENE_OBJECT" ? e.target.instanceId : "")),
+    ).toEqual([ids.text, ids.line1, ids.line2]);
 
-    const participation = planFor(one.project).participation;
-    const baseline = projectLightingAt({ project: composedProject(TEXT_DRONES).project, participation }, PLAYHEAD);
-    const countChanged = (project: ShowProject) =>
-      projectLightingAt({ project, participation }, PLAYHEAD).filter(
-        (state, i) =>
-          state.r !== baseline[i]!.r || state.g !== baseline[i]!.g || state.b !== baseline[i]!.b,
-      ).length;
-    expect(countChanged(all.project)).toBeGreaterThan(countChanged(one.project));
+    const baselineProject = composedProject(ISO_TEXT).project;
+    const participation = planFor(baselineProject).participation;
+    const baseline = projectLightingAt({ project: baselineProject, participation }, PLAYHEAD);
+    expect(changedCount(all.project, baseline, participation).length).toBeGreaterThan(
+      changedCount(one.project, baseline, participation).length,
+    );
   }, 30_000);
 });
