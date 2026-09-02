@@ -128,13 +128,7 @@ export function axisOfVector(direction: Vector3Tuple | undefined): EffectAxis {
  * ------------------------------------------------------------------ */
 
 export type SelectionLightingPresetId =
-  | "SOLID_COLOUR"
-  | "FADE_IN"
-  | "FADE_OUT"
-  | "PULSE"
-  | "SPARKLE"
-  | "COLOUR_WAVE"
-  | "GRADIENT_SWEEP";
+  "SOLID_COLOUR" | "FADE_IN" | "FADE_OUT" | "PULSE" | "SPARKLE" | "COLOUR_WAVE" | "GRADIENT_SWEEP";
 
 export interface SelectionLightingPreset {
   readonly id: SelectionLightingPresetId;
@@ -337,12 +331,7 @@ export function effectDisplayLabel(effect: LightingEffectInstance): string {
 }
 
 export type EffectControl =
-  | "INTENSITY"
-  | "SPEED"
-  | "DIRECTION"
-  | "EASING"
-  | "PRIMARY_COLOR"
-  | "SECONDARY_COLOR";
+  "INTENSITY" | "SPEED" | "DIRECTION" | "EASING" | "PRIMARY_COLOR" | "SECONDARY_COLOR";
 
 /** Only the controls the CANONICAL effect type actually consumes. */
 export function relevantEffectControls(type: LightingEffectType): readonly EffectControl[] {

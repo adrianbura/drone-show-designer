@@ -309,7 +309,7 @@ describe("selection effect isolation — SVG text + native underlines", () => {
   const changedCount = (
     project: ShowProject,
     baseline: readonly { readonly r: number; readonly g: number; readonly b: number }[],
-    participation: Parameters<typeof projectLightingAt>[0]["participation"],
+    participation: readonly import("@/lib/show/participation").FleetParticipationPlan[],
   ) =>
     projectLightingAt({ project, participation }, PLAYHEAD).filter(
       (state, i) =>
@@ -332,7 +332,9 @@ describe("selection effect isolation — SVG text + native underlines", () => {
     expect(baseline).toHaveLength(FLEET);
     expect(changed.length).toBeGreaterThan(0);
     expect(changed.length).toBeLessThanOrEqual(ISO_TEXT);
-    expect(changed.every((state) => state.r === 10 && state.g === 240 && state.b === 30)).toBe(true);
+    expect(changed.every((state) => state.r === 10 && state.g === 240 && state.b === 30)).toBe(
+      true,
+    );
   }, 30_000);
 
   it("covers strictly more drones when both underlines are selected too", () => {
