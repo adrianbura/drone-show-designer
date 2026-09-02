@@ -5376,7 +5376,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           projectRef.current.droneCount,
         );
         const requested = options.addToScene.droneCount;
-        if (!Number.isInteger(requested) || requested < 1 || requested > budget.reserve) return null;
+        if (!Number.isInteger(requested) || requested < 1 || requested > budget.availableDrones)
+          return null;
       }
       const formation: Formation = { ...built.formation, id: nextId("f") };
       const dynamic: DynamicFormation | null = built.dynamicFormation
