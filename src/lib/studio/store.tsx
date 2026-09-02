@@ -1173,7 +1173,18 @@ interface StudioContextValue {
     cycles?: number;
     cycleDuration?: number;
   }) => void;
-  applyAiProposal: (options?: { addToTimeline?: boolean }) => DynamicFormation | Formation | null;
+  applyAiProposal: (options?: {
+    addToTimeline?: boolean;
+    addToScene?: {
+      clipId: string;
+      droneCount: number;
+      name?: string;
+      position?: Vector3Tuple;
+      rotationDeg?: Vector3Tuple;
+      mirrorX?: boolean;
+      color?: RGB;
+    };
+  }) => DynamicFormation | Formation | null;
 }
 
 
@@ -5238,43 +5249,119 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applyAiProposal = useCallback(
-    (options: { addToTimeline?: boolean } = {}) => {
+    (options: {
+      addToTimeline?: boolean;
+      addToScene?: {
+        clipId: string;
+        droneCount: number;
+        name?: string;
+        position?: Vector3Tuple;
+        rotationDeg?: Vector3Tuple;
+        mirrorX?: boolean;
+        color?: RGB;
+      };
+    } = {}) => {
       const built = aiBuilt;
       const proposal = aiProposal;
       if (!built || !proposal) return null;
-      const formation: Formation = { ...built.formation, id: nextId("f") };
-      setProject((p) => ({ ...p, formations: [...p.formations, formation] }));
-
-      if (!built.dynamicFormation) {
-        if (options.addToTimeline) {
-          addClip(formation.id, {
-            transition: proposal.timing.recommendedTransition,
-            hold: proposal.timing.hold,
-          });
-        }
-        discardAiProposal();
-        return formation;
+      if (options.addToScene) {
+        const targetClip = projectRef.current.timeline.find(
+          (clip) => clip.id === options.addToScene?.clipId,
+        );
+        if (!targetClip) return null;
+        const budget = sceneBudget(
+          projectRef.current,
+          sceneForClip(projectRef.current, targetClip),
+          projectRef.current.droneCount,
+        );
+        const requested = options.addToScene.droneCount;
+        if (!Number.isInteger(requested) || requested < 1 || requested > budget.reserve) return null;
       }
-      const dynamic: DynamicFormation = {
-        ...built.dynamicFormation,
-        id: nextId("dyn"),
-        sourceFormationId: formation.id,
-      };
-      commitDynamic((list) => [...list, dynamic]);
-      setExplicitDynamicId(dynamic.id);
-      setSelectedPointIdsState([]);
-      setSelectedMotionGroupId(null);
-      setDynamicEditTime(0);
-      if (options.addToTimeline) {
-        addDynamicClip(dynamic.id, {
-          transition: proposal.timing.recommendedTransition,
-          hold: proposal.timing.hold,
-        });
+      const formation: Formation = { ...built.formation, id: nextId("f") };
+      const dynamic: DynamicFormation | null = built.dynamicFormation
+        ? { ...built.dynamicFormation, id: nextId("dyn"), sourceFormationId: formation.id }
+        : null;
+      const timelineClipId = options.addToTimeline ? nextId("c") : null;
+      let sceneObjectId: string | null = null;
+
+      setProject((p) => {
+        let next: ShowProject = {
+          ...p,
+          formations: [...p.formations, formation],
+          ...(dynamic ? { dynamicFormations: [...(p.dynamicFormations ?? []), dynamic] } : {}),
+        };
+        if (timelineClipId) {
+          const clip: TimelineClip = dynamic
+            ? {
+                id: timelineClipId,
+                formationId: formation.id,
+                start: 0,
+                transition: Math.max(0.5, proposal.timing.recommendedTransition),
+                hold: Math.max(proposal.timing.hold, dynamic.duration, 4),
+                easing: "minJerk",
+                color: [140, 210, 255],
+                effect: "solid",
+                phase: "SHOW",
+                dynamicFormationId: dynamic.id,
+                playbackRate: 1,
+                dynamicStartOffset: 0,
+              }
+            : {
+                id: timelineClipId,
+                formationId: formation.id,
+                start: 0,
+                transition: Math.max(0.5, proposal.timing.recommendedTransition),
+                hold: Math.max(0, proposal.timing.hold),
+                easing: "minJerk",
+                color: [120, 220, 255],
+                effect: "solid",
+                phase: defaultPhaseForNewClip(p.timeline),
+              };
+          next = { ...next, timeline: insertClipBeforeLanding(next.timeline, clip) };
+        }
+        if (options.addToScene) {
+          const targetClip = next.timeline.find((clip) => clip.id === options.addToScene?.clipId);
+          if (!targetClip) return p;
+          const source: SceneObjectSource = dynamic
+            ? { kind: "DYNAMIC", dynamicFormationId: dynamic.id }
+            : { kind: "STATIC", formationId: formation.id };
+          const added = addObject(next, sceneForClip(next, targetClip), {
+            source,
+            name: options.addToScene.name?.trim() || proposal.title,
+            requestedDroneCount: options.addToScene.droneCount,
+            ...(options.addToScene.position ? { position: options.addToScene.position } : {}),
+          });
+          sceneObjectId = added.objectId;
+          let scene = options.addToScene.mirrorX
+            ? mirrorObjectX(added.scene, added.objectId)
+            : added.scene;
+          if (options.addToScene.rotationDeg) {
+            scene = patchObjectTransform(scene, added.objectId, {
+              rotationDeg: options.addToScene.rotationDeg,
+            });
+          }
+          if (options.addToScene.color) {
+            scene = patchObject(scene, added.objectId, {
+              lighting: { color: options.addToScene.color },
+            });
+          }
+          next = upsertScene(next, scene);
+        }
+        pushSnapshot(p);
+        return next;
+      });
+      if (timelineClipId) setSelectedClipId(timelineClipId);
+      if (sceneObjectId) setSelectedSceneObjectId(sceneObjectId);
+      if (dynamic) {
+        setExplicitDynamicId(dynamic.id);
+        setSelectedPointIdsState([]);
+        setSelectedMotionGroupId(null);
+        setDynamicEditTime(0);
       }
       discardAiProposal();
-      return dynamic;
+      return dynamic ?? formation;
     },
-    [aiBuilt, aiProposal, addClip, addDynamicClip, commitDynamic, discardAiProposal],
+    [aiBuilt, aiProposal, discardAiProposal, pushSnapshot, setSelectedSceneObjectId],
   );
 
   // ---- Playback / editing keyboard shortcuts (Sprint 7) -------------------

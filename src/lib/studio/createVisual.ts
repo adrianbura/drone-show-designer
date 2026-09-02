@@ -3,8 +3,7 @@
  *
  * This module owns NO drone identity, NO safety maths and NO project mutation.
  * It only:
- *   - describes the available creation choices honestly (including the ones the
- *     project has no canonical authority for);
+ *   - describes the available creation choices backed by canonical authorities;
  *   - validates a requested drone allocation against the CANONICAL scene budget
  *     numbers supplied by `sceneBudget()` (never recomputed here);
  *   - derives read-only preview facts (SVG bounds/aspect, spacing estimate);
@@ -33,14 +32,6 @@ export interface CreateVisualChoice {
   readonly unavailableNote?: string;
 }
 
-/**
- * There is no canonical action that turns a generated AI image into a scene
- * VISUAL OBJECT: the AI panels produce reference/library material only. The
- * choice is therefore surfaced as unavailable instead of faked.
- */
-export const AI_VISUAL_UNAVAILABLE_NOTE =
-  "AI image → scene object has no canonical pipeline yet. Generate the image in the AI panels, export it as SVG, then import it here.";
-
 export const CREATE_VISUAL_CHOICES: readonly CreateVisualChoice[] = [
   {
     mode: "SVG",
@@ -68,10 +59,9 @@ export const CREATE_VISUAL_CHOICES: readonly CreateVisualChoice[] = [
   },
   {
     mode: "AI",
-    label: "AI image",
-    description: "Generate artwork from a prompt.",
-    available: false,
-    unavailableNote: AI_VISUAL_UNAVAILABLE_NOTE,
+    label: "Generate with AI",
+    description: "Describe a flyable visual; review it before adding it to this scene.",
+    available: true,
   },
 ];
 

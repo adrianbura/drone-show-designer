@@ -1,9 +1,8 @@
 /**
  * ADD VISUAL — the everyday creation wizard of the Visuals panel.
  *
- * One primary action leads to the four real creation paths (Import SVG, Text,
- * Line, Existing asset) plus an HONEST unavailable entry for AI images, which
- * have no canonical scene-object pipeline.
+ * One primary action leads to five canonical creation paths: Import SVG, Text,
+ * Line, Existing asset and a reviewed AI choreography proposal.
  *
  * Everything here is presentation only:
  *   - geometry comes from the canonical SVG / text / native formation engines;
@@ -114,6 +113,13 @@ export default function AddVisualWizard({
     addNativeVisual,
     addTextVisual,
     addSceneObject,
+    aiBusy,
+    aiError,
+    aiProposal,
+    aiProposalErrors,
+    generateAiProposal,
+    discardAiProposal,
+    applyAiProposal,
   } = useStudio();
 
   const [mode, setMode] = useState<CreateVisualMode | null>(null);
@@ -153,6 +159,14 @@ export default function AddVisualWizard({
   const [assetZ, setAssetZ] = useState(0);
   const [assetRotation, setAssetRotation] = useState(0);
 
+  // AI visual inputs. The proposal remains ephemeral until Add to scene.
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiDrones, setAiDrones] = useState(40);
+  const [aiX, setAiX] = useState(0);
+  const [aiY, setAiY] = useState(50);
+  const [aiZ, setAiZ] = useState(0);
+  const [aiRotation, setAiRotation] = useState(0);
+
   const reset = useCallback(() => {
     setOpen(false);
     setMode(null);
@@ -161,7 +175,8 @@ export default function AddVisualWizard({
     setAdvanced(false);
     setFileError(null);
     cancelSvgDraft();
-  }, [cancelSvgDraft]);
+    discardAiProposal();
+  }, [cancelSvgDraft, discardAiProposal]);
 
   const pickFile = useCallback(
     (file: File | null | undefined) => {
@@ -219,7 +234,9 @@ export default function AddVisualWizard({
           ? Math.round(lineDrones)
           : mode === "ASSET"
             ? Math.round(assetDrones)
-            : 0;
+            : mode === "AI"
+              ? Math.round(aiDrones)
+              : 0;
   const allocation = evaluateDroneAllocation({
     fleet,
     used,
@@ -236,7 +253,9 @@ export default function AddVisualWizard({
           ? allocation.valid
           : mode === "ASSET"
             ? Boolean(assetId) && allocation.valid
-            : false;
+            : mode === "AI"
+              ? Boolean(aiProposal) && aiProposalErrors.length === 0 && allocation.valid
+              : false;
 
   const commit = useCallback(() => {
     const color = fromHex(colour);
@@ -279,6 +298,19 @@ export default function AddVisualWizard({
         mirrorX: mirror,
         color,
       });
+    } else if (mode === "AI" && aiProposal && aiProposalErrors.length === 0) {
+      const applied = applyAiProposal({
+        addToScene: {
+          clipId,
+          droneCount: Math.round(aiDrones),
+          name: name.trim() || aiProposal.title,
+          position: [aiX, aiY, aiZ],
+          rotationDeg: [0, 0, aiRotation],
+          mirrorX: mirror,
+          color,
+        },
+      });
+      if (!applied) return;
     } else {
       return;
     }
@@ -293,6 +325,14 @@ export default function AddVisualWizard({
     assetX,
     assetY,
     assetZ,
+    aiDrones,
+    aiProposal,
+    aiProposalErrors.length,
+    aiRotation,
+    aiX,
+    aiY,
+    aiZ,
+    applyAiProposal,
     clipId,
     colour,
     commitSvgDraft,
@@ -724,7 +764,69 @@ export default function AddVisualWizard({
         </div>
       ) : null}
 
-      {mode !== null && mode !== "AI" ? (
+      {mode === "AI" ? (
+        <div className="space-y-1.5" data-testid="wizard-ai">
+          <label className="block space-y-1 text-[11px] text-muted-foreground">
+            <span className="uppercase tracking-[0.14em]">Describe the visual</span>
+            <textarea
+              value={aiPrompt}
+              data-testid="wizard-ai-prompt"
+              placeholder="A sparkling engagement ring with a gentle pulse"
+              onChange={(event) => setAiPrompt(event.target.value)}
+              className="studio-input min-h-16 w-full resize-y font-mono"
+            />
+          </label>
+          <button
+            type="button"
+            data-testid="wizard-ai-generate"
+            disabled={aiBusy || aiPrompt.trim().length < 3}
+            onClick={() => void generateAiProposal(aiPrompt.trim())}
+            className="chip-btn mini-btn-accent w-full justify-center disabled:opacity-40"
+          >
+            <Sparkles className="size-3" /> {aiBusy ? "Generating…" : "Generate preview"}
+          </button>
+          {aiError ? (
+            <p className="font-mono text-[10px] text-destructive" data-testid="wizard-ai-error">
+              {aiError.message}
+            </p>
+          ) : null}
+          {aiProposal ? (
+            <div className="rounded border border-border p-1.5" data-testid="wizard-ai-proposal">
+              <p className="text-xs font-medium text-foreground">{aiProposal.title}</p>
+              <p className="font-mono text-[10px] text-muted-foreground">
+                {aiProposal.concept} · {aiProposal.animationSpec.dynamic ? "animated" : "static"} ·
+                source geometry {aiProposal.fleetCount} points
+              </p>
+              {aiProposalErrors.map((error) => (
+                <p key={error} className="font-mono text-[10px] text-destructive">
+                  {error}
+                </p>
+              ))}
+            </div>
+          ) : null}
+          <NumberField
+            label="Drones"
+            value={aiDrones}
+            step={1}
+            testId="wizard-drones"
+            onChange={setAiDrones}
+          />
+          <div className="grid grid-cols-3 gap-1">
+            <NumberField label="X" value={aiX} step={0.5} testId="wizard-ai-x" onChange={setAiX} />
+            <NumberField label="Y" value={aiY} step={0.5} testId="wizard-ai-y" onChange={setAiY} />
+            <NumberField label="Z" value={aiZ} step={0.5} testId="wizard-ai-z" onChange={setAiZ} />
+          </div>
+          <NumberField
+            label="Rotation"
+            value={aiRotation}
+            step={5}
+            testId="wizard-ai-rotation"
+            onChange={setAiRotation}
+          />
+        </div>
+      ) : null}
+
+      {mode !== null ? (
         <div className="space-y-1.5 border-t border-border pt-1.5">
           <p
             className="font-mono text-[10px] text-muted-foreground"
@@ -777,6 +879,7 @@ export default function AddVisualWizard({
                 setMode(null);
                 setFileError(null);
                 cancelSvgDraft();
+                discardAiProposal();
               }}
               className="chip-btn justify-center"
             >

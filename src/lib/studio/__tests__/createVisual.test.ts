@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  AI_VISUAL_UNAVAILABLE_NOTE,
   CREATE_VISUAL_CHOICES,
   buildTextVisualRecipe,
   describeSvgGeometry,
@@ -10,15 +9,15 @@ import {
 } from "@/lib/studio/createVisual";
 
 describe("create visual decisions", () => {
-  it("offers the real creation paths and marks AI honestly unavailable", () => {
+  it("offers every creation path backed by a canonical authority", () => {
     const ai = CREATE_VISUAL_CHOICES.find((c) => c.mode === "AI")!;
-    expect(ai.available).toBe(false);
-    expect(ai.unavailableNote).toBe(AI_VISUAL_UNAVAILABLE_NOTE);
+    expect(ai.available).toBe(true);
     expect(CREATE_VISUAL_CHOICES.filter((c) => c.available).map((c) => c.mode)).toEqual([
       "SVG",
       "TEXT",
       "LINE",
       "ASSET",
+      "AI",
     ]);
   });
 

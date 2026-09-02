@@ -70,6 +70,45 @@ async function mount(project: ShowProject, clipId: string) {
 afterEach(cleanup);
 
 describe("scene composer drone budget DOM", () => {
+  it("generates an AI draft without mutation and adds the animated visual atomically", async () => {
+    const { project, clipId } = projectWithReserve();
+    await mount(project, clipId);
+    const historyBefore = api.timelineHistoryDepth.past;
+    const formationsBefore = api.project.formations.length;
+
+    fireEvent.click(screen.getByTestId("composer-add-visual"));
+    fireEvent.click(screen.getByTestId("composer-choice-AI"));
+    fireEvent.change(screen.getByTestId("wizard-ai-prompt"), {
+      target: { value: "A butterfly gently flapping its wings" },
+    });
+    fireEvent.click(screen.getByTestId("wizard-ai-generate"));
+
+    await waitFor(() => expect(screen.getByTestId("wizard-ai-proposal")).toBeTruthy());
+    expect(api.project.formations).toHaveLength(formationsBefore);
+    expect(api.timelineHistoryDepth.past).toBe(historyBefore);
+
+    fireEvent.change(screen.getByTestId("wizard-drones"), { target: { value: "40" } });
+    fireEvent.click(screen.getByTestId("wizard-commit"));
+
+    await waitFor(() => expect(api.project.formations).toHaveLength(formationsBefore + 1));
+    expect(api.project.dynamicFormations).toHaveLength(1);
+    const scene = api.project.scenes!.find((candidate) => candidate.id === clipId)!;
+    expect(scene.objects).toHaveLength(2);
+    expect(scene.objects[1]!.requestedDroneCount).toBe(40);
+    expect(scene.objects[1]!.source.kind).toBe("DYNAMIC");
+    expect(api.timelineHistoryDepth.past).toBe(historyBefore + 1);
+
+    act(() => api.undoTimeline());
+    await waitFor(() => expect(api.project.formations).toHaveLength(formationsBefore));
+    expect(api.project.dynamicFormations ?? []).toHaveLength(0);
+    expect(api.selectedScene!.objects).toHaveLength(1);
+
+    act(() => api.redoTimeline());
+    await waitFor(() => expect(api.project.formations).toHaveLength(formationsBefore + 1));
+    expect(api.project.dynamicFormations).toHaveLength(1);
+    expect(api.selectedScene!.objects[1]!.requestedDroneCount).toBe(40);
+  });
+
   it("prevents over-allocation, commits the exact reserve, and undoes as one revision", async () => {
     const { project, clipId } = projectWithReserve();
     await mount(project, clipId);
