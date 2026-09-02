@@ -31,7 +31,13 @@ import {
   createEffectFromPreset,
   findLightingPreset,
   EMPTY_LIGHTING_PROGRAM,
+  projectLightingAt,
 } from "@/lib/show/lighting";
+import {
+  findSelectionLightingPreset,
+  selectionLightingParameters,
+  selectionLightingTargets,
+} from "@/lib/studio/selectionEffects";
 import { addObject, emptyScene, patchObject, sceneBudget, upsertScene } from "@/lib/show/scene";
 import {
   generateSvgFormationPoints,
@@ -254,5 +260,89 @@ describe("scene composer acceptance — 150 drones", () => {
     });
     expect(result.blockers).toEqual([]);
     expect(result.zip).not.toBeNull();
+  }, 30_000);
+});
+
+/**
+ * OBJECT ISOLATION OF SELECTION EFFECTS.
+ *
+ * The everyday selection authority must never widen an effect: an effect
+ * authored while the SVG text object is selected may only change the LEDs of
+ * the drones that belong to that object. Evaluation is the canonical engine.
+ */
+describe("selection effect isolation — SVG text + native underlines", () => {
+  const PLAYHEAD = 30;
+
+  function withSelectionEffect(objectIds: readonly string[]) {
+    const composed = composedProject(TEXT_DRONES);
+    const targets = selectionLightingTargets("c-scene", {
+      mode: "OBJECT",
+      objects: composed.scene.objects.map((o) => ({ id: o.id, name: o.name })),
+      selectedObjectIds: objectIds,
+      primaryObjectId: objectIds[0] ?? null,
+      selectedPointIds: [],
+      droneCountOf: () => 0,
+    });
+    const preset = findSelectionLightingPreset("SOLID_COLOUR");
+    const effects = targets.map((target, i) =>
+      createEffectFromPreset(findLightingPreset(preset.canonicalPresetId)!, target, {
+        anchor: "ABSOLUTE",
+        start: PLAYHEAD,
+        priority: i,
+        idSeed: 500 + i,
+        parameters: selectionLightingParameters(preset, {
+          primary: [10, 240, 30],
+          secondary: [10, 240, 30],
+          axis: "X",
+        }),
+      }),
+    );
+    const project: ShowProject = {
+      ...composed.project,
+      lighting: { schemaVersion: 1, effects },
+    };
+    return { composed, project, effects };
+  }
+
+  it("targets only the selected object and leaves the other objects untouched", () => {
+    const selected = withSelectionEffect([composedProject(TEXT_DRONES).ids.text]);
+    expect(selected.effects).toHaveLength(1);
+    expect(selected.effects[0]!.target.kind).toBe("SCENE_OBJECT");
+    expect(selected.effects[0]!.anchor).toBe("ABSOLUTE");
+    expect(selected.effects[0]!.start).toBe(PLAYHEAD);
+
+    const baseline = composedProject(TEXT_DRONES).project;
+    const participation = planFor(baseline).participation;
+    const before = projectLightingAt({ project: baseline, participation }, PLAYHEAD);
+    const after = projectLightingAt({ project: selected.project, participation }, PLAYHEAD);
+
+    expect(after).toHaveLength(FLEET);
+    const changed = after.filter(
+      (state, i) =>
+        state.r !== before[i]!.r || state.g !== before[i]!.g || state.b !== before[i]!.b,
+    );
+    // Some drones changed, and strictly fewer than the whole fleet.
+    expect(changed.length).toBeGreaterThan(0);
+    expect(changed.length).toBeLessThan(FLEET);
+    expect(changed.length).toBeLessThanOrEqual(TEXT_DRONES);
+    expect(changed.every((state) => state.r === 10 && state.g === 240 && state.b === 30)).toBe(true);
+  }, 30_000);
+
+  it("covers strictly more drones when both underlines are selected too", () => {
+    const ids = composedProject(TEXT_DRONES).ids;
+    const one = withSelectionEffect([ids.text]);
+    const all = withSelectionEffect([ids.text, ids.line1, ids.line2]);
+    expect(all.effects).toHaveLength(3);
+    expect(all.effects.map((e) => (e.target.kind === "SCENE_OBJECT" ? e.target.instanceId : ""))).
+      toEqual([ids.text, ids.line1, ids.line2]);
+
+    const participation = planFor(one.project).participation;
+    const baseline = projectLightingAt({ project: composedProject(TEXT_DRONES).project, participation }, PLAYHEAD);
+    const countChanged = (project: ShowProject) =>
+      projectLightingAt({ project, participation }, PLAYHEAD).filter(
+        (state, i) =>
+          state.r !== baseline[i]!.r || state.g !== baseline[i]!.g || state.b !== baseline[i]!.b,
+      ).length;
+    expect(countChanged(all.project)).toBeGreaterThan(countChanged(one.project));
   }, 30_000);
 });
