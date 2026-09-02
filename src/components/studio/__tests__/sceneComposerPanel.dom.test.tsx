@@ -117,7 +117,7 @@ describe("scene composer drone budget DOM", () => {
     fireEvent.click(screen.getByTestId("composer-save-point-group"));
     await waitFor(() => expect(api.project.scenes?.[0]?.pointGroups?.[0]?.name).toBe("Diamond"));
 
-    fireEvent.click(screen.getByTestId("effect-stack-add-BASE_COLOR"));
+    fireEvent.click(screen.getByTestId("effect-stack-add-SOLID"));
     await waitFor(() => expect(api.project.lighting?.effects).toHaveLength(1));
     const effect = api.project.lighting!.effects[0]!;
     expect(effect.anchor).toBe("ABSOLUTE");
@@ -188,20 +188,20 @@ describe("drone group lighting authoring UX", () => {
     fireEvent.click(screen.getByTestId(`composer-group-select-${groupId}`));
     await waitFor(() => expect(api.selectedScenePointIds).toHaveLength(2));
 
-    expect(screen.getByTestId("effect-target-summary").getAttribute("data-target")).toBe("POINTS");
+    expect(screen.getByTestId("effect-target-summary").getAttribute("data-target")).toBe("DRONES");
     expect(screen.getByTestId("effect-start-readout").getAttribute("data-start")).toBe("4.25");
 
-    fireEvent.click(screen.getByTestId("effect-stack-add-BASE_COLOR"));
+    fireEvent.click(screen.getByTestId("effect-stack-add-SOLID"));
     await waitFor(() => expect(api.project.lighting?.effects).toHaveLength(1));
     expect(api.project.lighting!.effects[0]!.start).toBe(4.25);
 
     act(() => api.setTime(6.5));
-    fireEvent.click(screen.getByTestId("effect-stack-add-FADE"));
+    fireEvent.click(screen.getByTestId("effect-stack-add-FADE_IN"));
     await waitFor(() => expect(api.project.lighting?.effects).toHaveLength(2));
     expect(api.project.lighting!.effects[1]!.start).toBe(6.5);
 
     fireEvent.change(screen.getByTestId("effect-stack-gradient-axis"), { target: { value: "Y" } });
-    fireEvent.click(screen.getByTestId("effect-stack-add-GRADIENT"));
+    fireEvent.click(screen.getByTestId("effect-stack-add-GRADIENT_SWEEP"));
     await waitFor(() => expect(api.project.lighting?.effects).toHaveLength(3));
     const gradient = api.project.lighting!.effects[2]!;
     expect(gradient.parameters.stops).toHaveLength(2);

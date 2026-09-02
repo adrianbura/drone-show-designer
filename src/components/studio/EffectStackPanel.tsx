@@ -1,39 +1,44 @@
 /**
- * EFFECT STACKS — EVERYDAY LIGHTING + MOTION (Skybrush-inspired).
+ * SELECTION EFFECTS — everyday lighting + motion authoring for the CURRENT
+ * SELECTION (scene objects, or the selected drone points of one object).
  *
- * Two ordered stacks scoped to the current selection:
- *   LIGHTING  ordered canonical `LightingEffectInstance` values (stack order ==
- *             priority) created from six everyday presets.
- *   MOTION    canonical dynamic-formation presets applied to the selected
- *             STATIC object, promoting it to a DYNAMIC source.
- *
- * No second lighting engine, no second animation engine, no safety maths here:
- * this panel only composes over the existing canonical authorities.
+ * PRESENTATION ONLY.
+ *   - Targets, preset vocabulary and inspector relevance come from the pure
+ *     `src/lib/studio/selectionEffects.ts` composition helpers.
+ *   - Lighting instances are created by the canonical store action
+ *     `addLightingEffectsFromPreset` (ONE revision == ONE undo entry) from
+ *     EXISTING canonical `LIGHTING_PRESETS` ids.
+ *   - Motion is applied by the canonical store action
+ *     `applyMotionPresetToSceneSelection`. There is no second motion engine,
+ *     no second selection model, no second timeline and no effect evaluation
+ *     inside React.
+ *   - Browsing presets mutates nothing: applying is an explicit click.
  */
-import { ArrowDown, ArrowUp, Sparkles, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Sparkles, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { reorderEffect, stackOrder } from "@/lib/studio/effectStack";
 import {
-  canonicalStackPresetId,
-  stackColorParameters,
-  stackOrder,
-  reorderEffect,
-  type EffectStackPresetId,
-} from "@/lib/studio/effectStack";
-import { DYNAMIC_PRESETS, type DynamicPresetId } from "@/lib/show/dynamic";
-import type { LightingTarget } from "@/lib/show/lighting";
+  LIGHTING_SELECTION_PRESETS,
+  MOTION_SELECTION_PRESETS,
+  axisDirection,
+  directionAxis,
+  effectPresetLabel,
+  effectsForSelection,
+  lightingPresetParameters,
+  lightingPresetTiming,
+  lightingSelectionPreset,
+  pulseCycles,
+  relevantInspectorControls,
+  selectionEffectContext,
+  type EffectAxis,
+  type LightingSelectionPresetId,
+  type MotionSelectionPresetId,
+} from "@/lib/studio/selectionEffects";
+import { LIGHTING_EASINGS, type LightingEasing } from "@/lib/show/lighting";
 import type { RGB } from "@/lib/show/types";
 import { useStudio } from "@/lib/studio/store";
-
-const PRESET_LABEL: Record<EffectStackPresetId, string> = {
-  BASE_COLOR: "Set colour",
-  FADE: "Fade to",
-  PULSE: "Pulse",
-  CHASE: "Chase",
-  TWINKLE: "Twinkle",
-  GRADIENT: "Gradient",
-};
 
 const toHex = (rgb: RGB): string =>
   `#${rgb
@@ -53,10 +58,11 @@ const fromHex = (hex: string): RGB => [
 export default function EffectStackPanel() {
   const [color, setColor] = useState<RGB>([255, 200, 120]);
   const [gradientColor, setGradientColor] = useState<RGB>([80, 120, 255]);
-  const [gradientAxis, setGradientAxis] = useState<"X" | "Y" | "Z">("X");
+  const [gradientAxis, setGradientAxis] = useState<EffectAxis>("X");
   const {
     selectedClipId,
     selectedScene,
+    selectedSceneBudget,
     selectedSceneObjectIds,
     primarySceneObjectId,
     sceneSelectionMode,
@@ -64,11 +70,13 @@ export default function EffectStackPanel() {
     time,
     lightingEffects,
     selectedLightingEffectId,
+    selectedLightingEffect,
     selectLightingEffect,
-
     addLightingEffectsFromPreset,
     patchLightingEffect,
+    patchLightingParameters,
     removeLightingEffect,
+    duplicateLightingEffect,
     applyMotionPresetToSceneSelection,
   } = useStudio();
 
@@ -76,7 +84,7 @@ export default function EffectStackPanel() {
     return (
       <section className="panel-card" data-testid="effect-stacks">
         <h2 className="panel-title flex items-center gap-1.5">
-          <Sparkles className="size-3" /> Effects
+          <Sparkles className="size-3" /> Selection effects
         </h2>
         <p className="font-mono text-[10px] text-muted-foreground">Select a clip to add effects.</p>
       </section>
@@ -84,112 +92,104 @@ export default function EffectStackPanel() {
   }
 
   const clipId = selectedClipId;
-  const primaryId = primarySceneObjectId;
-  const targets: LightingTarget[] =
-    sceneSelectionMode === "POINT" && primaryId && selectedScenePointIds.length > 0
-      ? [
-          {
-            kind: "POINT_GROUP" as const,
-            clipId,
-            instanceId: primaryId,
-            pointIds: selectedScenePointIds,
-          },
-        ]
-      : selectedSceneObjectIds.length > 0
-        ? selectedSceneObjectIds.map((instanceId) => ({
-            kind: "SCENE_OBJECT" as const,
-            clipId,
-            instanceId,
-          }))
-        : [{ kind: "SCENE" as const, clipId }];
 
-  const scoped = stackOrder(
-    lightingEffects.filter((e) =>
-      selectedSceneObjectIds.length === 0
-        ? true
-        : e.target.kind !== "SCENE" && selectedSceneObjectIds.includes(e.target.instanceId),
+  const context = selectionEffectContext({
+    clipId,
+    selectionMode: sceneSelectionMode,
+    objectIds: selectedSceneObjectIds,
+    primaryObjectId: primarySceneObjectId,
+    pointIds: selectedScenePointIds,
+    objectNames: new Map(selectedScene.objects.map((o) => [o.id, o.name])),
+    objectDroneCounts: new Map(
+      (selectedSceneBudget?.objects ?? []).map((o) => [o.instanceId, o.count]),
     ),
-  );
+  });
+
+  const scoped = stackOrder(effectsForSelection(lightingEffects, context));
   const scopeIds = scoped.map((e) => e.id);
+  const canApply = context.canApply;
 
-  const primary = selectedScene.objects.find((o) => o.id === primaryId) ?? null;
-  const addMotion = (preset: DynamicPresetId) => applyMotionPresetToSceneSelection(preset);
-
-  const targetKind: "SCENE" | "OBJECTS" | "POINTS" =
-    sceneSelectionMode === "POINT" && primaryId && selectedScenePointIds.length > 0
-      ? "POINTS"
-      : selectedSceneObjectIds.length > 0
-        ? "OBJECTS"
-        : "SCENE";
-
-  const targetSummary =
-    targetKind === "POINTS"
-      ? `${selectedScenePointIds.length} selected drone point${selectedScenePointIds.length === 1 ? "" : "s"}`
-      : targetKind === "OBJECTS"
-        ? `${selectedSceneObjectIds.length} object${selectedSceneObjectIds.length === 1 ? "" : "s"}`
-        : "Whole scene";
-
-  const addPreset = (preset: EffectStackPresetId) =>
+  const applyLighting = (id: LightingSelectionPresetId) => {
+    if (!canApply) return;
     addLightingEffectsFromPreset(
       clipId,
-      canonicalStackPresetId(preset),
-      targets,
-      preset === "GRADIENT"
-        ? {
-            stops: [
-              { position: 0, color },
-              { position: 1, color: gradientColor },
-            ],
-            direction:
-              gradientAxis === "X" ? [1, 0, 0] : gradientAxis === "Y" ? [0, 1, 0] : [0, 0, 1],
-          }
-        : stackColorParameters(preset, color),
-      {
-        anchor: "ABSOLUTE",
-        start: time,
-        ...(preset === "BASE_COLOR" ? { duration: 0.05 } : {}),
-      },
+      lightingSelectionPreset(id).canonicalPresetId,
+      context.targets,
+      lightingPresetParameters(id, {
+        primary: color,
+        secondary: gradientColor,
+        axis: gradientAxis,
+      }),
+      lightingPresetTiming(id, time),
     );
+  };
 
-  const presetButton = (preset: EffectStackPresetId, primaryAction: boolean) => (
-    <Button
-      key={preset}
-      type="button"
-      size="sm"
-      variant={primaryAction ? "default" : "outline"}
-      data-testid={`effect-stack-add-${preset}`}
-      title={`${PRESET_LABEL[preset]} · starts at ${time.toFixed(2)}s · ${targetSummary}`}
-      className="h-6 px-1.5 font-mono text-[9px] uppercase tracking-[0.14em]"
-      onClick={() => addPreset(preset)}
-    >
-      {PRESET_LABEL[preset]}
-    </Button>
-  );
+  const applyMotion = (id: MotionSelectionPresetId) => {
+    if (!canApply) return;
+    const preset = MOTION_SELECTION_PRESETS.find((p) => p.id === id);
+    if (preset) applyMotionPresetToSceneSelection(preset.canonicalPresetId);
+  };
+
+  const selected =
+    selectedLightingEffect && scopeIds.includes(selectedLightingEffect.id)
+      ? selectedLightingEffect
+      : null;
+  const controls = selected ? relevantInspectorControls(selected.type) : [];
+  const has = (id: (typeof controls)[number]) => controls.includes(id);
 
   return (
     <section className="panel-card" data-testid="effect-stacks">
       <h2 className="panel-title flex items-center gap-1.5">
-        <Sparkles className="size-3" /> Effects
+        <Sparkles className="size-3" /> Selection effects
       </h2>
 
-      <p
-        className="font-mono text-[10px] leading-relaxed text-muted-foreground"
-        data-testid="effect-target-summary"
-        data-target={targetKind}
+      {/* ---------------------------------------------------- selection context */}
+      <div
+        className="rounded border border-border bg-surface-sunken px-1.5 py-1"
+        data-testid="effect-selection-context"
+        data-target={context.kind}
+        data-drones={context.droneCount}
       >
-        Target: {targetSummary}
-      </p>
-      <p
-        className="font-mono text-[10px] text-accent"
-        data-testid="effect-start-readout"
-        data-start={time.toFixed(2)}
-      >
-        New effects start at {time.toFixed(2)}s (playhead)
-      </p>
+        <p
+          className="truncate font-mono text-[10px] text-foreground"
+          data-testid="effect-selection-name"
+        >
+          {context.name}
+        </p>
+        <p
+          className="font-mono text-[10px] text-muted-foreground"
+          data-testid="effect-target-summary"
+          data-target={context.kind}
+        >
+          {context.kind === "NONE"
+            ? "No target"
+            : `${context.kind === "DRONES" ? "Drones" : "Objects"} · ${context.droneCount} drone${
+                context.droneCount === 1 ? "" : "s"
+              }`}
+        </p>
+        <p
+          className="font-mono text-[10px] text-accent"
+          data-testid="effect-start-readout"
+          data-start={time.toFixed(2)}
+        >
+          Playhead {time.toFixed(2)}s
+        </p>
+      </div>
 
+      {!canApply && (
+        <p
+          className="mt-1 rounded border border-warning/50 bg-warning/10 px-1.5 py-1 font-mono text-[10px] text-warning"
+          data-testid="effect-selection-warning"
+        >
+          Select an object or drone points first. Effects are never applied to the whole scene by
+          accident.
+        </p>
+      )}
+
+      {/* ------------------------------------------------------------ lighting */}
       <div className="mt-2 space-y-1.5">
         <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
-          Quick lighting
+          Lighting
         </p>
         <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
           <span className="uppercase tracking-[0.14em]">Colour A</span>
@@ -220,7 +220,7 @@ export default function EffectStackPanel() {
               value={gradientAxis}
               data-testid="effect-stack-gradient-axis"
               aria-label="Gradient direction"
-              onChange={(event) => setGradientAxis(event.target.value as "X" | "Y" | "Z")}
+              onChange={(event) => setGradientAxis(event.target.value as EffectAxis)}
               className="studio-input w-14 font-mono"
             >
               <option value="X">X</option>
@@ -229,16 +229,23 @@ export default function EffectStackPanel() {
             </select>
           </label>
         </div>
+
         <div className="flex flex-wrap gap-1" data-testid="effect-stack-presets">
-          {(["BASE_COLOR", "FADE", "GRADIENT"] as const).map((preset) =>
-            presetButton(preset, true),
-          )}
-        </div>
-        <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
-          More effects
-        </p>
-        <div className="flex flex-wrap gap-1" data-testid="effect-stack-secondary-presets">
-          {(["PULSE", "CHASE", "TWINKLE"] as const).map((preset) => presetButton(preset, false))}
+          {LIGHTING_SELECTION_PRESETS.map((preset) => (
+            <Button
+              key={preset.id}
+              type="button"
+              size="sm"
+              variant={preset.id === "SOLID" ? "default" : "outline"}
+              disabled={!canApply}
+              data-testid={`effect-stack-add-${preset.id}`}
+              title={`${preset.description} Starts at ${time.toFixed(2)}s on ${context.name}.`}
+              className="h-6 px-1.5 font-mono text-[9px] uppercase tracking-[0.14em]"
+              onClick={() => applyLighting(preset.id)}
+            >
+              {preset.label}
+            </Button>
+          ))}
         </div>
 
         <ul className="space-y-1" data-testid="effect-stack-list">
@@ -247,7 +254,9 @@ export default function EffectStackPanel() {
               className="font-mono text-[10px] text-muted-foreground"
               data-testid="effect-stack-empty"
             >
-              No effects yet. Pick a colour and apply one of the quick actions above.
+              {canApply
+                ? "No effects on this selection yet."
+                : "Nothing selected, so no effects are listed."}
             </li>
           )}
           {scoped.map((effect, index) => (
@@ -275,32 +284,8 @@ export default function EffectStackPanel() {
                 title="Focus on the lighting timeline"
                 className="min-w-0 flex-1 truncate text-left font-mono text-[10px] text-foreground"
               >
-                {index + 1}. {effect.type}
+                {index + 1}. {effectPresetLabel(effect)}
               </button>
-
-              <input
-                type="number"
-                step={0.25}
-                value={Number(effect.start.toFixed(2))}
-                title="Start (s)"
-                onChange={(e) =>
-                  patchLightingEffect(effect.id, { start: Math.max(0, Number(e.target.value)) })
-                }
-                className="studio-input w-14 text-right font-mono"
-              />
-              <input
-                type="number"
-                step={0.25}
-                min={0.05}
-                value={Number(effect.duration.toFixed(2))}
-                title="Duration (s)"
-                onChange={(e) =>
-                  patchLightingEffect(effect.id, {
-                    duration: Math.max(0.05, Number(e.target.value)),
-                  })
-                }
-                className="studio-input w-14 text-right font-mono"
-              />
               <button
                 type="button"
                 title="Move up"
@@ -327,7 +312,17 @@ export default function EffectStackPanel() {
               </button>
               <button
                 type="button"
+                title="Duplicate"
+                data-testid={`effect-stack-duplicate-${effect.id}`}
+                onClick={() => duplicateLightingEffect(effect.id)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Copy className="size-3" />
+              </button>
+              <button
+                type="button"
                 title="Delete"
+                data-testid={`effect-stack-delete-${effect.id}`}
                 onClick={() => removeLightingEffect(effect.id)}
                 className="text-muted-foreground hover:text-destructive"
               >
@@ -336,38 +331,213 @@ export default function EffectStackPanel() {
             </li>
           ))}
         </ul>
+
+        {/* -------------------------------------------------------- inspector */}
+        {selected && (
+          <div
+            className="space-y-1 rounded border border-accent/40 bg-surface-sunken px-1.5 py-1"
+            data-testid="effect-inspector"
+            data-effect={selected.id}
+            data-type={selected.type}
+          >
+            <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+              {effectPresetLabel(selected)}
+            </p>
+            <div className="grid grid-cols-2 gap-1">
+              <label className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                <span>Start</span>
+                <input
+                  type="number"
+                  step={0.25}
+                  data-testid="effect-inspector-start"
+                  value={Number(selected.start.toFixed(2))}
+                  onChange={(e) =>
+                    patchLightingEffect(selected.id, {
+                      start: Math.max(0, Number(e.target.value)),
+                    })
+                  }
+                  className="studio-input w-14 text-right font-mono"
+                />
+              </label>
+              <label className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                <span>Length</span>
+                <input
+                  type="number"
+                  step={0.25}
+                  min={0.05}
+                  data-testid="effect-inspector-duration"
+                  value={Number(selected.duration.toFixed(2))}
+                  onChange={(e) =>
+                    patchLightingEffect(selected.id, {
+                      duration: Math.max(0.05, Number(e.target.value)),
+                    })
+                  }
+                  className="studio-input w-14 text-right font-mono"
+                />
+              </label>
+              {has("intensity") && (
+                <label className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                  <span>Intensity</span>
+                  <input
+                    type="number"
+                    step={0.05}
+                    min={0}
+                    max={1}
+                    data-testid="effect-inspector-intensity"
+                    value={selected.parameters.intensity ?? 1}
+                    onChange={(e) =>
+                      patchLightingParameters(selected.id, {
+                        intensity: Math.max(0, Math.min(1, Number(e.target.value))),
+                      })
+                    }
+                    className="studio-input w-14 text-right font-mono"
+                  />
+                </label>
+              )}
+              {has("speed") && (
+                <label className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                  <span>Cycles</span>
+                  <input
+                    type="number"
+                    step={1}
+                    min={1}
+                    data-testid="effect-inspector-speed"
+                    value={pulseCycles(selected)}
+                    onChange={(e) =>
+                      patchLightingParameters(selected.id, {
+                        cycles: Math.max(1, Math.round(Number(e.target.value))),
+                      })
+                    }
+                    className="studio-input w-14 text-right font-mono"
+                  />
+                </label>
+              )}
+              {has("axis") && (
+                <label className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                  <span>Axis</span>
+                  <select
+                    data-testid="effect-inspector-axis"
+                    value={directionAxis(selected.parameters.direction)}
+                    onChange={(e) =>
+                      patchLightingParameters(selected.id, {
+                        direction: axisDirection(e.target.value as EffectAxis),
+                      })
+                    }
+                    className="studio-input w-14 font-mono"
+                  >
+                    <option value="X">X</option>
+                    <option value="Y">Y</option>
+                    <option value="Z">Z</option>
+                  </select>
+                </label>
+              )}
+              {has("easing") && (
+                <label className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                  <span>Easing</span>
+                  <select
+                    data-testid="effect-inspector-easing"
+                    value={selected.parameters.easing ?? "SMOOTH"}
+                    onChange={(e) =>
+                      patchLightingParameters(selected.id, {
+                        easing: e.target.value as LightingEasing,
+                      })
+                    }
+                    className="studio-input w-20 font-mono"
+                  >
+                    {LIGHTING_EASINGS.map((easing) => (
+                      <option key={easing} value={easing}>
+                        {easing}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {has("primaryColor") && (
+                <label className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                  <span>Colour</span>
+                  <input
+                    type="color"
+                    data-testid="effect-inspector-primary-color"
+                    aria-label="Effect colour"
+                    value={toHex(
+                      selected.parameters.toColor ??
+                        selected.parameters.color ??
+                        selected.parameters.stops?.[0]?.color ?? [255, 255, 255],
+                    )}
+                    onChange={(e) => {
+                      const next = fromHex(e.target.value);
+                      if (selected.type === "COLOR_SWEEP") {
+                        const stops = selected.parameters.stops ?? [];
+                        patchLightingParameters(selected.id, {
+                          stops: [{ position: 0, color: next }, ...stops.slice(1)],
+                        });
+                      } else if (selected.type === "COLOR_TRANSITION") {
+                        patchLightingParameters(selected.id, { toColor: next });
+                      } else {
+                        patchLightingParameters(selected.id, { color: next });
+                      }
+                    }}
+                    className="h-6 w-14 cursor-pointer rounded border border-border bg-transparent"
+                  />
+                </label>
+              )}
+              {has("secondaryColor") && (
+                <label className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                  <span>Colour 2</span>
+                  <input
+                    type="color"
+                    data-testid="effect-inspector-secondary-color"
+                    aria-label="Secondary effect colour"
+                    value={toHex(
+                      selected.type === "COLOR_TRANSITION"
+                        ? (selected.parameters.fromColor ?? [255, 255, 255])
+                        : (selected.parameters.stops?.at(-1)?.color ?? [255, 255, 255]),
+                    )}
+                    onChange={(e) => {
+                      const next = fromHex(e.target.value);
+                      if (selected.type === "COLOR_TRANSITION") {
+                        patchLightingParameters(selected.id, { fromColor: next });
+                      } else {
+                        const stops = selected.parameters.stops ?? [];
+                        patchLightingParameters(selected.id, {
+                          stops: [
+                            ...stops.slice(0, Math.max(1, stops.length - 1)),
+                            { position: 1, color: next },
+                          ],
+                        });
+                      }
+                    }}
+                    className="h-6 w-14 cursor-pointer rounded border border-border bg-transparent"
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* -------------------------------------------------------------- motion */}
       <div className="mt-2 space-y-1.5 border-t border-border pt-2">
         <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
           Motion
         </p>
-        <p className="font-mono text-[9px] leading-relaxed text-muted-foreground">
-          Applied to the selected object(s), or only the selected drone points.
-        </p>
-
-        {selectedSceneObjectIds.length > 0 ? (
-          <div className="flex flex-wrap gap-1" data-testid="motion-stack-presets">
-            {DYNAMIC_PRESETS.map((preset) => (
-              <Button
-                key={preset.id}
-                type="button"
-                size="sm"
-                variant="outline"
-                title={preset.description}
-                data-testid={`motion-stack-add-${preset.id}`}
-                className="h-6 px-1.5 font-mono text-[9px] uppercase tracking-[0.14em]"
-                onClick={() => addMotion(preset.id)}
-              >
-                {preset.label}
-              </Button>
-            ))}
-          </div>
-        ) : (
-          <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
-            Select an object or drone points to add motion.
-          </p>
-        )}
+        <div className="flex flex-wrap gap-1" data-testid="motion-stack-presets">
+          {MOTION_SELECTION_PRESETS.map((preset) => (
+            <Button
+              key={preset.id}
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!canApply}
+              title={preset.description}
+              data-testid={`motion-stack-add-${preset.id}`}
+              className="h-6 px-1.5 font-mono text-[9px] uppercase tracking-[0.14em]"
+              onClick={() => applyMotion(preset.id)}
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </div>
       </div>
     </section>
   );

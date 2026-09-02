@@ -18,6 +18,8 @@ import { useI18n } from "@/i18n";
 import { emittedColor } from "@/lib/show/lighting";
 import type { LightingAnchor } from "@/lib/show/lighting";
 import { rgbToHex } from "@/lib/show/lights";
+import { effectPresetLabel } from "@/lib/studio/selectionEffects";
+
 import { markerTimes } from "@/lib/show/markers";
 import { useStudio } from "@/lib/studio/store";
 import type { TimelineClip } from "@/lib/show/types";
@@ -367,7 +369,12 @@ export default function LightingTrack({
               >
                 <span className="pointer-events-none absolute inset-0 flex items-center gap-1 overflow-hidden px-1 text-foreground">
                   <ColorSwatch color={block.color} />
-                  {block.density !== "COMPACT" && <span className="truncate">{block.glyph}</span>}
+                  {block.density !== "COMPACT" && (
+                    <span className="truncate" data-testid={`lighting-block-label-${block.id}`}>
+                      {effectPresetLabel(effect)}
+                    </span>
+                  )}
+
                   {block.density === "RICH" && (
                     <span className="truncate text-[9px] text-muted-foreground">
                       {block.target.badge}
