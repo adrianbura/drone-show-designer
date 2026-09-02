@@ -426,6 +426,17 @@ export default function SceneComposerPanel() {
 
       <AddVisualWizard clipId={clipId} fleet={project.droneCount} used={used} />
 
+      {primaryId ? (
+        <p
+          className="mt-2 rounded border border-border/70 bg-surface-sunken p-1.5 font-mono text-[10px] leading-relaxed text-muted-foreground"
+          data-testid="composer-post-create-guidance"
+          data-object={primaryId}
+        >
+          This visual is selected — add Lighting effects, Motion effects or per-selection effects
+          from Selection Effects below.
+        </p>
+      ) : null}
+
       {selectedSceneObjectIds.length > 1 && (
         <div
           className="mt-2 space-y-1.5 border-t border-border pt-2"
