@@ -556,6 +556,23 @@ interface StudioContextValue {
   selectScenePointGroup: (groupId: string) => void;
   /** Promotes and animates the current object/point selection in one undo revision. */
   applyMotionPresetToSceneSelection: (preset: DynamicPresetId) => readonly string[];
+  /** EVERYDAY MOTION INSPECTOR: per-instance playback (one revision, one undo). */
+  patchSceneObjectAnimation: (
+    clipId: string,
+    objectId: string,
+    patch: SceneObjectAnimation,
+  ) => void;
+  /** Canonical dynamic-asset edit committed through the TIMELINE history. */
+  patchSceneMotion: (dynamicFormationId: string, patch: Partial<DynamicFormation>) => void;
+  patchSceneMotionGroup: (
+    dynamicFormationId: string,
+    groupId: string,
+    patch: Partial<MotionGroup>,
+  ) => void;
+  /** Independent copy of the object's motion asset. Returns the new asset id. */
+  duplicateSceneObjectMotion: (clipId: string, objectId: string) => string | null;
+  /** Detaches motion from ONE object, restoring its static source when valid. */
+  removeSceneObjectMotion: (clipId: string, objectId: string) => void;
 
   // ---- Batch scene gestures (ONE mutation, ONE undo entry) ----------------
   transformSceneObjects: (clipId: string, objectIds: readonly string[], delta: SceneGroupDelta) => void;
