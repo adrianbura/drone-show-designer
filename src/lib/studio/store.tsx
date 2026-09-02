@@ -625,6 +625,7 @@ interface StudioContextValue {
       readonly params?: Record<string, number | string>;
       readonly position?: Vector3Tuple;
       readonly color?: RGB;
+      readonly mirrorX?: boolean;
     },
   ) => string | null;
   /**
@@ -639,6 +640,7 @@ interface StudioContextValue {
       readonly name: string;
       readonly position?: Vector3Tuple;
       readonly color?: RGB;
+      readonly mirrorX?: boolean;
     },
   ) => string | null;
   patchSceneObject: (
@@ -2667,6 +2669,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         readonly params?: Record<string, number | string>;
         readonly position?: Vector3Tuple;
         readonly color?: RGB;
+        readonly mirrorX?: boolean;
       },
     ): string | null => {
       const droneCount = Math.max(1, Math.round(input.droneCount));
@@ -2691,9 +2694,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           ...(input.position ? { position: input.position } : {}),
         });
         createdId = added.objectId;
-        const scene = input.color
-          ? patchObject(added.scene, added.objectId, { lighting: { color: input.color } })
-          : added.scene;
+        let scene = input.mirrorX ? mirrorObjectX(added.scene, added.objectId) : added.scene;
+        if (input.color) {
+          scene = patchObject(scene, added.objectId, { lighting: { color: input.color } });
+        }
         pushSnapshot(p);
         return upsertScene(withAsset, scene);
       });
@@ -2718,6 +2722,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         readonly name: string;
         readonly position?: Vector3Tuple;
         readonly color?: RGB;
+        readonly mirrorX?: boolean;
       },
     ): string | null => {
       let built: ReturnType<typeof makeTextFormation>;
@@ -2743,9 +2748,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           ...(input.position ? { position: input.position } : {}),
         });
         createdId = added.objectId;
-        const scene = input.color
-          ? patchObject(added.scene, added.objectId, { lighting: { color: input.color } })
-          : added.scene;
+        let scene = input.mirrorX ? mirrorObjectX(added.scene, added.objectId) : added.scene;
+        if (input.color) {
+          scene = patchObject(scene, added.objectId, { lighting: { color: input.color } });
+        }
         pushSnapshot(p);
         return upsertScene(withAsset, scene);
       });
