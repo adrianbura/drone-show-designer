@@ -79,7 +79,10 @@ export default function MotionInspector() {
 
   if (!state) {
     return (
-      <p className="font-mono text-[9px] text-muted-foreground" data-testid="motion-inspector-empty">
+      <p
+        className="font-mono text-[9px] text-muted-foreground"
+        data-testid="motion-inspector-empty"
+      >
         Select a moving visual to adjust its motion.
       </p>
     );
@@ -100,7 +103,10 @@ export default function MotionInspector() {
       data-status={status}
     >
       <div className="flex items-center justify-between gap-2">
-        <p className="truncate font-mono text-[10px] text-foreground" data-testid="motion-inspector-name">
+        <p
+          className="truncate font-mono text-[10px] text-foreground"
+          data-testid="motion-inspector-name"
+        >
           {state.objectName}
         </p>
         <span
@@ -116,7 +122,10 @@ export default function MotionInspector() {
 
       <Row label="Motion" value={state.motionLabel} />
       <Row label="Drones" value={String(state.droneCount)} />
-      <Row label="Scope" value={state.scope === "DRONES" ? "Selected drone group" : "Whole object"} />
+      <Row
+        label="Scope"
+        value={state.scope === "DRONES" ? "Selected drone group" : "Whole object"}
+      />
       <Row label="Shared by" value={`${state.sharedBy} object${state.sharedBy === 1 ? "" : "s"}`} />
 
       <label className="flex items-center justify-between gap-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -158,7 +167,9 @@ export default function MotionInspector() {
           data-testid="motion-inspector-loop"
           aria-label="Loop mode"
           value={state.loop}
-          onChange={(event) => patchSceneMotion(state.dynamic.id, { loop: event.target.value as LoopMode })}
+          onChange={(event) =>
+            patchSceneMotion(state.dynamic.id, { loop: event.target.value as LoopMode })
+          }
           className="h-6 rounded border border-border bg-transparent px-1 font-mono text-[10px]"
         >
           {LOOPS.map((loop) => (
