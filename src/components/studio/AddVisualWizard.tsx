@@ -174,10 +174,7 @@ export default function AddVisualWizard({
   );
 
   const svgFacts = useMemo(
-    () =>
-      svgDraft
-        ? describeSvgGeometry(svgDraft.asset.fileName, svgDraft.asset.geometry)
-        : null,
+    () => (svgDraft ? describeSvgGeometry(svgDraft.asset.fileName, svgDraft.asset.geometry) : null),
     [svgDraft],
   );
   const spacing = useMemo(
@@ -407,7 +404,7 @@ export default function AddVisualWizard({
             />
           </div>
 
-          {fileError ?? svgError ? (
+          {(fileError ?? svgError) ? (
             <p
               className="flex gap-1 rounded bg-destructive/15 p-1.5 font-mono text-[10px] text-destructive"
               data-testid="wizard-svg-error"
@@ -419,16 +416,26 @@ export default function AddVisualWizard({
 
           {svgFacts ? (
             <>
-              <p className="truncate font-mono text-[10px] text-foreground" data-testid="wizard-svg-filename">
+              <p
+                className="truncate font-mono text-[10px] text-foreground"
+                data-testid="wizard-svg-filename"
+              >
                 {svgFacts.fileName}
               </p>
-              <p className="font-mono text-[10px] text-muted-foreground" data-testid="wizard-svg-bounds">
+              <p
+                className="font-mono text-[10px] text-muted-foreground"
+                data-testid="wizard-svg-bounds"
+              >
                 {svgFacts.widthUnits.toFixed(0)} × {svgFacts.heightUnits.toFixed(0)} units ·{" "}
                 {svgFacts.aspectLabel} · {svgFacts.contours} contours
               </p>
               {spacing ? (
-                <p className="font-mono text-[10px] text-muted-foreground" data-testid="wizard-svg-spacing">
-                  spacing ≈ {spacing.avgSpacing.toFixed(2)} m (min {spacing.minSpacing.toFixed(2)} m)
+                <p
+                  className="font-mono text-[10px] text-muted-foreground"
+                  data-testid="wizard-svg-spacing"
+                >
+                  spacing ≈ {spacing.avgSpacing.toFixed(2)} m (min {spacing.minSpacing.toFixed(2)}{" "}
+                  m)
                 </p>
               ) : null}
               <NumberField
@@ -576,9 +583,27 @@ export default function AddVisualWizard({
             />
           </div>
           <div className="grid grid-cols-3 gap-1">
-            <NumberField label="X" value={textX} step={0.5} testId="wizard-text-x" onChange={setTextX} />
-            <NumberField label="Y" value={textY} step={0.5} testId="wizard-text-y" onChange={setTextY} />
-            <NumberField label="Z" value={textZ} step={0.5} testId="wizard-text-z" onChange={setTextZ} />
+            <NumberField
+              label="X"
+              value={textX}
+              step={0.5}
+              testId="wizard-text-x"
+              onChange={setTextX}
+            />
+            <NumberField
+              label="Y"
+              value={textY}
+              step={0.5}
+              testId="wizard-text-y"
+              onChange={setTextY}
+            />
+            <NumberField
+              label="Z"
+              value={textZ}
+              step={0.5}
+              testId="wizard-text-z"
+              onChange={setTextZ}
+            />
           </div>
           <p
             className={`font-mono text-[10px] ${textPreview.ok ? "text-muted-foreground" : "text-destructive"}`}
@@ -607,7 +632,13 @@ export default function AddVisualWizard({
             testId="line-length"
             onChange={setLineLength}
           />
-          <NumberField label="Rows" value={lineRows} step={1} testId="line-rows" onChange={setLineRows} />
+          <NumberField
+            label="Rows"
+            value={lineRows}
+            step={1}
+            testId="line-rows"
+            onChange={setLineRows}
+          />
           <div className="grid grid-cols-3 gap-1">
             <NumberField label="X" value={lineX} step={0.5} testId="line-x" onChange={setLineX} />
             <NumberField label="Y" value={lineY} step={0.5} testId="line-y" onChange={setLineY} />
@@ -653,12 +684,18 @@ export default function AddVisualWizard({
 
       {mode !== null && mode !== "AI" ? (
         <div className="space-y-1.5 border-t border-border pt-1.5">
-          <p className="font-mono text-[10px] text-muted-foreground" data-testid="wizard-allocation">
+          <p
+            className="font-mono text-[10px] text-muted-foreground"
+            data-testid="wizard-allocation"
+          >
             fleet {allocation.fleet} · used {allocation.used} · reserve {allocation.reserve} ·
             requested {allocation.requested}
           </p>
           {allocation.message ? (
-            <p className="font-mono text-[10px] text-destructive" data-testid="wizard-allocation-warning">
+            <p
+              className="font-mono text-[10px] text-destructive"
+              data-testid="wizard-allocation-warning"
+            >
               {allocation.message}
             </p>
           ) : null}
