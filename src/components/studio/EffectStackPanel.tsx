@@ -17,6 +17,7 @@
 import { ArrowDown, ArrowUp, Copy, Sparkles, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import MotionInspector from "@/components/studio/MotionInspector";
 import { Button } from "@/components/ui/button";
 import { reorderEffect, stackOrder } from "@/lib/studio/effectStack";
 import {
@@ -538,6 +539,7 @@ export default function EffectStackPanel() {
             </Button>
           ))}
         </div>
+        <MotionInspector />
       </div>
     </section>
   );
