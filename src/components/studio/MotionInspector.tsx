@@ -70,11 +70,11 @@ export default function MotionInspector() {
     () =>
       state
         ? validateDynamicFormation(state.dynamic, {
-            limits: project.safetyLimits,
+            limits: project.limits,
             area: project.area,
           })
         : null,
-    [project.area, project.safetyLimits, state],
+    [project.area, project.limits, state],
   );
 
   if (!state) {
