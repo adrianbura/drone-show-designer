@@ -796,7 +796,10 @@ export default function AddVisualWizard({
             <Sparkles className="size-3" /> {aiBusy ? "Generating…" : "Generate preview"}
           </button>
           {aiBusy ? (
-            <p className="font-mono text-[10px] text-muted-foreground" data-testid="wizard-ai-loading">
+            <p
+              className="font-mono text-[10px] text-muted-foreground"
+              data-testid="wizard-ai-loading"
+            >
               Generating an artistic proposal… nothing is added to the show yet.
             </p>
           ) : null}
@@ -823,7 +826,10 @@ export default function AddVisualWizard({
             </p>
           ) : null}
           {aiProposal ? (
-            <div className="space-y-1 rounded border border-border p-1.5" data-testid="wizard-ai-proposal">
+            <div
+              className="space-y-1 rounded border border-border p-1.5"
+              data-testid="wizard-ai-proposal"
+            >
               <p className="text-xs font-medium text-foreground">{aiProposal.title}</p>
               <p className="font-mono text-[10px] text-muted-foreground">
                 {aiProposal.description}
@@ -890,9 +896,27 @@ export default function AddVisualWizard({
           {advanced ? (
             <div className="space-y-1.5" data-testid="wizard-ai-placement">
               <div className="grid grid-cols-3 gap-1">
-                <NumberField label="X" value={aiX} step={0.5} testId="wizard-ai-x" onChange={setAiX} />
-                <NumberField label="Y" value={aiY} step={0.5} testId="wizard-ai-y" onChange={setAiY} />
-                <NumberField label="Z" value={aiZ} step={0.5} testId="wizard-ai-z" onChange={setAiZ} />
+                <NumberField
+                  label="X"
+                  value={aiX}
+                  step={0.5}
+                  testId="wizard-ai-x"
+                  onChange={setAiX}
+                />
+                <NumberField
+                  label="Y"
+                  value={aiY}
+                  step={0.5}
+                  testId="wizard-ai-y"
+                  onChange={setAiY}
+                />
+                <NumberField
+                  label="Z"
+                  value={aiZ}
+                  step={0.5}
+                  testId="wizard-ai-z"
+                  onChange={setAiZ}
+                />
               </div>
               <NumberField
                 label="Rotation"
@@ -906,10 +930,12 @@ export default function AddVisualWizard({
         </div>
       ) : null}
 
-
       {mode !== null ? (
         <div className="space-y-1.5 border-t border-border pt-1.5">
-          <div className="space-y-1 rounded border border-border/70 p-1.5" data-testid="wizard-allocation-panel">
+          <div
+            className="space-y-1 rounded border border-border/70 p-1.5"
+            data-testid="wizard-allocation-panel"
+          >
             <p
               className="font-mono text-[10px] text-muted-foreground"
               data-testid="wizard-allocation"
