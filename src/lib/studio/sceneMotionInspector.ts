@@ -105,10 +105,7 @@ export function dynamicUsageCount(scene: FormationScene, dynamicFormationId: str
   ).length;
 }
 
-function objectDroneCount(
-  object: SceneFormationInstance,
-  dynamic: DynamicFormation,
-): number {
+function objectDroneCount(object: SceneFormationInstance, dynamic: DynamicFormation): number {
   const requested = object.requestedDroneCount;
   if (requested && requested > 0) return Math.min(requested, dynamic.points.length);
   return dynamic.points.length;
@@ -176,9 +173,7 @@ export function removeObjectMotion(
   const object = scene.objects.find((candidate) => candidate.id === objectId);
   if (!object || object.source.kind !== "DYNAMIC") return project;
   const dynamicId = object.source.dynamicFormationId;
-  const dynamic = (project.dynamicFormations ?? []).find(
-    (candidate) => candidate.id === dynamicId,
-  );
+  const dynamic = (project.dynamicFormations ?? []).find((candidate) => candidate.id === dynamicId);
   const sourceId = dynamic?.sourceFormationId;
   if (!sourceId || !project.formations.some((formation) => formation.id === sourceId)) {
     return project;
