@@ -2772,6 +2772,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         target?: "SCENE" | "NEW_CLIP" | "ASSET_ONLY";
         clipId?: string;
         droneCount?: number | null;
+        /** SCENE target only: initial mirror of the placed instance. */
+        mirrorX?: boolean;
+        /** SCENE target only: base colour of the placed instance. */
+        color?: RGB;
       } = {},
     ) => {
       if (!svgDraft?.result) return null;
