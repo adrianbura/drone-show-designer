@@ -15,6 +15,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildEsspExportPackage } from "@/lib/adapters/esspExport";
+import { buildProposalContent, mockChoreographyProvider } from "@/lib/ai";
 import { forcedReady, planFor } from "./support/productionFixtures";
 import { evaluateExportEligibility } from "@/lib/adapters/exportEligibility";
 import {
@@ -152,6 +153,112 @@ function waveOnObject(project: ShowProject, scene: FormationScene, objectId: str
 }
 
 describe("scene composer acceptance — 150 drones", () => {
+  it("composes AI + SVG + two lines, preserves effects, reopens, validates and exports", async () => {
+    const composed = composedProject(80);
+    const proposal = await mockChoreographyProvider.generateProposal({
+      prompt: "A butterfly gently flapping its wings",
+      fleetCount: FLEET,
+      area: composed.project.area,
+      seed: composed.project.seed,
+    });
+    const built = buildProposalContent(proposal, {
+      area: composed.project.area,
+      seed: composed.project.seed,
+    });
+    expect(built.dynamicFormation).not.toBeNull();
+    const aiFormation = { ...built.formation, id: "f-ai-butterfly" };
+    const aiDynamic = {
+      ...built.dynamicFormation!,
+      id: "d-ai-butterfly",
+      sourceFormationId: aiFormation.id,
+    };
+    let project: ShowProject = {
+      ...composed.project,
+      formations: [...composed.project.formations, aiFormation],
+      dynamicFormations: [aiDynamic],
+    };
+    const added = addObject(project, composed.scene, {
+      source: { kind: "DYNAMIC", dynamicFormationId: aiDynamic.id },
+      name: proposal.title,
+      requestedDroneCount: 30,
+      position: [0, 75, 0],
+    });
+    const aiId = added.objectId;
+    const scene = patchObject(added.scene, aiId, {
+      lighting: { color: [255, 210, 80] },
+      animation: { playbackRate: 0.8, phaseCycles: 0.1 },
+    });
+    const sparkleSelection = lightingSelectionPreset("SPARKLE");
+    const sparkle = createEffectFromPreset(
+      findLightingPreset(sparkleSelection.canonicalPresetId)!,
+      { kind: "SCENE_OBJECT", clipId: "c-scene", instanceId: aiId },
+      {
+        anchor: "SCENE_START",
+        start: 1,
+        priority: 10,
+        idSeed: 900,
+        parameters: lightingPresetParameters("SPARKLE", {
+          primary: [255, 210, 80],
+          secondary: [255, 255, 255],
+          axis: "Y",
+        }),
+      },
+    );
+    project = upsertScene(
+      {
+        ...project,
+        lighting: { schemaVersion: EMPTY_LIGHTING_PROGRAM.schemaVersion, effects: [sparkle] },
+      },
+      scene,
+    );
+
+    const budget = sceneBudget(project, scene, FLEET);
+    expect(budget.objects.map((object) => object.count)).toEqual([80, 20, 20, 30]);
+    expect(budget.active).toBe(FLEET);
+    expect(budget.availableDrones).toBe(0);
+    expect(scene.objects.slice(0, 3).map((object) => object.source.kind)).toEqual([
+      "STATIC",
+      "STATIC",
+      "STATIC",
+    ]);
+    expect(scene.objects[3]!.source.kind).toBe("DYNAMIC");
+
+    const json = projectFileToJson(
+      serializeProject(project, {
+        planning: defaultPlanningState(),
+        referenceLayer: null,
+        savedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    );
+    const reopened = parseProjectFile(json).project;
+    const reopenedScene = reopened.scenes!.find((candidate) => candidate.id === "c-scene")!;
+    expect(reopenedScene.objects).toHaveLength(4);
+    expect(reopenedScene.objects[3]!.requestedDroneCount).toBe(30);
+    expect(reopenedScene.objects[3]!.animation).toEqual({ playbackRate: 0.8, phaseCycles: 0.1 });
+    expect(reopened.dynamicFormations?.map((dynamic) => dynamic.id)).toContain(aiDynamic.id);
+    expect(reopened.lighting?.effects[0]!.target).toEqual({
+      kind: "SCENE_OBJECT",
+      clipId: "c-scene",
+      instanceId: aiId,
+    });
+
+    const { report } = analyzeFullShow(reopened, {
+      sampleRate: 8,
+      assignmentStrategy: "nearestNeighbor",
+    });
+    expect(report.droneCount).toBe(FLEET);
+    expect(evaluateExportEligibility(report, false).canExportProjectFile).toBe(true);
+    const exported = buildEsspExportPackage({
+      project: reopened,
+      plan: planFor(reopened),
+      fullShow: forcedReady(report),
+      fullShowStale: false,
+      generatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    expect(exported.blockers).toEqual([]);
+    expect(exported.zip).not.toBeNull();
+  }, 30_000);
+
   it("composes SVG text 110 + two 20-drone lines to exactly 150 active drones", () => {
     const { project, scene } = composedProject(TEXT_DRONES);
     const budget = sceneBudget(project, scene, project.droneCount);
