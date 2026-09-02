@@ -196,6 +196,7 @@ import {
   type SvgFormationParams,
   type SvgFormationResult,
 } from "../show/svg";
+import { makeTextFormation, type TextGeometryRecipe } from "../show/text";
 import {
   analyzePreShow,
   compareGroupOrders,
