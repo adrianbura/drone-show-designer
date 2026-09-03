@@ -35,6 +35,11 @@ describe("prompt understanding", () => {
     expect(intent.forward).toBe(30);
   });
 
+  it("recognises a female 3D profile in Romanian and English", () => {
+    expect(parsePrompt("o siluetă 3D de fată văzută din profil").concept).toBe("WOMAN_PROFILE");
+    expect(parsePrompt("an elegant 3D woman profile with long hair").concept).toBe("WOMAN_PROFILE");
+  });
+
   it("understands refinement wording in both languages", () => {
     expect(parsePrompt("make the flapping slower").speedScale).toBeGreaterThan(1);
     expect(parsePrompt("mai lent, te rog").speedScale).toBeGreaterThan(1);
@@ -93,7 +98,9 @@ describe("mock provider", () => {
   });
 
   it("rejects an empty prompt", async () => {
-    await expect(mockChoreographyProvider.generateProposal({ prompt: "  ", fleetCount: 50 })).rejects.toThrow();
+    await expect(
+      mockChoreographyProvider.generateProposal({ prompt: "  ", fleetCount: 50 }),
+    ).rejects.toThrow();
   });
 });
 
@@ -166,6 +173,36 @@ describe("deterministic builder", () => {
     const at0 = sampleDynamicFormation(dynamic, 0)[index]!;
     const atQuarter = sampleDynamicFormation(dynamic, quarter)[index]!;
     expect(Math.abs(atQuarter[1] - at0[1])).toBeGreaterThan(0.5);
+  });
+
+  it("builds a readable layered woman profile and animates only the hair", async () => {
+    const proposal = await mockChoreographyProvider.generateProposal({
+      prompt: "Creează o siluetă 3D de fată din profil, cu păr lung și mișcare lentă",
+      fleetCount: 120,
+      area: AREA,
+    });
+    expect(proposal.concept).toBe("WOMAN_PROFILE");
+    expect(validateProposal(proposal, 120).valid).toBe(true);
+    const built = buildProposalContent(proposal, { area: AREA, seed: 11 });
+    expect(built.formation.points).toHaveLength(120);
+    expect(built.parts).toEqual(["HAIR"]);
+    const xs = built.formation.points.map((point) => point[0]);
+    const ys = built.formation.points.map((point) => point[1]);
+    const zs = built.formation.points.map((point) => point[2]);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(proposal.formationSpec.width * 0.6);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(proposal.formationSpec.height * 0.8);
+    expect(Math.max(...zs) - Math.min(...zs)).toBeGreaterThan(proposal.formationSpec.depth * 0.25);
+
+    const dynamic = built.dynamicFormation!;
+    const hair = dynamic.groups.find((group) => group.name === "Hair")!;
+    expect(hair.pointIds.length).toBeGreaterThan(40);
+    expect(hair.keyframes.at(-1)!.rotation).toEqual([0, 0, 0]);
+    const hairIndex = dynamic.points.findIndex((point) => point.id === hair.pointIds[10]);
+    const faceIndex = dynamic.points.findIndex((point) => !hair.pointIds.includes(point.id));
+    const at0 = sampleDynamicFormation(dynamic, 0);
+    const atQuarter = sampleDynamicFormation(dynamic, proposal.animationSpec.cycleDuration / 4);
+    expect(atQuarter[hairIndex]).not.toEqual(at0[hairIndex]);
+    expect(atQuarter[faceIndex]).toEqual(at0[faceIndex]);
   });
 
   it("keeps a static concept static", async () => {
