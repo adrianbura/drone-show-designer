@@ -14,21 +14,30 @@
 import {
   BoxSelect,
   Brush,
-  Copy,
-  Eye,
-  EyeOff,
   LassoSelect,
   Layers,
+  Lightbulb,
   MousePointer2,
   Pencil,
-  Plus,
   Trash2,
+  Waves,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import AddVisualWizard from "@/components/studio/AddVisualWizard";
+import VisualLayerRow, { type VisualLayerView } from "@/components/studio/VisualLayerRow";
+import { inferMotionLabel } from "@/lib/studio/sceneMotionInspector";
 import { useStudio } from "@/lib/studio/store";
 import type { RGB } from "@/lib/show/types";
+
+/** Scrolls to an existing Selection Effects control and focuses it. Navigation only. */
+function focusEffectControl(testId: string) {
+  if (typeof document === "undefined") return;
+  const host = document.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
+  if (!host) return;
+  host.scrollIntoView({ block: "center" });
+  (host.querySelector("button") as HTMLElement | null)?.focus();
+}
 
 const toHex = (rgb: RGB): string =>
   `#${rgb
@@ -100,11 +109,81 @@ export default function SceneComposerPanel() {
     renameScenePointGroup,
     removeScenePointGroupById,
     selectScenePointGroup,
+    lightingEffects,
   } = useStudio();
   const [groupName, setGroupName] = useState("Group");
   const [renamingGroupId, setRenamingGroupId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [confirmDeleteGroupId, setConfirmDeleteGroupId] = useState<string | null>(null);
+  const [renamingLayerId, setRenamingLayerId] = useState<string | null>(null);
+  const [layerNameDraft, setLayerNameDraft] = useState("");
+
+  /**
+   * Derived layer rows. Pure projection of canonical state: no planner, no
+   * assignment, no safety and no validation engine is invoked while rendering.
+   */
+  const layers = useMemo<readonly VisualLayerView[]>(() => {
+    if (!selectedScene) return [];
+    const budget = selectedSceneBudget;
+    const overCapacity = budget?.overCapacity ?? false;
+    return selectedScene.objects.map((object) => {
+      const source = object.source;
+      const dynamic =
+        source.kind === "DYNAMIC"
+          ? project.dynamicFormations?.find((d) => d.id === source.dynamicFormationId)
+          : undefined;
+      const staticFormation =
+        source.kind === "STATIC"
+          ? project.formations.find((f) => f.id === source.formationId)
+          : project.formations.find((f) => f.id === dynamic?.sourceFormationId);
+      const sourceMissing = source.kind === "DYNAMIC" ? !dynamic : !staticFormation;
+      const kind = staticFormation?.kind;
+      const typeLabel =
+        kind === "svg"
+          ? "SVG"
+          : kind === "text"
+            ? "Text"
+            : kind === "line"
+              ? "Line"
+              : object.assetId
+                ? "Asset"
+                : kind === "custom"
+                  ? "AI"
+                  : (kind ?? "Asset").toUpperCase();
+      const droneCount = budget?.objects.find((o) => o.instanceId === object.id)?.count ?? 0;
+      const lightingCount = lightingEffects.filter(
+        (effect) => "instanceId" in effect.target && effect.target.instanceId === object.id,
+      ).length;
+      const motionAuthored = dynamic
+        ? dynamic.groups.length > 0 || dynamic.transform.length > 1
+        : false;
+      const motionStatus = !dynamic
+        ? "No motion"
+        : motionAuthored
+          ? inferMotionLabel(dynamic)
+          : "Motion not authored";
+      const warning = sourceMissing
+        ? "Missing source asset — this visual cannot fly."
+        : droneCount === 0
+          ? "No drones allocated to this visual."
+          : dynamic && !motionAuthored
+            ? "Animated visual without authored motion."
+            : overCapacity
+              ? "Scene needs more drones than the fleet has."
+              : null;
+      return {
+        id: object.id,
+        name: object.name,
+        typeLabel,
+        droneCount,
+        visible: object.visible !== false,
+        animated: object.source.kind === "DYNAMIC",
+        lightingCount,
+        motionStatus,
+        warning,
+      };
+    });
+  }, [selectedScene, selectedSceneBudget, project.formations, project.dynamicFormations, lightingEffects]);
 
   if (!selectedClipId || !selectedScene) {
     return (
@@ -135,6 +214,53 @@ export default function SceneComposerPanel() {
       <p className="font-mono text-[10px] text-muted-foreground" data-testid="composer-budget">
         {used} of {project.droneCount} drones used · {reserve} reserve
       </p>
+
+      <div
+        className="mt-1 rounded border border-border bg-surface-sunken p-2"
+        data-testid="reserve-summary"
+        data-reserve={reserve}
+      >
+        <p className="font-mono text-[10px] text-muted-foreground">
+          Fleet {project.droneCount} · used {used} · reserve {reserve}
+        </p>
+        <p className="mt-0.5 font-mono text-[10px] leading-relaxed text-muted-foreground">
+          {reserve === 0
+            ? "No reserve drones left. Reduce a visual's drone count to free drones for another visual — nothing is redistributed automatically."
+            : "Reducing one visual's drone count releases those drones for another visual. Allocations never change on their own."}
+        </p>
+      </div>
+
+      {primary ? (
+        <div
+          className="mt-2 rounded border border-accent/50 bg-accent/5 p-2"
+          data-testid="selected-object-summary"
+        >
+          <p className="font-mono text-[11px] text-foreground">
+            {primary.name} ·{" "}
+            {layers.find((layer) => layer.id === primary.id)?.typeLabel ?? "Asset"} ·{" "}
+            {layers.find((layer) => layer.id === primary.id)?.droneCount ?? 0} drones
+          </p>
+          <div className="mt-1 flex gap-1">
+            <button
+              type="button"
+              data-testid="selected-add-lighting"
+              onClick={() => focusEffectControl("effect-stack-presets")}
+              className="chip-btn flex-1 justify-center"
+            >
+              <Lightbulb className="size-3" /> Add lighting effect
+            </button>
+            <button
+              type="button"
+              data-testid="selected-add-motion"
+              onClick={() => focusEffectControl("motion-stack-presets")}
+              className="chip-btn flex-1 justify-center"
+            >
+              <Waves className="size-3" /> Add motion effect
+            </button>
+          </div>
+        </div>
+      ) : null}
+
 
       <div
         className="mt-2 grid grid-cols-2 gap-1"
@@ -367,62 +493,77 @@ export default function SceneComposerPanel() {
         </div>
       ) : null}
 
-      <ul className="mt-2 space-y-1" data-testid="composer-object-list">
-        {selectedScene.objects.map((object) => {
-          const count = budget?.objects.find((o) => o.instanceId === object.id)?.count ?? 0;
-          const active = selectedSceneObjectIds.includes(object.id);
-          const visible = object.visible !== false;
-          return (
-            <li key={object.id}>
-              <div
-                className={`flex items-center gap-1 rounded border px-1.5 py-1 ${
-                  active ? "border-accent bg-accent/10" : "border-border bg-surface-sunken"
-                }`}
-              >
-                <button
-                  type="button"
-                  data-testid={`composer-object-${object.id}`}
-                  onClick={(e) =>
-                    selectSceneObject(
-                      object.id,
-                      e.ctrlKey || e.metaKey || e.shiftKey ? "TOGGLE" : "REPLACE",
-                    )
+      <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+        Visual layers
+      </p>
+      {layers.length === 0 ? (
+        <p
+          className="font-mono text-[10px] leading-relaxed text-muted-foreground"
+          data-testid="visual-layers-empty"
+        >
+          This scene has no visual objects yet. Use “Add visual” to insert an SVG, text, line,
+          existing asset or an AI-generated visual.
+        </p>
+      ) : null}
+      <ul
+        className="mt-1 space-y-1"
+        data-testid="visual-layers"
+        data-layer-count={layers.length}
+        aria-label="Visual layers"
+      >
+        {layers.map((layer) => (
+          <li key={layer.id} data-testid={`composer-object-list-item-${layer.id}`}>
+            {renamingLayerId === layer.id ? (
+              <input
+                autoFocus
+                value={layerNameDraft}
+                aria-label={`Rename layer ${layer.name}`}
+                data-testid={`layer-rename-input-${layer.id}`}
+                onChange={(event) => setLayerNameDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    if (layerNameDraft.trim())
+                      patchSceneObject(clipId, layer.id, { name: layerNameDraft.trim() });
+                    setRenamingLayerId(null);
                   }
-                  className="min-w-0 flex-1 truncate text-left font-mono text-[10px] text-foreground"
-                >
-                  {object.name}
-                  <span className="ml-1 text-muted-foreground">· {count} drones</span>
-                </button>
-                <button
-                  type="button"
-                  title={visible ? "Hide in editor" : "Show in editor"}
-                  onClick={() => patchSceneObject(clipId, object.id, { visible: !visible })}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  {visible ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
-                </button>
-                <button
-                  type="button"
-                  title="Duplicate"
-                  onClick={() => duplicateSceneObject(clipId, object.id)}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <Copy className="size-3" />
-                </button>
-                <button
-                  type="button"
-                  title="Delete"
-                  disabled={selectedScene.objects.length <= 1}
-                  onClick={() => removeSceneObject(clipId, object.id)}
-                  className="text-muted-foreground hover:text-destructive disabled:opacity-40"
-                >
-                  <Trash2 className="size-3" />
-                </button>
-              </div>
-            </li>
-          );
-        })}
+                  if (event.key === "Escape") setRenamingLayerId(null);
+                }}
+                onBlur={() => {
+                  if (layerNameDraft.trim())
+                    patchSceneObject(clipId, layer.id, { name: layerNameDraft.trim() });
+                  setRenamingLayerId(null);
+                }}
+                className="studio-input w-full font-mono"
+              />
+            ) : (
+              <VisualLayerRow
+                layer={layer}
+                selected={selectedSceneObjectIds.includes(layer.id)}
+                canDelete={layers.length > 1}
+                onSelect={(additive) =>
+                  selectSceneObject(layer.id, additive ? "TOGGLE" : "REPLACE")
+                }
+                onToggleVisible={() =>
+                  patchSceneObject(clipId, layer.id, { visible: !layer.visible })
+                }
+                onRename={() => {
+                  setLayerNameDraft(layer.name);
+                  setRenamingLayerId(layer.id);
+                }}
+                onDuplicate={() => duplicateSceneObject(clipId, layer.id)}
+                onDelete={() => removeSceneObject(clipId, layer.id)}
+              />
+            )}
+          </li>
+        ))}
       </ul>
+      <p
+        className="font-mono text-[10px] leading-relaxed text-muted-foreground"
+        data-testid="visual-layers-reorder-note"
+      >
+        Layer order follows creation order. Reordering is not available yet.
+      </p>
+
 
       <AddVisualWizard clipId={clipId} fleet={project.droneCount} used={used} />
 
