@@ -155,7 +155,7 @@ export default function TransformInspector({
                 step={0.5}
                 testId={`transform-position-${axis}`}
                 onCommit={(next) => {
-                  const value: Vector3Tuple = [position[0], position[1], position[2]];
+                  const value: [number, number, number] = [position[0], position[1], position[2]];
                   value[i] = next;
                   onPatchPosition?.(value);
                 }}
@@ -172,7 +172,7 @@ export default function TransformInspector({
                 step={5}
                 testId={`transform-rotation-${axis}`}
                 onCommit={(next) => {
-                  const value: Vector3Tuple = [rotationDeg[0], rotationDeg[1], rotationDeg[2]];
+                  const value: [number, number, number] = [rotationDeg[0], rotationDeg[1], rotationDeg[2]];
                   value[i] = next;
                   onPatchRotation?.(value);
                 }}
@@ -213,7 +213,7 @@ export default function TransformInspector({
                 testId={`transform-group-move-${axis}`}
                 onCommit={(next) => {
                   if (!next) return;
-                  const delta: Vector3Tuple = [0, 0, 0];
+                  const delta: [number, number, number] = [0, 0, 0];
                   delta[i] = next;
                   onGroupMove?.(delta);
                 }}
@@ -231,7 +231,7 @@ export default function TransformInspector({
                 testId={`transform-group-rotate-${axis}`}
                 onCommit={(next) => {
                   if (!next) return;
-                  const delta: Vector3Tuple = [0, 0, 0];
+                  const delta: [number, number, number] = [0, 0, 0];
                   delta[i] = next;
                   onGroupRotate?.(delta);
                 }}
