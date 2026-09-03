@@ -20,6 +20,7 @@ import { generatePoints } from "../show/formations";
 import type { Formation, ShowArea, Vec3 } from "../show/types";
 import {
   buildWingedGeometry,
+  buildWomanProfileGeometry,
   ringPoints,
   rotateYaw,
   spiralPoints,
@@ -47,6 +48,9 @@ const PART_LABEL: Record<ChoreographyPart, string> = {
   RIGHT_WING: "Right wing",
   HEAD: "Head",
   TAIL: "Tail",
+  FACE: "Face profile",
+  HAIR: "Hair",
+  NECK: "Neck and shoulders",
 };
 
 const PART_COLOR: Record<ChoreographyPart, readonly [number, number, number]> = {
@@ -55,6 +59,9 @@ const PART_COLOR: Record<ChoreographyPart, readonly [number, number, number]> = 
   RIGHT_WING: [140, 255, 190],
   HEAD: [255, 240, 160],
   TAIL: [200, 150, 255],
+  FACE: [255, 190, 170],
+  HAIR: [210, 120, 255],
+  NECK: [255, 170, 190],
 };
 
 function isWinged(concept: AIChoreographyProposalV1["concept"]): boolean {
@@ -72,6 +79,15 @@ function conceptGeometry(proposal: AIChoreographyProposalV1, area: ShowArea): Co
       altitude: spec.altitude,
       broadWings: concept === "BUTTERFLY",
       includeHeadTail: concept === "BIRD",
+    });
+  }
+  if (concept === "WOMAN_PROFILE") {
+    return buildWomanProfileGeometry({
+      count: fleetCount,
+      width: spec.width,
+      height: spec.height,
+      depth: spec.depth,
+      altitude: spec.altitude,
     });
   }
   const size = spec.width;
@@ -102,7 +118,11 @@ function conceptGeometry(proposal: AIChoreographyProposalV1, area: ShowArea): Co
   return { points, parts: [] };
 }
 
-function flapKeyframes(cycle: number, amplitudeDeg: number, sign: number): GroupDeformationKeyframe[] {
+function flapKeyframes(
+  cycle: number,
+  amplitudeDeg: number,
+  sign: number,
+): GroupDeformationKeyframe[] {
   const quarter = cycle / 4;
   const amp = amplitudeDeg * sign;
   const key = (t: number, rot: number): GroupDeformationKeyframe => ({
@@ -125,7 +145,31 @@ function bodyBreathKeyframes(cycle: number, amplitudeDeg: number): GroupDeformat
     scale: 1,
     interpolation: "smooth",
   });
-  return [key(0, 0), key(cycle / 4, -lift * 0.4), key(cycle / 2, 0), key((3 * cycle) / 4, lift * 0.4), key(cycle, 0)];
+  return [
+    key(0, 0),
+    key(cycle / 4, -lift * 0.4),
+    key(cycle / 2, 0),
+    key((3 * cycle) / 4, lift * 0.4),
+    key(cycle, 0),
+  ];
+}
+
+function hairSwayKeyframes(cycle: number, amplitudeDeg: number): GroupDeformationKeyframe[] {
+  const angle = Math.min(8, Math.max(1.5, amplitudeDeg * 0.16));
+  const key = (t: number, rotation: number): GroupDeformationKeyframe => ({
+    t,
+    offset: [0, 0, 0],
+    rotation: [0, 0, rotation],
+    scale: 1,
+    interpolation: "smooth",
+  });
+  return [
+    key(0, 0),
+    key(cycle / 4, angle),
+    key(cycle / 2, 0),
+    key((3 * cycle) / 4, -angle),
+    key(cycle, 0),
+  ];
 }
 
 function globalTrack(proposal: AIChoreographyProposalV1, duration: number): TransformKeyframe[] {
@@ -193,16 +237,29 @@ export function buildProposalContent(
   const cycles = Math.max(1, Math.round(anim.cycles));
   const duration = cycle * cycles;
 
-  const dynamicPoints: DynamicFormationPoint[] = points.map((base, i) => ({ id: pointId(i), base }));
+  const dynamicPoints: DynamicFormationPoint[] = points.map((base, i) => ({
+    id: pointId(i),
+    base,
+  }));
   const activeParts = geometry.parts.filter((p) => proposal.motionGroups.includes(p.part));
 
   const groups: MotionGroup[] = activeParts.map((part, index) => {
     const isWing = part.part === "LEFT_WING" || part.part === "RIGHT_WING";
     const keyframes = isWing
       ? flapKeyframes(cycle, anim.amplitudeDeg, part.part === "LEFT_WING" ? -1 : 1)
-      : part.part === "BODY" && anim.bodyDeforms
-        ? bodyBreathKeyframes(cycle, anim.amplitudeDeg)
-        : [{ t: 0, offset: [0, 0, 0] as Vec3, rotation: [0, 0, 0] as Vec3, scale: 1, interpolation: "smooth" as const }];
+      : part.part === "HAIR" && anim.bodyDeforms
+        ? hairSwayKeyframes(cycle, anim.amplitudeDeg)
+        : part.part === "BODY" && anim.bodyDeforms
+          ? bodyBreathKeyframes(cycle, anim.amplitudeDeg)
+          : [
+              {
+                t: 0,
+                offset: [0, 0, 0] as Vec3,
+                rotation: [0, 0, 0] as Vec3,
+                scale: 1,
+                interpolation: "smooth" as const,
+              },
+            ];
     return {
       id: `${prefix}-g${index + 1}`,
       name: PART_LABEL[part.part],
