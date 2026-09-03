@@ -80,6 +80,131 @@ export interface WingedOptions {
   readonly includeHeadTail?: boolean;
 }
 
+export interface WomanProfileOptions {
+  readonly count: number;
+  readonly width: number;
+  readonly height: number;
+  readonly depth: number;
+  readonly altitude: number;
+}
+
+type ProfileVertex = readonly [number, number, number];
+type ProfilePart = "FACE" | "HAIR" | "NECK";
+
+function samplePolyline(vertices: readonly ProfileVertex[], count: number): Vec3[] {
+  if (count <= 0 || vertices.length === 0) return [];
+  if (vertices.length === 1) return Array.from({ length: count }, () => [...vertices[0]!] as Vec3);
+  const segments = vertices.slice(0, -1).map((from, index) => {
+    const to = vertices[index + 1]!;
+    return { from, to, length: Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]) };
+  });
+  const total = segments.reduce((sum, segment) => sum + segment.length, 0);
+  return Array.from({ length: count }, (_, index) => {
+    let distance = ((index + 0.5) / count) * total;
+    let segment = segments.at(-1)!;
+    for (const candidate of segments) {
+      if (distance <= candidate.length) {
+        segment = candidate;
+        break;
+      }
+      distance -= candidate.length;
+    }
+    const t = segment.length > 0 ? Math.min(1, distance / segment.length) : 0;
+    return [
+      segment.from[0] + (segment.to[0] - segment.from[0]) * t,
+      segment.from[1] + (segment.to[1] - segment.from[1]) * t,
+      segment.from[2] + (segment.to[2] - segment.from[2]) * t,
+    ];
+  });
+}
+
+/**
+ * Audience-facing 2.5D female profile. The recognisable face contour stays on
+ * the front depth layer, while hair and shoulders occupy separate shallow Z
+ * layers. This preserves silhouette readability from the front without
+ * pretending to be a dense mesh or bypassing later trajectory validation.
+ */
+export function buildWomanProfileGeometry(options: WomanProfileOptions): ConceptGeometry {
+  const { count, width, height, depth, altitude } = options;
+  const counts = allocateParts(count, [
+    ["FACE" as const, 0.4],
+    ["HAIR" as const, 0.42],
+    ["NECK" as const, 0.18],
+  ]);
+  const point = (x: number, y: number, z: number): ProfileVertex => [
+    x * width,
+    altitude + y * height,
+    z * depth,
+  ];
+  const definitions: readonly {
+    part: ProfilePart;
+    pivot: Vec3;
+    vertices: readonly ProfileVertex[];
+  }[] = [
+    {
+      part: "FACE",
+      pivot: point(-0.02, 0.05, 0.12),
+      vertices: [
+        point(-0.08, 0.43, 0.14),
+        point(0.08, 0.34, 0.16),
+        point(0.14, 0.22, 0.18),
+        point(0.27, 0.12, 0.2),
+        point(0.16, 0.07, 0.2),
+        point(0.21, 0.01, 0.2),
+        point(0.15, -0.04, 0.2),
+        point(0.2, -0.1, 0.19),
+        point(0.12, -0.19, 0.18),
+        point(0.02, -0.27, 0.15),
+        point(-0.08, -0.29, 0.12),
+      ],
+    },
+    {
+      part: "HAIR",
+      pivot: point(-0.12, 0.34, -0.08),
+      vertices: [
+        point(-0.08, 0.43, 0.02),
+        point(-0.24, 0.46, -0.04),
+        point(-0.38, 0.35, -0.12),
+        point(-0.45, 0.18, -0.18),
+        point(-0.43, -0.04, -0.22),
+        point(-0.4, -0.3, -0.18),
+        point(-0.34, -0.48, -0.1),
+        point(-0.23, -0.32, -0.02),
+        point(-0.17, -0.48, 0.05),
+        point(-0.1, -0.28, 0.1),
+        point(-0.08, -0.05, 0.08),
+        point(-0.04, 0.18, 0.06),
+        point(-0.08, 0.43, 0.02),
+      ],
+    },
+    {
+      part: "NECK",
+      pivot: point(0, -0.35, 0),
+      vertices: [
+        point(-0.08, -0.29, 0.1),
+        point(-0.06, -0.43, 0.06),
+        point(0.08, -0.5, 0.02),
+        point(0.38, -0.51, -0.04),
+        point(0.15, -0.4, 0.05),
+        point(0.12, -0.19, 0.14),
+      ],
+    },
+  ];
+  const points: Vec3[] = [];
+  const parts: PartGeometry[] = [];
+  for (const definition of definitions) {
+    const start = points.length;
+    const generated = samplePolyline(definition.vertices, counts[definition.part] ?? 0);
+    points.push(...generated);
+    parts.push({
+      part: definition.part,
+      indices: generated.map((_, index) => start + index),
+      pivot: definition.pivot,
+    });
+  }
+  return { points, parts };
+}
+
 /**
  * Front-facing winged creature: wings span X, the body runs along Z (depth) and
  * flapping rotates each wing about Z around its root, which is why wing tips
@@ -109,7 +234,12 @@ export function buildWingedGeometry(options: WingedOptions): ConceptGeometry {
   const points: Vec3[] = [];
   const parts: PartGeometry[] = [];
 
-  const push = (part: ChoreographyPart, n: number, pivot: Vec3, make: (i: number, n: number) => Vec3) => {
+  const push = (
+    part: ChoreographyPart,
+    n: number,
+    pivot: Vec3,
+    make: (i: number, n: number) => Vec3,
+  ) => {
     const indices: number[] = [];
     for (let i = 0; i < n; i++) {
       indices.push(points.length);
@@ -151,7 +281,11 @@ export function buildWingedGeometry(options: WingedOptions): ConceptGeometry {
       const theta = i * 2.399963229728653;
       const y = n === 1 ? 0 : ((i + 0.5) / n) * 2 - 1;
       const ring = Math.sqrt(Math.max(0, 1 - y * y));
-      return [Math.cos(theta) * r * ring, altitude + 0.03 * span + y * r, 0.6 * L + Math.sin(theta) * r * ring];
+      return [
+        Math.cos(theta) * r * ring,
+        altitude + 0.03 * span + y * r,
+        0.6 * L + Math.sin(theta) * r * ring,
+      ];
     });
     push("TAIL", counts.TAIL ?? 0, [0, altitude, -0.45 * L], (i, n) => {
       const u = n === 1 ? 0.5 : (i + 0.5) / n;
