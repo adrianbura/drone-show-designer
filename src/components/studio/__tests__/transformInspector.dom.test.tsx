@@ -114,14 +114,17 @@ describe("transform inspector", () => {
     await waitFor(() => expect(screen.getByTestId("transform-single")).toBeTruthy());
 
     fireEvent.change(screen.getByTestId("transform-position-Y"), { target: { value: "35" } });
+    fireEvent.blur(screen.getByTestId("transform-position-Y"));
     await waitFor(() =>
       expect(api.selectedScene!.objects[0]!.transform.position[1]).toBeCloseTo(35),
     );
     fireEvent.change(screen.getByTestId("transform-rotation-Z"), { target: { value: "45" } });
+    fireEvent.blur(screen.getByTestId("transform-rotation-Z"));
     await waitFor(() =>
       expect(api.selectedScene!.objects[0]!.transform.rotationDeg[2]).toBeCloseTo(45),
     );
     fireEvent.change(screen.getByTestId("transform-scale"), { target: { value: "1.5" } });
+    fireEvent.blur(screen.getByTestId("transform-scale"));
     await waitFor(() => expect(api.selectedScene!.objects[0]!.transform.scale).toBeCloseTo(1.5));
     expect(screen.getByTestId("transform-position-Y").getAttribute("value") ?? "").not.toBe("0");
 
@@ -143,6 +146,7 @@ describe("transform inspector", () => {
     select(ids[0]!);
     await waitFor(() => expect(screen.getByTestId("transform-single")).toBeTruthy());
     fireEvent.change(screen.getByTestId("transform-position-X"), { target: { value: "12" } });
+    fireEvent.blur(screen.getByTestId("transform-position-X"));
     await waitFor(() =>
       expect(api.selectedScene!.objects[0]!.transform.position[0]).toBeCloseTo(12),
     );
@@ -169,6 +173,7 @@ describe("transform inspector", () => {
     expect(screen.getByTestId("transform-group")).toBeTruthy();
 
     fireEvent.change(screen.getByTestId("transform-group-move-Y"), { target: { value: "10" } });
+    fireEvent.blur(screen.getByTestId("transform-group-move-Y"));
     await waitFor(() =>
       expect(
         api.selectedScene!.objects.every((o) => Math.abs(o.transform.position[1] - 10) < 1e-6),

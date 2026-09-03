@@ -617,59 +617,6 @@ export default function SceneComposerPanel() {
         </p>
       ) : null}
 
-      {selectedSceneObjectIds.length > 1 && (
-        <div
-          className="mt-2 space-y-1.5 border-t border-border pt-2"
-          data-testid="composer-group-transform"
-        >
-          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-            Group · {selectedSceneObjectIds.length} objects
-          </p>
-          <div className="grid grid-cols-3 gap-1">
-            {(["X", "Y", "Z"] as const).map((axis, i) => (
-              <NumberField
-                key={axis}
-                label={`Move ${axis}`}
-                value={0}
-                step={1}
-                testId={`composer-group-move-${axis}`}
-                onChange={(v) => {
-                  if (!v) return;
-                  const position: [number, number, number] = [0, 0, 0];
-                  position[i] = v;
-                  transformSceneObjects(clipId, selectedSceneObjectIds, { position });
-                }}
-              />
-            ))}
-          </div>
-          <div className="flex gap-2">
-            {[0.9, 1.1].map((factor) => (
-              <button
-                key={factor}
-                type="button"
-                data-testid={`composer-group-scale-${factor}`}
-                onClick={() =>
-                  transformSceneObjects(clipId, selectedSceneObjectIds, { scaleFactor: factor })
-                }
-                className="chip-btn flex-1 justify-center"
-              >
-                Scale {factor < 1 ? "−10%" : "+10%"}
-              </button>
-            ))}
-            <button
-              type="button"
-              data-testid="composer-group-rotate"
-              onClick={() =>
-                transformSceneObjects(clipId, selectedSceneObjectIds, { rotationDeg: [0, 15, 0] })
-              }
-              className="chip-btn flex-1 justify-center"
-            >
-              Rotate 15°
-            </button>
-          </div>
-        </div>
-      )}
-
       {primary && (
         <div
           className="mt-2 space-y-1.5 border-t border-border pt-2"
@@ -703,53 +650,6 @@ export default function SceneComposerPanel() {
                 requestedDroneCount: v > 0 ? Math.min(maximum, Math.round(v)) : null,
               });
             }}
-          />
-
-          <div className="grid grid-cols-3 gap-1">
-            {(["X", "Y", "Z"] as const).map((axis, i) => (
-              <NumberField
-                key={axis}
-                label={axis}
-                value={primary.transform.position[i]!}
-                step={0.5}
-                testId={`composer-position-${axis}`}
-                onChange={(v) => {
-                  const position: [number, number, number] = [
-                    primary.transform.position[0],
-                    primary.transform.position[1],
-                    primary.transform.position[2],
-                  ];
-                  position[i] = v;
-                  patchSceneObjectTransform(clipId, primary.id, { position });
-                }}
-              />
-            ))}
-          </div>
-
-          <NumberField
-            label="Scale"
-            value={primary.transform.scale}
-            step={0.05}
-            testId="composer-scale"
-            onChange={(v) =>
-              patchSceneObjectTransform(clipId, primary.id, { scale: Math.max(0.01, v) })
-            }
-          />
-
-          <NumberField
-            label="Rotation Y"
-            value={primary.transform.rotationDeg[1]!}
-            step={5}
-            testId="composer-rotation"
-            onChange={(v) =>
-              patchSceneObjectTransform(clipId, primary.id, {
-                rotationDeg: [
-                  primary.transform.rotationDeg[0],
-                  v,
-                  primary.transform.rotationDeg[2],
-                ],
-              })
-            }
           />
 
           <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">

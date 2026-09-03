@@ -8,6 +8,7 @@
  * remains the only authority over the resulting geometry.
  */
 import { Maximize2, Move3d, RotateCw } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import type { SceneGizmoMode } from "@/lib/show/scene";
 import type { Vector3Tuple } from "@/lib/show/types";
@@ -33,6 +34,7 @@ function Field({
   step,
   testId,
   onCommit,
+  resetAfterCommit = false,
 }: {
   label: string;
   suffix: string;
@@ -40,7 +42,16 @@ function Field({
   step: number;
   testId: string;
   onCommit: (next: number) => void;
+  resetAfterCommit?: boolean;
 }) {
+  const canonical = Number.isFinite(value) ? String(Number(value.toFixed(2))) : "0";
+  const [draft, setDraft] = useState(canonical);
+  useEffect(() => setDraft(canonical), [canonical]);
+  const commit = () => {
+    const next = Number(draft);
+    if (Number.isFinite(next) && next !== value) onCommit(next);
+    if (resetAfterCommit) setDraft("0");
+  };
   return (
     <label className="flex min-w-0 flex-col gap-0.5 text-[10px] text-muted-foreground">
       <span className="truncate uppercase tracking-[0.12em]">
@@ -49,11 +60,16 @@ function Field({
       <input
         type="number"
         step={step}
-        value={Number.isFinite(value) ? Number(value.toFixed(2)) : 0}
+        value={draft}
         data-testid={testId}
-        onChange={(event) => {
-          const next = Number(event.target.value);
-          if (Number.isFinite(next)) onCommit(next);
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur();
+          if (event.key === "Escape") {
+            setDraft(canonical);
+            event.currentTarget.blur();
+          }
         }}
         className="studio-input h-7 w-full min-w-0 text-right font-mono"
       />
@@ -215,6 +231,7 @@ export default function TransformInspector({
                 value={0}
                 step={1}
                 testId={`transform-group-move-${axis}`}
+                resetAfterCommit
                 onCommit={(next) => {
                   if (!next) return;
                   const delta: [number, number, number] = [0, 0, 0];
@@ -233,6 +250,7 @@ export default function TransformInspector({
                 value={0}
                 step={5}
                 testId={`transform-group-rotate-${axis}`}
+                resetAfterCommit
                 onCommit={(next) => {
                   if (!next) return;
                   const delta: [number, number, number] = [0, 0, 0];
