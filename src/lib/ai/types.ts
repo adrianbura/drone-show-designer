@@ -17,7 +17,7 @@ import type { LightEffect, RGB } from "../show/types";
 
 export const AI_PROPOSAL_SCHEMA_VERSION = 1;
 /** Version of the deterministic geometry/animation builder. */
-export const CHOREOGRAPHY_ENGINE_VERSION = "0.1.0";
+export const CHOREOGRAPHY_ENGINE_VERSION = "0.2.0";
 
 /** Deterministic vocabulary supported in this build. No arbitrary imagery. */
 export type ChoreographyConcept =
@@ -28,6 +28,7 @@ export type ChoreographyConcept =
   | "SPIRAL"
   | "BIRD"
   | "BUTTERFLY"
+  | "WOMAN_PROFILE"
   | "WAVE"
   | "ABSTRACT";
 
@@ -39,12 +40,14 @@ export const CHOREOGRAPHY_CONCEPTS: readonly ChoreographyConcept[] = [
   "SPIRAL",
   "BIRD",
   "BUTTERFLY",
+  "WOMAN_PROFILE",
   "WAVE",
   "ABSTRACT",
 ];
 
 /** Semantic parts a concept can expose as motion groups. */
-export type ChoreographyPart = "BODY" | "LEFT_WING" | "RIGHT_WING" | "HEAD" | "TAIL";
+export type ChoreographyPart =
+  "BODY" | "LEFT_WING" | "RIGHT_WING" | "HEAD" | "TAIL" | "FACE" | "HAIR" | "NECK";
 
 export type PromptLanguage = "en" | "ro" | "unknown";
 
@@ -125,14 +128,7 @@ export interface AIChoreographyProposalV1 {
 
 /** Lifecycle of a draft proposal. It is not project content until applied. */
 export type ProposalStatus =
-  | "GENERATING"
-  | "READY"
-  | "INVALID"
-  | "VALIDATING"
-  | "PASS"
-  | "WARNING"
-  | "FAIL"
-  | "APPLIED";
+  "GENERATING" | "READY" | "INVALID" | "VALIDATING" | "PASS" | "WARNING" | "FAIL" | "APPLIED";
 
 export interface GenerateProposalRequest {
   readonly prompt: string;
