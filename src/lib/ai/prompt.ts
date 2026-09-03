@@ -36,6 +36,12 @@ const RO_HINTS = [
   "pasare",
   "pasăre",
   "fluture",
+  "fata",
+  "fată",
+  "femeie",
+  "silueta",
+  "siluetă",
+  "chip",
   "inima",
   "inimă",
   "cerc",
@@ -70,6 +76,11 @@ const EN_HINTS = [
   "pigeon",
   "dove",
   "butterfly",
+  "woman",
+  "girl",
+  "female",
+  "silhouette",
+  "profile",
   "heart",
   "circle",
   "ring",
@@ -118,6 +129,21 @@ const WORD_NUMBERS: Record<string, number> = {
 };
 
 const CONCEPT_KEYWORDS: readonly (readonly [ChoreographyConcept, readonly string[]])[] = [
+  [
+    "WOMAN_PROFILE",
+    [
+      "woman",
+      "girl",
+      "female silhouette",
+      "woman profile",
+      "girl profile",
+      "femeie",
+      "fata",
+      "silueta feminina",
+      "profil feminin",
+      "chip feminin",
+    ],
+  ],
   ["BIRD", ["bird", "pigeon", "dove", "eagle", "porumbel", "pasare", "vultur"]],
   ["BUTTERFLY", ["butterfly", "fluture"]],
   ["HEART", ["heart", "inima"]],
@@ -155,7 +181,8 @@ export function normalizeText(text: string): string {
 
 export function detectLanguage(text: string): PromptLanguage {
   const t = normalizeText(text);
-  const score = (hints: readonly string[]) => hints.reduce((s, h) => (t.includes(normalizeText(h)) ? s + 1 : s), 0);
+  const score = (hints: readonly string[]) =>
+    hints.reduce((s, h) => (t.includes(normalizeText(h)) ? s + 1 : s), 0);
   const ro = score(RO_HINTS);
   const en = score(EN_HINTS);
   if (ro === 0 && en === 0) return "unknown";
@@ -200,16 +227,44 @@ export function parsePrompt(text: string): PromptIntent {
   const rotationDeg = numberBefore(t, "degrees?|deg\\b|grade|°");
   const amplitudeDeg = metresNear(t, []) === undefined ? undefined : undefined;
 
-  const forward = metresNear(t, ["forward", "inainte", "across", "traverse", "traverseaz", "avanseaz", "avans", "zboar", "fly", "flies", "travels?", "moves?", "deplaseaz", "depth", "adancime"]);
+  const forward = metresNear(t, [
+    "forward",
+    "inainte",
+    "across",
+    "traverse",
+    "traverseaz",
+    "avanseaz",
+    "avans",
+    "zboar",
+    "fly",
+    "flies",
+    "travels?",
+    "moves?",
+    "deplaseaz",
+    "depth",
+    "adancime",
+  ]);
   const right = metresNear(t, ["right", "dreapta", "left", "stanga", "lateral", "sideways"]);
-  const climb = metresNear(t, ["climb", "rise", "ascend", "urca", "urce", "inalt", "higher", "sus"]);
+  const climb = metresNear(t, [
+    "climb",
+    "rise",
+    "ascend",
+    "urca",
+    "urce",
+    "inalt",
+    "higher",
+    "sus",
+  ]);
   const leftwards = /\b(left|stanga)\b/.test(t);
 
   const slower = /(slower|slow|mai lent|mai incet|lin|calm)/.test(t);
   const faster = /(faster|fast|quick|mai repede|rapid)/.test(t);
   const bigger = /(bigger|larger|wider|mai mare|mai lat)/.test(t);
   const smaller = /(smaller|tighter|mai mic|mai strans)/.test(t);
-  const bodyStill = /(body still|still body|keep the body|corpul nemiscat|corpul stabil|fara deformare|no body)/.test(t);
+  const bodyStill =
+    /(body still|still body|keep the body|corpul nemiscat|corpul stabil|fara deformare|no body)/.test(
+      t,
+    );
 
   let color: readonly [number, number, number] | undefined;
   let colorName: string | undefined;
