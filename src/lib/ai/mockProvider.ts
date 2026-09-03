@@ -49,6 +49,7 @@ const WINGED: readonly ChoreographyConcept[] = ["BIRD", "BUTTERFLY"];
 const TITLES: Record<ChoreographyConcept, { en: string; ro: string }> = {
   BIRD: { en: "Flying bird", ro: "Pasăre în zbor" },
   BUTTERFLY: { en: "Butterfly", ro: "Fluture" },
+  WOMAN_PROFILE: { en: "Woman profile", ro: "Profil feminin" },
   HEART: { en: "Heart", ro: "Inimă" },
   CIRCLE: { en: "Circle", ro: "Cerc" },
   RING: { en: "Ring", ro: "Inel" },
@@ -79,10 +80,26 @@ function describe(
         : `flaps its wings ${cycles} times (${round(cycle, 1)} s per cycle)`,
     );
   }
-  if (translation[2]) motion.push(l === "ro" ? `avansează ${round(translation[2], 0)} m` : `travels ${round(translation[2], 0)} m forward`);
-  if (translation[0]) motion.push(l === "ro" ? `se deplasează ${round(translation[0], 0)} m lateral` : `drifts ${round(translation[0], 0)} m sideways`);
-  if (translation[1]) motion.push(l === "ro" ? `urcă ${round(translation[1], 0)} m` : `climbs ${round(translation[1], 0)} m`);
-  if (rotationDeg) motion.push(l === "ro" ? `se rotește ${round(rotationDeg, 0)}°` : `yaws ${round(rotationDeg, 0)}°`);
+  if (translation[2])
+    motion.push(
+      l === "ro"
+        ? `avansează ${round(translation[2], 0)} m`
+        : `travels ${round(translation[2], 0)} m forward`,
+    );
+  if (translation[0])
+    motion.push(
+      l === "ro"
+        ? `se deplasează ${round(translation[0], 0)} m lateral`
+        : `drifts ${round(translation[0], 0)} m sideways`,
+    );
+  if (translation[1])
+    motion.push(
+      l === "ro" ? `urcă ${round(translation[1], 0)} m` : `climbs ${round(translation[1], 0)} m`,
+    );
+  if (rotationDeg)
+    motion.push(
+      l === "ro" ? `se rotește ${round(rotationDeg, 0)}°` : `yaws ${round(rotationDeg, 0)}°`,
+    );
   const head = TITLES[concept][l];
   if (motion.length === 0) return l === "ro" ? `${head} static.` : `Static ${head.toLowerCase()}.`;
   return l === "ro" ? `${head} care ${motion.join(", ")}.` : `${head} that ${motion.join(", ")}.`;
@@ -98,14 +115,15 @@ function buildProposal(
   const l = lang(intent);
   const concept: ChoreographyConcept = intent.concept ?? base?.concept ?? "ABSTRACT";
   const winged = WINGED.includes(concept);
+  const humanProfile = concept === "WOMAN_PROFILE";
   const assumptions: string[] = [];
   const warnings: string[] = [];
 
   if (!intent.concept && !base) {
     assumptions.push(
       l === "ro"
-        ? "Conceptul nu a fost recunoscut: am folosit un nor abstract. Menționează pasăre, fluture, inimă, cerc, inel, stea, spirală sau val."
-        : "The concept was not recognised, so an abstract cloud was used. Mention bird, butterfly, heart, circle, ring, star, spiral or wave.",
+        ? "Conceptul nu a fost recunoscut: am folosit un nor abstract. Menționează pasăre, fluture, profil feminin, inimă, cerc, inel, stea, spirală sau val."
+        : "The concept was not recognised, so an abstract cloud was used. Mention bird, butterfly, woman profile, heart, circle, ring, star, spiral or wave.",
     );
   }
   // Partial participation is supported, so a requested count SMALLER than the
@@ -128,18 +146,25 @@ function buildProposal(
     }
   }
 
-
   const sizeScale = intent.sizeScale ?? 1;
   const baseWidth = base ? base.formationSpec.width : Math.min(area.width, area.depth) * 0.65;
   const width = clamp(baseWidth * sizeScale, 12, Math.min(area.width, area.depth) * 0.95);
-  const depth = winged ? clamp(width * 0.4, 5, area.depth * 0.5) : clamp(width * 0.3, 4, area.depth * 0.5);
-  const altitude = base ? base.formationSpec.altitude : clamp(area.height * 0.5, 20, area.height - 10);
+  const depth = winged
+    ? clamp(width * 0.4, 5, area.depth * 0.5)
+    : humanProfile
+      ? clamp(width * 0.12, 3, area.depth * 0.25)
+      : clamp(width * 0.3, 4, area.depth * 0.5);
+  const altitude = base
+    ? base.formationSpec.altitude
+    : clamp(area.height * 0.5, 20, area.height - 10);
 
-  const baseCycle = base ? base.animationSpec.cycleDuration : winged ? 2.4 : 4;
+  const baseCycle = base ? base.animationSpec.cycleDuration : winged ? 2.4 : humanProfile ? 6 : 4;
   const cycle = round(clamp(baseCycle * (intent.speedScale ?? 1), 0.8, 20), 2);
   const cycles = intent.cycles ?? base?.animationSpec.cycles ?? (winged ? 4 : 2);
-  const amplitudeDeg = intent.amplitudeDeg ?? base?.animationSpec.amplitudeDeg ?? (concept === "BUTTERFLY" ? 42 : 28);
-  const bodyDeforms = intent.bodyDeforms ?? base?.animationSpec.bodyDeforms ?? winged;
+  const amplitudeDeg =
+    intent.amplitudeDeg ?? base?.animationSpec.amplitudeDeg ?? (concept === "BUTTERFLY" ? 42 : 28);
+  const bodyDeforms =
+    intent.bodyDeforms ?? base?.animationSpec.bodyDeforms ?? (winged || humanProfile);
 
   const prev = base?.globalMotion;
   const translation: [number, number, number] = [
@@ -157,13 +182,22 @@ function buildProposal(
     ? concept === "BIRD"
       ? ["BODY", "LEFT_WING", "RIGHT_WING", "HEAD", "TAIL"]
       : ["BODY", "LEFT_WING", "RIGHT_WING"]
-    : [];
+    : humanProfile
+      ? ["HAIR"]
+      : [];
 
   if (winged && requestedCount < 40) {
     warnings.push(
       l === "ro"
         ? "Sub 40 de drone silueta aripilor devine grosieră."
         : "Below 40 drones the wing silhouette becomes coarse.",
+    );
+  }
+  if (humanProfile && requestedCount < 55) {
+    warnings.push(
+      l === "ro"
+        ? "Sub 55 de drone, profilul feței și părul devin greu de recunoscut de public."
+        : "Below 55 drones, the face profile and hair become difficult for the audience to recognise.",
     );
   }
   assumptions.push(
@@ -189,7 +223,7 @@ function buildProposal(
     fleetCount: requestedCount,
     formationSpec: {
       width: round(width, 2),
-      height: round(winged ? width * 0.45 : width, 2),
+      height: round(winged ? width * 0.45 : humanProfile ? width * 1.15 : width, 2),
       depth: round(depth, 2),
       altitude: round(altitude, 2),
       rotationDeg: base?.formationSpec.rotationDeg ?? 0,
@@ -207,7 +241,7 @@ function buildProposal(
     timing: { recommendedTransition: transition, hold: duration },
     lightingIntent: {
       color,
-      effect: winged ? "pulse" : "solid",
+      effect: winged || humanProfile ? "pulse" : "solid",
       description:
         l === "ro"
           ? `Intenție de lumină: ${intent.colorName ?? "alb"}, accent pe siluetă.`
@@ -234,14 +268,16 @@ export class MockChoreographyProvider implements ChoreographyAIProvider {
 
   async generateProposal(request: GenerateProposalRequest): Promise<AIChoreographyProposalV1> {
     const prompt = request.prompt.trim();
-    if (!prompt) throw new ChoreographyAIError("EMPTY_PROMPT", "Describe the choreography you want.");
+    if (!prompt)
+      throw new ChoreographyAIError("EMPTY_PROMPT", "Describe the choreography you want.");
     const intent = parsePrompt(prompt);
     return buildProposal(prompt, intent, request.fleetCount, request.area ?? DEFAULT_AREA);
   }
 
   async refineProposal(request: RefineProposalRequest): Promise<AIChoreographyProposalV1> {
     const instruction = request.instruction.trim();
-    if (!instruction) throw new ChoreographyAIError("EMPTY_PROMPT", "Describe the change you want.");
+    if (!instruction)
+      throw new ChoreographyAIError("EMPTY_PROMPT", "Describe the change you want.");
     const base = request.proposal;
     const intent = parsePrompt(instruction);
     const merged: PromptIntent = {
