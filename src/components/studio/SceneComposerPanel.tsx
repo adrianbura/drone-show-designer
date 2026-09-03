@@ -25,6 +25,7 @@ import {
 import { useMemo, useState } from "react";
 
 import AddVisualWizard from "@/components/studio/AddVisualWizard";
+import TransformInspector from "@/components/studio/TransformInspector";
 import VisualLayerRow, { type VisualLayerView } from "@/components/studio/VisualLayerRow";
 import { inferMotionLabel } from "@/lib/studio/sceneMotionInspector";
 import { useStudio } from "@/lib/studio/store";
@@ -110,6 +111,8 @@ export default function SceneComposerPanel() {
     removeScenePointGroupById,
     selectScenePointGroup,
     lightingEffects,
+    gizmoMode,
+    setGizmoMode,
   } = useStudio();
   const [groupName, setGroupName] = useState("Group");
   const [renamingGroupId, setRenamingGroupId] = useState<string | null>(null);
