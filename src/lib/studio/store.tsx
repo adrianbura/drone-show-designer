@@ -24,11 +24,7 @@ import {
   reconcileAdoptedEditorSession,
 } from "./editorSession";
 import { documentDirty } from "./unsavedWorkGuard";
-import {
-  documentFeedback,
-  saveAsFileName,
-  type DocumentFeedback,
-} from "./documentLifecycle";
+import { documentFeedback, saveAsFileName, type DocumentFeedback } from "./documentLifecycle";
 
 import { setGeometryProposalPreview } from "./geometryProposalPreview";
 
@@ -37,17 +33,24 @@ import {
   createProjectSessionAuthority,
   invalidateProjectSessionJobs,
 } from "./asyncJobAuthority";
-import {
-  resetProjectSessionState,
-  type ProjectSessionResetSetters,
-} from "./projectLifecycle";
+import { resetProjectSessionState, type ProjectSessionResetSetters } from "./projectLifecycle";
 import { isAutosaveWriteAuthorized, isRecoveryOfferable } from "./autosaveAuthority";
 import { projectPersistenceOptions } from "./projectPersistence";
 import { createAnalysisRunAuthority } from "./analysisRunAuthority";
 import { findSampleShow } from "../show/stories/samples";
 import { generatePoints, makeFormation, makeSceneLocalFormation } from "../show/formations";
-import { buildShowPlan, samplesAt, sampleTrajectorySet, DEFAULT_SAMPLE_RATE } from "../show/trajectory";
-import type { ClipTransitionOverride, ShowPlan, TrajectorySample, TrajectorySet } from "../show/trajectory";
+import {
+  buildShowPlan,
+  samplesAt,
+  sampleTrajectorySet,
+  DEFAULT_SAMPLE_RATE,
+} from "../show/trajectory";
+import type {
+  ClipTransitionOverride,
+  ShowPlan,
+  TrajectorySample,
+  TrajectorySet,
+} from "../show/trajectory";
 import { validateShow, type SafetyReport } from "../show/safety";
 import {
   resolveParticipationSettings,
@@ -136,17 +139,17 @@ import {
 import { authorSceneMotion } from "./sceneMotionAuthoring";
 import { duplicateObjectMotion, removeObjectMotion } from "./sceneMotionInspector";
 import { insertLibraryAsset, type AssetInsertionTiming } from "./assetInsertion";
-import {
-  reconcileEditorSelection,
-  type EditorClipSelectionState,
-} from "./clipSelection";
+import { reconcileEditorSelection, type EditorClipSelectionState } from "./clipSelection";
 import {
   computeOverrideBasis,
   pruneTransitionOverrides,
   type OverrideBasisMap,
   type TimelineHistorySnapshot,
 } from "./planningIntegrity";
-import { prepareGeometryApplyCommand, type GeometryApplyPreparationSuccess } from "./geometryApplyCommand";
+import {
+  prepareGeometryApplyCommand,
+  type GeometryApplyPreparationSuccess,
+} from "./geometryApplyCommand";
 import {
   prepareTextFormationApply,
   type PromotedTextInterval,
@@ -295,7 +298,6 @@ import {
   type SceneDeviationReport,
 } from "../import/essp/native";
 import {
-
   clipOutputSignature,
   extractReferenceTimeline,
   intervalAtTime,
@@ -405,7 +407,6 @@ import {
   type ChoreographyAIProvider,
 } from "../ai";
 
-
 /** Draft state of an SVG import, before it is committed as a Formation. */
 export interface SvgDraft {
   asset: SvgAsset;
@@ -505,7 +506,10 @@ interface StudioContextValue {
   setLoop: (loop: boolean) => void;
   selectClip: (id: string | null) => void;
   /** Library "Use in show": one undoable authoring action for any asset kind. */
-  insertLibraryAssetIntoShow: (asset: FormationAsset, timing?: AssetInsertionTiming) => string | null;
+  insertLibraryAssetIntoShow: (
+    asset: FormationAsset,
+    timing?: AssetInsertionTiming,
+  ) => string | null;
   patchProject: (patch: Partial<ShowProject>) => void;
 
   // ---- Fleet participation (Sprint 7.3) -----------------------------------
@@ -577,7 +581,11 @@ interface StudioContextValue {
   removeSceneObjectMotion: (clipId: string, objectId: string) => void;
 
   // ---- Batch scene gestures (ONE mutation, ONE undo entry) ----------------
-  transformSceneObjects: (clipId: string, objectIds: readonly string[], delta: SceneGroupDelta) => void;
+  transformSceneObjects: (
+    clipId: string,
+    objectIds: readonly string[],
+    delta: SceneGroupDelta,
+  ) => void;
   mirrorSceneObjectsBatch: (clipId: string, objectIds: readonly string[]) => void;
   duplicateSceneObjectsBatch: (clipId: string, objectIds: readonly string[]) => void;
   removeSceneObjectsBatch: (clipId: string, objectIds: readonly string[]) => void;
@@ -726,7 +734,6 @@ interface StudioContextValue {
     candidateTransitionOverrides?: Readonly<Record<string, ClipTransitionOverride>>;
     promotedAt: string;
   }) => TextApplyCommitResult;
-
 
   // ---- Lighting, reveal & colour effects (Sprint 7.4) ---------------------
   /** Lighting effects of the selected clip, in evaluation order. */
@@ -1165,7 +1172,6 @@ interface StudioContextValue {
   restoreAutosave: () => void;
   dismissAutosave: () => void;
 
-
   // ---- AI choreography assistant (Sprint 7) ------------------------------
   aiProvider: { id: string; label: string; deterministic: boolean };
   aiBusy: boolean;
@@ -1205,7 +1211,6 @@ interface StudioContextValue {
     };
   }) => DynamicFormation | Formation | null;
 }
-
 
 /**
  * Single context instance per browser realm. During dev hot-reloads a second
@@ -1271,9 +1276,7 @@ interface AdoptProjectRestore {
  * previously open project keeps its own reference layer, export eligibility and
  * source-recovery bytes.
  */
-type AdoptProjectOutcome =
-  | { ok: true }
-  | { ok: false; error: { code: string; message: string } };
+type AdoptProjectOutcome = { ok: true } | { ok: false; error: { code: string; message: string } };
 
 export function StudioProvider({ children }: { children: ReactNode }) {
   // Lazy initializer: keeps module scope free of runtime work (Worker-safe).
@@ -1296,37 +1299,47 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * object is the one single-object controls edit. Editor state only: selecting
    * never mutates the project and never promotes a reference-owned clip.
    */
-  const [sceneSelectionState, setSceneSelectionState] = useState<SceneSelection>(
-    EMPTY_SCENE_SELECTION,
-  );
+  const [sceneSelectionState, setSceneSelectionState] =
+    useState<SceneSelection>(EMPTY_SCENE_SELECTION);
   /** Reference-assisted editing (design aid only, never persisted). */
   const [sceneReferenceGhost, setSceneReferenceGhost] = useState(false);
-  const [sceneComparisonFrame, setSceneComparisonFrame] = useState<SceneComparisonFrame>("EXTRACTED");
+  const [sceneComparisonFrame, setSceneComparisonFrame] =
+    useState<SceneComparisonFrame>("EXTRACTED");
 
   const [sampleRate, setSampleRate] = useState<number>(DEFAULT_SAMPLE_RATE);
   const [svgAssets, setSvgAssets] = useState<Record<string, SvgAsset>>({});
   const [svgDraft, setSvgDraft] = useState<SvgDraft | null>(null);
   const [svgBusy, setSvgBusy] = useState(false);
   const [svgError, setSvgError] = useState<SvgFormationError | null>(null);
-  const [assignmentStrategy, setAssignmentStrategy] = useState<AssignmentStrategyId>("nearestNeighbor");
-  const [transitionOverrides, setTransitionOverrides] = useState<Record<string, ClipTransitionOverride>>({});
+  const [assignmentStrategy, setAssignmentStrategy] =
+    useState<AssignmentStrategyId>("nearestNeighbor");
+  const [transitionOverrides, setTransitionOverrides] = useState<
+    Record<string, ClipTransitionOverride>
+  >({});
   /**
    * AUTHORED TRANSITION DESIGN per clip (mode + stagger pattern). Intent only:
    * the flown data always lives in `transitionOverrides`, which this state
    * produces through the existing optimizer/analyzer.
    */
-  const [transitionDesigns, setTransitionDesigns] = useState<Record<string, TransitionDesignState>>({});
-  const [transitionAnalysis, setTransitionAnalysis] = useState<
-    { clipId: string; analysis: TransitionAnalysis } | null
-  >(null);
-  const [assignmentComparison, setAssignmentComparison] = useState<
-    { clipId: string; comparison: AssignmentComparison } | null
-  >(null);
-  const [optimization, setOptimization] = useState<
-    { clipId: string; result: TransitionOptimizationResult } | null
-  >(null);
+  const [transitionDesigns, setTransitionDesigns] = useState<Record<string, TransitionDesignState>>(
+    {},
+  );
+  const [transitionAnalysis, setTransitionAnalysis] = useState<{
+    clipId: string;
+    analysis: TransitionAnalysis;
+  } | null>(null);
+  const [assignmentComparison, setAssignmentComparison] = useState<{
+    clipId: string;
+    comparison: AssignmentComparison;
+  } | null>(null);
+  const [optimization, setOptimization] = useState<{
+    clipId: string;
+    result: TransitionOptimizationResult;
+  } | null>(null);
   const [transitionBusy, setTransitionBusy] = useState(false);
-  const [transitionError, setTransitionError] = useState<{ code: string; message: string } | null>(null);
+  const [transitionError, setTransitionError] = useState<{ code: string; message: string } | null>(
+    null,
+  );
   const [showPaths, setShowPaths] = useState(false);
   const [showConflicts, setShowConflicts] = useState(false);
   const [fullShow, setFullShow] = useState<{
@@ -1335,7 +1348,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   } | null>(null);
   const [fullShowBusy, setFullShowBusy] = useState(false);
   const [fullShowProgress, setFullShowProgress] = useState<FullShowProgress | null>(null);
-  const [fullShowError, setFullShowError] = useState<{ code: string; message: string } | null>(null);
+  const [fullShowError, setFullShowError] = useState<{ code: string; message: string } | null>(
+    null,
+  );
   const [highlightedDrones, setHighlightedDrones] = useState<number[]>([]);
   const [preShowPreview, setPreShowPreview] = useState<{
     plan: PreShowPlan;
@@ -1410,13 +1425,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [referenceExtraction, setReferenceExtraction] = useState<
     readonly ReferenceExtractionDiagnostic[]
   >([]);
-  const [referenceAssetDrafts, setReferenceAssetDrafts] = useState<readonly ReferenceAssetDraft[]>([]);
+  const [referenceAssetDrafts, setReferenceAssetDrafts] = useState<readonly ReferenceAssetDraft[]>(
+    [],
+  );
   const [referenceExtractionWarnings, setReferenceExtractionWarnings] = useState<readonly string[]>(
     [],
   );
-  const [referenceExtractionError, setReferenceExtractionError] = useState<
-    { code: string; message: string } | null
-  >(null);
+  const [referenceExtractionError, setReferenceExtractionError] = useState<{
+    code: string;
+    message: string;
+  } | null>(null);
   const [forensicsReport, setForensicsReport] = useState<ReferenceForensicsReport | null>(null);
   const [forensicsBusy, setForensicsBusy] = useState(false);
   const [forensicsError, setForensicsError] = useState<string | null>(null);
@@ -1488,7 +1506,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * overrides (which decide the flown trajectory). Transient analysis reports
    * are deliberately NOT snapshotted — they are derived and recomputed.
    */
-  const timelineHistory = useRef<{ past: TimelineHistorySnapshot[]; future: TimelineHistorySnapshot[] }>({
+  const timelineHistory = useRef<{
+    past: TimelineHistorySnapshot[];
+    future: TimelineHistorySnapshot[];
+  }>({
     past: [],
     future: [],
   });
@@ -1543,12 +1564,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setOptimization(null);
     setTransitionError(null);
     setTransitionOverrides((current) => {
-      const pruned = pruneTransitionOverrides(projectRef.current, current, overrideBasisRef.current);
+      const pruned = pruneTransitionOverrides(
+        projectRef.current,
+        current,
+        overrideBasisRef.current,
+      );
       overrideBasisRef.current = pruned.basis;
       return pruned.changed ? pruned.overrides : current;
     });
   }, [project.formations, project.droneCount, project.timeline, project.limits, project.area]);
-
 
   // Canonical duration — NEVER project.audio.duration.
   const duration = useMemo(() => {
@@ -1620,7 +1644,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setTimelineScrollState(ADOPTED_TIMELINE_VIEW.scroll);
   }, []);
 
-
   const setTimelineZoom = useCallback(
     (zoom: number, anchorTime?: number) => {
       const input = {
@@ -1661,28 +1684,31 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * started under is still open. A late failure is rejected on the same terms,
    * and busy is only released by the decode that currently owns it.
    */
-  const attachAudioFile = useCallback(async (file: File) => {
-    const token = audioJobs.current.begin(sessionScope());
-    setAudioBusy(true);
-    setAudioError(null);
-    try {
-      const decoded = await decodeAudioFile(file);
-      if (!audioJobs.current.accepts(token, sessionScope())) return;
-      audioBufferRef.current = decoded.buffer;
-      setAudioPeaks(decoded.peaks);
-      setProject((p) => ({
-        ...p,
-        audio: { ...p.audio, name: decoded.name, duration: decoded.duration, attached: true },
-      }));
-    } catch (err) {
-      if (!audioJobs.current.accepts(token, sessionScope())) return;
-      audioBufferRef.current = null;
-      setAudioPeaks(null);
-      setAudioError(err instanceof Error ? err.message : String(err));
-    } finally {
-      if (audioJobs.current.isCurrent(token)) setAudioBusy(false);
-    }
-  }, [sessionScope]);
+  const attachAudioFile = useCallback(
+    async (file: File) => {
+      const token = audioJobs.current.begin(sessionScope());
+      setAudioBusy(true);
+      setAudioError(null);
+      try {
+        const decoded = await decodeAudioFile(file);
+        if (!audioJobs.current.accepts(token, sessionScope())) return;
+        audioBufferRef.current = decoded.buffer;
+        setAudioPeaks(decoded.peaks);
+        setProject((p) => ({
+          ...p,
+          audio: { ...p.audio, name: decoded.name, duration: decoded.duration, attached: true },
+        }));
+      } catch (err) {
+        if (!audioJobs.current.accepts(token, sessionScope())) return;
+        audioBufferRef.current = null;
+        setAudioPeaks(null);
+        setAudioError(err instanceof Error ? err.message : String(err));
+      } finally {
+        if (audioJobs.current.isCurrent(token)) setAudioBusy(false);
+      }
+    },
+    [sessionScope],
+  );
 
   const detachAudioFile = useCallback(() => {
     audioJobs.current.invalidate();
@@ -1713,8 +1739,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [referenceLayer],
   );
   const referenceOwnedNow = useMemo(
-    () =>
-      !!referenceLayer && intervalAtTime(referenceLayer, clock.time)?.owner === "REFERENCE",
+    () => !!referenceLayer && intervalAtTime(referenceLayer, clock.time)?.owner === "REFERENCE",
     [referenceLayer, clock.time],
   );
 
@@ -1730,7 +1755,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const patchParticipation = useCallback((patch: Partial<ParticipationSettings>) => {
     setProject((p) => ({
       ...p,
-      participation: resolveParticipationSettings({ ...resolveParticipationSettings(p.participation), ...patch }),
+      participation: resolveParticipationSettings({
+        ...resolveParticipationSettings(p.participation),
+        ...patch,
+      }),
     }));
   }, []);
   const setClipParticipation = useCallback(
@@ -1778,8 +1806,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [projectWithDroneCount],
   );
 
-
-
   const currentSetupDraft = useMemo(() => setupDraftFromProject(project), [project]);
 
   /**
@@ -1811,7 +1837,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [loadShowProject],
   );
 
-
   const applySetupDraft = useCallback(
     (draft: ProjectSetupDraft) => {
       // ATOMIC: fleet size, launch grid and staging are committed in ONE state
@@ -1835,7 +1860,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [projectWithDroneCount],
   );
 
-
   const setLimits = useCallback((patch: Partial<SafetyLimits>) => {
     setProject((p) => ({ ...p, limits: { ...p.limits, ...patch } }));
   }, []);
@@ -1858,24 +1882,27 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [project.area, project.droneCount],
   );
 
-  const updateFormation = useCallback((id: string, params: Record<string, number | string>) => {
-    setProject((p) => ({
-      ...p,
-      formations: p.formations.map((f) => {
-        if (f.id !== id) return f;
-        if (f.kind === "svg") {
-          const asset = f.svg ? svgAssets[f.svg.assetId] : undefined;
-          if (!asset) return f;
-          return regenerateSvgFormation(f, asset, p.droneCount, svgPatchFromRecord(params));
-        }
-        return {
-          ...f,
-          params: { ...f.params, ...params },
-          points: generatePoints(f.kind, p.droneCount, p.area, { ...f.params, ...params }),
-        };
-      }),
-    }));
-  }, [svgAssets]);
+  const updateFormation = useCallback(
+    (id: string, params: Record<string, number | string>) => {
+      setProject((p) => ({
+        ...p,
+        formations: p.formations.map((f) => {
+          if (f.id !== id) return f;
+          if (f.kind === "svg") {
+            const asset = f.svg ? svgAssets[f.svg.assetId] : undefined;
+            if (!asset) return f;
+            return regenerateSvgFormation(f, asset, p.droneCount, svgPatchFromRecord(params));
+          }
+          return {
+            ...f,
+            params: { ...f.params, ...params },
+            points: generatePoints(f.kind, p.droneCount, p.area, { ...f.params, ...params }),
+          };
+        }),
+      }));
+    },
+    [svgAssets],
+  );
 
   // ---- SVG import workflow -------------------------------------------------
 
@@ -1941,26 +1968,27 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setSvgError(null);
   }, []);
 
-
-  const addClip = useCallback((formationId: string, timing?: { transition?: number; hold?: number }) => {
-    const id = nextId("c");
-    setProject((p) => {
-      const clip: TimelineClip = {
-        id,
-        formationId,
-        start: 0,
-        transition: Math.max(0.5, timing?.transition ?? 8),
-        hold: Math.max(0, timing?.hold ?? 6),
-        easing: "minJerk",
-        color: [120, 220, 255],
-        effect: "solid",
-        phase: defaultPhaseForNewClip(p.timeline),
-      };
-      return { ...p, timeline: insertClipBeforeLanding(p.timeline, clip) };
-    });
-    setSelectedClipId(id);
-  }, []);
-
+  const addClip = useCallback(
+    (formationId: string, timing?: { transition?: number; hold?: number }) => {
+      const id = nextId("c");
+      setProject((p) => {
+        const clip: TimelineClip = {
+          id,
+          formationId,
+          start: 0,
+          transition: Math.max(0.5, timing?.transition ?? 8),
+          hold: Math.max(0, timing?.hold ?? 6),
+          easing: "minJerk",
+          color: [120, 220, 255],
+          effect: "solid",
+          phase: defaultPhaseForNewClip(p.timeline),
+        };
+        return { ...p, timeline: insertClipBeforeLanding(p.timeline, clip) };
+      });
+      setSelectedClipId(id);
+    },
+    [],
+  );
 
   const patchClip = useCallback((id: string, patch: Partial<TimelineClip>) => {
     setProject((p) => ({
@@ -2002,7 +2030,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
   }, []);
 
-
   /**
    * GESTURE COMMIT (Sprint 7.2, ripple since Sprint 8D).
    *
@@ -2030,7 +2057,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         pushSnapshot(p);
         const timeline = result.timeline.map((c) =>
           c.id === id && nonTiming.length > 0
-            ? { ...c, ...Object.fromEntries(nonTiming.map((k) => [k, (patch as Record<string, unknown>)[k]])) }
+            ? {
+                ...c,
+                ...Object.fromEntries(
+                  nonTiming.map((k) => [k, (patch as Record<string, unknown>)[k]]),
+                ),
+              }
             : c,
         );
         return { ...p, timeline };
@@ -2048,36 +2080,39 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, [pushSnapshot]);
 
   /** Undo/redo restore project + planning state atomically. */
-  const restoreSnapshot = useCallback((snapshot: TimelineHistorySnapshot) => {
-    const overrides = { ...snapshot.transitionOverrides };
-    // Re-seed the basis from the restored project so the invalidation guard
-    // does not treat a faithfully restored override as stale.
-    overrideBasisRef.current = computeOverrideBasis(snapshot.project, overrides);
-    setTransitionOverrides(overrides);
-    setTransitionDesigns({ ...(snapshot.transitionDesigns ?? {}) });
-    // Restore ownership BEFORE the project so the promotion guard reconciles the
-    // restored project against the restored signatures (no phantom promotion).
-    // EXACT restore: ownership travels with the snapshot, so null -> non-null,
-    // non-null -> null and non-null -> other non-null must all round-trip. It
-    // must never be gated on the CURRENT layer value.
-    if (snapshot.referenceLayer !== undefined) {
-      referenceLayerRef.current = snapshot.referenceLayer;
-      setReferenceLayer(snapshot.referenceLayer);
-    }
-    projectRef.current = snapshot.project;
-    setProject(snapshot.project);
-    // Every derived analysis was computed for the REPLACED geometry.
-    invalidateDerivedAnalysis(derivedAnalysisSetters);
-    const previous = selectedClipIdRef.current;
-    const restoredClip =
-      previous && snapshot.project.timeline.some((c) => c.id === previous)
-        ? previous
-        : (snapshot.project.timeline[0]?.id ?? null);
-    setSelectedClipId(restoredClip);
-    // Undo/redo restores project content only: transient drafts are dropped and
-    // every clip-scoped selection is reconciled against the restored project.
-    reconcileSelectionRef.current(snapshot.project, restoredClip, previous);
-  }, [derivedAnalysisSetters]);
+  const restoreSnapshot = useCallback(
+    (snapshot: TimelineHistorySnapshot) => {
+      const overrides = { ...snapshot.transitionOverrides };
+      // Re-seed the basis from the restored project so the invalidation guard
+      // does not treat a faithfully restored override as stale.
+      overrideBasisRef.current = computeOverrideBasis(snapshot.project, overrides);
+      setTransitionOverrides(overrides);
+      setTransitionDesigns({ ...(snapshot.transitionDesigns ?? {}) });
+      // Restore ownership BEFORE the project so the promotion guard reconciles the
+      // restored project against the restored signatures (no phantom promotion).
+      // EXACT restore: ownership travels with the snapshot, so null -> non-null,
+      // non-null -> null and non-null -> other non-null must all round-trip. It
+      // must never be gated on the CURRENT layer value.
+      if (snapshot.referenceLayer !== undefined) {
+        referenceLayerRef.current = snapshot.referenceLayer;
+        setReferenceLayer(snapshot.referenceLayer);
+      }
+      projectRef.current = snapshot.project;
+      setProject(snapshot.project);
+      // Every derived analysis was computed for the REPLACED geometry.
+      invalidateDerivedAnalysis(derivedAnalysisSetters);
+      const previous = selectedClipIdRef.current;
+      const restoredClip =
+        previous && snapshot.project.timeline.some((c) => c.id === previous)
+          ? previous
+          : (snapshot.project.timeline[0]?.id ?? null);
+      setSelectedClipId(restoredClip);
+      // Undo/redo restores project content only: transient drafts are dropped and
+      // every clip-scoped selection is reconciled against the restored project.
+      reconcileSelectionRef.current(snapshot.project, restoredClip, previous);
+    },
+    [derivedAnalysisSetters],
+  );
 
   const undoTimeline = useCallback(() => {
     const previous = timelineHistory.current.past.pop();
@@ -2108,7 +2143,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const addMarker = useCallback(
     (time: number, label?: string, type?: TimelineMarkerType) => {
       pushTimelineHistory();
-      const marker = createMarker({ id: nextId("mk"), time, label: label ?? "Marker", type: type ?? "GENERAL" });
+      const marker = createMarker({
+        id: nextId("mk"),
+        time,
+        label: label ?? "Marker",
+        type: type ?? "GENERAL",
+      });
       setProject((p) => ({ ...p, markers: sortMarkers([...(p.markers ?? []), marker]) }));
     },
     [pushTimelineHistory],
@@ -2120,7 +2160,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setProject((p) => ({
         ...p,
         markers: sortMarkers(
-          (p.markers ?? []).map((m) => (m.id === id ? createMarker({ ...m, ...patch, id: m.id }) : m)),
+          (p.markers ?? []).map((m) =>
+            m.id === id ? createMarker({ ...m, ...patch, id: m.id }) : m,
+          ),
         ),
       }));
     },
@@ -2145,7 +2187,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         label: label ?? "Section",
         type: type ?? "CUSTOM",
       });
-      setProject((p) => ({ ...p, musicSections: sortSections([...(p.musicSections ?? []), section]) }));
+      setProject((p) => ({
+        ...p,
+        musicSections: sortSections([...(p.musicSections ?? []), section]),
+      }));
     },
     [pushTimelineHistory],
   );
@@ -2156,7 +2201,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setProject((p) => ({
         ...p,
         musicSections: sortSections(
-          (p.musicSections ?? []).map((s) => (s.id === id ? createSection({ ...s, ...patch, id: s.id }) : s)),
+          (p.musicSections ?? []).map((s) =>
+            s.id === id ? createSection({ ...s, ...patch, id: s.id }) : s,
+          ),
         ),
       }));
     },
@@ -2166,11 +2213,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const removeMusicSection = useCallback(
     (id: string) => {
       pushTimelineHistory();
-      setProject((p) => ({ ...p, musicSections: (p.musicSections ?? []).filter((s) => s.id !== id) }));
+      setProject((p) => ({
+        ...p,
+        musicSections: (p.musicSections ?? []).filter((s) => s.id !== id),
+      }));
     },
     [pushTimelineHistory],
   );
-
 
   // ---- Dynamic formations (Sprint 6B) ------------------------------------
   // All editing is delegation to the pure engine: every action maps a
@@ -2189,7 +2238,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [selectedMotionGroupId, setSelectedMotionGroupId] = useState<string | null>(null);
   const [dynamicEditTime, setDynamicEditTime] = useState(0);
 
-  const dynamicFormations = useMemo(() => project.dynamicFormations ?? [], [project.dynamicFormations]);
+  const dynamicFormations = useMemo(
+    () => project.dynamicFormations ?? [],
+    [project.dynamicFormations],
+  );
   const selectedScene = useMemo<FormationScene | null>(() => {
     const clip = project.timeline.find((c) => c.id === selectedClipId);
     return clip ? sceneForClip(project, clip) : null;
@@ -2212,7 +2264,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    */
   const sceneSelection = useMemo<SceneSelection>(
     () =>
-      normalizeSceneSelection(selectedScene, sceneSelectionState.ids, sceneSelectionState.primaryId),
+      normalizeSceneSelection(
+        selectedScene,
+        sceneSelectionState.ids,
+        sceneSelectionState.primaryId,
+      ),
     [selectedScene, sceneSelectionState],
   );
   const resolvedSceneObjectId = sceneSelection.primaryId;
@@ -2246,7 +2302,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         setSceneSelectionState(EMPTY_SCENE_SELECTION);
         return;
       }
-      setSceneSelectionState((current) => applySceneClick(sceneRef.current, current, objectId, mode));
+      setSceneSelectionState((current) =>
+        applySceneClick(sceneRef.current, current, objectId, mode),
+      );
     },
     [],
   );
@@ -2260,7 +2318,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         : { position: false, rotationDeg: false, scale: false, mirrorX: false },
     [selectedScene, sceneSelection],
   );
-
 
   const selectedSceneBudget = useMemo<SceneBudget | null>(
     () => (selectedScene ? sceneBudget(project, selectedScene, project.droneCount) : null),
@@ -2290,20 +2347,17 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, [dynamicFormations, explicitDynamicId, selectedClip]);
 
   /** Commits a dynamic-formation edit and pushes the previous state on the undo stack. */
-  const commitDynamic = useCallback(
-    (updater: (list: DynamicFormation[]) => DynamicFormation[]) => {
-      setProject((p) => {
-        const before = p.dynamicFormations ?? [];
-        const next = updater(before);
-        dynamicHistory.current.past.push(before);
-        if (dynamicHistory.current.past.length > 50) dynamicHistory.current.past.shift();
-        dynamicHistory.current.future = [];
-        setDynamicHistoryDepth({ past: dynamicHistory.current.past.length, future: 0 });
-        return { ...p, dynamicFormations: next };
-      });
-    },
-    [],
-  );
+  const commitDynamic = useCallback((updater: (list: DynamicFormation[]) => DynamicFormation[]) => {
+    setProject((p) => {
+      const before = p.dynamicFormations ?? [];
+      const next = updater(before);
+      dynamicHistory.current.past.push(before);
+      if (dynamicHistory.current.past.length > 50) dynamicHistory.current.past.shift();
+      dynamicHistory.current.future = [];
+      setDynamicHistoryDepth({ past: dynamicHistory.current.past.length, future: 0 });
+      return { ...p, dynamicFormations: next };
+    });
+  }, []);
 
   // ---- multi-formation scenes ---------------------------------------------
   /**
@@ -2358,7 +2412,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         created = result.objectIds;
         return result.scene;
       });
-      if (created.length > 0) setSelectedSceneObjectIds(created, created[created.length - 1] ?? null);
+      if (created.length > 0)
+        setSelectedSceneObjectIds(created, created[created.length - 1] ?? null);
     },
     [editScene, setSelectedSceneObjectIds],
   );
@@ -2381,9 +2436,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       options: { readonly altitudeStep?: number } = {},
     ) => {
       if (objectIds.length === 0) return;
-      editScene(clipId, (scene, p) =>
-        applySceneDesignAction(p, scene, objectIds, action, options),
-      );
+      editScene(clipId, (scene, p) => applySceneDesignAction(p, scene, objectIds, action, options));
     },
     [editScene],
   );
@@ -2426,8 +2479,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     },
     [pushSnapshot, setSelectedSceneObjectIds],
   );
-
-
 
   /* ------------------------------------------- viewport transform gizmo ---- */
   const [gizmoMode, setGizmoMode] = useState<SceneGizmoMode>("MOVE");
@@ -2565,13 +2616,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     (droneIndices: readonly number[], operation: ScenePointSelectionOperation) => {
       const requested = droneIndices
         .map((index) => sceneTargetByDrone[index])
-        .filter(
-          (target): target is { objectId: string; pointId: string } =>
-            Boolean(target?.objectId && target.pointId),
+        .filter((target): target is { objectId: string; pointId: string } =>
+          Boolean(target?.objectId && target.pointId),
         );
       const objectId =
         (sceneSelection.primaryId &&
-          requested.some((target) => target.objectId === sceneSelection.primaryId)
+        requested.some((target) => target.objectId === sceneSelection.primaryId)
           ? sceneSelection.primaryId
           : requested[0]?.objectId) ?? null;
       if (!objectId) {
@@ -2653,12 +2703,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         clipId,
         objectIds: sceneSelection.ids,
         primaryObjectId: sceneSelection.primaryId,
-        selectedPointIds:
-          sceneSelectionMode === "POINT" ? selectedScenePointIds : [],
+        selectedPointIds: sceneSelectionMode === "POINT" ? selectedScenePointIds : [],
         preset,
         createId: () => nextId("dyn"),
       });
-      if (result.project === projectRef.current || result.dynamicFormationIds.length === 0) return [];
+      if (result.project === projectRef.current || result.dynamicFormationIds.length === 0)
+        return [];
       pushTimelineHistory();
       setProject(result.project);
       setExplicitDynamicId(result.dynamicFormationIds.at(-1) ?? null);
@@ -2753,7 +2803,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     },
     [pushTimelineHistory],
   );
-
 
   const addSceneObject = useCallback(
     (
@@ -2937,8 +2986,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         svgDraft.result,
       );
       const sceneClipId = options.clipId ?? selectedClipId;
-      const target =
-        options.target ?? (sceneClipId ? ("SCENE" as const) : ("NEW_CLIP" as const));
+      const target = options.target ?? (sceneClipId ? ("SCENE" as const) : ("NEW_CLIP" as const));
       const newClipId = nextId("c");
       let createdObjectId: string | null = null;
       setProject((p) => {
@@ -2983,10 +3031,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       return formation;
     },
     [svgDraft, selectedClipId, pushSnapshot],
-
   );
-
-
 
   const patchSceneObject = useCallback(
     (clipId: string, objectId: string, patch: Partial<SceneFormationInstance>) => {
@@ -3176,7 +3221,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [pushTimelineHistory],
   );
 
-
   const addLibraryFormation = useCallback((formation: Formation) => {
     // A library asset is a template: the project always gets a fresh id so the
     // stored asset and the project copy can diverge independently.
@@ -3262,9 +3306,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     },
     [],
   );
-
-
-
 
   const editDynamic = useCallback(
     (id: string, fn: (formation: DynamicFormation) => DynamicFormation) => {
@@ -3353,7 +3394,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           return rest;
         }),
       }));
-
     },
     [],
   );
@@ -3394,7 +3434,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     },
     [],
   );
-
 
   const applyDynamicPreset = useCallback(
     (id: string, preset: DynamicPresetId, amount = 1) => {
@@ -3456,7 +3495,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       : undefined;
     return Array.from({ length: project.droneCount }, (_, i) => {
       const target = clipAssignment?.assignments[i]?.targetPointIndex ?? i;
-      return formation.points[target % formation.points.length]?.id ?? dynamicPointId(target % formation.points.length);
+      return (
+        formation.points[target % formation.points.length]?.id ??
+        dynamicPointId(target % formation.points.length)
+      );
     });
   }, [dynamicClipForFormation, plan.assignments, project.droneCount, selectedDynamicFormation]);
 
@@ -3529,7 +3571,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     (groupId: string) => {
       const formation = selectedDynamicFormation;
       if (!formation) return;
-      editDynamic(formation.id, (d) => patchMotionGroup(d, groupId, { pointIds: selectedPointIds }));
+      editDynamic(formation.id, (d) =>
+        patchMotionGroup(d, groupId, { pointIds: selectedPointIds }),
+      );
     },
     [editDynamic, selectedDynamicFormation, selectedPointIds],
   );
@@ -3596,7 +3640,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setDynamicEditTime(0);
   }, []);
 
-
   // ---- Transition analysis / optimisation --------------------------------
   const canAnalyzeSelectedClip =
     !!selectedClipId && isOptimizableClip(project, selectedClipId, plan);
@@ -3621,7 +3664,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     },
     [project, plan],
   );
-
 
   const analyzeSelectedTransition = useCallback(() => {
     const clipId = selectedClipId;
@@ -3796,8 +3838,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const applyTransitionDesignToAllClips = useCallback(
     (patch?: Partial<TransitionDesignState>) => {
       const seed =
-        transitionDesignsRef.current[selectedClipIdRef.current ?? ""] ??
-        DEFAULT_TRANSITION_DESIGN;
+        transitionDesignsRef.current[selectedClipIdRef.current ?? ""] ?? DEFAULT_TRANSITION_DESIGN;
       const design = normalizeTransitionDesign({ ...seed, ...patch });
       if (design.mode === "MANUAL") {
         setTransitionError({
@@ -3848,19 +3889,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [project, plan, assignmentStrategy, sampleRate, pushSnapshot],
   );
 
-
-
   /**
    * MANUAL per-drone editing of the EXISTING override arrays. Bounds follow the
    * scheduler contract (start offset <= transition * 0.5) and the optimiser's
    * vertical lane bound.
    */
   const patchTransitionDroneOffset = useCallback(
-    (
-      clipId: string,
-      index: number,
-      patch: { startOffset?: number; laneOffset?: number },
-    ) => {
+    (clipId: string, index: number, patch: { startOffset?: number; laneOffset?: number }) => {
       const override = transitionOverridesRef.current[clipId];
       const clip = projectRef.current.timeline.find((c) => c.id === clipId);
       if (!override || !clip) return;
@@ -3870,9 +3905,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       const startOffsets = [...override.startOffsets];
       const laneOffsets = [...override.laneOffsets];
       if (patch.startOffset !== undefined && Number.isFinite(patch.startOffset)) {
-        startOffsets[index] = Number(
-          Math.max(0, Math.min(startCap, patch.startOffset)).toFixed(4),
-        );
+        startOffsets[index] = Number(Math.max(0, Math.min(startCap, patch.startOffset)).toFixed(4));
       }
       if (patch.laneOffset !== undefined && Number.isFinite(patch.laneOffset)) {
         laneOffsets[index] = Number(
@@ -3921,7 +3954,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       assignmentStrategy,
       transitionOverrides,
       reference:
-        referenceLayer && referenceLayerShow ? { layer: referenceLayer, show: referenceLayerShow } : null,
+        referenceLayer && referenceLayerShow
+          ? { layer: referenceLayer, show: referenceLayerShow }
+          : null,
     }),
     [sampleRate, assignmentStrategy, transitionOverrides, referenceLayer, referenceLayerShow],
   );
@@ -4013,7 +4048,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const preShowEnabled = !!project.preShow?.enabled;
 
   const patchPreShow = useCallback((patch: DeepPartialPreShow) => {
-    setProject((p) => ({ ...p, preShow: patchPreShowConfig(resolvePreShowConfig(p.preShow), patch) }));
+    setProject((p) => ({
+      ...p,
+      preShow: patchPreShowConfig(resolvePreShowConfig(p.preShow), patch),
+    }));
   }, []);
 
   const setPreShowEnabled = useCallback(
@@ -4091,7 +4129,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [clock],
   );
 
-
   // ---- ESSP reference import (read-only) --------------------------------
   /**
    * SESSION-SCOPED ESSP IMPORT. Reading bytes, unzipping and building the
@@ -4101,45 +4138,47 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * itself: extraction into the timeline is a separate, synchronous authored
    * action performed afterwards, so the token can never cancel valid work.
    */
-  const importEsspFiles = useCallback(async (files: File[]) => {
-    const token = esspJobs.current.begin(sessionScope());
-    setReferenceBusy(true);
-    setReferenceError(null);
-    try {
-      const sources: { name: string; bytes: Uint8Array }[] = [];
-      for (const file of files) {
-        const bytes = new Uint8Array(await file.arrayBuffer());
-        if (isZipName(file.name)) {
-          const entries = await readZip(bytes.buffer as ArrayBuffer);
-          entries.forEach((e) => sources.push({ name: e.name, bytes: e.bytes }));
-        } else {
-          sources.push({ name: file.name, bytes });
+  const importEsspFiles = useCallback(
+    async (files: File[]) => {
+      const token = esspJobs.current.begin(sessionScope());
+      setReferenceBusy(true);
+      setReferenceError(null);
+      try {
+        const sources: { name: string; bytes: Uint8Array }[] = [];
+        for (const file of files) {
+          const bytes = new Uint8Array(await file.arrayBuffer());
+          if (isZipName(file.name)) {
+            const entries = await readZip(bytes.buffer as ArrayBuffer);
+            entries.forEach((e) => sources.push({ name: e.name, bytes: e.bytes }));
+          } else {
+            sources.push({ name: file.name, bytes });
+          }
         }
+        const show = await buildReferenceShow(sources);
+        if (!esspJobs.current.accepts(token, sessionScope())) return;
+        forensicsJobs.current.invalidate();
+        setForensicsReport(null);
+        setForensicsError(null);
+        setSelectedForensicSegmentId(null);
+        setReferenceShow(show);
+        setReferencePlayback(true);
+        setSelectedReferenceDroneId(show.drones[0]?.sourceId ?? null);
+        // An import from the NO SHOW OPEN state IS opening a document.
+        setDocumentOpen(true);
+      } catch (err) {
+        if (!esspJobs.current.accepts(token, sessionScope())) return;
+        setReferenceShow(null);
+        setReferencePlayback(false);
+        setReferenceError({
+          code: "ESSP_IMPORT_FAILED",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      } finally {
+        if (esspJobs.current.isCurrent(token)) setReferenceBusy(false);
       }
-      const show = await buildReferenceShow(sources);
-      if (!esspJobs.current.accepts(token, sessionScope())) return;
-      forensicsJobs.current.invalidate();
-      setForensicsReport(null);
-      setForensicsError(null);
-      setSelectedForensicSegmentId(null);
-      setReferenceShow(show);
-      setReferencePlayback(true);
-      setSelectedReferenceDroneId(show.drones[0]?.sourceId ?? null);
-      // An import from the NO SHOW OPEN state IS opening a document.
-      setDocumentOpen(true);
-
-    } catch (err) {
-      if (!esspJobs.current.accepts(token, sessionScope())) return;
-      setReferenceShow(null);
-      setReferencePlayback(false);
-      setReferenceError({
-        code: "ESSP_IMPORT_FAILED",
-        message: err instanceof Error ? err.message : String(err),
-      });
-    } finally {
-      if (esspJobs.current.isCurrent(token)) setReferenceBusy(false);
-    }
-  }, [sessionScope]);
+    },
+    [sessionScope],
+  );
 
   const clearReferenceShow = useCallback(() => {
     esspJobs.current.invalidate();
@@ -4401,7 +4440,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     });
   }, [appliedConversion, appliedConversionFormation]);
 
-
   const referenceSamplesAt = useCallback(
     (t: number) => (referenceShow ? sampleReferenceShow(referenceShow, t) : []),
     [referenceShow],
@@ -4603,8 +4641,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [assignmentStrategy, installGeometryApplyRevision],
   );
 
-
-
   /**
    * One-click extraction. The segmentation report is a DERIVED input: when it is
    * missing or stale for the loaded show, the analysis is run here first instead
@@ -4709,9 +4745,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [projectDirty, setProjectDirty] = useState(false);
   const [projectSavedAt, setProjectSavedAt] = useState<string | null>(null);
   const [projectAutosavedAt, setProjectAutosavedAt] = useState<string | null>(null);
-  const [projectFileError, setProjectFileError] = useState<{ code: string; message: string } | null>(
-    null,
-  );
+  const [projectFileError, setProjectFileError] = useState<{
+    code: string;
+    message: string;
+  } | null>(null);
   const [autosaveRecovery, setAutosaveRecovery] = useState<ProjectAutosaveSnapshot | null>(null);
   // DOCUMENT LIFECYCLE. `documentOpen` is the single source of truth for the
   // NO SHOW OPEN state; every editing surface is gated on it.
@@ -4770,13 +4807,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setProjectDirty(documentDirty(savedSignature.current, signature));
   }, [project]);
 
-
-  const markSaved = useCallback((snapshotName?: string) => {
-    savedSignature.current = JSON.stringify(project);
-    setProjectDirty(false);
-    setProjectSavedAt(new Date().toISOString());
-    if (snapshotName) setProjectFileNameState(ensureProjectExtension(snapshotName));
-  }, [project]);
+  const markSaved = useCallback(
+    (snapshotName?: string) => {
+      savedSignature.current = JSON.stringify(project);
+      setProjectDirty(false);
+      setProjectSavedAt(new Date().toISOString());
+      if (snapshotName) setProjectFileNameState(ensureProjectExtension(snapshotName));
+    },
+    [project],
+  );
 
   /**
    * CANONICAL PERSISTENCE OPTIONS. Manual save and autosave map the SAME
@@ -4867,133 +4906,133 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [writeProjectDocument, project.name],
   );
 
-
   /**
    * THE ONE PROJECT-CONTENT ADOPTION BOUNDARY (new, sample, open, recovery).
    * Session state of the replaced project is cleared through the canonical
    * session-reset authority and derived analysis through the derived-analysis
    * authority, so no caller keeps a partial reset list of its own.
    */
-  const adoptProject = useCallback((
-    next: ShowProject,
-    fileName: string,
-    restore?: AdoptProjectRestore,
-  ): AdoptProjectOutcome => {
-    // ATOMICITY: the imported layer is rehydrated BEFORE any state is touched.
-    // A payload that cannot be rehydrated aborts the whole adoption, so the
-    // currently open project (and its export/recovery authority) stays intact
-    // instead of being half-replaced.
-    const restoredLayer = restore?.referenceLayer ?? null;
-    let restoredShow: ReturnType<typeof referenceShowFromLayer> | null = null;
-    if (restoredLayer) {
-      try {
-        restoredShow = referenceShowFromLayer(restoredLayer);
-      } catch (err) {
-        return {
+  const adoptProject = useCallback(
+    (next: ShowProject, fileName: string, restore?: AdoptProjectRestore): AdoptProjectOutcome => {
+      // ATOMICITY: the imported layer is rehydrated BEFORE any state is touched.
+      // A payload that cannot be rehydrated aborts the whole adoption, so the
+      // currently open project (and its export/recovery authority) stays intact
+      // instead of being half-replaced.
+      const restoredLayer = restore?.referenceLayer ?? null;
+      let restoredShow: ReturnType<typeof referenceShowFromLayer> | null = null;
+      if (restoredLayer) {
+        try {
+          restoredShow = referenceShowFromLayer(restoredLayer);
+        } catch (err) {
+          return {
           ok: false,
-          error: {
-            code: err instanceof ReferenceLayerError ? err.code : "MALFORMED_LAYER",
-            message: err instanceof Error ? err.message : String(err),
-          },
-        };
+            error: {
+              code: err instanceof ReferenceLayerError ? err.code : "MALFORMED_LAYER",
+              message: err instanceof Error ? err.message : String(err),
+            },
+          };
+        }
       }
-    }
-    // ONE PLACE: the successful adoption advances the project-session generation
-    // and cancels every subsystem authority, so no in-flight audio decode, SVG
-    // import, ESSP import, forensics run or AI request from the replaced
-    // document can install state (or an error) into the new one.
-    invalidateProjectSessionJobs(projectSession.current, [
-      audioJobs.current,
-      svgJobs.current,
-      esspJobs.current,
-      forensicsJobs.current,
-      aiJobs.current,
-    ]);
-    setProject(next);
-    sessionResetRef.current();
-    // PRESENTATION SESSION: transport, timeline viewport and the ephemeral
-    // geometry ghost belong to the replaced document (see ./editorSession).
-    adoptedEditorSessionRef.current();
+      // ONE PLACE: the successful adoption advances the project-session generation
+      // and cancels every subsystem authority, so no in-flight audio decode, SVG
+      // import, ESSP import, forensics run or AI request from the replaced
+      // document can install state (or an error) into the new one.
+      invalidateProjectSessionJobs(projectSession.current, [
+        audioJobs.current,
+        svgJobs.current,
+        esspJobs.current,
+        forensicsJobs.current,
+        aiJobs.current,
+      ]);
+      setProject(next);
+      sessionResetRef.current();
+      // PRESENTATION SESSION: transport, timeline viewport and the ephemeral
+      // geometry ghost belong to the replaced document (see ./editorSession).
+      adoptedEditorSessionRef.current();
 
-    setReferenceExtractionError(null);
-    setReferenceExtraction([]);
-    setReferenceAssetDrafts([]);
-    setReferenceExtractionWarnings([]);
-    // IMPORTED LAYER: always travels with the adopted project, including null,
-    // so no source-recovery bytes of the replaced project can survive.
-    setReferenceLayerShow(restoredShow);
-    setReferenceLayer(restoredShow ? restoredLayer : null);
-    // selectedClipId is only restored when that clip still exists; otherwise the
-    // deterministic fallback is the first clip of the reopened timeline.
-    const requested = restore?.selectedClipId;
-    const restoredClipId =
-      typeof requested === "string" && next.timeline.some((c) => c.id === requested)
-        ? requested
-        : (next.timeline[0]?.id ?? null);
-    setSelectedClipId(restoredClipId);
-    setExplicitDynamicId(null);
-    // PLANNING AUTHORITY: applied transition overrides and the assignment
-    // strategy are canonical planning inputs, so a reopened project must not
-    // silently revert to unoptimized planning.
-    setAssignmentStrategy(restore?.planning?.assignmentStrategy ?? "nearestNeighbor");
-    {
-      const restored = restore?.planning?.transitionOverrides ?? {};
-      overrideBasisRef.current = computeOverrideBasis(next, restored);
-      setTransitionOverrides({ ...restored });
-      // Legacy files (v1/v2/v3 without designs) derive the mode from the
-      // override data itself, so a reopened project never claims a mode it
-      // cannot support.
-      const restoredDesigns: Record<string, TransitionDesignState> = {};
-      for (const clipId of Object.keys(restored)) {
-        restoredDesigns[clipId] = normalizeTransitionDesign({
-          ...DEFAULT_TRANSITION_DESIGN,
-          mode: deriveTransitionMode(restored[clipId]),
-        });
+      setReferenceExtractionError(null);
+      setReferenceExtraction([]);
+      setReferenceAssetDrafts([]);
+      setReferenceExtractionWarnings([]);
+      // IMPORTED LAYER: always travels with the adopted project, including null,
+      // so no source-recovery bytes of the replaced project can survive.
+      setReferenceLayerShow(restoredShow);
+      setReferenceLayer(restoredShow ? restoredLayer : null);
+      // selectedClipId is only restored when that clip still exists; otherwise the
+      // deterministic fallback is the first clip of the reopened timeline.
+      const requested = restore?.selectedClipId;
+      const restoredClipId =
+        typeof requested === "string" && next.timeline.some((c) => c.id === requested)
+          ? requested
+          : (next.timeline[0]?.id ?? null);
+      setSelectedClipId(restoredClipId);
+      setExplicitDynamicId(null);
+      // PLANNING AUTHORITY: applied transition overrides and the assignment
+      // strategy are canonical planning inputs, so a reopened project must not
+      // silently revert to unoptimized planning.
+      setAssignmentStrategy(restore?.planning?.assignmentStrategy ?? "nearestNeighbor");
+      {
+        const restored = restore?.planning?.transitionOverrides ?? {};
+        overrideBasisRef.current = computeOverrideBasis(next, restored);
+        setTransitionOverrides({ ...restored });
+        // Legacy files (v1/v2/v3 without designs) derive the mode from the
+        // override data itself, so a reopened project never claims a mode it
+        // cannot support.
+        const restoredDesigns: Record<string, TransitionDesignState> = {};
+        for (const clipId of Object.keys(restored)) {
+          restoredDesigns[clipId] = normalizeTransitionDesign({
+            ...DEFAULT_TRANSITION_DESIGN,
+            mode: deriveTransitionMode(restored[clipId]),
+          });
+        }
+        for (const [clipId, design] of Object.entries(restore?.planning?.transitionDesigns ?? {})) {
+          restoredDesigns[clipId] = normalizeTransitionDesign(design);
+        }
+        setTransitionDesigns(restoredDesigns);
       }
-      for (const [clipId, design] of Object.entries(restore?.planning?.transitionDesigns ?? {})) {
-        restoredDesigns[clipId] = normalizeTransitionDesign(design);
+      if (typeof restore?.sampleRate === "number" && Number.isFinite(restore.sampleRate)) {
+        setSampleRate(restore.sampleRate);
       }
-      setTransitionDesigns(restoredDesigns);
-    }
-    if (typeof restore?.sampleRate === "number" && Number.isFinite(restore.sampleRate)) {
-      setSampleRate(restore.sampleRate);
-    }
-    invalidateDerivedAnalysis(derivedAnalysisSetters);
-    dynamicHistory.current = { past: [], future: [] };
-    setDynamicHistoryDepth({ past: 0, future: 0 });
-    timelineHistory.current = { past: [], future: [] };
-    setTimelineHistoryDepth({ past: 0, future: 0 });
-    // FILE SEMANTICS. Reopening a file lands clean and saved-as-that-file; an
-    // authored project/sample has no file yet (never "saved as the previous
-    // file"); a recovered autosave is dirty by construction — the empty
-    // signature never equals a project signature, so it stays dirty.
-    const fileState = restore?.fileState ?? "FILE";
-    if (fileState === "FILE") {
-      savedSignature.current = JSON.stringify(next);
-      setProjectDirty(false);
-    } else if (fileState === "RECOVERED") {
-      savedSignature.current = "";
-      setProjectDirty(true);
-      setProjectSavedAt(null);
-    } else {
-      // AUTHORED / SAMPLE: no file yet, but the adopted document IS the baseline.
-      // Anchoring here is what makes later edits count as unsaved work, so the
-      // unsaved-work guard can protect a never-saved show from silent loss.
-      savedSignature.current = JSON.stringify(next);
-      setProjectDirty(false);
-      setProjectSavedAt(null);
-    }
+      invalidateDerivedAnalysis(derivedAnalysisSetters);
+      dynamicHistory.current = { past: [], future: [] };
+      setDynamicHistoryDepth({ past: 0, future: 0 });
+      timelineHistory.current = { past: [], future: [] };
+      setTimelineHistoryDepth({ past: 0, future: 0 });
+      // FILE SEMANTICS. Reopening a file lands clean and saved-as-that-file; an
+      // authored project/sample has no file yet (never "saved as the previous
+      // file"); a recovered autosave is dirty by construction — the empty
+      // signature never equals a project signature, so it stays dirty.
+      const fileState = restore?.fileState ?? "FILE";
+      if (fileState === "FILE") {
+        savedSignature.current = JSON.stringify(next);
+        setProjectDirty(false);
+      } else if (fileState === "RECOVERED") {
+        savedSignature.current = "";
+        setProjectDirty(true);
+        setProjectSavedAt(null);
+      } else {
+        // AUTHORED / SAMPLE: no file yet, but the adopted document IS the baseline.
+        // Anchoring here is what makes later edits count as unsaved work, so the
+        // unsaved-work guard can protect a never-saved show from silent loss.
+        savedSignature.current = JSON.stringify(next);
+        setProjectDirty(false);
+        setProjectSavedAt(null);
+      }
 
-    setProjectFileNameState(ensureProjectExtension(fileName || suggestedProjectFileName(next.name)));
-    // Adopting a document ALWAYS leaves the NO SHOW OPEN state.
-    setDocumentOpen(true);
-    setDocumentAction(null);
-    // RECOVERY PRECEDENCE: a successful, deliberate replacement (Open, New,
-    // Sample, consumed Restore) makes the previous session's snapshot obsolete.
-    // Runs only on the success path, so a failed adoption keeps recovery intact.
-    consumeAutosaveRecoveryRef.current();
-    return { ok: true };
-  }, [derivedAnalysisSetters]);
+      setProjectFileNameState(
+        ensureProjectExtension(fileName || suggestedProjectFileName(next.name)),
+      );
+      // Adopting a document ALWAYS leaves the NO SHOW OPEN state.
+      setDocumentOpen(true);
+      setDocumentAction(null);
+      // RECOVERY PRECEDENCE: a successful, deliberate replacement (Open, New,
+      // Sample, consumed Restore) makes the previous session's snapshot obsolete.
+      // Runs only on the success path, so a failed adoption keeps recovery intact.
+      consumeAutosaveRecoveryRef.current();
+      return { ok: true };
+    },
+    [derivedAnalysisSetters],
+  );
   adoptProjectRef.current = adoptProject;
 
   /**
@@ -5016,8 +5055,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, [adoptProject, projectFileName, project.name]);
 
   const clearDocumentAction = useCallback(() => setDocumentAction(null), []);
-
-
 
   /** Adopts a parsed/migrated envelope with its planning state and editor prefs. */
   const adoptProjectFile = useCallback(
@@ -5203,7 +5240,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       clearGeometryDiagnostics: () => setGeometryProposalPreview(null),
     });
 
-
   const aiBuilt = useMemo(() => {
     if (!aiProposal || aiProposalErrors.length > 0) return null;
     try {
@@ -5356,18 +5392,20 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applyAiProposal = useCallback(
-    (options: {
-      addToTimeline?: boolean;
-      addToScene?: {
-        clipId: string;
-        droneCount: number;
-        name?: string;
-        position?: Vector3Tuple;
-        rotationDeg?: Vector3Tuple;
-        mirrorX?: boolean;
-        color?: RGB;
-      };
-    } = {}) => {
+    (
+      options: {
+        addToTimeline?: boolean;
+        addToScene?: {
+          clipId: string;
+          droneCount: number;
+          name?: string;
+          position?: Vector3Tuple;
+          rotationDeg?: Vector3Tuple;
+          mirrorX?: boolean;
+          color?: RGB;
+        };
+      } = {},
+    ) => {
       const proposal = aiProposal;
       if (!aiBuilt || !proposal) return null;
       if (options.addToScene) {
@@ -5395,7 +5433,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       const built =
         appliedProposal === proposal
           ? aiBuilt
-          : buildProposalContent(appliedProposal, { area: projectRef.current.area, seed: projectRef.current.seed });
+          : buildProposalContent(appliedProposal, {
+              area: projectRef.current.area,
+              seed: projectRef.current.seed,
+            });
       const formation: Formation = { ...built.formation, id: nextId("f") };
       const dynamic: DynamicFormation | null = built.dynamicFormation
         ? { ...built.dynamicFormation, id: nextId("dyn"), sourceFormationId: formation.id }
@@ -5451,9 +5492,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             ...(options.addToScene.position ? { position: options.addToScene.position } : {}),
           });
           sceneObjectId = added.objectId;
-          let scene = options.addToScene.mirrorX
-            ? mirrorObjectX(added.scene, added.objectId)
-            : added.scene;
+          let scene = added.scene;
+          // AI motion groups already know the semantic ownership of their
+          // points (for example "Hair"). Expose those same canonical point ids
+          // as reusable scene selections so the operator can target lighting
+          // and motion without manually lassoing a part the AI already knows.
+          for (const group of dynamic?.groups ?? []) {
+            if (group.pointIds.length === 0) continue;
+            scene = addScenePointGroup(
+              scene,
+              added.objectId,
+              group.name,
+              group.pointIds.map((pointId) => `${added.objectId}#${pointId}`),
+            ).scene;
+          }
+          scene = options.addToScene.mirrorX ? mirrorObjectX(scene, added.objectId) : scene;
           if (options.addToScene.rotationDeg) {
             scene = patchObjectTransform(scene, added.objectId, {
               rotationDeg: options.addToScene.rotationDeg,
@@ -5587,8 +5640,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     timelineFullStart,
     viewEnd,
   ]);
-
-
 
   // ---- Lighting, reveal & colour effects (Sprint 7.4) ---------------------
   // The store owns SELECTION and MUTATION only. Every colour value is produced
@@ -5797,7 +5848,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [addLightingEffectsFromPreset],
   );
 
-
   const patchLightingEffect = useCallback(
     (id: string, patch: Partial<Omit<LightingEffectInstance, "id">>) => {
       editLighting((list) => list.map((e) => (e.id === id ? { ...e, ...patch, id } : e)));
@@ -5882,8 +5932,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
         const next = removeTimelineClipReferences(p, id);
         const previous = selectedClipIdRef.current;
-        const nextClip =
-          previous === id ? nextSelectedClipId(next.timeline, removed) : previous;
+        const nextClip = previous === id ? nextSelectedClipId(next.timeline, removed) : previous;
         setSelectedClipId(nextClip);
         // SAME reconciliation as selectClip — no second editor-state path.
         reconcileSelectionRef.current(next, nextClip, previous);
@@ -5907,7 +5956,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     },
     [pushSnapshot],
   );
-
 
   const commitLightingTiming = useCallback(
     (id: string, timing: { start?: number; duration?: number }) => {
@@ -5983,7 +6031,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     (t: number): DroneLightState[] => {
       // An imported reference-owned interval owns its LEDs too: the displayed
       // colour is the original RGB byte triplet, not an authored effect.
-      if (referenceLayerShow && referenceLayer && intervalAtTime(referenceLayer, t)?.owner === "REFERENCE") {
+      if (
+        referenceLayerShow &&
+        referenceLayer &&
+        intervalAtTime(referenceLayer, t)?.owner === "REFERENCE"
+      ) {
         return referenceLightStates(referenceLayerShow, t, project.droneCount);
       }
       if (!lightingPreview) return [];
@@ -5997,7 +6049,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         t,
       );
     },
-    [lightingPreview, project, plan.participation, samplesAtTime, referenceLayer, referenceLayerShow],
+    [
+      lightingPreview,
+      project,
+      plan.participation,
+      samplesAtTime,
+      referenceLayer,
+      referenceLayerShow,
+    ],
   );
 
   const value = useMemo<StudioContextValue>(
@@ -6240,9 +6299,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       compareOrders,
       applySuggestedInterval,
       preShowOverlay,
-      preShowStale: preShowPreview
-        ? preShowPreview.revision !== analysisRevision
-        : fullShowStale,
+      preShowStale: preShowPreview ? preShowPreview.revision !== analysisRevision : fullShowStale,
       showLaunchPads,
       setShowLaunchPads,
       showStaging,
@@ -6356,11 +6413,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       projectFileError,
       clearProjectFileError,
       saveProjectFile,
-    saveProjectFileAs,
-    documentOpen,
-    closeShow,
-    documentAction,
-    clearDocumentAction,
+      saveProjectFileAs,
+      documentOpen,
+      closeShow,
+      documentAction,
+      clearDocumentAction,
       buildProjectFile,
       referenceLayer,
       referenceOwnership,
@@ -6726,7 +6783,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       patchAiProposal,
       applyAiProposal,
     ],
-
   );
 
   return <StudioContext.Provider value={value}>{children}</StudioContext.Provider>;

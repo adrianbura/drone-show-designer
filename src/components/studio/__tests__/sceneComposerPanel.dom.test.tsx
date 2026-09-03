@@ -138,6 +138,11 @@ describe("scene composer drone budget DOM", () => {
     expect(scene.objects).toHaveLength(2);
     expect(scene.objects[1]!.requestedDroneCount).toBe(40);
     expect(scene.objects[1]!.source.kind).toBe("DYNAMIC");
+    expect(scene.pointGroups?.map((group) => group.name)).toContain("Left wing");
+    expect(scene.pointGroups?.map((group) => group.name)).toContain("Right wing");
+    expect(scene.pointGroups?.every((group) => group.instanceId === scene.objects[1]!.id)).toBe(
+      true,
+    );
     expect(api.timelineHistoryDepth.past).toBe(historyBefore + 1);
 
     act(() => api.undoTimeline());
@@ -149,6 +154,16 @@ describe("scene composer drone budget DOM", () => {
     await waitFor(() => expect(api.project.formations).toHaveLength(formationsBefore + 1));
     expect(api.project.dynamicFormations).toHaveLength(1);
     expect(api.selectedScene!.objects[1]!.requestedDroneCount).toBe(40);
+    expect(api.selectedScene!.pointGroups?.map((group) => group.name)).toEqual([
+      "Body",
+      "Left wing",
+      "Right wing",
+    ]);
+
+    const leftWing = api.selectedScene!.pointGroups!.find((group) => group.name === "Left wing")!;
+    act(() => api.selectScenePointGroup(leftWing.id));
+    await waitFor(() => expect(api.selectedScenePointIds).toEqual(leftWing.pointIds));
+    expect(api.sceneSelectionMode).toBe("POINT");
 
     const aiObject = api.selectedScene!.objects[1]!;
     const initialPosition = aiObject.transform.position;
