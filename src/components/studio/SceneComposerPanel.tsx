@@ -183,7 +183,13 @@ export default function SceneComposerPanel() {
         warning,
       };
     });
-  }, [selectedScene, selectedSceneBudget, project.formations, project.dynamicFormations, lightingEffects]);
+  }, [
+    selectedScene,
+    selectedSceneBudget,
+    project.formations,
+    project.dynamicFormations,
+    lightingEffects,
+  ]);
 
   if (!selectedClipId || !selectedScene) {
     return (
@@ -236,9 +242,8 @@ export default function SceneComposerPanel() {
           data-testid="selected-object-summary"
         >
           <p className="font-mono text-[11px] text-foreground">
-            {primary.name} ·{" "}
-            {layers.find((layer) => layer.id === primary.id)?.typeLabel ?? "Asset"} ·{" "}
-            {layers.find((layer) => layer.id === primary.id)?.droneCount ?? 0} drones
+            {primary.name} · {layers.find((layer) => layer.id === primary.id)?.typeLabel ?? "Asset"}{" "}
+            · {layers.find((layer) => layer.id === primary.id)?.droneCount ?? 0} drones
           </p>
           <div className="mt-1 flex gap-1">
             <button
@@ -260,7 +265,6 @@ export default function SceneComposerPanel() {
           </div>
         </div>
       ) : null}
-
 
       <div
         className="mt-2 grid grid-cols-2 gap-1"
@@ -563,7 +567,6 @@ export default function SceneComposerPanel() {
       >
         Layer order follows creation order. Reordering is not available yet.
       </p>
-
 
       <AddVisualWizard clipId={clipId} fleet={project.droneCount} used={used} />
 
