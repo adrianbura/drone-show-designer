@@ -266,6 +266,39 @@ export default function SceneComposerPanel() {
         </div>
       ) : null}
 
+      <TransformInspector
+        selectedCount={selectedSceneObjectIds.length}
+        gizmoMode={gizmoMode}
+        onSetGizmoMode={setGizmoMode}
+        {...(primary
+          ? {
+              position: primary.transform.position,
+              rotationDeg: primary.transform.rotationDeg,
+              scale: primary.transform.scale,
+              onPatchPosition: (position) =>
+                patchSceneObjectTransform(clipId, primary.id, { position }),
+              onPatchRotation: (rotationDeg) =>
+                patchSceneObjectTransform(clipId, primary.id, { rotationDeg }),
+              onPatchScale: (scale) => patchSceneObjectTransform(clipId, primary.id, { scale }),
+              onReset: () =>
+                patchSceneObjectTransform(clipId, primary.id, {
+                  position: [0, 0, 0],
+                  rotationDeg: [0, 0, 0],
+                  scale: 1,
+                }),
+            }
+          : {})}
+        onGroupMove={(position) =>
+          transformSceneObjects(clipId, selectedSceneObjectIds, { position })
+        }
+        onGroupRotate={(rotationDeg) =>
+          transformSceneObjects(clipId, selectedSceneObjectIds, { rotationDeg })
+        }
+        onGroupScale={(scaleFactor) =>
+          transformSceneObjects(clipId, selectedSceneObjectIds, { scaleFactor })
+        }
+      />
+
       <div
         className="mt-2 grid grid-cols-2 gap-1"
         role="group"
