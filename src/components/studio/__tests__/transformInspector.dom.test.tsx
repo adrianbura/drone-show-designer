@@ -99,7 +99,9 @@ describe("transform inspector", () => {
     for (const mode of ["ROTATE", "SCALE", "MOVE"] as const) {
       fireEvent.click(screen.getByTestId(`transform-mode-${mode.toLowerCase()}`));
       await waitFor(() => expect(api.gizmoMode).toBe(mode));
-      expect(screen.getByTestId("transform-mode-group").getAttribute("data-active-mode")).toBe(mode);
+      expect(screen.getByTestId("transform-mode-group").getAttribute("data-active-mode")).toBe(
+        mode,
+      );
       expect(
         screen.getByTestId(`transform-mode-${mode.toLowerCase()}`).getAttribute("data-active"),
       ).toBe("1");
@@ -184,9 +186,9 @@ describe("transform inspector", () => {
     await waitFor(() =>
       expect(api.selectedScene!.objects.map((o) => o.transform.scale)).not.toEqual(scalesBefore),
     );
-    expect(
-      api.selectedScene!.objects.every((o, i) => o.transform.scale > scalesBefore[i]!),
-    ).toBe(true);
+    expect(api.selectedScene!.objects.every((o, i) => o.transform.scale > scalesBefore[i]!)).toBe(
+      true,
+    );
     act(() => api.undoTimeline());
     await waitFor(() =>
       expect(api.selectedScene!.objects.map((o) => o.transform.scale)).toEqual(scalesBefore),

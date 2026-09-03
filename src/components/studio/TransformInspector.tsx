@@ -172,7 +172,11 @@ export default function TransformInspector({
                 step={5}
                 testId={`transform-rotation-${axis}`}
                 onCommit={(next) => {
-                  const value: [number, number, number] = [rotationDeg[0], rotationDeg[1], rotationDeg[2]];
+                  const value: [number, number, number] = [
+                    rotationDeg[0],
+                    rotationDeg[1],
+                    rotationDeg[2],
+                  ];
                   value[i] = next;
                   onPatchRotation?.(value);
                 }}
