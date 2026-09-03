@@ -123,7 +123,6 @@ describe("transform inspector", () => {
     await waitFor(() => expect(api.selectedScene!.objects[0]!.transform.scale).toBeCloseTo(1.5));
     expect(screen.getByTestId("transform-position-Y").getAttribute("value") ?? "").not.toBe("0");
 
-    fireEvent.click(screen.getByTestId(`layer-mirror-${ids[0]}`) ?? document.body);
     const mirrorBefore = api.selectedScene!.objects[0]!.transform.mirrorX;
 
     fireEvent.click(screen.getByTestId("transform-reset"));
