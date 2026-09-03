@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createDefaultProject } from "../../show/defaultProject";
 import { sampleDynamicFormation } from "../../show/dynamic/sampler";
+import { validateDynamicFormation } from "../../show/dynamic/validate";
 import {
   allocateParts,
   buildProposalContent,
@@ -158,7 +159,7 @@ describe("deterministic builder", () => {
   it("is deterministic and actually animates the wing tips", async () => {
     const proposal = await mockChoreographyProvider.generateProposal({
       prompt: "bird flapping 4 times",
-      fleetCount: 120,
+      fleetCount: 80,
       area: AREA,
     });
     const a = buildProposalContent(proposal, { area: AREA, seed: 3 });
@@ -178,13 +179,13 @@ describe("deterministic builder", () => {
   it("builds a readable layered woman profile and animates only the hair", async () => {
     const proposal = await mockChoreographyProvider.generateProposal({
       prompt: "Creează o siluetă 3D de fată din profil, cu păr lung și mișcare lentă",
-      fleetCount: 120,
+      fleetCount: 80,
       area: AREA,
     });
     expect(proposal.concept).toBe("WOMAN_PROFILE");
-    expect(validateProposal(proposal, 120).valid).toBe(true);
+    expect(validateProposal(proposal, 80).valid).toBe(true);
     const built = buildProposalContent(proposal, { area: AREA, seed: 11 });
-    expect(built.formation.points).toHaveLength(120);
+    expect(built.formation.points).toHaveLength(80);
     expect(built.parts).toEqual(["HAIR"]);
     const xs = built.formation.points.map((point) => point[0]);
     const ys = built.formation.points.map((point) => point[1]);
@@ -195,7 +196,7 @@ describe("deterministic builder", () => {
 
     const dynamic = built.dynamicFormation!;
     const hair = dynamic.groups.find((group) => group.name === "Hair")!;
-    expect(hair.pointIds.length).toBeGreaterThan(40);
+    expect(hair.pointIds.length).toBeGreaterThan(30);
     expect(hair.keyframes.at(-1)!.rotation).toEqual([0, 0, 0]);
     const hairIndex = dynamic.points.findIndex((point) => point.id === hair.pointIds[10]);
     const faceIndex = dynamic.points.findIndex((point) => !hair.pointIds.includes(point.id));
@@ -203,6 +204,10 @@ describe("deterministic builder", () => {
     const atQuarter = sampleDynamicFormation(dynamic, proposal.animationSpec.cycleDuration / 4);
     expect(atQuarter[hairIndex]).not.toEqual(at0[hairIndex]);
     expect(atQuarter[faceIndex]).toEqual(at0[faceIndex]);
+    expect(
+      validateDynamicFormation(dynamic, { limits: createDefaultProject(80).limits, area: AREA })
+        .issues,
+    ).toEqual([]);
   });
 
   it("keeps a static concept static", async () => {

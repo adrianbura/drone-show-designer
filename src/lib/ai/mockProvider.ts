@@ -223,7 +223,14 @@ function buildProposal(
     fleetCount: requestedCount,
     formationSpec: {
       width: round(width, 2),
-      height: round(winged ? width * 0.45 : humanProfile ? width * 1.15 : width, 2),
+      height: round(
+        winged
+          ? width * 0.45
+          : humanProfile
+            ? Math.min(width * 1.05, Math.max(20, area.height - 20))
+            : width,
+        2,
+      ),
       depth: round(depth, 2),
       altitude: round(altitude, 2),
       rotationDeg: base?.formationSpec.rotationDeg ?? 0,

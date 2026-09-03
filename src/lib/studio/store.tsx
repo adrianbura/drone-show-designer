@@ -2436,6 +2436,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [sceneGizmoDraft, setSceneGizmoDraft] = useState<SceneGroupDelta | null>(null);
   /** Ids captured at pointer-down, so a mid-gesture selection change is inert. */
   const gizmoIdsRef = useRef<readonly string[]>([]);
+  /** Latest pointer delta; React state may not have rendered before mouse-up. */
+  const sceneGizmoDraftRef = useRef<SceneGroupDelta | null>(null);
 
   const sceneGizmoPivot = useMemo<Vector3Tuple | null>(() => {
     if (!selectedScene || sceneSelection.ids.length === 0) return null;
@@ -2474,18 +2476,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const beginSceneGizmo = useCallback(() => {
     gizmoIdsRef.current = sceneSelection.ids;
+    sceneGizmoDraftRef.current = {};
     setSceneGizmoDraft({});
   }, [sceneSelection]);
 
   const updateSceneGizmo = useCallback((delta: SceneGroupDelta) => {
     if (gizmoIdsRef.current.length === 0) return;
+    sceneGizmoDraftRef.current = delta;
     setSceneGizmoDraft(delta);
   }, []);
 
   const commitSceneGizmo = useCallback(() => {
     const ids = gizmoIdsRef.current;
-    const delta = sceneGizmoDraft;
+    const delta = sceneGizmoDraftRef.current;
     gizmoIdsRef.current = [];
+    sceneGizmoDraftRef.current = null;
     setSceneGizmoDraft(null);
     if (!delta || ids.length === 0 || !selectedClipId) return;
     const moved =
@@ -2495,11 +2500,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       (delta.scaleFactor !== undefined && delta.scaleFactor !== 1);
     if (!moved) return;
     transformSceneObjects(selectedClipId, ids, delta);
-  }, [sceneGizmoDraft, selectedClipId, transformSceneObjects]);
+  }, [selectedClipId, transformSceneObjects]);
 
   /** Escape: the draft is discarded, so the scene is byte-identical again. */
   const cancelSceneGizmo = useCallback(() => {
     gizmoIdsRef.current = [];
+    sceneGizmoDraftRef.current = null;
     setSceneGizmoDraft(null);
   }, []);
 
@@ -5362,9 +5368,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         color?: RGB;
       };
     } = {}) => {
-      const built = aiBuilt;
       const proposal = aiProposal;
-      if (!built || !proposal) return null;
+      if (!aiBuilt || !proposal) return null;
       if (options.addToScene) {
         const targetClip = projectRef.current.timeline.find(
           (clip) => clip.id === options.addToScene?.clipId,
@@ -5379,6 +5384,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         if (!Number.isInteger(requested) || requested < 1 || requested > budget.availableDrones)
           return null;
       }
+      // A scene object owns exactly the artistic allocation selected by the
+      // operator. Materialise AI geometry at that count instead of persisting a
+      // full-fleet asset and merely hiding surplus points: validation, motion
+      // groups, preview and export must all describe the SAME drones.
+      const appliedProposal =
+        options.addToScene && options.addToScene.droneCount !== proposal.fleetCount
+          ? { ...proposal, fleetCount: options.addToScene.droneCount }
+          : proposal;
+      const built =
+        appliedProposal === proposal
+          ? aiBuilt
+          : buildProposalContent(appliedProposal, { area: projectRef.current.area, seed: projectRef.current.seed });
       const formation: Formation = { ...built.formation, id: nextId("f") };
       const dynamic: DynamicFormation | null = built.dynamicFormation
         ? { ...built.dynamicFormation, id: nextId("dyn"), sourceFormationId: formation.id }

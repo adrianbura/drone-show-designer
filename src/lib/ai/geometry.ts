@@ -118,6 +118,22 @@ function samplePolyline(vertices: readonly ProfileVertex[], count: number): Vec3
   });
 }
 
+function sampleLayeredPolyline(
+  vertices: readonly ProfileVertex[],
+  count: number,
+  depthOffsets: readonly number[],
+): Vec3[] {
+  const layerCounts = allocateParts(
+    count,
+    depthOffsets.map((_, index) => [String(index), 1] as const),
+  );
+  return depthOffsets.flatMap((offset, index) =>
+    samplePolyline(vertices, layerCounts[String(index)] ?? 0).map(
+      ([x, y, z]) => [x, y, z + offset] as Vec3,
+    ),
+  );
+}
+
 /**
  * Audience-facing 2.5D female profile. The recognisable face contour stays on
  * the front depth layer, while hair and shoulders occupy separate shallow Z
@@ -127,66 +143,73 @@ function samplePolyline(vertices: readonly ProfileVertex[], count: number): Vec3
 export function buildWomanProfileGeometry(options: WomanProfileOptions): ConceptGeometry {
   const { count, width, height, depth, altitude } = options;
   const counts = allocateParts(count, [
-    ["FACE" as const, 0.4],
-    ["HAIR" as const, 0.42],
-    ["NECK" as const, 0.18],
+    ["FACE" as const, 0.41],
+    ["HAIR" as const, 0.44],
+    ["NECK" as const, 0.15],
   ]);
   const point = (x: number, y: number, z: number): ProfileVertex => [
     x * width,
     altitude + y * height,
     z * depth,
   ];
+  const facePoint = (x: number, y: number, z = 0): ProfileVertex => point(x, y, 0.32 + z);
+  const hairPoint = (x: number, y: number, z = 0): ProfileVertex => point(x, y, -0.32 + z);
+  const neckPoint = (x: number, y: number, z = 0): ProfileVertex => point(x, y, z);
   const definitions: readonly {
     part: ProfilePart;
     pivot: Vec3;
     vertices: readonly ProfileVertex[];
+    depthOffsets: readonly number[];
   }[] = [
     {
       part: "FACE",
-      pivot: point(-0.02, 0.05, 0.12),
+      pivot: facePoint(-0.02, 0.05),
+      depthOffsets: [-2.8, 0, 2.8],
       vertices: [
-        point(-0.08, 0.43, 0.14),
-        point(0.08, 0.34, 0.16),
-        point(0.14, 0.22, 0.18),
-        point(0.27, 0.12, 0.2),
-        point(0.16, 0.07, 0.2),
-        point(0.21, 0.01, 0.2),
-        point(0.15, -0.04, 0.2),
-        point(0.2, -0.1, 0.19),
-        point(0.12, -0.19, 0.18),
-        point(0.02, -0.27, 0.15),
-        point(-0.08, -0.29, 0.12),
+        facePoint(-0.08, 0.43),
+        facePoint(0.08, 0.34),
+        facePoint(0.14, 0.22),
+        facePoint(0.27, 0.12),
+        facePoint(0.16, 0.07),
+        facePoint(0.21, 0.01),
+        facePoint(0.15, -0.04),
+        facePoint(0.2, -0.1),
+        facePoint(0.12, -0.19),
+        facePoint(0.02, -0.27),
+        facePoint(-0.08, -0.29),
       ],
     },
     {
       part: "HAIR",
-      pivot: point(-0.12, 0.34, -0.08),
+      pivot: hairPoint(-0.12, 0.34),
+      depthOffsets: [-2.8, 0, 2.8],
       vertices: [
-        point(-0.08, 0.43, 0.02),
-        point(-0.24, 0.46, -0.04),
-        point(-0.38, 0.35, -0.12),
-        point(-0.45, 0.18, -0.18),
-        point(-0.43, -0.04, -0.22),
-        point(-0.4, -0.3, -0.18),
-        point(-0.34, -0.48, -0.1),
-        point(-0.23, -0.32, -0.02),
-        point(-0.17, -0.48, 0.05),
-        point(-0.1, -0.28, 0.1),
-        point(-0.08, -0.05, 0.08),
-        point(-0.04, 0.18, 0.06),
-        point(-0.08, 0.43, 0.02),
+        hairPoint(-0.08, 0.43),
+        hairPoint(-0.24, 0.46),
+        hairPoint(-0.38, 0.35),
+        hairPoint(-0.45, 0.18),
+        hairPoint(-0.43, -0.04),
+        hairPoint(-0.4, -0.3),
+        hairPoint(-0.34, -0.48),
+        hairPoint(-0.23, -0.32),
+        hairPoint(-0.17, -0.48),
+        hairPoint(-0.1, -0.28),
+        hairPoint(-0.08, -0.05),
+        hairPoint(-0.04, 0.18),
+        hairPoint(-0.08, 0.43),
       ],
     },
     {
       part: "NECK",
-      pivot: point(0, -0.35, 0),
+      pivot: neckPoint(0, -0.35, 0.9),
+      depthOffsets: [-1.4, 1.4],
       vertices: [
-        point(-0.08, -0.29, 0.1),
-        point(-0.06, -0.43, 0.06),
-        point(0.08, -0.5, 0.02),
-        point(0.38, -0.51, -0.04),
-        point(0.15, -0.4, 0.05),
-        point(0.12, -0.19, 0.14),
+        neckPoint(-0.08, -0.29, 0.9),
+        neckPoint(-0.06, -0.43, 0.9),
+        neckPoint(0.08, -0.5, 0.9),
+        neckPoint(0.38, -0.51, 0.9),
+        neckPoint(0.15, -0.4, 0.9),
+        neckPoint(0.12, -0.19, 0.9),
       ],
     },
   ];
@@ -194,7 +217,11 @@ export function buildWomanProfileGeometry(options: WomanProfileOptions): Concept
   const parts: PartGeometry[] = [];
   for (const definition of definitions) {
     const start = points.length;
-    const generated = samplePolyline(definition.vertices, counts[definition.part] ?? 0);
+    const generated = sampleLayeredPolyline(
+      definition.vertices,
+      counts[definition.part] ?? 0,
+      definition.depthOffsets,
+    );
     points.push(...generated);
     parts.push({
       part: definition.part,

@@ -155,19 +155,19 @@ function bodyBreathKeyframes(cycle: number, amplitudeDeg: number): GroupDeformat
 }
 
 function hairSwayKeyframes(cycle: number, amplitudeDeg: number): GroupDeformationKeyframe[] {
-  const angle = Math.min(8, Math.max(1.5, amplitudeDeg * 0.16));
-  const key = (t: number, rotation: number): GroupDeformationKeyframe => ({
+  const drift = Math.min(0.8, Math.max(0.2, amplitudeDeg * 0.018));
+  const key = (t: number, x: number): GroupDeformationKeyframe => ({
     t,
-    offset: [0, 0, 0],
-    rotation: [0, 0, rotation],
+    offset: [x, 0, 0],
+    rotation: [0, 0, 0],
     scale: 1,
     interpolation: "smooth",
   });
   return [
     key(0, 0),
-    key(cycle / 4, angle),
+    key(cycle / 4, drift),
     key(cycle / 2, 0),
-    key((3 * cycle) / 4, -angle),
+    key((3 * cycle) / 4, -drift),
     key(cycle, 0),
   ];
 }

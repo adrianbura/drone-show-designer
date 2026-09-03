@@ -1,5 +1,5 @@
 import { TransformControls } from "@react-three/drei";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import * as THREE from "three";
 
 import type { SceneGizmoMode, SceneGroupDelta } from "@/lib/show/scene";
@@ -40,15 +40,19 @@ export default function SceneGizmo({
 }) {
   const proxy = useRef<THREE.Object3D>(new THREE.Object3D());
 
-  // The proxy is re-seeded at the pivot whenever the selection or the mode
-  // changes, so every gesture starts from an identity delta.
-  useEffect(() => {
+  const resetProxy = useCallback(() => {
     const object = proxy.current;
-    if (!object) return;
     object.position.set(pivot[0], pivot[1], pivot[2]);
     object.rotation.set(0, 0, 0);
     object.scale.setScalar(1);
-  }, [pivot, mode]);
+    object.updateMatrixWorld();
+  }, [pivot]);
+
+  // The proxy is re-seeded at the pivot whenever the selection or the mode
+  // changes, so every gesture starts from an identity delta.
+  useEffect(() => {
+    resetProxy();
+  }, [mode, resetProxy]);
 
   return (
     <>
@@ -59,8 +63,14 @@ export default function SceneGizmo({
         size={0.85}
         translationSnap={translateSnap > 0 ? translateSnap : null}
         rotationSnap={rotateSnap > 0 ? (rotateSnap * Math.PI) / 180 : null}
-        onMouseDown={onBegin}
-        onMouseUp={onCommit}
+        onMouseDown={() => {
+          resetProxy();
+          onBegin();
+        }}
+        onMouseUp={() => {
+          onCommit();
+          resetProxy();
+        }}
         onObjectChange={() => {
           const object = proxy.current;
           if (!object) return;
