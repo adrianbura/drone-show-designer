@@ -562,6 +562,11 @@ interface StudioContextValue {
   selectScenePointGroup: (groupId: string) => void;
   /** Promotes and animates the current object/point selection in one undo revision. */
   applyMotionPresetToSceneSelection: (preset: DynamicPresetId) => readonly string[];
+  /** Ephemeral motion audition rendered by the canonical planner; no project/history mutation. */
+  previewMotionPresetToSceneSelection: (preset: DynamicPresetId) => readonly string[];
+  motionEffectPreviewIds: readonly string[];
+  applyMotionEffectPreview: () => readonly string[];
+  cancelMotionEffectPreview: () => void;
   /** EVERYDAY MOTION INSPECTOR: per-instance playback (one revision, one undo). */
   patchSceneObjectAnimation: (
     clipId: string,
@@ -761,6 +766,17 @@ interface StudioContextValue {
     parameters?: Partial<LightingEffectParameters>,
     timing?: { readonly anchor: "ABSOLUTE"; readonly start: number; readonly duration?: number },
   ) => string[];
+  /** Ephemeral audition: visible in the viewport, absent from project/history/export. */
+  previewLightingEffectsFromPreset: (
+    clipId: string,
+    presetId: string,
+    targets: readonly LightingTarget[],
+    parameters?: Partial<LightingEffectParameters>,
+    timing?: { readonly anchor: "ABSOLUTE"; readonly start: number; readonly duration?: number },
+  ) => string[];
+  lightingEffectPreview: readonly LightingEffectInstance[];
+  applyLightingEffectPreview: () => string[];
+  cancelLightingEffectPreview: () => void;
 
   patchLightingEffect: (id: string, patch: Partial<Omit<LightingEffectInstance, "id">>) => void;
   patchLightingParameters: (id: string, patch: Partial<LightingEffectParameters>) => void;
@@ -1461,6 +1477,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   /** Session-only scope (identity of the open document, nothing else). */
   const sessionScope = useCallback(() => projectSession.current.scope(), []);
 
+  const [motionEffectPreview, setMotionEffectPreview] = useState<{
+    readonly baseProject: ShowProject;
+    readonly project: ShowProject;
+    readonly dynamicFormationIds: readonly string[];
+  } | null>(null);
+
   // Pure engine pipeline: formations -> assignment -> planning -> sampling -> safety.
   const plan = useMemo(
     () => buildShowPlan(project, { assignmentStrategy, transitionOverrides }),
@@ -1728,10 +1750,23 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * imported samples; everything else is the planner output. Exactly one
    * authority per instant — never a blend of the two.
    */
+  const motionPreviewPlan = useMemo(
+    () =>
+      motionEffectPreview
+        ? buildShowPlan(motionEffectPreview.project, { assignmentStrategy, transitionOverrides })
+        : null,
+    [motionEffectPreview, assignmentStrategy, transitionOverrides],
+  );
+
   const samplesAtTime = useCallback(
     (t: number) =>
-      splicedTrajectorySamples(referenceLayerShow, referenceLayer, t, samplesAt(plan, t)).samples,
-    [plan, referenceLayer, referenceLayerShow],
+      splicedTrajectorySamples(
+        referenceLayerShow,
+        referenceLayer,
+        t,
+        samplesAt(motionPreviewPlan ?? plan, t),
+      ).samples,
+    [motionPreviewPlan, plan, referenceLayer, referenceLayerShow],
   );
 
   const referenceOwnership = useMemo(
@@ -2695,6 +2730,49 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setSelectedScenePointIds([...group.pointIds]);
   }, []);
 
+  const previewMotionPresetToSceneSelection = useCallback(
+    (preset: DynamicPresetId): readonly string[] => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return [];
+      const result = authorSceneMotion(projectRef.current, {
+        clipId,
+        objectIds: sceneSelection.ids,
+        primaryObjectId: sceneSelection.primaryId,
+        selectedPointIds: sceneSelectionMode === "POINT" ? selectedScenePointIds : [],
+        preset,
+        createId: () => nextId("dyn"),
+      });
+      if (result.project === projectRef.current || result.dynamicFormationIds.length === 0) return [];
+      setMotionEffectPreview({
+        baseProject: projectRef.current,
+        project: result.project,
+        dynamicFormationIds: result.dynamicFormationIds,
+      });
+      return result.dynamicFormationIds;
+    },
+    [
+      sceneSelection.ids,
+      sceneSelection.primaryId,
+      sceneSelectionMode,
+      selectedScenePointIds,
+    ],
+  );
+
+  const cancelMotionEffectPreview = useCallback(() => setMotionEffectPreview(null), []);
+
+  const applyMotionEffectPreview = useCallback((): readonly string[] => {
+    if (!motionEffectPreview) return [];
+    if (projectRef.current !== motionEffectPreview.baseProject) {
+      setMotionEffectPreview(null);
+      return [];
+    }
+    pushTimelineHistory();
+    setProject(motionEffectPreview.project);
+    setExplicitDynamicId(motionEffectPreview.dynamicFormationIds.at(-1) ?? null);
+    setMotionEffectPreview(null);
+    return motionEffectPreview.dynamicFormationIds;
+  }, [motionEffectPreview, pushTimelineHistory]);
+
   const applyMotionPresetToSceneSelection = useCallback(
     (preset: DynamicPresetId): readonly string[] => {
       const clipId = selectedClipIdRef.current;
@@ -2707,14 +2785,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         preset,
         createId: () => nextId("dyn"),
       });
-      if (result.project === projectRef.current || result.dynamicFormationIds.length === 0)
-        return [];
+      setMotionEffectPreview(null);
+      if (result.dynamicFormationIds.length === 0) return [];
       pushTimelineHistory();
       setProject(result.project);
       setExplicitDynamicId(result.dynamicFormationIds.at(-1) ?? null);
       return result.dynamicFormationIds;
-    },
-    [
+    }, [
       pushTimelineHistory,
       sceneSelection.ids,
       sceneSelection.primaryId,
@@ -5646,6 +5723,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   // by the lighting engine, so viewport, inspector and export agree by design.
   const [selectedLightingEffectId, setSelectedLightingEffectId] = useState<string | null>(null);
   const [lightingPreview, setLightingPreview] = useState(true);
+  const [lightingEffectPreview, setLightingEffectPreview] = useState<LightingEffectInstance[]>([]);
   const lightingSeed = useRef(0);
 
   const lightingEffects = useMemo(
@@ -5831,6 +5909,54 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     },
     [editLighting],
   );
+
+  const makeLightingPresetEffects = useCallback(
+    (
+      presetId: string,
+      targets: readonly LightingTarget[],
+      parameters?: Partial<LightingEffectParameters>,
+      timing?: { readonly anchor: "ABSOLUTE"; readonly start: number; readonly duration?: number },
+    ): LightingEffectInstance[] => {
+      const preset = findLightingPreset(presetId);
+      if (!preset || targets.length === 0) return [];
+      return targets.map((target) => ({
+        ...createEffectFromPreset(preset, target, {
+          ...(parameters ? { parameters } : {}),
+          ...(timing ? { anchor: timing.anchor, start: timing.start } : {}),
+        }),
+        id: newLightingEffectId(Date.now() + lightingSeed.current++),
+        ...(timing?.duration !== undefined ? { duration: timing.duration } : {}),
+      }));
+    },
+    [],
+  );
+
+  const previewLightingEffectsFromPreset = useCallback(
+    (
+      _clipId: string,
+      presetId: string,
+      targets: readonly LightingTarget[],
+      parameters?: Partial<LightingEffectParameters>,
+      timing?: { readonly anchor: "ABSOLUTE"; readonly start: number; readonly duration?: number },
+    ) => {
+      const created = makeLightingPresetEffects(presetId, targets, parameters, timing);
+      setLightingEffectPreview(created);
+      setLightingPreview(true);
+      return created.map((effect) => effect.id);
+    },
+    [makeLightingPresetEffects],
+  );
+
+  const cancelLightingEffectPreview = useCallback(() => setLightingEffectPreview([]), []);
+
+  const applyLightingEffectPreview = useCallback(() => {
+    const created = lightingEffectPreview;
+    if (created.length === 0) return [];
+    editLighting((list) => [...list, ...created]);
+    setSelectedLightingEffectId(created[0]!.id);
+    setLightingEffectPreview([]);
+    return created.map((effect) => effect.id);
+  }, [editLighting, lightingEffectPreview]);
 
   const addLightingEffectFromPreset = useCallback(
     (
@@ -6039,10 +6165,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         return referenceLightStates(referenceLayerShow, t, project.droneCount);
       }
       if (!lightingPreview) return [];
-      if ((project.lighting?.effects.length ?? 0) === 0) return [];
+      if ((project.lighting?.effects.length ?? 0) === 0 && lightingEffectPreview.length === 0)
+        return [];
+      const previewProject =
+        lightingEffectPreview.length === 0
+          ? project
+          : {
+              ...project,
+              lighting: {
+                schemaVersion: LIGHTING_SCHEMA_VERSION,
+                effects: [...(project.lighting?.effects ?? []), ...lightingEffectPreview],
+              },
+            };
       return projectLightingAt(
         {
-          project,
+          project: previewProject,
           participation: plan.participation,
           positions: samplesAtTime(t).map((s) => s.position),
         },
@@ -6051,6 +6188,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     },
     [
       lightingPreview,
+      lightingEffectPreview,
       project,
       plan.participation,
       samplesAtTime,
@@ -6136,6 +6274,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       removeScenePointGroupById,
       selectScenePointGroup,
       applyMotionPresetToSceneSelection,
+      previewMotionPresetToSceneSelection,
+      motionEffectPreviewIds: motionEffectPreview?.dynamicFormationIds ?? [],
+      applyMotionEffectPreview,
+      cancelMotionEffectPreview,
       patchSceneObjectAnimation,
       patchSceneMotion,
       patchSceneMotionGroup,
@@ -6195,6 +6337,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectLightingEffect: setSelectedLightingEffectId,
       addLightingEffectFromPreset,
       addLightingEffectsFromPreset,
+      previewLightingEffectsFromPreset,
+      lightingEffectPreview,
+      applyLightingEffectPreview,
+      cancelLightingEffectPreview,
 
       patchLightingEffect,
       patchLightingParameters,
@@ -6523,6 +6669,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       removeScenePointGroupById,
       selectScenePointGroup,
       applyMotionPresetToSceneSelection,
+      previewMotionPresetToSceneSelection,
+      motionEffectPreview,
+      applyMotionEffectPreview,
+      cancelMotionEffectPreview,
       patchSceneObjectAnimation,
       patchSceneMotion,
       patchSceneMotionGroup,
@@ -6576,6 +6726,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       selectedLightingEffect,
       addLightingEffectFromPreset,
       addLightingEffectsFromPreset,
+      previewLightingEffectsFromPreset,
+      lightingEffectPreview,
+      applyLightingEffectPreview,
+      cancelLightingEffectPreview,
 
       patchLightingEffect,
       patchLightingParameters,

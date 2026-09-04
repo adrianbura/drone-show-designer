@@ -86,7 +86,9 @@ function NumberField({
   );
 }
 
-export default function SceneComposerPanel() {
+export type SceneComposerView = "ALL" | "VISUAL" | "TRANSFORM";
+
+export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneComposerView }) {
   const {
     project,
     selectedClipId,
@@ -214,6 +216,55 @@ export default function SceneComposerPanel() {
   const used = budget?.active ?? 0;
   const reserve = Math.max(0, project.droneCount - used);
 
+  if (view === "TRANSFORM") {
+    return (
+      <section className="panel-card" data-testid="scene-composer-transform">
+        <h2 className="panel-title">Transform</h2>
+        {!primary ? (
+          <p className="font-mono text-[10px] text-muted-foreground">
+            Select a visual in the Visual tab or directly in the viewport.
+          </p>
+        ) : (
+          <p className="font-mono text-[10px] text-foreground" data-testid="transform-target">
+            {primary.name} · {selectedSceneObjectIds.length} selected
+          </p>
+        )}
+        <TransformInspector
+          selectedCount={selectedSceneObjectIds.length}
+          gizmoMode={gizmoMode}
+          onSetGizmoMode={setGizmoMode}
+          {...(primary
+            ? {
+                position: primary.transform.position,
+                rotationDeg: primary.transform.rotationDeg,
+                scale: primary.transform.scale,
+                onPatchPosition: (position) =>
+                  patchSceneObjectTransform(clipId, primary.id, { position }),
+                onPatchRotation: (rotationDeg) =>
+                  patchSceneObjectTransform(clipId, primary.id, { rotationDeg }),
+                onPatchScale: (scale) => patchSceneObjectTransform(clipId, primary.id, { scale }),
+                onReset: () =>
+                  patchSceneObjectTransform(clipId, primary.id, {
+                    position: [0, 0, 0],
+                    rotationDeg: [0, 0, 0],
+                    scale: 1,
+                  }),
+              }
+            : {})}
+          onGroupMove={(position) =>
+            transformSceneObjects(clipId, selectedSceneObjectIds, { position })
+          }
+          onGroupRotate={(rotationDeg) =>
+            transformSceneObjects(clipId, selectedSceneObjectIds, { rotationDeg })
+          }
+          onGroupScale={(scaleFactor) =>
+            transformSceneObjects(clipId, selectedSceneObjectIds, { scaleFactor })
+          }
+        />
+      </section>
+    );
+  }
+
   return (
     <section className="panel-card" data-testid="scene-composer">
       <h2 className="panel-title flex items-center gap-1.5">
@@ -269,38 +320,40 @@ export default function SceneComposerPanel() {
         </div>
       ) : null}
 
-      <TransformInspector
-        selectedCount={selectedSceneObjectIds.length}
-        gizmoMode={gizmoMode}
-        onSetGizmoMode={setGizmoMode}
-        {...(primary
-          ? {
-              position: primary.transform.position,
-              rotationDeg: primary.transform.rotationDeg,
-              scale: primary.transform.scale,
-              onPatchPosition: (position) =>
-                patchSceneObjectTransform(clipId, primary.id, { position }),
-              onPatchRotation: (rotationDeg) =>
-                patchSceneObjectTransform(clipId, primary.id, { rotationDeg }),
-              onPatchScale: (scale) => patchSceneObjectTransform(clipId, primary.id, { scale }),
-              onReset: () =>
-                patchSceneObjectTransform(clipId, primary.id, {
-                  position: [0, 0, 0],
-                  rotationDeg: [0, 0, 0],
-                  scale: 1,
-                }),
-            }
-          : {})}
-        onGroupMove={(position) =>
-          transformSceneObjects(clipId, selectedSceneObjectIds, { position })
-        }
-        onGroupRotate={(rotationDeg) =>
-          transformSceneObjects(clipId, selectedSceneObjectIds, { rotationDeg })
-        }
-        onGroupScale={(scaleFactor) =>
-          transformSceneObjects(clipId, selectedSceneObjectIds, { scaleFactor })
-        }
-      />
+      {view === "ALL" ? (
+        <TransformInspector
+          selectedCount={selectedSceneObjectIds.length}
+          gizmoMode={gizmoMode}
+          onSetGizmoMode={setGizmoMode}
+          {...(primary
+            ? {
+                position: primary.transform.position,
+                rotationDeg: primary.transform.rotationDeg,
+                scale: primary.transform.scale,
+                onPatchPosition: (position) =>
+                  patchSceneObjectTransform(clipId, primary.id, { position }),
+                onPatchRotation: (rotationDeg) =>
+                  patchSceneObjectTransform(clipId, primary.id, { rotationDeg }),
+                onPatchScale: (scale) => patchSceneObjectTransform(clipId, primary.id, { scale }),
+                onReset: () =>
+                  patchSceneObjectTransform(clipId, primary.id, {
+                    position: [0, 0, 0],
+                    rotationDeg: [0, 0, 0],
+                    scale: 1,
+                  }),
+              }
+            : {})}
+          onGroupMove={(position) =>
+            transformSceneObjects(clipId, selectedSceneObjectIds, { position })
+          }
+          onGroupRotate={(rotationDeg) =>
+            transformSceneObjects(clipId, selectedSceneObjectIds, { rotationDeg })
+          }
+          onGroupScale={(scaleFactor) =>
+            transformSceneObjects(clipId, selectedSceneObjectIds, { scaleFactor })
+          }
+        />
+      ) : null}
 
       <div
         className="mt-2 grid grid-cols-2 gap-1"
@@ -622,16 +675,18 @@ export default function SceneComposerPanel() {
           className="mt-2 space-y-1.5 border-t border-border pt-2"
           data-testid="composer-inspector"
         >
-          <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-            <span className="uppercase tracking-[0.14em]">Name</span>
-            <input
-              type="text"
-              value={primary.name}
-              data-testid="composer-name"
-              onChange={(e) => patchSceneObject(clipId, primary.id, { name: e.target.value })}
-              className="studio-input w-36 font-mono"
-            />
-          </label>
+          {view === "ALL" ? (
+            <label className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+              <span className="uppercase tracking-[0.14em]">Name</span>
+              <input
+                type="text"
+                value={primary.name}
+                data-testid="composer-name"
+                onChange={(e) => patchSceneObject(clipId, primary.id, { name: e.target.value })}
+                className="studio-input w-36 font-mono"
+              />
+            </label>
+          ) : null}
 
           <NumberField
             label="Drones"

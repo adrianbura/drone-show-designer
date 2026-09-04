@@ -31,15 +31,9 @@ import NativeConversionPanel from "./NativeConversionPanel";
 import { useEffect, useRef, useState } from "react";
 
 import { DEPTH_STAGGER_DEMO_ID } from "@/lib/show/stories/depthStaggerDemo";
-import {
-  requiresUnsavedConfirmation,
-  unsavedWorkPrompt,
-} from "@/lib/studio/unsavedWorkGuard";
+import { requiresUnsavedConfirmation, unsavedWorkPrompt } from "@/lib/studio/unsavedWorkGuard";
 
-import {
-  authorityLabel,
-  buildProductionStatus,
-} from "@/lib/studio/productionStatus";
+import { authorityLabel, buildProductionStatus } from "@/lib/studio/productionStatus";
 
 import {
   focusStudioSurface,
@@ -57,6 +51,9 @@ const INSPECTOR_GROUPS: readonly { id: InspectorGroupId; label: string }[] = [
   { id: "VALIDATE", label: "Validate & export" },
   { id: "ADVANCED", label: "Advanced" },
 ];
+
+const AUTHORING_TOOLS = ["VISUAL", "TRANSFORM", "COLOR", "MOTION"] as const;
+type AuthoringTool = (typeof AUTHORING_TOOLS)[number];
 
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
 import type { EsspExportResult } from "@/lib/adapters/esspExport";
@@ -78,10 +75,7 @@ import {
 import { hexToRgb, rgbToHex } from "@/lib/show/lights";
 import { snapToBeat } from "@/lib/show/audio";
 import { clipPhase, type Easing, type LightEffect } from "@/lib/show/types";
-import {
-  AUTHORABLE_CLIP_PHASES,
-  type AuthorableClipPhase,
-} from "@/lib/studio/timelineEdit";
+import { AUTHORABLE_CLIP_PHASES, type AuthorableClipPhase } from "@/lib/studio/timelineEdit";
 import { useStudio } from "@/lib/studio/store";
 
 const EFFECTS: LightEffect[] = ["solid", "pulse", "rainbow", "chase", "twinkle"];
@@ -168,8 +162,8 @@ function EsspPackageExport({
         </p>
       )}
       <p className="font-mono text-[10px] leading-relaxed text-warning">
-        EXPERIMENTAL — REVERSE-ENGINEERED FORMAT. Not vendor certified and not
-        verified against flight hardware.
+        EXPERIMENTAL — REVERSE-ENGINEERED FORMAT. Not vendor certified and not verified against
+        flight hardware.
       </p>
       {result && (
         <div className="space-y-1 font-mono text-[10px] leading-relaxed">
@@ -183,8 +177,8 @@ function EsspPackageExport({
             <p className="text-success" data-testid="essp-export-ok">
               {result.files.length} file(s) · {result.manifest?.positionSampleCount ?? 0} position
               samples @ {result.manifest?.positionRateHz ?? 0} Hz ·{" "}
-              {result.manifest?.rgbSampleCount ?? 0} RGB samples @{" "}
-              {result.manifest?.rgbRateHz ?? 0} Hz
+              {result.manifest?.rgbSampleCount ?? 0} RGB samples @ {result.manifest?.rgbRateHz ?? 0}{" "}
+              Hz
             </p>
           ) : (
             <ul
@@ -250,14 +244,11 @@ function EsspSourceRecovery({
         Download original ESSP files (.zip)
       </button>
       <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
-        Returns the files you imported, unchanged. This is not generated flight
-        output and it is not an export of the current show.
+        Returns the files you imported, unchanged. This is not generated flight output and it is not
+        an export of the current show.
       </p>
       {result?.ok && (
-        <p
-          className="font-mono text-[10px] text-success"
-          data-testid="essp-source-recovery-ok"
-        >
+        <p className="font-mono text-[10px] text-success" data-testid="essp-source-recovery-ok">
           Original imported files returned unchanged — {result.files.length} file(s) · show hash{" "}
           {result.referenceShowHash?.slice(0, 12) ?? "-"}
         </p>
@@ -277,6 +268,7 @@ export default function Inspector({
   focusHostPriority?: number;
 } = {}) {
   const [group, setGroup] = useState<InspectorGroupId>("AUTHORING");
+  const [authoringTool, setAuthoringTool] = useState<AuthoringTool>("VISUAL");
   const rootRef = useRef<HTMLDivElement | null>(null);
   /**
    * FOCUS REQUESTS from other surfaces (timeline context menu, double-click,
@@ -323,8 +315,6 @@ export default function Inspector({
     const t = window.setTimeout(() => el.removeAttribute("data-focused"), 2200);
     return () => window.clearTimeout(t);
   }, [pendingFocus, group]);
-
-
 
   const [sampleConfirm, setSampleConfirm] = useState(false);
   const {
@@ -474,8 +464,10 @@ export default function Inspector({
               data-testid="inspector-selection-meta"
             >
               {selectionSummary.phase} · {selectionSummary.representation}
-              {selectionSummary.ownership === "NONE" ? "" : ` · ${selectionSummary.ownership}`} ·{" "}
-              {formatShowTime(selectionSummary.start)} → {formatShowTime(selectionSummary.end)}
+              {selectionSummary.ownership === "NONE"
+                ? ""
+                : ` · ${selectionSummary.ownership}`} · {formatShowTime(selectionSummary.start)} →{" "}
+              {formatShowTime(selectionSummary.end)}
             </p>
             <div className="flex flex-wrap gap-1.5">
               {(() => {
@@ -513,333 +505,374 @@ export default function Inspector({
           hidden={group !== "AUTHORING"}
           className={`flex flex-col gap-5 ${group === "AUTHORING" ? "" : "hidden"}`}
         >
-      {/* EVERYDAY COMPOSER — selection-primary authoring sits first: visuals,
-          artistic properties and effect stacks. Technical evidence lives below
-          and in ADVANCED. */}
-      <div id="composer-panel" data-panel-id="composer-panel">
-        <SceneComposerPanel />
-      </div>
-      <div id="effect-stack-panel" data-panel-id="effect-stack-panel">
-        <EffectStackPanel />
-      </div>
+          {/* ONE contextual everyday tool at a time. This prevents the operator
+          from scrolling through duplicate surfaces to edit one selection. */}
+          <div
+            className="sticky top-0 z-10 grid grid-cols-2 gap-1 rounded border border-border bg-panel p-1 sm:grid-cols-4"
+            role="tablist"
+            aria-label="Visual authoring tools"
+            data-testid="authoring-tools"
+          >
+            {AUTHORING_TOOLS.map((tool) => (
+              <button
+                key={tool}
+                type="button"
+                role="tab"
+                aria-selected={authoringTool === tool}
+                onClick={() => setAuthoringTool(tool)}
+                data-testid={`authoring-tool-${tool.toLowerCase()}`}
+                className={`chip-btn min-w-0 justify-center ${authoringTool === tool ? "chip-btn-active" : ""}`}
+              >
+                {tool === "VISUAL"
+                  ? "Visual"
+                  : tool === "TRANSFORM"
+                    ? "Transform"
+                    : tool === "COLOR"
+                      ? "Color"
+                      : "Motion"}
+              </button>
+            ))}
+          </div>
+          <div id="composer-panel" data-panel-id="composer-panel">
+            {authoringTool === "VISUAL" ? <SceneComposerPanel view="VISUAL" /> : null}
+            {authoringTool === "TRANSFORM" ? <SceneComposerPanel view="TRANSFORM" /> : null}
+            {authoringTool === "COLOR" ? <EffectStackPanel view="COLOR" /> : null}
+            {authoringTool === "MOTION" ? <EffectStackPanel view="MOTION" /> : null}
+          </div>
 
-      {/* Reference show: importing an ESSP and converting it into an editable
+          {/* Reference show: importing an ESSP and converting it into an editable
           timeline is a first-class entry path. */}
-      <div id="essp-panel" data-panel-id="essp-panel">
-        <EsspPanel />
-      </div>
+          <div id="essp-panel" data-panel-id="essp-panel">
+            <EsspPanel />
+          </div>
 
+          {/* Focused text rebuild for one eligible STATIC target. */}
+          <div id="text-panel" data-panel-id="text-panel">
+            <TextFormationPanel />
+          </div>
 
-      {/* Focused text rebuild for one eligible STATIC target. */}
-      <div id="text-panel" data-panel-id="text-panel">
-        <TextFormationPanel />
-      </div>
-
-      <section className="panel-card" id="clip-inspector" data-panel-id="clip-inspector">
-        <h2 className="panel-title">Clip inspector</h2>
-        {!clip ? (
-          <p className="text-xs text-muted-foreground">
-            No clip selected. Click a clip on the timeline to edit its formation, timing, easing and
-            colour.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            <select
-              value={clip.formationId}
-              onChange={(e) => patchClip(clip.id, { formationId: e.target.value })}
-              className="studio-input"
-              aria-label="Clip formation"
-            >
-              {project.formations.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
-            {/* DESIGN ROUTING — points at the right editing surface, mutates
+          <section className="panel-card" id="clip-inspector" data-panel-id="clip-inspector">
+            <h2 className="panel-title">Clip inspector</h2>
+            {!clip ? (
+              <p className="text-xs text-muted-foreground">
+                No clip selected. Click a clip on the timeline to edit its formation, timing, easing
+                and colour.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <select
+                  value={clip.formationId}
+                  onChange={(e) => patchClip(clip.id, { formationId: e.target.value })}
+                  className="studio-input"
+                  aria-label="Clip formation"
+                >
+                  {project.formations.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+                {/* DESIGN ROUTING — points at the right editing surface, mutates
                 nothing until an explicit action is pressed. */}
-            <ClipDesignActions
-              clipId={clip.id}
-              hasScene={hasAuthoredScene}
-              isDynamic={!!clip.dynamicFormationId}
-              canConvert={canEditClipAsScene(clip.id)}
-              isShowClip={clipPhase(clip) === "SHOW"}
-              onConvert={() => {
-                if (editClipAsScene(clip.id)) focusStudioSurface({ surface: "SCENE", clipId: clip.id });
-              }}
-              onDuplicate={() => duplicateClipForDesign(clip.id)}
-            />
+                <ClipDesignActions
+                  clipId={clip.id}
+                  hasScene={hasAuthoredScene}
+                  isDynamic={!!clip.dynamicFormationId}
+                  canConvert={canEditClipAsScene(clip.id)}
+                  isShowClip={clipPhase(clip) === "SHOW"}
+                  onConvert={() => {
+                    if (editClipAsScene(clip.id))
+                      focusStudioSurface({ surface: "SCENE", clipId: clip.id });
+                  }}
+                  onDuplicate={() => duplicateClipForDesign(clip.id)}
+                />
+                <label className="space-y-1.5">
+                  <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                    Phase
+                  </span>
+                  <select
+                    value={clipPhase(clip)}
+                    onChange={(e) =>
+                      patchClip(clip.id, { phase: e.target.value as AuthorableClipPhase })
+                    }
+                    className="studio-input"
+                    aria-label="Clip phase"
+                    data-testid="clip-phase-select"
+                  >
+                    {AUTHORABLE_CLIP_PHASES.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {clipPhase(clip) === "TAKEOFF" && (
+                  <p
+                    data-testid="clip-phase-note-takeoff"
+                    className="rounded border border-border bg-muted/30 p-2 text-[10px] leading-relaxed text-muted-foreground"
+                  >
+                    Explicit fleet departure phase: the fleet leaves the ground here and climbs to
+                    the first airborne formation.
+                  </p>
+                )}
+                {clipPhase(clip) === "LANDING" && (
+                  <p
+                    data-testid="clip-phase-note-landing"
+                    className="rounded border border-border bg-muted/30 p-2 text-[10px] leading-relaxed text-muted-foreground"
+                  >
+                    The formation geometry is not the landing destination: the landing planner
+                    returns every drone to its assigned home pad at ground level.
+                  </p>
+                )}
+                <NumberRow
+                  label="Start"
+                  value={clip.start}
+                  unit="s"
+                  onChange={(v) => patchClip(clip.id, { start: Math.max(0, v) })}
+                />
+                <NumberRow
+                  label="Transition"
+                  value={clip.transition}
+                  unit="s"
+                  onChange={(v) => patchClip(clip.id, { transition: Math.max(0.5, v) })}
+                />
+                <NumberRow
+                  label="Hold"
+                  value={clip.hold}
+                  unit="s"
+                  onChange={(v) => patchClip(clip.id, { hold: Math.max(0, v) })}
+                />
+                <button
+                  onClick={() => patchClip(clip.id, { start: snapToBeat(clip.start, beatGrid) })}
+                  className="chip-btn w-full justify-center"
+                >
+                  Snap start to beat
+                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="space-y-1.5">
+                    <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                      Easing
+                    </span>
+                    <select
+                      value={clip.easing}
+                      onChange={(e) => patchClip(clip.id, { easing: e.target.value as Easing })}
+                      className="studio-input"
+                    >
+                      {EASINGS.map((e) => (
+                        <option key={e} value={e}>
+                          {e}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                      Light effect
+                    </span>
+                    <select
+                      value={clip.effect}
+                      onChange={(e) =>
+                        patchClip(clip.id, { effect: e.target.value as LightEffect })
+                      }
+                      className="studio-input"
+                    >
+                      {EFFECTS.map((e) => (
+                        <option key={e} value={e}>
+                          {e}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <label className="flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                  Base colour
+                  <input
+                    type="color"
+                    value={rgbToHex(clip.color)}
+                    onChange={(e) => patchClip(clip.id, { color: hexToRgb(e.target.value) })}
+                    className="h-7 w-14 cursor-pointer rounded border border-border bg-transparent"
+                  />
+                </label>
+              </div>
+            )}
+          </section>
+
+          <div id="transition-panel" data-panel-id="transition-panel">
+            <TransitionDesignPanel />
+          </div>
+
+          <section className="panel-card">
+            <h2 className="panel-title">
+              <Shuffle className="size-3.5" /> Transition planning
+            </h2>
             <label className="space-y-1.5">
               <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                Phase
+                Assignment strategy
               </span>
               <select
-                value={clipPhase(clip)}
-                onChange={(e) =>
-                  patchClip(clip.id, { phase: e.target.value as AuthorableClipPhase })
-                }
+                value={assignmentStrategy}
+                onChange={(e) => setAssignmentStrategy(e.target.value as AssignmentStrategyId)}
                 className="studio-input"
-                aria-label="Clip phase"
-                data-testid="clip-phase-select"
               >
-                {AUTHORABLE_CLIP_PHASES.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+                {SELECTABLE_ASSIGNMENT_STRATEGIES.map((id) => (
+                  <option key={id} value={id}>
+                    {assignmentStrategyLabel(id)}
                   </option>
                 ))}
               </select>
             </label>
-            {clipPhase(clip) === "TAKEOFF" && (
-              <p
-                data-testid="clip-phase-note-takeoff"
-                className="rounded border border-border bg-muted/30 p-2 text-[10px] leading-relaxed text-muted-foreground"
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                onClick={analyzeSelectedTransition}
+                disabled={!canAnalyzeSelectedClip || transitionBusy}
+                className="chip-btn justify-center disabled:opacity-40"
               >
-                Explicit fleet departure phase: the fleet leaves the ground here and climbs to the
-                first airborne formation.
-              </p>
-            )}
-            {clipPhase(clip) === "LANDING" && (
-              <p
-                data-testid="clip-phase-note-landing"
-                className="rounded border border-border bg-muted/30 p-2 text-[10px] leading-relaxed text-muted-foreground"
+                {transitionBusy ? "Working…" : "Analyse"}
+              </button>
+              <button
+                onClick={optimizeSelectedTransition}
+                disabled={!canAnalyzeSelectedClip || transitionBusy}
+                className="chip-btn justify-center disabled:opacity-40"
               >
-                The formation geometry is not the landing destination: the landing planner returns
-                every drone to its assigned home pad at ground level.
-              </p>
-            )}
-            <NumberRow
-              label="Start"
-              value={clip.start}
-              unit="s"
-              onChange={(v) => patchClip(clip.id, { start: Math.max(0, v) })}
-            />
-            <NumberRow
-              label="Transition"
-              value={clip.transition}
-              unit="s"
-              onChange={(v) => patchClip(clip.id, { transition: Math.max(0.5, v) })}
-            />
-            <NumberRow
-              label="Hold"
-              value={clip.hold}
-              unit="s"
-              onChange={(v) => patchClip(clip.id, { hold: Math.max(0, v) })}
-            />
-            <button
-              onClick={() => patchClip(clip.id, { start: snapToBeat(clip.start, beatGrid) })}
-              className="chip-btn w-full justify-center"
-            >
-              Snap start to beat
-            </button>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="space-y-1.5">
-                <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Easing
-                </span>
-                <select
-                  value={clip.easing}
-                  onChange={(e) => patchClip(clip.id, { easing: e.target.value as Easing })}
-                  className="studio-input"
-                >
-                  {EASINGS.map((e) => (
-                    <option key={e} value={e}>
-                      {e}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-1.5">
-                <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Light effect
-                </span>
-                <select
-                  value={clip.effect}
-                  onChange={(e) => patchClip(clip.id, { effect: e.target.value as LightEffect })}
-                  className="studio-input"
-                >
-                  {EFFECTS.map((e) => (
-                    <option key={e} value={e}>
-                      {e}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <Wand2 className="size-3" /> Optimise
+              </button>
             </div>
-            <label className="flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-              Base colour
-              <input
-                type="color"
-                value={rgbToHex(clip.color)}
-                onChange={(e) => patchClip(clip.id, { color: hexToRgb(e.target.value) })}
-                className="h-7 w-14 cursor-pointer rounded border border-border bg-transparent"
-              />
-            </label>
-          </div>
-        )}
-      </section>
-
-      <div id="transition-panel" data-panel-id="transition-panel">
-        <TransitionDesignPanel />
-      </div>
-
-      <section className="panel-card">
-        <h2 className="panel-title">
-          <Shuffle className="size-3.5" /> Transition planning
-        </h2>
-        <label className="space-y-1.5">
-          <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Assignment strategy
-          </span>
-          <select
-            value={assignmentStrategy}
-            onChange={(e) => setAssignmentStrategy(e.target.value as AssignmentStrategyId)}
-            className="studio-input"
-          >
-            {SELECTABLE_ASSIGNMENT_STRATEGIES.map((id) => (
-              <option key={id} value={id}>
-                {assignmentStrategyLabel(id)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          <button
-            onClick={analyzeSelectedTransition}
-            disabled={!canAnalyzeSelectedClip || transitionBusy}
-            className="chip-btn justify-center disabled:opacity-40"
-          >
-            {transitionBusy ? "Working…" : "Analyse"}
-          </button>
-          <button
-            onClick={optimizeSelectedTransition}
-            disabled={!canAnalyzeSelectedClip || transitionBusy}
-            className="chip-btn justify-center disabled:opacity-40"
-          >
-            <Wand2 className="size-3" /> Optimise
-          </button>
-        </div>
-        {!canAnalyzeSelectedClip && (
-          <p className="text-[10px] leading-relaxed text-muted-foreground">
-            Select a SHOW clip. Takeoff and landing keep their dedicated vertical planners.
-          </p>
-        )}
-        {transitionError && (
-          <p className="text-[10px] leading-relaxed text-critical">
-            {transitionError.code}: {transitionError.message}
-          </p>
-        )}
-        {analysis && (
-          <>
-            <dl className="grid grid-cols-2 gap-x-3 gap-y-1 pt-1 font-mono text-[10px] text-muted-foreground">
-              <dt>strategy</dt>
-              <dd className="text-right text-foreground">{analysis.metrics.assignmentStrategy}</dd>
-              <dt>total path</dt>
-              <dd className="text-right text-foreground">
-                {analysis.metrics.totalTravelDistance.toFixed(0)} m
-              </dd>
-              <dt>max path</dt>
-              <dd className="text-right text-foreground">
-                {analysis.metrics.maximumTravelDistance.toFixed(1)} m
-              </dd>
-              <dt>min sep</dt>
-              <dd className="text-right text-foreground">
-                {analysis.metrics.minimumDynamicSeparation.toFixed(2)} m
-              </dd>
-              <dt>conflicts</dt>
-              <dd
-                className={`text-right ${analysis.metrics.criticalConflictCount > 0 ? "text-critical" : "text-safe"}`}
-              >
-                {analysis.metrics.conflictCount} ({analysis.metrics.criticalConflictCount} crit)
-              </dd>
-              <dt>crossings</dt>
-              <dd className="text-right text-foreground">
-                {analysis.metrics.potentialGeometricCrossings}
-              </dd>
-              <dt>peak v / a</dt>
-              <dd className="text-right text-foreground">
-                {analysis.metrics.maximumVelocity.toFixed(1)} / {analysis.metrics.maximumAcceleration.toFixed(1)}
-              </dd>
-              <dt>stagger Σ</dt>
-              <dd className="text-right text-foreground">
-                {analysis.metrics.totalStartOffset.toFixed(1)} s
-              </dd>
-              <dt>lanes Σ</dt>
-              <dd className="text-right text-foreground">
-                {analysis.metrics.totalVerticalOffset.toFixed(1)} m
-              </dd>
-              <dt>solve time</dt>
-              <dd className="text-right text-foreground">{analysis.timings.totalMs.toFixed(0)} ms</dd>
-            </dl>
-            <p className="text-[10px] leading-relaxed text-muted-foreground">
-              Duration {analysis.feasibility.requestedDuration.toFixed(1)}s ·{" "}
-              {analysis.feasibility.feasible ? "feasible" : "INFEASIBLE"} · minimum ≈{" "}
-              {analysis.feasibility.minimumEstimatedDuration.toFixed(1)}s (
-              {analysis.feasibility.limitingMetric}-limited)
-            </p>
-            {!analysis.feasibility.feasible && (
-              <button onClick={applySuggestedDuration} className="chip-btn w-full justify-center">
-                Apply suggested duration
-              </button>
-            )}
-            {comparison && (
-              <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
-                greedy {comparison.nearestNeighbor.metrics.totalDistance.toFixed(0)} m → optimal{" "}
-                {comparison.optimalDistance.metrics.totalDistance.toFixed(0)} m (
-                {(comparison.totalDistanceImprovement * 100).toFixed(1)}% shorter)
-              </p>
-            )}
-            {optimizationResult && (
+            {!canAnalyzeSelectedClip && (
               <p className="text-[10px] leading-relaxed text-muted-foreground">
-                Optimiser: {optimizationResult.status} in {optimizationResult.iterations} iterations
-                {optimizationResult.appliedStrategies.length > 0
-                  ? ` · ${optimizationResult.appliedStrategies.join(", ")}`
-                  : ""}
-                {optimizationResult.warnings.length > 0 ? ` · ${optimizationResult.warnings[0]}` : ""}
+                Select a SHOW clip. Takeoff and landing keep their dedicated vertical planners.
               </p>
             )}
-            {isOptimized && (
-              <button onClick={clearTransitionAnalysis} className="chip-btn w-full justify-center">
-                Revert optimised transition
-              </button>
+            {transitionError && (
+              <p className="text-[10px] leading-relaxed text-critical">
+                {transitionError.code}: {transitionError.message}
+              </p>
             )}
-          </>
-        )}
-        <div className="flex items-center justify-between gap-2 pt-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Eye className="size-3" /> Overlays
-          </span>
-          <span className="flex gap-2">
-            <button
-              onClick={() => setShowPaths(!showPaths)}
-              className={`chip-btn ${showPaths ? "chip-btn-active" : ""}`}
-            >
-              paths
-            </button>
-            <button
-              onClick={() => setShowConflicts(!showConflicts)}
-              className={`chip-btn ${showConflicts ? "chip-btn-active" : ""}`}
-            >
-              conflicts
-            </button>
-          </span>
-        </div>
-      </section>
+            {analysis && (
+              <>
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-1 pt-1 font-mono text-[10px] text-muted-foreground">
+                  <dt>strategy</dt>
+                  <dd className="text-right text-foreground">
+                    {analysis.metrics.assignmentStrategy}
+                  </dd>
+                  <dt>total path</dt>
+                  <dd className="text-right text-foreground">
+                    {analysis.metrics.totalTravelDistance.toFixed(0)} m
+                  </dd>
+                  <dt>max path</dt>
+                  <dd className="text-right text-foreground">
+                    {analysis.metrics.maximumTravelDistance.toFixed(1)} m
+                  </dd>
+                  <dt>min sep</dt>
+                  <dd className="text-right text-foreground">
+                    {analysis.metrics.minimumDynamicSeparation.toFixed(2)} m
+                  </dd>
+                  <dt>conflicts</dt>
+                  <dd
+                    className={`text-right ${analysis.metrics.criticalConflictCount > 0 ? "text-critical" : "text-safe"}`}
+                  >
+                    {analysis.metrics.conflictCount} ({analysis.metrics.criticalConflictCount} crit)
+                  </dd>
+                  <dt>crossings</dt>
+                  <dd className="text-right text-foreground">
+                    {analysis.metrics.potentialGeometricCrossings}
+                  </dd>
+                  <dt>peak v / a</dt>
+                  <dd className="text-right text-foreground">
+                    {analysis.metrics.maximumVelocity.toFixed(1)} /{" "}
+                    {analysis.metrics.maximumAcceleration.toFixed(1)}
+                  </dd>
+                  <dt>stagger Σ</dt>
+                  <dd className="text-right text-foreground">
+                    {analysis.metrics.totalStartOffset.toFixed(1)} s
+                  </dd>
+                  <dt>lanes Σ</dt>
+                  <dd className="text-right text-foreground">
+                    {analysis.metrics.totalVerticalOffset.toFixed(1)} m
+                  </dd>
+                  <dt>solve time</dt>
+                  <dd className="text-right text-foreground">
+                    {analysis.timings.totalMs.toFixed(0)} ms
+                  </dd>
+                </dl>
+                <p className="text-[10px] leading-relaxed text-muted-foreground">
+                  Duration {analysis.feasibility.requestedDuration.toFixed(1)}s ·{" "}
+                  {analysis.feasibility.feasible ? "feasible" : "INFEASIBLE"} · minimum ≈{" "}
+                  {analysis.feasibility.minimumEstimatedDuration.toFixed(1)}s (
+                  {analysis.feasibility.limitingMetric}-limited)
+                </p>
+                {!analysis.feasibility.feasible && (
+                  <button
+                    onClick={applySuggestedDuration}
+                    className="chip-btn w-full justify-center"
+                  >
+                    Apply suggested duration
+                  </button>
+                )}
+                {comparison && (
+                  <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+                    greedy {comparison.nearestNeighbor.metrics.totalDistance.toFixed(0)} m → optimal{" "}
+                    {comparison.optimalDistance.metrics.totalDistance.toFixed(0)} m (
+                    {(comparison.totalDistanceImprovement * 100).toFixed(1)}% shorter)
+                  </p>
+                )}
+                {optimizationResult && (
+                  <p className="text-[10px] leading-relaxed text-muted-foreground">
+                    Optimiser: {optimizationResult.status} in {optimizationResult.iterations}{" "}
+                    iterations
+                    {optimizationResult.appliedStrategies.length > 0
+                      ? ` · ${optimizationResult.appliedStrategies.join(", ")}`
+                      : ""}
+                    {optimizationResult.warnings.length > 0
+                      ? ` · ${optimizationResult.warnings[0]}`
+                      : ""}
+                  </p>
+                )}
+                {isOptimized && (
+                  <button
+                    onClick={clearTransitionAnalysis}
+                    className="chip-btn w-full justify-center"
+                  >
+                    Revert optimised transition
+                  </button>
+                )}
+              </>
+            )}
+            <div className="flex items-center justify-between gap-2 pt-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Eye className="size-3" /> Overlays
+              </span>
+              <span className="flex gap-2">
+                <button
+                  onClick={() => setShowPaths(!showPaths)}
+                  className={`chip-btn ${showPaths ? "chip-btn-active" : ""}`}
+                >
+                  paths
+                </button>
+                <button
+                  onClick={() => setShowConflicts(!showConflicts)}
+                  className={`chip-btn ${showConflicts ? "chip-btn-active" : ""}`}
+                >
+                  conflicts
+                </button>
+              </span>
+            </div>
+          </section>
 
-      <LaunchPanel />
+          <LaunchPanel />
 
-      <div id="scene-panel" data-panel-id="scene-panel">
-        <SceneObjectsPanel />
-      </div>
+          <div id="scene-panel" data-panel-id="scene-panel">
+            <SceneObjectsPanel />
+          </div>
 
-      <div id="lighting-panel" data-panel-id="lighting-panel">
-        <LightingEffectsPanel />
-      </div>
+          <div id="lighting-panel" data-panel-id="lighting-panel">
+            <LightingEffectsPanel />
+          </div>
 
-      <ParticipationPanel />
+          <ParticipationPanel />
 
-      <div id="dynamic-panel" data-panel-id="dynamic-panel">
-        <DynamicPanel />
-      </div>
+          <div id="dynamic-panel" data-panel-id="dynamic-panel">
+            <DynamicPanel />
+          </div>
         </div>
 
         {/* --------------------------------------- B. VALIDATE & EXPORT */}
@@ -859,7 +892,9 @@ export default function Inspector({
             >
               {status.readiness.replace(/_/g, " ")}
             </p>
-            <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground">{status.detail}</p>
+            <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground">
+              {status.detail}
+            </p>
             {authority && (
               <p
                 className="pt-1 font-mono text-[10px] leading-relaxed text-muted-foreground"
@@ -875,255 +910,265 @@ export default function Inspector({
 
           <FullShowPanel />
 
-      <section className="panel-card">
-        <h2 className="panel-title">
-          <ShieldCheck className="size-3.5" /> Flight envelope
-        </h2>
-        <NumberRow
-          label="Max velocity"
-          value={project.limits.maxVelocity}
-          unit="m/s"
-          onChange={(v) => setLimits({ maxVelocity: v })}
-        />
-        <NumberRow
-          label="Max accel"
-          value={project.limits.maxAcceleration}
-          unit="m/s²"
-          onChange={(v) => setLimits({ maxAcceleration: v })}
-        />
-        <NumberRow
-          label="Max yaw rate"
-          value={project.limits.maxYawRate}
-          unit="°/s"
-          step={5}
-          onChange={(v) => setLimits({ maxYawRate: v })}
-        />
-        <NumberRow
-          label="Min separation"
-          value={project.limits.minSeparation}
-          unit="m"
-          onChange={(v) => setLimits({ minSeparation: v })}
-        />
-        <NumberRow
-          label="Ceiling"
-          value={project.limits.maxAltitude}
-          unit="m"
-          step={5}
-          onChange={(v) => setLimits({ maxAltitude: v })}
-        />
-      </section>
+          <section className="panel-card">
+            <h2 className="panel-title">
+              <ShieldCheck className="size-3.5" /> Flight envelope
+            </h2>
+            <NumberRow
+              label="Max velocity"
+              value={project.limits.maxVelocity}
+              unit="m/s"
+              onChange={(v) => setLimits({ maxVelocity: v })}
+            />
+            <NumberRow
+              label="Max accel"
+              value={project.limits.maxAcceleration}
+              unit="m/s²"
+              onChange={(v) => setLimits({ maxAcceleration: v })}
+            />
+            <NumberRow
+              label="Max yaw rate"
+              value={project.limits.maxYawRate}
+              unit="°/s"
+              step={5}
+              onChange={(v) => setLimits({ maxYawRate: v })}
+            />
+            <NumberRow
+              label="Min separation"
+              value={project.limits.minSeparation}
+              unit="m"
+              onChange={(v) => setLimits({ minSeparation: v })}
+            />
+            <NumberRow
+              label="Ceiling"
+              value={project.limits.maxAltitude}
+              unit="m"
+              step={5}
+              onChange={(v) => setLimits({ maxAltitude: v })}
+            />
+          </section>
 
-      <section className="panel-card">
-        <h2 className="panel-title">
-          {safety.status === "ok" ? (
-            <CheckCircle2 className="size-3.5 text-safe" />
-          ) : (
-            <AlertTriangle className="size-3.5 text-warning" />
-          )}
-          Authoring feedback ({safety.errors.length} err / {safety.warnings.length} warn)
-        </h2>
-        <p className="pb-1 text-[10px] leading-relaxed text-muted-foreground">
-          Live authoring feedback while you edit — it does NOT authorize export.
-          Export is authorized only by Full-Show Validation above.
-        </p>
-        <label className="flex items-center justify-between gap-2 pb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          Sample rate
-          <select
-            value={sampleRate}
-            onChange={(e) => setSampleRate(Number(e.target.value))}
-            className="studio-input w-24 text-right font-mono"
-          >
-            {[10, 20, 25, 50, 100].map((hz) => (
-              <option key={hz} value={hz}>
-                {hz} Hz
-              </option>
-            ))}
-          </select>
-        </label>
-        <dl className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[10px] text-muted-foreground">
-          <dt>peak v</dt>
-          <dd className="text-right text-foreground">{safety.worst.maxVelocity.toFixed(1)} m/s</dd>
-          <dt>peak a</dt>
-          <dd className="text-right text-foreground">{safety.worst.maxAcceleration.toFixed(1)} m/s²</dd>
-          <dt>peak yaw</dt>
-          <dd className="text-right text-foreground">{safety.worst.maxYawRate.toFixed(0)} °/s</dd>
-          <dt>min sep</dt>
-          <dd className="text-right text-foreground">{safety.worst.minSeparation.toFixed(2)} m</dd>
-          <dt>peak jerk</dt>
-          <dd className="text-right text-foreground">{safety.metrics.maxJerk.toFixed(1)} m/s³</dd>
-          <dt>frames</dt>
-          <dd className="text-right text-foreground">{safety.frames}</dd>
-          <dt>plan errors</dt>
-          <dd className="text-right text-foreground">{plan.errors.length}</dd>
-        </dl>
-        <ul className="max-h-52 space-y-1 overflow-y-auto pt-1">
-          {safety.issues.length === 0 && (
-            <li className="text-xs text-safe">All checks passed within the flight envelope.</li>
-          )}
-          {safety.issues.slice(0, 40).map((issue) => (
-            <li key={issue.id}>
-              <button
-                onClick={() => setTime(issue.time)}
-                className={`issue-row ${issue.severity === "critical" ? "issue-row-critical" : ""}`}
+          <section className="panel-card">
+            <h2 className="panel-title">
+              {safety.status === "ok" ? (
+                <CheckCircle2 className="size-3.5 text-safe" />
+              ) : (
+                <AlertTriangle className="size-3.5 text-warning" />
+              )}
+              Authoring feedback ({safety.errors.length} err / {safety.warnings.length} warn)
+            </h2>
+            <p className="pb-1 text-[10px] leading-relaxed text-muted-foreground">
+              Live authoring feedback while you edit — it does NOT authorize export. Export is
+              authorized only by Full-Show Validation above.
+            </p>
+            <label className="flex items-center justify-between gap-2 pb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Sample rate
+              <select
+                value={sampleRate}
+                onChange={(e) => setSampleRate(Number(e.target.value))}
+                className="studio-input w-24 text-right font-mono"
               >
-                <span className="font-mono text-[10px]">{issue.time.toFixed(1)}s</span>
-                <span className="truncate">{issue.message}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-
-
-      <section className="panel-card">
-        <h2 className="panel-title">
-          <Download className="size-3.5" /> Export flight output
-        </h2>
-        {/* PRIMARY ACTION FLOW — validation is the gate, never auto-run. */}
-        {(status.readiness === "NOT_ANALYZED" || status.readiness === "STALE") && (
-          <button
-            type="button"
-            onClick={analyzeFullShow}
-            disabled={fullShowBusy}
-            data-testid="export-run-validation"
-            className="chip-btn w-full justify-center disabled:opacity-40"
-          >
-            {fullShowBusy ? "Validating…" : status.nextActionLabel}
-          </button>
-        )}
-        {exportEligibility.reason === "NO_REPORT" && (
-          <p
-            data-testid="export-gate-no-report"
-            className="rounded border border-border bg-muted/30 p-2 text-[10px] leading-relaxed text-muted-foreground"
-          >
-            Not analysed yet. Run Full-Show Validation to enable flight output export.
-          </p>
-        )}
-        {exportEligibility.reason === "STALE" && (
-          <p
-            data-testid="export-gate-stale"
-            className="rounded border border-warning/60 bg-warning/10 p-2 text-[10px] leading-relaxed text-warning"
-          >
-            The show changed after validation. Run Full-Show Validation again to export.
-          </p>
-        )}
-        {exportEligibility.reason === "BLOCKED" && (
-          <div
-            data-testid="export-gate-blocked"
-            className="rounded border border-destructive/60 bg-destructive/10 p-2 text-[10px] leading-relaxed text-destructive"
-          >
-            <p>Full-show validation BLOCKED — computed show exports are disabled.</p>
-            <ul className="list-disc space-y-0.5 pl-4 pt-1">
-              {exportEligibility.blockers.slice(0, 8).map((b) => (
-                <li key={b}>{b}</li>
+                {[10, 20, 25, 50, 100].map((hz) => (
+                  <option key={hz} value={hz}>
+                    {hz} Hz
+                  </option>
+                ))}
+              </select>
+            </label>
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[10px] text-muted-foreground">
+              <dt>peak v</dt>
+              <dd className="text-right text-foreground">
+                {safety.worst.maxVelocity.toFixed(1)} m/s
+              </dd>
+              <dt>peak a</dt>
+              <dd className="text-right text-foreground">
+                {safety.worst.maxAcceleration.toFixed(1)} m/s²
+              </dd>
+              <dt>peak yaw</dt>
+              <dd className="text-right text-foreground">
+                {safety.worst.maxYawRate.toFixed(0)} °/s
+              </dd>
+              <dt>min sep</dt>
+              <dd className="text-right text-foreground">
+                {safety.worst.minSeparation.toFixed(2)} m
+              </dd>
+              <dt>peak jerk</dt>
+              <dd className="text-right text-foreground">
+                {safety.metrics.maxJerk.toFixed(1)} m/s³
+              </dd>
+              <dt>frames</dt>
+              <dd className="text-right text-foreground">{safety.frames}</dd>
+              <dt>plan errors</dt>
+              <dd className="text-right text-foreground">{plan.errors.length}</dd>
+            </dl>
+            <ul className="max-h-52 space-y-1 overflow-y-auto pt-1">
+              {safety.issues.length === 0 && (
+                <li className="text-xs text-safe">All checks passed within the flight envelope.</li>
+              )}
+              {safety.issues.slice(0, 40).map((issue) => (
+                <li key={issue.id}>
+                  <button
+                    onClick={() => setTime(issue.time)}
+                    className={`issue-row ${issue.severity === "critical" ? "issue-row-critical" : ""}`}
+                  >
+                    <span className="font-mono text-[10px]">{issue.time.toFixed(1)}s</span>
+                    <span className="truncate">{issue.message}</span>
+                  </button>
+                </li>
               ))}
-              {exportEligibility.blockers.length === 0 && <li>See full-show report for details.</li>}
             </ul>
-            {/* NON-MUTATING NAVIGATION — only uses context the report already has. */}
-            {firstBlockingIssue && (
+          </section>
+
+          <section className="panel-card">
+            <h2 className="panel-title">
+              <Download className="size-3.5" /> Export flight output
+            </h2>
+            {/* PRIMARY ACTION FLOW — validation is the gate, never auto-run. */}
+            {(status.readiness === "NOT_ANALYZED" || status.readiness === "STALE") && (
               <button
                 type="button"
-                onClick={() => focusIssue(firstBlockingIssue)}
-                data-testid="export-goto-blocker"
-                className="chip-btn mt-1 w-full justify-center"
+                onClick={analyzeFullShow}
+                disabled={fullShowBusy}
+                data-testid="export-run-validation"
+                className="chip-btn w-full justify-center disabled:opacity-40"
               >
-                Go to first blocker
-                {typeof firstBlockingIssue.time === "number"
-                  ? ` (${firstBlockingIssue.time.toFixed(1)}s)`
-                  : ""}
+                {fullShowBusy ? "Validating…" : status.nextActionLabel}
               </button>
             )}
-          </div>
-        )}
-        {exportEligibility.reason === "OK_WITH_WARNINGS" && (
-          <div
-            data-testid="export-gate-warnings"
-            className="rounded border border-warning/60 bg-warning/10 p-2 text-[10px] leading-relaxed text-warning"
-          >
-            <p>Export allowed with non-blocking warnings.</p>
-            <ul className="list-disc space-y-0.5 pl-4 pt-1">
-              {exportEligibility.warnings.slice(0, 8).map((w) => (
-                <li key={w}>{w}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-        <button
-          onClick={() =>
-            downloadText(
-              `${project.name.replace(/\s+/g, "-").toLowerCase()}.dss.show.json`,
-              toGenericShowJson({
-                project,
-                plan,
-                set: trajectorySet,
-                safety,
-                fullShow: fullShowReport,
-                fullShowStale,
-                preShowReport,
-                preShowStale,
-                referenceColorsAt,
-              }),
-              "application/json",
-            )
-          }
-          disabled={!canExportComputedShow}
-          className="chip-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Generic show JSON (documented schema)
-        </button>
-        <button
-          onClick={() =>
-            downloadText(
-              `${project.name.replace(/\s+/g, "-").toLowerCase()}.trajectories.csv`,
-              toTrajectoryCsv(project, trajectorySet, plan, referenceColorsAt),
-              "text/csv",
-            )
-          }
-          disabled={!canExportComputedShow}
-          className="chip-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Trajectory + light CSV
-        </button>
-        <p className="pt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          Generated flight output
-        </p>
-        <ExportPreflight />
-        <EsspPackageExport
-          buildEsspPackage={buildEsspPackage}
-          canExport={preflight.canExportGenerated}
-          blockedReason={preflight.generatedBlockedReason}
-        />
-        {hasEsspSourceFiles && (
-          <p className="pt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            Source recovery
-          </p>
-        )}
-        <EsspSourceRecovery
-          buildOriginalEsspPackage={buildOriginalEsspPackage}
-          hasEsspSourceFiles={hasEsspSourceFiles}
-        />
-        <p className="pt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          Save project
-        </p>
-        <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
-          The editable Studio document. Always allowed — it is not flight output.
-        </p>
-        <button
-          onClick={() =>
-            downloadText(
-              suggestedProjectFileName(project.name),
-              // SAME canonical serializer as TopBar Save: identical planning
-              // semantics (assignment strategy + applied transition overrides).
-              projectFileToJson(buildProjectFile()),
-              "application/json",
-            )
-          }
-          className="chip-btn w-full justify-center"
-        >
-          Studio project file
-        </button>
-      </section>
+            {exportEligibility.reason === "NO_REPORT" && (
+              <p
+                data-testid="export-gate-no-report"
+                className="rounded border border-border bg-muted/30 p-2 text-[10px] leading-relaxed text-muted-foreground"
+              >
+                Not analysed yet. Run Full-Show Validation to enable flight output export.
+              </p>
+            )}
+            {exportEligibility.reason === "STALE" && (
+              <p
+                data-testid="export-gate-stale"
+                className="rounded border border-warning/60 bg-warning/10 p-2 text-[10px] leading-relaxed text-warning"
+              >
+                The show changed after validation. Run Full-Show Validation again to export.
+              </p>
+            )}
+            {exportEligibility.reason === "BLOCKED" && (
+              <div
+                data-testid="export-gate-blocked"
+                className="rounded border border-destructive/60 bg-destructive/10 p-2 text-[10px] leading-relaxed text-destructive"
+              >
+                <p>Full-show validation BLOCKED — computed show exports are disabled.</p>
+                <ul className="list-disc space-y-0.5 pl-4 pt-1">
+                  {exportEligibility.blockers.slice(0, 8).map((b) => (
+                    <li key={b}>{b}</li>
+                  ))}
+                  {exportEligibility.blockers.length === 0 && (
+                    <li>See full-show report for details.</li>
+                  )}
+                </ul>
+                {/* NON-MUTATING NAVIGATION — only uses context the report already has. */}
+                {firstBlockingIssue && (
+                  <button
+                    type="button"
+                    onClick={() => focusIssue(firstBlockingIssue)}
+                    data-testid="export-goto-blocker"
+                    className="chip-btn mt-1 w-full justify-center"
+                  >
+                    Go to first blocker
+                    {typeof firstBlockingIssue.time === "number"
+                      ? ` (${firstBlockingIssue.time.toFixed(1)}s)`
+                      : ""}
+                  </button>
+                )}
+              </div>
+            )}
+            {exportEligibility.reason === "OK_WITH_WARNINGS" && (
+              <div
+                data-testid="export-gate-warnings"
+                className="rounded border border-warning/60 bg-warning/10 p-2 text-[10px] leading-relaxed text-warning"
+              >
+                <p>Export allowed with non-blocking warnings.</p>
+                <ul className="list-disc space-y-0.5 pl-4 pt-1">
+                  {exportEligibility.warnings.slice(0, 8).map((w) => (
+                    <li key={w}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <button
+              onClick={() =>
+                downloadText(
+                  `${project.name.replace(/\s+/g, "-").toLowerCase()}.dss.show.json`,
+                  toGenericShowJson({
+                    project,
+                    plan,
+                    set: trajectorySet,
+                    safety,
+                    fullShow: fullShowReport,
+                    fullShowStale,
+                    preShowReport,
+                    preShowStale,
+                    referenceColorsAt,
+                  }),
+                  "application/json",
+                )
+              }
+              disabled={!canExportComputedShow}
+              className="chip-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Generic show JSON (documented schema)
+            </button>
+            <button
+              onClick={() =>
+                downloadText(
+                  `${project.name.replace(/\s+/g, "-").toLowerCase()}.trajectories.csv`,
+                  toTrajectoryCsv(project, trajectorySet, plan, referenceColorsAt),
+                  "text/csv",
+                )
+              }
+              disabled={!canExportComputedShow}
+              className="chip-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Trajectory + light CSV
+            </button>
+            <p className="pt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Generated flight output
+            </p>
+            <ExportPreflight />
+            <EsspPackageExport
+              buildEsspPackage={buildEsspPackage}
+              canExport={preflight.canExportGenerated}
+              blockedReason={preflight.generatedBlockedReason}
+            />
+            {hasEsspSourceFiles && (
+              <p className="pt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Source recovery
+              </p>
+            )}
+            <EsspSourceRecovery
+              buildOriginalEsspPackage={buildOriginalEsspPackage}
+              hasEsspSourceFiles={hasEsspSourceFiles}
+            />
+            <p className="pt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Save project
+            </p>
+            <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+              The editable Studio document. Always allowed — it is not flight output.
+            </p>
+            <button
+              onClick={() =>
+                downloadText(
+                  suggestedProjectFileName(project.name),
+                  // SAME canonical serializer as TopBar Save: identical planning
+                  // semantics (assignment strategy + applied transition overrides).
+                  projectFileToJson(buildProjectFile()),
+                  "application/json",
+                )
+              }
+              className="chip-btn w-full justify-center"
+            >
+              Studio project file
+            </button>
+          </section>
         </div>
 
         {/* ------------------------------------ C. ADVANCED / DIAGNOSTICS */}
@@ -1135,8 +1180,8 @@ export default function Inspector({
           className={`flex flex-col gap-5 ${group === "ADVANCED" ? "" : "hidden"}`}
         >
           <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
-            Advanced diagnostics and tooling. Nothing here is required for the normal
-            create → validate → export workflow.
+            Advanced diagnostics and tooling. Nothing here is required for the normal create →
+            validate → export workflow.
           </p>
           {/* SAMPLES / DEVELOPMENT — secondary by design: must never compete with
               New / Open / Save or the production readiness state. */}
@@ -1146,7 +1191,10 @@ export default function Inspector({
               Development and diagnostics fixtures. Loading one replaces the open document.
             </p>
             {sampleConfirm ? (
-              <div className="space-y-1.5 rounded border border-warning/60 p-2" data-testid="samples-unsaved-confirm">
+              <div
+                className="space-y-1.5 rounded border border-warning/60 p-2"
+                data-testid="samples-unsaved-confirm"
+              >
                 <p className="text-[11px] leading-relaxed text-warning">
                   {unsavedWorkPrompt("LOAD_SAMPLE").body}
                 </p>
@@ -1199,24 +1247,24 @@ export default function Inspector({
           <ConversionPanel />
           <SimulationPanel />
 
-      <section className="panel-card">
-        <h2 className="panel-title">
-          <Plug className="size-3.5" /> Adapters
-        </h2>
-        <ul className="space-y-2">
-          {ADAPTER_REGISTRY.map((a) => (
-            <li key={a.id} className="rounded border border-border/70 p-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-xs text-foreground">{a.name}</span>
-                <span className={`status-pill status-${a.status}`}>{a.status}</span>
-              </div>
-              <p className="pt-1 font-mono text-[10px] leading-relaxed text-muted-foreground">
-                {a.upstream} · {a.license}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </section>
+          <section className="panel-card">
+            <h2 className="panel-title">
+              <Plug className="size-3.5" /> Adapters
+            </h2>
+            <ul className="space-y-2">
+              {ADAPTER_REGISTRY.map((a) => (
+                <li key={a.id} className="rounded border border-border/70 p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-xs text-foreground">{a.name}</span>
+                    <span className={`status-pill status-${a.status}`}>{a.status}</span>
+                  </div>
+                  <p className="pt-1 font-mono text-[10px] leading-relaxed text-muted-foreground">
+                    {a.upstream} · {a.license}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
       </div>
     </div>
@@ -1245,7 +1293,10 @@ function ClipDesignActions({
   onDuplicate: () => void;
 }) {
   return (
-    <div className="space-y-1.5 rounded border border-border bg-muted/20 p-2" data-testid="clip-design-actions">
+    <div
+      className="space-y-1.5 rounded border border-border bg-muted/20 p-2"
+      data-testid="clip-design-actions"
+    >
       <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Design</p>
       {hasScene && (
         <button

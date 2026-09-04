@@ -76,6 +76,7 @@ describe("everyday motion inspector DOM", () => {
     expect(screen.getByTestId("motion-inspector-empty")).toBeTruthy();
 
     fireEvent.click(screen.getByTestId("motion-stack-add-WAVE"));
+    fireEvent.click(screen.getByTestId("motion-preview-apply"));
     await waitFor(() => expect(screen.getByTestId("motion-inspector")).toBeTruthy());
     const depth = api.timelineHistoryDepth.past;
     const baseCycle = api.project.dynamicFormations![0]!.duration;
@@ -102,9 +103,11 @@ describe("everyday motion inspector DOM", () => {
 
     act(() => api.selectSceneObject(objects[0]!.id, "REPLACE"));
     fireEvent.click(screen.getByTestId("motion-stack-add-WAVE"));
+    fireEvent.click(screen.getByTestId("motion-preview-apply"));
     await waitFor(() => expect(api.project.dynamicFormations).toHaveLength(1));
     act(() => api.selectSceneObject(objects[1]!.id, "REPLACE"));
     fireEvent.click(screen.getByTestId("motion-stack-add-PULSE_SCALE"));
+    fireEvent.click(screen.getByTestId("motion-preview-apply"));
     await waitFor(() => expect(api.project.dynamicFormations).toHaveLength(2));
 
     fireEvent.click(screen.getByTestId("motion-inspector-duplicate"));
