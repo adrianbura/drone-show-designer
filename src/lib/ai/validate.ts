@@ -29,8 +29,11 @@ export function validateProposal(input: unknown, expectedFleet?: number): Propos
   if (typeof p.title !== "string" || !p.title) errors.push("The proposal has no title.");
   if (!CHOREOGRAPHY_CONCEPTS.includes(p.concept)) errors.push(`Unsupported concept "${String(p.concept)}".`);
   if (!Number.isInteger(p.fleetCount) || p.fleetCount <= 0) errors.push("The fleet count must be a positive integer.");
-  if (expectedFleet !== undefined && p.fleetCount !== expectedFleet) {
-    errors.push(`The proposal targets ${p.fleetCount} drones but the project has ${expectedFleet}.`);
+  // PARTIAL PARTICIPATION IS LEGAL. A visual may use a subset of the fleet
+  // (the rest stay reserve / pre-positioned). Only a request LARGER than the
+  // project fleet is impossible and therefore rejected.
+  if (expectedFleet !== undefined && Number.isInteger(p.fleetCount) && p.fleetCount > expectedFleet) {
+    errors.push(`The proposal targets ${p.fleetCount} drones but the project has only ${expectedFleet}.`);
   }
 
   const spec = p.formationSpec;
