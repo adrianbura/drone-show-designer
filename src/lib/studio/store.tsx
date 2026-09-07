@@ -1365,6 +1365,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [showPaths, setShowPaths] = useState(false);
   const [showConflicts, setShowConflicts] = useState(false);
   const [showSafetyVolume, setShowSafetyVolume] = useState(true);
+  const [showReserveDrones, setShowReserveDrones] = useState(true);
   const [fullShow, setFullShow] = useState<{
     plan: FullShowPlan;
     report: FullShowValidationReport;
