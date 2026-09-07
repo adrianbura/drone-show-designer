@@ -32,7 +32,14 @@ export const TRANSITION_MODES: readonly TransitionModeId[] = [
 ];
 
 export type StaggerPatternId =
-  "LEFT_RIGHT" | "RIGHT_LEFT" | "FRONT_BACK" | "BACK_FRONT" | "CENTER_OUT" | "OUTSIDE_IN";
+  | "LEFT_RIGHT"
+  | "RIGHT_LEFT"
+  | "FRONT_BACK"
+  | "BACK_FRONT"
+  | "CENTER_OUT"
+  | "OUTSIDE_IN"
+  | "BOTTOM_TOP"
+  | "TOP_BOTTOM";
 
 export const STAGGER_PATTERNS: readonly StaggerPatternId[] = [
   "LEFT_RIGHT",
@@ -41,6 +48,8 @@ export const STAGGER_PATTERNS: readonly StaggerPatternId[] = [
   "BACK_FRONT",
   "CENTER_OUT",
   "OUTSIDE_IN",
+  "BOTTOM_TOP",
+  "TOP_BOTTOM",
 ];
 
 export type StaggerDistributionId = "linear" | "smooth";
@@ -72,6 +81,8 @@ const PATTERN_LABEL: Record<StaggerPatternId, string> = {
   BACK_FRONT: "B→F",
   CENTER_OUT: "C→OUT",
   OUTSIDE_IN: "OUT→C",
+  BOTTOM_TOP: "LOW→HIGH",
+  TOP_BOTTOM: "HIGH→LOW",
 };
 
 export function staggerPatternLabel(pattern: StaggerPatternId): string {
@@ -160,6 +171,10 @@ function ranking(from: readonly Vector3Tuple[], pattern: StaggerPatternId): numb
         return Math.hypot(p[0] - cx, p[2] - cz);
       case "OUTSIDE_IN":
         return -Math.hypot(p[0] - cx, p[2] - cz);
+      case "BOTTOM_TOP":
+        return p[1];
+      case "TOP_BOTTOM":
+        return -p[1];
     }
   });
 }
