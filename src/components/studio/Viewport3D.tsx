@@ -515,6 +515,7 @@ export default function Viewport3D() {
                   : selectedDroneIndices
             }
             dynamicGroupRgbByDrone={dynamicGroupRgbByDrone}
+            reserveDrones={reserveDrones}
             lightingStatesAt={lightingStatesAt}
             onSelectDrone={handleSelectDrone}
           />
