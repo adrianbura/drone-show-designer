@@ -304,6 +304,7 @@ export default function Viewport3D() {
     showPaths,
     showConflicts,
     showSafetyVolume,
+    showReserveDrones,
     highlightedDrones,
     referenceShow,
     referencePlayback,
