@@ -18,6 +18,7 @@ import {
   type InstanceTransform,
   type SceneFormationInstance,
   type ScenePointGroup,
+  type SceneVisualGroup,
 } from "./types";
 import { isIdentityTransform } from "./resolve";
 
@@ -181,12 +182,33 @@ export function sanitizeScenes(raw: unknown): FormationScene[] {
         });
       }
     }
+    const visualGroups: SceneVisualGroup[] = Array.isArray(scene.visualGroups)
+      ? scene.visualGroups.reduce<SceneVisualGroup[]>((result, rawGroup) => {
+          const group = rawGroup as {
+            id?: unknown;
+            name?: unknown;
+            objectIds?: unknown;
+          };
+          if (typeof group.id !== "string" || !Array.isArray(group.objectIds)) return result;
+          const ids = [
+            ...new Set(group.objectIds.filter((id): id is string => typeof id === "string")),
+          ].filter((id) => objectIds.has(id));
+          if (ids.length < 2) return result;
+          result.push({
+            id: group.id,
+            name: typeof group.name === "string" && group.name ? group.name : group.id,
+            objectIds: ids,
+          });
+          return result;
+        }, [])
+      : [];
     out.push({
       id: scene.id,
       name: typeof scene.name === "string" && scene.name ? scene.name : scene.id,
       schemaVersion: SCENE_SCHEMA_VERSION,
       objects,
       ...(pointGroups.length > 0 ? { pointGroups } : {}),
+      ...(visualGroups.length > 0 ? { visualGroups } : {}),
       transform: sanitizeTransform(scene.transform),
       ...(scene.expanded ? { expanded: true } : {}),
     });

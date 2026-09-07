@@ -19,7 +19,9 @@ import {
   Lightbulb,
   MousePointer2,
   Pencil,
+  FolderPlus,
   Trash2,
+  Ungroup,
   Waves,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -112,6 +114,10 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
     renameScenePointGroup,
     removeScenePointGroupById,
     selectScenePointGroup,
+    createSceneVisualGroup,
+    renameSceneVisualGroupById,
+    removeSceneVisualGroupById,
+    selectSceneVisualGroup,
     lightingEffects,
     gizmoMode,
     setGizmoMode,
@@ -122,6 +128,9 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
   const [confirmDeleteGroupId, setConfirmDeleteGroupId] = useState<string | null>(null);
   const [renamingLayerId, setRenamingLayerId] = useState<string | null>(null);
   const [layerNameDraft, setLayerNameDraft] = useState("");
+  const [visualGroupName, setVisualGroupName] = useState("Visual group");
+  const [renamingVisualGroupId, setRenamingVisualGroupId] = useState<string | null>(null);
+  const [visualGroupRenameDraft, setVisualGroupRenameDraft] = useState("");
 
   /**
    * Derived layer rows. Pure projection of canonical state: no planner, no
@@ -583,6 +592,101 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
               );
             })}
           </ul>
+        </div>
+      ) : null}
+
+      {sceneSelectionMode === "OBJECT" ? (
+        <div className="mt-2 space-y-1.5 rounded border border-border bg-surface-sunken p-2">
+          <div className="flex items-center gap-1">
+            <FolderPlus className="size-3 text-muted-foreground" />
+            <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+              Visual groups
+            </p>
+          </div>
+          <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+            Combine related objects, then select and transform the complete visual in one step.
+          </p>
+          <div className="flex gap-1">
+            <input
+              value={visualGroupName}
+              onChange={(event) => setVisualGroupName(event.target.value)}
+              className="studio-input min-w-0 flex-1 font-mono"
+              aria-label="Visual group name"
+            />
+            <button
+              type="button"
+              className="chip-btn mini-btn-accent disabled:opacity-40"
+              disabled={selectedSceneObjectIds.length < 2}
+              data-testid="composer-create-visual-group"
+              onClick={() => createSceneVisualGroup(visualGroupName)}
+            >
+              Group selected
+            </button>
+          </div>
+          {(selectedScene.visualGroups?.length ?? 0) === 0 ? (
+            <p
+              className="font-mono text-[10px] text-muted-foreground"
+              data-testid="visual-groups-empty"
+            >
+              Select at least two objects, such as an SVG and its underline.
+            </p>
+          ) : (
+            <ul className="space-y-1" data-testid="visual-groups">
+              {selectedScene.visualGroups?.map((group) => (
+                <li key={group.id} className="flex items-center gap-1">
+                  {renamingVisualGroupId === group.id ? (
+                    <input
+                      autoFocus
+                      value={visualGroupRenameDraft}
+                      aria-label={`Rename visual group ${group.name}`}
+                      data-testid={`visual-group-rename-input-${group.id}`}
+                      onChange={(event) => setVisualGroupRenameDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          renameSceneVisualGroupById(group.id, visualGroupRenameDraft);
+                          setRenamingVisualGroupId(null);
+                        }
+                        if (event.key === "Escape") setRenamingVisualGroupId(null);
+                      }}
+                      className="studio-input min-w-0 flex-1 font-mono"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="chip-btn min-w-0 flex-1 justify-start"
+                      data-testid={`visual-group-select-${group.id}`}
+                      onClick={() => selectSceneVisualGroup(group.id)}
+                    >
+                      <span className="truncate">{group.name}</span>
+                      <span className="ml-auto text-muted-foreground">
+                        {group.objectIds.length} objects
+                      </span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="chip-btn"
+                    title="Rename visual group"
+                    onClick={() => {
+                      setVisualGroupRenameDraft(group.name);
+                      setRenamingVisualGroupId(group.id);
+                    }}
+                  >
+                    <Pencil className="size-3" />
+                  </button>
+                  <button
+                    type="button"
+                    className="chip-btn"
+                    title="Ungroup without deleting objects"
+                    data-testid={`visual-group-remove-${group.id}`}
+                    onClick={() => removeSceneVisualGroupById(group.id)}
+                  >
+                    <Ungroup className="size-3" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       ) : null}
 

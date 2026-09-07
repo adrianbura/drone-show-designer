@@ -70,6 +70,42 @@ async function mount(project: ShowProject, clipId: string) {
 afterEach(cleanup);
 
 describe("scene composer drone budget DOM", () => {
+  it("creates, selects, renames and ungroups a visual composition in atomic revisions", async () => {
+    const { project, clipId } = projectWithReserve();
+    await mount(project, clipId);
+    const firstId = api.selectedScene!.objects[0]!.id;
+    act(() => api.duplicateSceneObject(clipId, firstId));
+    await waitFor(() => expect(api.selectedScene!.objects).toHaveLength(2));
+    const secondId = api.selectedScene!.objects[1]!.id;
+    act(() => api.setSelectedSceneObjectIds([firstId, secondId], secondId));
+    const historyBefore = api.timelineHistoryDepth.past;
+
+    fireEvent.change(screen.getByLabelText("Visual group name"), {
+      target: { value: "Logo with underline" },
+    });
+    fireEvent.click(screen.getByTestId("composer-create-visual-group"));
+    await waitFor(() => expect(api.selectedScene!.visualGroups).toHaveLength(1));
+    const group = api.selectedScene!.visualGroups![0]!;
+    expect(group.objectIds).toEqual([firstId, secondId]);
+    expect(api.timelineHistoryDepth.past).toBe(historyBefore + 1);
+
+    act(() => api.selectSceneObject(firstId, "REPLACE"));
+    fireEvent.click(screen.getByTestId(`visual-group-select-${group.id}`));
+    await waitFor(() => expect(api.selectedSceneObjectIds).toEqual([firstId, secondId]));
+
+    fireEvent.click(screen.getByTitle("Rename visual group"));
+    const rename = screen.getByTestId(`visual-group-rename-input-${group.id}`);
+    fireEvent.change(rename, { target: { value: "Complete logo" } });
+    fireEvent.keyDown(rename, { key: "Enter" });
+    await waitFor(() => expect(api.selectedScene!.visualGroups![0]!.name).toBe("Complete logo"));
+
+    fireEvent.click(screen.getByTestId(`visual-group-remove-${group.id}`));
+    await waitFor(() => expect(api.selectedScene!.visualGroups).toEqual([]));
+    expect(api.selectedScene!.objects).toHaveLength(2);
+    act(() => api.undoTimeline());
+    await waitFor(() => expect(api.selectedScene!.visualGroups![0]!.name).toBe("Complete logo"));
+  });
+
   it("commits the latest move, rotate and scale gizmo deltas atomically", async () => {
     const { project, clipId } = projectWithReserve();
     await mount(project, clipId);

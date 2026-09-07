@@ -120,6 +120,17 @@ export interface ScenePointGroup {
   readonly pointIds: readonly string[];
 }
 
+/**
+ * A named visual composition inside one scene (for example: ring + diamond +
+ * sparkle). It is editor structure only: objects remain independently editable
+ * and the planner continues to resolve the same flat object list.
+ */
+export interface SceneVisualGroup {
+  readonly id: string;
+  readonly name: string;
+  readonly objectIds: readonly string[];
+}
+
 export interface FormationScene {
   /** Always equal to the timeline clip id that plays this scene. */
   readonly id: string;
@@ -128,6 +139,8 @@ export interface FormationScene {
   readonly objects: readonly SceneFormationInstance[];
   /** Named point selections used to author effects; they never affect flight geometry. */
   readonly pointGroups?: readonly ScenePointGroup[];
+  /** Named object compositions; never changes geometry, allocation or flight identity. */
+  readonly visualGroups?: readonly SceneVisualGroup[];
   /** Parent transform applied to the whole composition. */
   readonly transform: InstanceTransform;
   /** EDITOR-ONLY timeline expansion state. */

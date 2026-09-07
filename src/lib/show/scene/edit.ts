@@ -17,6 +17,7 @@ import {
   type SceneFormationInstance,
   type SceneObjectSource,
   type ScenePointGroup,
+  type SceneVisualGroup,
 } from "./types";
 
 export function emptyScene(id: string, name: string): FormationScene {
@@ -168,10 +169,66 @@ export function duplicateObject(
 
 export function removeObject(scene: FormationScene, objectId: string): FormationScene {
   const pointGroups = scene.pointGroups?.filter((group) => group.instanceId !== objectId);
+  const visualGroups = scene.visualGroups
+    ?.map((group) => ({ ...group, objectIds: group.objectIds.filter((id) => id !== objectId) }))
+    .filter((group) => group.objectIds.length > 1);
   return {
     ...scene,
     objects: scene.objects.filter((o) => o.id !== objectId),
     ...(pointGroups ? { pointGroups } : {}),
+    ...(visualGroups ? { visualGroups } : {}),
+  };
+}
+
+export function addSceneVisualGroup(
+  scene: FormationScene,
+  name: string,
+  objectIds: readonly string[],
+): { readonly scene: FormationScene; readonly groupId: string | null } {
+  const known = new Set(scene.objects.map((object) => object.id));
+  const ids = [...new Set(objectIds)].filter((id) => known.has(id));
+  if (ids.length < 2) return { scene, groupId: null };
+  const used = new Set((scene.visualGroups ?? []).map((group) => group.id));
+  let index = (scene.visualGroups?.length ?? 0) + 1;
+  let groupId = `${scene.id}-visual-${index}`;
+  while (used.has(groupId)) groupId = `${scene.id}-visual-${++index}`;
+  const group: SceneVisualGroup = {
+    id: groupId,
+    name: name.trim() || `Visual ${index}`,
+    objectIds: ids,
+  };
+  // One object belongs to at most one visual group. Regrouping is explicit and
+  // deterministic, without changing object order or geometry.
+  const previous = (scene.visualGroups ?? [])
+    .map((candidate) => ({
+      ...candidate,
+      objectIds: candidate.objectIds.filter((id) => !ids.includes(id)),
+    }))
+    .filter((candidate) => candidate.objectIds.length > 1);
+  return { scene: { ...scene, visualGroups: [...previous, group] }, groupId };
+}
+
+export function renameSceneVisualGroup(
+  scene: FormationScene,
+  groupId: string,
+  name: string,
+): FormationScene {
+  const trimmed = name.trim();
+  if (!trimmed || !scene.visualGroups) return scene;
+  return {
+    ...scene,
+    visualGroups: scene.visualGroups.map((group) =>
+      group.id === groupId ? { ...group, name: trimmed } : group,
+    ),
+  };
+}
+
+/** Removes only the composition container; its visual objects remain untouched. */
+export function removeSceneVisualGroup(scene: FormationScene, groupId: string): FormationScene {
+  if (!scene.visualGroups) return scene;
+  return {
+    ...scene,
+    visualGroups: scene.visualGroups.filter((group) => group.id !== groupId),
   };
 }
 

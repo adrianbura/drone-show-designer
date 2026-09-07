@@ -332,6 +332,7 @@ import {
 import {
   addObject,
   addScenePointGroup,
+  addSceneVisualGroup,
   alignObjects,
   applySceneClick,
   EMPTY_SCENE_SELECTION,
@@ -346,8 +347,10 @@ import {
   patchObject,
   patchObjectTransform,
   patchScenePointGroup,
+  renameSceneVisualGroup,
   removeObject,
   removeScenePointGroup,
+  removeSceneVisualGroup,
   removeSceneObjects,
   resolveSceneAt,
   sceneBudget,
@@ -560,6 +563,11 @@ interface StudioContextValue {
   renameScenePointGroup: (groupId: string, name: string) => void;
   removeScenePointGroupById: (groupId: string) => void;
   selectScenePointGroup: (groupId: string) => void;
+  /** Groups selected visual objects into one reusable composition container. */
+  createSceneVisualGroup: (name: string) => string | null;
+  renameSceneVisualGroupById: (groupId: string, name: string) => void;
+  removeSceneVisualGroupById: (groupId: string) => void;
+  selectSceneVisualGroup: (groupId: string) => void;
   /** Promotes and animates the current object/point selection in one undo revision. */
   applyMotionPresetToSceneSelection: (preset: DynamicPresetId) => readonly string[];
   /** Ephemeral motion audition rendered by the canonical planner; no project/history mutation. */
@@ -2737,6 +2745,50 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setSceneSelectionModeState("POINT");
     setSceneSelectionState({ ids: [group.instanceId], primaryId: group.instanceId });
     setSelectedScenePointIds([...group.pointIds]);
+  }, []);
+
+  const createSceneVisualGroup = useCallback(
+    (name: string): string | null => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId || sceneSelection.ids.length < 2) return null;
+      let createdId: string | null = null;
+      editScene(clipId, (scene) => {
+        const result = addSceneVisualGroup(scene, name, sceneSelection.ids);
+        createdId = result.groupId;
+        return result.scene;
+      });
+      return createdId;
+    },
+    [editScene, sceneSelection.ids],
+  );
+
+  const renameSceneVisualGroupById = useCallback(
+    (groupId: string, name: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => renameSceneVisualGroup(scene, groupId, name));
+    },
+    [editScene],
+  );
+
+  const removeSceneVisualGroupById = useCallback(
+    (groupId: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => removeSceneVisualGroup(scene, groupId));
+    },
+    [editScene],
+  );
+
+  const selectSceneVisualGroup = useCallback((groupId: string) => {
+    const group = sceneRef.current?.visualGroups?.find((candidate) => candidate.id === groupId);
+    if (!group) return;
+    setSceneSelectionModeState("OBJECT");
+    setSceneSelectionState({
+      ids: [...group.objectIds],
+      primaryId: group.objectIds.at(-1) ?? null,
+    });
+    setSelectedScenePointIds([]);
   }, []);
 
   const previewMotionPresetToSceneSelection = useCallback(
@@ -6331,6 +6383,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       renameScenePointGroup,
       removeScenePointGroupById,
       selectScenePointGroup,
+      createSceneVisualGroup,
+      renameSceneVisualGroupById,
+      removeSceneVisualGroupById,
+      selectSceneVisualGroup,
       applyMotionPresetToSceneSelection,
       previewMotionPresetToSceneSelection,
       motionEffectPreviewIds: motionEffectPreview?.dynamicFormationIds ?? [],
@@ -6730,6 +6786,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       renameScenePointGroup,
       removeScenePointGroupById,
       selectScenePointGroup,
+      createSceneVisualGroup,
+      renameSceneVisualGroupById,
+      removeSceneVisualGroupById,
+      selectSceneVisualGroup,
       applyMotionPresetToSceneSelection,
       previewMotionPresetToSceneSelection,
       motionEffectPreview,
