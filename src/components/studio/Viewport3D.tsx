@@ -129,6 +129,8 @@ function Swarm({
       if (highlightSet.has(i)) color.setRGB(1, 0.25, 0.25);
       else if (selected && !light) color.setRGB(1, 0.95, 0.55);
       else if (dimmed) color.setRGB(0.16, 0.21, 0.28);
+      else if (reserveSet.has(i))
+        color.setRGB(RESERVE_RGB[0], RESERVE_RGB[1], RESERVE_RGB[2]);
       else if (showGroups && group) color.setRGB(group[0], group[1], group[2]);
       else if (motionGroup) color.setRGB(motionGroup[0], motionGroup[1], motionGroup[2]);
       else if (states) {
