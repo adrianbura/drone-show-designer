@@ -19,6 +19,8 @@ export default function MotionTrack({
     selectedSceneObjectIds,
     selectSceneObject,
     selectDynamicFormation,
+    motionEffectPreviewIds,
+    time,
   } = useStudio();
   const clip = project.timeline.find((candidate) => candidate.id === selectedClipId) ?? null;
   const blocks = useMemo(
@@ -38,8 +40,10 @@ export default function MotionTrack({
     }
     return flagged;
   }, [project.area, project.dynamicFormations, project.limits]);
-  if (blocks.length === 0) return null;
+  const previewing = motionEffectPreviewIds.length > 0;
+  if (blocks.length === 0 && !previewing) return null;
   const span = Math.max(0.001, viewEnd - viewStart);
+  const previewLeft = ((time - viewStart) / span) * 100;
 
   return (
     <div className="flex h-7 items-stretch" data-testid="motion-track">
@@ -47,6 +51,20 @@ export default function MotionTrack({
         <Activity className="size-3" /> Motion
       </div>
       <div className="relative min-w-0 flex-1 overflow-hidden bg-surface-sunken">
+        {/*
+         * HONEST PREVIEW MARKER — the canonical motion preview exposes only the
+         * previewed formation ids, not authorable timing, so the track shows a
+         * dashed playhead marker instead of inventing a block.
+         */}
+        {previewing ? (
+          <span
+            data-testid="motion-preview-marker"
+            title="Motion preview at the playhead · project unchanged until Apply"
+            className="pointer-events-none absolute inset-y-0 w-0 border-l-2 border-dashed border-accent"
+            style={{ left: `${previewLeft}%` }}
+          />
+        ) : null}
+
         {blocks.map((block, lane) => {
           const left = ((block.start - viewStart) / span) * 100;
           const width = (block.duration / span) * 100;
