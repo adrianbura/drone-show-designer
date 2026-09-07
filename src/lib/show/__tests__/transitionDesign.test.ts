@@ -18,6 +18,8 @@ import {
   describeTransitionDesign,
   deriveTransitionMode,
   normalizeTransitionDesign,
+  STAGGER_PATTERNS,
+  staggerPatternLabel,
   staggerStartOffsets,
   transitionInputForClip,
   type TransitionDesignState,
