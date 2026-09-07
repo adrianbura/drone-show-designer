@@ -110,6 +110,17 @@ describe("proposal validation", () => {
     expect(validateProposal(null).valid).toBe(false);
     expect(validateProposal({ schemaVersion: 1 }).valid).toBe(false);
   });
+
+  it("accepts an exact visual subset but rejects a proposal larger than the fleet", async () => {
+    const subset = await mockChoreographyProvider.generateProposal({
+      prompt: "a ring made from 80 drones",
+      fleetCount: 150,
+      area: AREA,
+    });
+    expect(subset.fleetCount).toBe(80);
+    expect(validateProposal(subset, 150)).toEqual({ valid: true, errors: [] });
+    expect(validateProposal({ ...subset, fleetCount: 151 }, 150).valid).toBe(false);
+  });
 });
 
 describe("deterministic builder", () => {

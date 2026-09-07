@@ -19,7 +19,7 @@ import ConversionOverlay from "./ConversionOverlay";
 import ReferenceGhostSwarm from "./ReferenceGhostSwarm";
 import GeometryProposalGhost from "./GeometryProposalGhost";
 import SceneGizmo from "./SceneGizmo";
-import SafetyVolumeOverlay, { safetyVolumeBreach } from "./SafetyVolumeOverlay";
+import SafetyVolumeOverlay from "./SafetyVolumeOverlay";
 import SceneGizmoPreview from "./SceneGizmoPreview";
 import {
   indicesInsideBox,
@@ -129,8 +129,7 @@ function Swarm({
       if (highlightSet.has(i)) color.setRGB(1, 0.25, 0.25);
       else if (selected && !light) color.setRGB(1, 0.95, 0.55);
       else if (dimmed) color.setRGB(0.16, 0.21, 0.28);
-      else if (reserveSet.has(i))
-        color.setRGB(RESERVE_RGB[0], RESERVE_RGB[1], RESERVE_RGB[2]);
+      else if (reserveSet.has(i)) color.setRGB(RESERVE_RGB[0], RESERVE_RGB[1], RESERVE_RGB[2]);
       else if (showGroups && group) color.setRGB(group[0], group[1], group[2]);
       else if (motionGroup) color.setRGB(motionGroup[0], motionGroup[1], motionGroup[2]);
       else if (states) {
@@ -431,18 +430,6 @@ export default function Viewport3D() {
   }, [preShowOverlay]);
 
   const gestureActive = sceneSelectionMode === "POINT" && scenePointSelectionTool !== "CLICK";
-  const safetyBreach = useMemo(
-    () =>
-      showSafetyVolume
-        ? safetyVolumeBreach(
-            samplesAtTime(time).map((s) => s.position),
-            project.area,
-            project.limits,
-          )
-        : { lateral: 0, ceiling: 0, floor: 0 },
-    [showSafetyVolume, samplesAtTime, time, project.area, project.limits],
-  );
-
   return (
     <div className="relative h-full w-full" data-testid="viewport-3d">
       <Canvas
@@ -465,11 +452,7 @@ export default function Viewport3D() {
           position={[0, 0, 0]}
         />
         {showSafetyVolume ? (
-          <SafetyVolumeOverlay
-            area={project.area}
-            limits={project.limits}
-            breach={safetyBreach}
-          />
+          <SafetyVolumeOverlay area={project.area} limits={project.limits} />
         ) : null}
         {conversionComparisonFrame ? (
           <ConversionOverlay

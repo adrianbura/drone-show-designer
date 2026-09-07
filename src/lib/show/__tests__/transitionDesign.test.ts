@@ -27,10 +27,7 @@ import {
 import { buildShowPlan } from "@/lib/show/trajectory/schedule";
 import { sampleTrajectorySet } from "@/lib/show/trajectory/sampler";
 import { clipPhase } from "@/lib/show/types";
-import {
-  computeOverrideBasis,
-  pruneTransitionOverrides,
-} from "@/lib/studio/planningIntegrity";
+import { computeOverrideBasis, pruneTransitionOverrides } from "@/lib/studio/planningIntegrity";
 import { migratePlanningState, serializeProject } from "@/lib/project/serialize";
 
 const project = createDemoProject(24);
@@ -63,7 +60,11 @@ describe("transition design modes", () => {
 
   it("SYNCHRONIZED gives common starts and preserves canonical assignment", () => {
     const { analysis, input } = analysisFor();
-    const override = buildDesignOverride(analysis, design({ mode: "SYNCHRONIZED" }), input.duration)!;
+    const override = buildDesignOverride(
+      analysis,
+      design({ mode: "SYNCHRONIZED" }),
+      input.duration,
+    )!;
     expect(override.startOffsets.every((v) => v === 0)).toBe(true);
     expect(override.laneOffsets.every((v) => v === 0)).toBe(true);
     expect(override.targetPointIndex).toEqual(analysis.dronePlans.map((p) => p.targetPointIndex));
@@ -75,9 +76,7 @@ describe("transition design modes", () => {
     const lr = staggerStartOffsets(from, "LEFT_RIGHT", 3, input.duration);
     const rl = staggerStartOffsets(from, "RIGHT_LEFT", 3, input.duration);
 
-    const byX = from
-      .map((p, i) => ({ x: p[0], i }))
-      .sort((a, b) => a.x - b.x || a.i - b.i);
+    const byX = from.map((p, i) => ({ x: p[0], i })).sort((a, b) => a.x - b.x || a.i - b.i);
     for (let k = 1; k < byX.length; k++) {
       expect(lr[byX[k]!.i]!).toBeGreaterThanOrEqual(lr[byX[k - 1]!.i]! - 1e-9);
       expect(rl[byX[k]!.i]!).toBeLessThanOrEqual(rl[byX[k - 1]!.i]! + 1e-9);
@@ -175,7 +174,10 @@ describe("transition design invalidation", () => {
       ...project,
       formations: project.formations.map((f) =>
         f.id === showClip.formationId
-          ? { ...f, points: f.points.map((p) => [p[0] + 7, p[1], p[2]] as [number, number, number]) }
+          ? {
+              ...f,
+              points: f.points.map((p) => [p[0] + 7, p[1], p[2]] as [number, number, number]),
+            }
           : f,
       ),
     };

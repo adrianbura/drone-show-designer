@@ -2750,7 +2750,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         preset,
         createId: () => nextId("dyn"),
       });
-      if (result.project === projectRef.current || result.dynamicFormationIds.length === 0) return [];
+      if (result.project === projectRef.current || result.dynamicFormationIds.length === 0)
+        return [];
       setMotionEffectPreview({
         baseProject: projectRef.current,
         project: result.project,
@@ -2758,12 +2759,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       });
       return result.dynamicFormationIds;
     },
-    [
-      sceneSelection.ids,
-      sceneSelection.primaryId,
-      sceneSelectionMode,
-      selectedScenePointIds,
-    ],
+    [sceneSelection.ids, sceneSelection.primaryId, sceneSelectionMode, selectedScenePointIds],
   );
 
   const cancelMotionEffectPreview = useCallback(() => setMotionEffectPreview(null), []);
@@ -2799,7 +2795,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setProject(result.project);
       setExplicitDynamicId(result.dynamicFormationIds.at(-1) ?? null);
       return result.dynamicFormationIds;
-    }, [
+    },
+    [
       pushTimelineHistory,
       sceneSelection.ids,
       sceneSelection.primaryId,
