@@ -239,12 +239,12 @@ describe("scene composer drone budget DOM", () => {
 
     fireEvent.click(screen.getByTestId("effect-stack-add-SOLID"));
     expect(api.project.lighting?.effects ?? []).toHaveLength(0);
-    expect(screen.getByTestId("lighting-effect-preview")).toBeTruthy();
-    fireEvent.click(screen.getByTestId("lighting-preview-cancel"));
+    expect(screen.getByTestId("effect-live-preview")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("effect-preview-cancel"));
     expect(api.project.lighting?.effects ?? []).toHaveLength(0);
-    expect(screen.queryByTestId("lighting-effect-preview")).toBeNull();
+    expect(screen.queryByTestId("effect-live-preview")).toBeNull();
     fireEvent.click(screen.getByTestId("effect-stack-add-SOLID"));
-    fireEvent.click(screen.getByTestId("lighting-preview-apply"));
+    fireEvent.click(screen.getByTestId("effect-preview-apply"));
     await waitFor(() => expect(api.project.lighting?.effects).toHaveLength(1));
     const effect = api.project.lighting!.effects[0]!;
     expect(effect.anchor).toBe("ABSOLUTE");
@@ -320,19 +320,19 @@ describe("drone group lighting authoring UX", () => {
 
     fireEvent.click(screen.getByTestId("effect-stack-add-SOLID"));
     expect(api.project.lighting?.effects ?? []).toHaveLength(0);
-    fireEvent.click(screen.getByTestId("lighting-preview-apply"));
+    fireEvent.click(screen.getByTestId("effect-preview-apply"));
     await waitFor(() => expect(api.project.lighting?.effects).toHaveLength(1));
     expect(api.project.lighting!.effects[0]!.start).toBe(4.25);
 
     act(() => api.setTime(6.5));
     fireEvent.click(screen.getByTestId("effect-stack-add-FADE_IN"));
-    fireEvent.click(screen.getByTestId("lighting-preview-apply"));
+    fireEvent.click(screen.getByTestId("effect-preview-apply"));
     await waitFor(() => expect(api.project.lighting?.effects).toHaveLength(2));
     expect(api.project.lighting!.effects[1]!.start).toBe(6.5);
 
     fireEvent.change(screen.getByTestId("effect-stack-gradient-axis"), { target: { value: "Y" } });
     fireEvent.click(screen.getByTestId("effect-stack-add-GRADIENT_SWEEP"));
-    fireEvent.click(screen.getByTestId("lighting-preview-apply"));
+    fireEvent.click(screen.getByTestId("effect-preview-apply"));
     await waitFor(() => expect(api.project.lighting?.effects).toHaveLength(3));
     const gradient = api.project.lighting!.effects[2]!;
     expect(gradient.parameters.stops).toHaveLength(2);
@@ -369,12 +369,12 @@ describe("selection-scoped motion authoring", () => {
     fireEvent.click(screen.getByTestId("motion-stack-add-WAVE"));
     expect(api.project.dynamicFormations ?? []).toHaveLength(0);
     expect(api.timelineHistoryDepth.past).toBe(historyBefore);
-    expect(screen.getByTestId("motion-effect-preview")).toBeTruthy();
-    fireEvent.click(screen.getByTestId("motion-preview-cancel"));
+    expect(screen.getByTestId("effect-live-preview")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("effect-preview-cancel"));
     expect(api.project.dynamicFormations ?? []).toHaveLength(0);
     expect(api.timelineHistoryDepth.past).toBe(historyBefore);
     fireEvent.click(screen.getByTestId("motion-stack-add-WAVE"));
-    fireEvent.click(screen.getByTestId("motion-preview-apply"));
+    fireEvent.click(screen.getByTestId("effect-preview-apply"));
     await waitFor(() => expect(api.project.dynamicFormations).toHaveLength(1));
     expect(api.timelineHistoryDepth.past).toBe(historyBefore + 1);
     expect(api.project.dynamicFormations![0]!.groups[0]!.pointIds).toHaveLength(3);

@@ -123,6 +123,8 @@ export default function LightingTrack({
     selectedClipId,
     selectedScene,
     lightingEffects,
+    lightingEffectPreview,
+
     selectedLightingEffectId,
     selectLightingEffect,
     commitLightingTiming,
@@ -402,6 +404,37 @@ export default function LightingTrack({
                   title={t("lighting.resize")}
                   className="absolute inset-y-0 right-0 w-1.5 cursor-col-resize touch-none bg-accent/0 hover:bg-accent/50"
                 />
+              </div>
+            );
+          })}
+
+          {/*
+           * PREVIEW GHOSTS — uncommitted canonical preview instances rendered
+           * dashed and translucent. Nothing is copied into project state and no
+           * gesture can grab them.
+           */}
+          {lightingEffectPreview.map((effect, index) => {
+            const span = Math.max(0.001, view.end - view.start);
+            const left = ((effect.start - view.start) / span) * 100;
+            const width = (effect.duration / span) * 100;
+            return (
+              <div
+                key={effect.id}
+                data-testid={`lighting-preview-block-${effect.id}`}
+                data-preview="1"
+                title={`Preview · ${effectPresetLabel(effect)} · ${effect.start.toFixed(2)}s`}
+                className="pointer-events-none absolute rounded border border-dashed border-accent bg-accent/20 text-[10px]"
+                style={{
+                  top: (index % Math.max(1, layout.laneCount)) * LANE_HEIGHT + 3,
+                  height: LANE_HEIGHT - 5,
+                  left: `${left}%`,
+                  width: `${Math.max(0.5, width)}%`,
+                  minWidth: 8,
+                }}
+              >
+                <span className="pointer-events-none absolute inset-0 flex items-center overflow-hidden px-1 text-accent">
+                  <span className="truncate">Preview</span>
+                </span>
               </div>
             );
           })}
