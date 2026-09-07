@@ -903,6 +903,9 @@ interface StudioContextValue {
   /** Draws the geofence cage, altitude floor and ceiling in the viewport. */
   showSafetyVolume: boolean;
   setShowSafetyVolume: (v: boolean) => void;
+  /** Tints drones not used by any visual of the selected scene (reserve). */
+  showReserveDrones: boolean;
+  setShowReserveDrones: (v: boolean) => void;
 
   // ---- Full show simulation & validation (Sprint 4) ----------------------
   /** Composed full-show plan of the last analysis (TAKEOFF..LANDING). */
@@ -1362,6 +1365,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [showPaths, setShowPaths] = useState(false);
   const [showConflicts, setShowConflicts] = useState(false);
   const [showSafetyVolume, setShowSafetyVolume] = useState(true);
+  const [showReserveDrones, setShowReserveDrones] = useState(true);
   const [fullShow, setFullShow] = useState<{
     plan: FullShowPlan;
     report: FullShowValidationReport;
@@ -6420,6 +6424,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setShowConflicts,
       showSafetyVolume,
       setShowSafetyVolume,
+      showReserveDrones,
+      setShowReserveDrones,
       fullShowPlan: fullShow?.plan ?? null,
       fullShowReport: fullShow?.report ?? null,
       fullShowBusy,
@@ -6788,6 +6794,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       canAnalyzeSelectedClip,
       showPaths,
       showConflicts,
+      showReserveDrones,
       showSafetyVolume,
       fullShow,
       fullShowBusy,

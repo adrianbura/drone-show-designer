@@ -348,6 +348,8 @@ export default function Inspector({
     showConflicts,
     showSafetyVolume,
     setShowSafetyVolume,
+    showReserveDrones,
+    setShowReserveDrones,
     setShowConflicts,
     fullShowReport,
     fullShowStale,
@@ -863,6 +865,15 @@ export default function Inspector({
                   className={`chip-btn ${showSafetyVolume ? "chip-btn-active" : ""}`}
                 >
                   limits
+                </button>
+                <button
+                  data-testid="overlay-reserve-drones"
+                  aria-pressed={showReserveDrones}
+                  onClick={() => setShowReserveDrones(!showReserveDrones)}
+                  className={`chip-btn ${showReserveDrones ? "chip-btn-active" : ""}`}
+                  title="Tints drones no visual of this scene uses"
+                >
+                  reserve
                 </button>
               </span>
             </div>

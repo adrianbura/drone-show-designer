@@ -46,6 +46,9 @@ const PRE_SHOW_STATE_RGB: Record<PreShowDroneState, [number, number, number]> = 
   SHOW: [0.22, 0.31, 0.42],
 };
 
+/** Reserve tint — drones no visual of the selected scene uses right now. */
+const RESERVE_RGB: [number, number, number] = [0.32, 0.24, 0.46];
+
 function Swarm({
   project,
   time,
@@ -58,6 +61,7 @@ function Swarm({
   selectedGroupId,
   dynamicSelected,
   dynamicGroupRgbByDrone,
+  reserveDrones,
   lightingStatesAt,
   onSelectDrone,
 }: {
@@ -74,6 +78,8 @@ function Swarm({
   dynamicSelected: number[];
   /** Motion-group tint per drone while editing a dynamic formation. */
   dynamicGroupRgbByDrone: Map<number, [number, number, number]>;
+  /** Drones no visual of the selected scene uses; empty = no reserve display. */
+  reserveDrones: number[];
   /** Per-drone LED state from the lighting engine; empty = no lighting program. */
   lightingStatesAt: (t: number) => DroneLightState[];
   onSelectDrone: (index: number, additive: boolean) => void;
@@ -84,6 +90,7 @@ function Swarm({
   const color = useMemo(() => new THREE.Color(), []);
   const highlightSet = useMemo(() => new Set(highlighted), [highlighted]);
   const selectedSet = useMemo(() => new Set(dynamicSelected), [dynamicSelected]);
+  const reserveSet = useMemo(() => new Set(reserveDrones), [reserveDrones]);
 
   useFrame(() => {
     const bodyMesh = bodies.current;
@@ -122,6 +129,8 @@ function Swarm({
       if (highlightSet.has(i)) color.setRGB(1, 0.25, 0.25);
       else if (selected && !light) color.setRGB(1, 0.95, 0.55);
       else if (dimmed) color.setRGB(0.16, 0.21, 0.28);
+      else if (reserveSet.has(i))
+        color.setRGB(RESERVE_RGB[0], RESERVE_RGB[1], RESERVE_RGB[2]);
       else if (showGroups && group) color.setRGB(group[0], group[1], group[2]);
       else if (motionGroup) color.setRGB(motionGroup[0], motionGroup[1], motionGroup[2]);
       else if (states) {
@@ -295,6 +304,7 @@ export default function Viewport3D() {
     showPaths,
     showConflicts,
     showSafetyVolume,
+    showReserveDrones,
     highlightedDrones,
     referenceShow,
     referencePlayback,
@@ -395,6 +405,22 @@ export default function Viewport3D() {
     return indices;
   }, [project.droneCount, sceneObjectIdForDrone, selectedSceneObjectIds]);
 
+  /**
+   * RESERVE DRONES: indices no visual of the selected scene uses. Only shown
+   * when the scene actually assigns some drones, so a project without scene
+   * objects is never painted as "all reserve".
+   */
+  const reserveDrones = useMemo(() => {
+    if (!showReserveDrones) return [];
+    const unused: number[] = [];
+    let used = 0;
+    for (let i = 0; i < project.droneCount; i++) {
+      if (sceneObjectIdForDrone(i)) used++;
+      else unused.push(i);
+    }
+    return used > 0 ? unused : [];
+  }, [project.droneCount, sceneObjectIdForDrone, showReserveDrones]);
+
   const groupRgbByDrone = useMemo(() => {
     const map = new Map<number, [number, number, number]>();
     preShowOverlay?.groups.forEach((g) => {
@@ -489,6 +515,7 @@ export default function Viewport3D() {
                   : selectedDroneIndices
             }
             dynamicGroupRgbByDrone={dynamicGroupRgbByDrone}
+            reserveDrones={reserveDrones}
             lightingStatesAt={lightingStatesAt}
             onSelectDrone={handleSelectDrone}
           />
