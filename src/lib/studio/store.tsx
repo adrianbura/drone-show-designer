@@ -1487,6 +1487,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const [motionEffectPreview, setMotionEffectPreview] = useState<{
     readonly baseProject: ShowProject;
+    readonly selectionKey: string;
     readonly project: ShowProject;
     readonly dynamicFormationIds: readonly string[];
   } | null>(null);
@@ -2754,6 +2755,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         return [];
       setMotionEffectPreview({
         baseProject: projectRef.current,
+        selectionKey: `${clipId}|${sceneSelectionMode}|${sceneSelection.ids.join(",")}|${selectedScenePointIds.join(",")}`,
         project: result.project,
         dynamicFormationIds: result.dynamicFormationIds,
       });
@@ -5729,6 +5731,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [selectedLightingEffectId, setSelectedLightingEffectId] = useState<string | null>(null);
   const [lightingPreview, setLightingPreview] = useState(true);
   const [lightingEffectPreview, setLightingEffectPreview] = useState<LightingEffectInstance[]>([]);
+  const lightingEffectPreviewBaseRef = useRef<ShowProject | null>(null);
+  const lightingEffectPreviewSelectionRef = useRef("");
   const lightingSeed = useRef(0);
 
   const lightingEffects = useMemo(
@@ -5945,23 +5949,72 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       timing?: { readonly anchor: "ABSOLUTE"; readonly start: number; readonly duration?: number },
     ) => {
       const created = makeLightingPresetEffects(presetId, targets, parameters, timing);
+      lightingEffectPreviewBaseRef.current = created.length > 0 ? projectRef.current : null;
+      lightingEffectPreviewSelectionRef.current = `${selectedClipId ?? ""}|${sceneSelectionMode}|${sceneSelection.ids.join(",")}|${selectedScenePointIds.join(",")}`;
       setLightingEffectPreview(created);
       setLightingPreview(true);
       return created.map((effect) => effect.id);
     },
-    [makeLightingPresetEffects],
+    [
+      makeLightingPresetEffects,
+      sceneSelection.ids,
+      sceneSelectionMode,
+      selectedClipId,
+      selectedScenePointIds,
+    ],
   );
 
-  const cancelLightingEffectPreview = useCallback(() => setLightingEffectPreview([]), []);
+  const cancelLightingEffectPreview = useCallback(() => {
+    lightingEffectPreviewBaseRef.current = null;
+    lightingEffectPreviewSelectionRef.current = "";
+    setLightingEffectPreview([]);
+  }, []);
 
   const applyLightingEffectPreview = useCallback(() => {
     const created = lightingEffectPreview;
     if (created.length === 0) return [];
+    if (lightingEffectPreviewBaseRef.current !== projectRef.current) {
+      cancelLightingEffectPreview();
+      return [];
+    }
     editLighting((list) => [...list, ...created]);
     setSelectedLightingEffectId(created[0]!.id);
-    setLightingEffectPreview([]);
+    cancelLightingEffectPreview();
     return created.map((effect) => effect.id);
-  }, [editLighting, lightingEffectPreview]);
+  }, [cancelLightingEffectPreview, editLighting, lightingEffectPreview]);
+
+  /**
+   * PREVIEW INVALIDATION AUTHORITY. A preview is a proposal against one exact
+   * project revision and one exact selection. Any canonical edit or selection
+   * change invalidates it before Apply can install stale content.
+   */
+  useEffect(() => {
+    if (
+      motionEffectPreview &&
+      (motionEffectPreview.baseProject !== project ||
+        motionEffectPreview.selectionKey !==
+          `${selectedClipId ?? ""}|${sceneSelectionMode}|${sceneSelection.ids.join(",")}|${selectedScenePointIds.join(",")}`)
+    ) {
+      setMotionEffectPreview(null);
+    }
+    const selectionKey = `${selectedClipId ?? ""}|${sceneSelectionMode}|${sceneSelection.ids.join(",")}|${selectedScenePointIds.join(",")}`;
+    if (
+      lightingEffectPreviewBaseRef.current &&
+      (lightingEffectPreviewBaseRef.current !== project ||
+        lightingEffectPreviewSelectionRef.current !== selectionKey)
+    ) {
+      cancelLightingEffectPreview();
+    }
+  }, [
+    cancelLightingEffectPreview,
+    lightingEffectPreview,
+    motionEffectPreview,
+    project,
+    sceneSelection.ids,
+    sceneSelectionMode,
+    selectedClipId,
+    selectedScenePointIds,
+  ]);
 
   const addLightingEffectFromPreset = useCallback(
     (

@@ -357,6 +357,27 @@ describe("drone group lighting authoring UX", () => {
 });
 
 describe("selection-scoped motion authoring", () => {
+  it("invalidates Color and Motion previews after a canonical project revision", async () => {
+    const { project, clipId } = projectWithReserve();
+    await mount(project, clipId);
+    const originalName = api.project.name;
+    act(() => api.selectSceneObject(api.selectedScene!.objects[0]!.id, "REPLACE"));
+
+    fireEvent.click(screen.getByTestId("effect-stack-add-SOLID"));
+    await waitFor(() => expect(api.lightingEffectPreview).toHaveLength(1));
+    act(() => api.patchProject({ name: `${originalName} edited` }));
+    await waitFor(() => expect(api.lightingEffectPreview).toHaveLength(0));
+    expect(api.applyLightingEffectPreview()).toEqual([]);
+    expect(api.project.lighting?.effects ?? []).toHaveLength(0);
+
+    fireEvent.click(screen.getByTestId("motion-stack-add-WAVE"));
+    await waitFor(() => expect(api.motionEffectPreviewIds).toHaveLength(1));
+    act(() => api.patchProject({ name: originalName }));
+    await waitFor(() => expect(api.motionEffectPreviewIds).toHaveLength(0));
+    expect(api.applyMotionEffectPreview()).toEqual([]);
+    expect(api.project.dynamicFormations ?? []).toHaveLength(0);
+  });
+
   it("applies point motion as one project revision and restores it with undo/redo", async () => {
     const { project, clipId } = projectWithReserve();
     await mount(project, clipId);
@@ -374,8 +395,11 @@ describe("selection-scoped motion authoring", () => {
     expect(api.project.dynamicFormations ?? []).toHaveLength(0);
     expect(api.timelineHistoryDepth.past).toBe(historyBefore);
     fireEvent.click(screen.getByTestId("motion-stack-add-WAVE"));
+    await waitFor(() => expect(api.motionEffectPreviewIds).toHaveLength(1));
+    const previewPositions = api.samplesAtTime(2).map((sample) => sample.position);
     fireEvent.click(screen.getByTestId("motion-preview-apply"));
     await waitFor(() => expect(api.project.dynamicFormations).toHaveLength(1));
+    expect(api.samplesAtTime(2).map((sample) => sample.position)).toEqual(previewPositions);
     expect(api.timelineHistoryDepth.past).toBe(historyBefore + 1);
     expect(api.project.dynamicFormations![0]!.groups[0]!.pointIds).toHaveLength(3);
     expect(api.selectedScene!.objects[0]!.source.kind).toBe("DYNAMIC");
