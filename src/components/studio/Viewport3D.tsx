@@ -404,6 +404,22 @@ export default function Viewport3D() {
     return indices;
   }, [project.droneCount, sceneObjectIdForDrone, selectedSceneObjectIds]);
 
+  /**
+   * RESERVE DRONES: indices no visual of the selected scene uses. Only shown
+   * when the scene actually assigns some drones, so a project without scene
+   * objects is never painted as "all reserve".
+   */
+  const reserveDrones = useMemo(() => {
+    if (!showReserveDrones) return [];
+    const unused: number[] = [];
+    let used = 0;
+    for (let i = 0; i < project.droneCount; i++) {
+      if (sceneObjectIdForDrone(i)) used++;
+      else unused.push(i);
+    }
+    return used > 0 ? unused : [];
+  }, [project.droneCount, sceneObjectIdForDrone, showReserveDrones]);
+
   const groupRgbByDrone = useMemo(() => {
     const map = new Map<number, [number, number, number]>();
     preShowOverlay?.groups.forEach((g) => {
