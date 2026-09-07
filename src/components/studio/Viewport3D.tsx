@@ -19,6 +19,7 @@ import ConversionOverlay from "./ConversionOverlay";
 import ReferenceGhostSwarm from "./ReferenceGhostSwarm";
 import GeometryProposalGhost from "./GeometryProposalGhost";
 import SceneGizmo from "./SceneGizmo";
+import SafetyVolumeOverlay, { safetyVolumeBreach } from "./SafetyVolumeOverlay";
 import SceneGizmoPreview from "./SceneGizmoPreview";
 import {
   indicesInsideBox,
@@ -293,6 +294,7 @@ export default function Viewport3D() {
     selectedClipId,
     showPaths,
     showConflicts,
+    showSafetyVolume,
     highlightedDrones,
     referenceShow,
     referencePlayback,
@@ -403,6 +405,17 @@ export default function Viewport3D() {
   }, [preShowOverlay]);
 
   const gestureActive = sceneSelectionMode === "POINT" && scenePointSelectionTool !== "CLICK";
+  const safetyBreach = useMemo(
+    () =>
+      showSafetyVolume
+        ? safetyVolumeBreach(
+            samplesAtTime(time).map((s) => s.position),
+            project.area,
+            project.safetyLimits,
+          )
+        : { lateral: 0, ceiling: 0, floor: 0 },
+    [showSafetyVolume, samplesAtTime, time, project.area, project.safetyLimits],
+  );
 
   return (
     <div className="relative h-full w-full" data-testid="viewport-3d">
@@ -425,6 +438,13 @@ export default function Viewport3D() {
           fadeStrength={1.4}
           position={[0, 0, 0]}
         />
+        {showSafetyVolume ? (
+          <SafetyVolumeOverlay
+            area={project.area}
+            limits={project.safetyLimits}
+            breach={safetyBreach}
+          />
+        ) : null}
         {conversionComparisonFrame ? (
           <ConversionOverlay
             frame={conversionComparisonFrame}

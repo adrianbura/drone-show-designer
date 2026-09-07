@@ -346,6 +346,8 @@ export default function Inspector({
     showPaths,
     setShowPaths,
     showConflicts,
+    showSafetyVolume,
+    setShowSafetyVolume,
     setShowConflicts,
     fullShowReport,
     fullShowStale,
@@ -853,6 +855,14 @@ export default function Inspector({
                   className={`chip-btn ${showConflicts ? "chip-btn-active" : ""}`}
                 >
                   conflicts
+                </button>
+                <button
+                  data-testid="overlay-safety-volume"
+                  aria-pressed={showSafetyVolume}
+                  onClick={() => setShowSafetyVolume(!showSafetyVolume)}
+                  className={`chip-btn ${showSafetyVolume ? "chip-btn-active" : ""}`}
+                >
+                  limits
                 </button>
               </span>
             </div>
