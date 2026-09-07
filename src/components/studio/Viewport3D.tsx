@@ -78,6 +78,8 @@ function Swarm({
   dynamicSelected: number[];
   /** Motion-group tint per drone while editing a dynamic formation. */
   dynamicGroupRgbByDrone: Map<number, [number, number, number]>;
+  /** Drones no visual of the selected scene uses; empty = no reserve display. */
+  reserveDrones: number[];
   /** Per-drone LED state from the lighting engine; empty = no lighting program. */
   lightingStatesAt: (t: number) => DroneLightState[];
   onSelectDrone: (index: number, additive: boolean) => void;
@@ -88,6 +90,7 @@ function Swarm({
   const color = useMemo(() => new THREE.Color(), []);
   const highlightSet = useMemo(() => new Set(highlighted), [highlighted]);
   const selectedSet = useMemo(() => new Set(dynamicSelected), [dynamicSelected]);
+  const reserveSet = useMemo(() => new Set(reserveDrones), [reserveDrones]);
 
   useFrame(() => {
     const bodyMesh = bodies.current;
