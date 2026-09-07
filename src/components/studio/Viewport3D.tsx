@@ -411,10 +411,10 @@ export default function Viewport3D() {
         ? safetyVolumeBreach(
             samplesAtTime(time).map((s) => s.position),
             project.area,
-            project.safetyLimits,
+            project.limits,
           )
         : { lateral: 0, ceiling: 0, floor: 0 },
-    [showSafetyVolume, samplesAtTime, time, project.area, project.safetyLimits],
+    [showSafetyVolume, samplesAtTime, time, project.area, project.limits],
   );
 
   return (
@@ -441,7 +441,7 @@ export default function Viewport3D() {
         {showSafetyVolume ? (
           <SafetyVolumeOverlay
             area={project.area}
-            limits={project.safetyLimits}
+            limits={project.limits}
             breach={safetyBreach}
           />
         ) : null}
