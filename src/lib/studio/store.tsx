@@ -903,6 +903,9 @@ interface StudioContextValue {
   /** Draws the geofence cage, altitude floor and ceiling in the viewport. */
   showSafetyVolume: boolean;
   setShowSafetyVolume: (v: boolean) => void;
+  /** Tints drones not used by any visual of the selected scene (reserve). */
+  showReserveDrones: boolean;
+  setShowReserveDrones: (v: boolean) => void;
 
   // ---- Full show simulation & validation (Sprint 4) ----------------------
   /** Composed full-show plan of the last analysis (TAKEOFF..LANDING). */
