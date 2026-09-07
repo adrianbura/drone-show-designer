@@ -900,6 +900,9 @@ interface StudioContextValue {
   setShowPaths: (v: boolean) => void;
   showConflicts: boolean;
   setShowConflicts: (v: boolean) => void;
+  /** Draws the geofence cage, altitude floor and ceiling in the viewport. */
+  showSafetyVolume: boolean;
+  setShowSafetyVolume: (v: boolean) => void;
 
   // ---- Full show simulation & validation (Sprint 4) ----------------------
   /** Composed full-show plan of the last analysis (TAKEOFF..LANDING). */
@@ -1358,6 +1361,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
   const [showPaths, setShowPaths] = useState(false);
   const [showConflicts, setShowConflicts] = useState(false);
+  const [showSafetyVolume, setShowSafetyVolume] = useState(true);
   const [fullShow, setFullShow] = useState<{
     plan: FullShowPlan;
     report: FullShowValidationReport;
@@ -6414,6 +6418,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setShowPaths,
       showConflicts,
       setShowConflicts,
+      showSafetyVolume,
+      setShowSafetyVolume,
       fullShowPlan: fullShow?.plan ?? null,
       fullShowReport: fullShow?.report ?? null,
       fullShowBusy,
@@ -6782,6 +6788,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       canAnalyzeSelectedClip,
       showPaths,
       showConflicts,
+      showSafetyVolume,
       fullShow,
       fullShowBusy,
       fullShowProgress,
