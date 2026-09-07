@@ -6794,6 +6794,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       canAnalyzeSelectedClip,
       showPaths,
       showConflicts,
+      showReserveDrones,
       showSafetyVolume,
       fullShow,
       fullShowBusy,
