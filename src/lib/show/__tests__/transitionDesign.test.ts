@@ -226,3 +226,29 @@ describe("transition design persistence", () => {
     expect(migratePlanningState(undefined).transitionDesigns).toEqual({});
   });
 });
+
+describe("altitude departure waves", () => {
+  const from: [number, number, number][] = [
+    [0, 0, 0],
+    [0, 10, 0],
+    [0, 20, 0],
+  ];
+
+  it("BOTTOM_TOP departs from the lowest drone first", () => {
+    const offs = staggerStartOffsets(from, "BOTTOM_TOP", 3, 20, "linear");
+    expect(offs[0]).toBe(0);
+    expect(offs[1]).toBeCloseTo(1.5, 3);
+    expect(offs[2]).toBeCloseTo(3, 3);
+  });
+
+  it("TOP_BOTTOM mirrors BOTTOM_TOP", () => {
+    const offs = staggerStartOffsets(from, "TOP_BOTTOM", 3, 20, "linear");
+    expect(offs[2]).toBe(0);
+    expect(offs[0]).toBeCloseTo(3, 3);
+  });
+
+  it("exposes both altitude patterns with labels", () => {
+    expect(STAGGER_PATTERNS).toContain("BOTTOM_TOP");
+    expect(staggerPatternLabel("TOP_BOTTOM")).toBe("HIGH→LOW");
+  });
+});
