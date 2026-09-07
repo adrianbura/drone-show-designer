@@ -864,6 +864,15 @@ export default function Inspector({
                 >
                   limits
                 </button>
+                <button
+                  data-testid="overlay-reserve-drones"
+                  aria-pressed={showReserveDrones}
+                  onClick={() => setShowReserveDrones(!showReserveDrones)}
+                  className={`chip-btn ${showReserveDrones ? "chip-btn-active" : ""}`}
+                  title="Tints drones no visual of this scene uses"
+                >
+                  reserve
+                </button>
               </span>
             </div>
           </section>
