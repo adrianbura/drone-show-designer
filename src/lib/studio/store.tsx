@@ -6424,6 +6424,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setShowConflicts,
       showSafetyVolume,
       setShowSafetyVolume,
+      showReserveDrones,
+      setShowReserveDrones,
       fullShowPlan: fullShow?.plan ?? null,
       fullShowReport: fullShow?.report ?? null,
       fullShowBusy,
