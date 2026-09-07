@@ -46,6 +46,9 @@ const PRE_SHOW_STATE_RGB: Record<PreShowDroneState, [number, number, number]> = 
   SHOW: [0.22, 0.31, 0.42],
 };
 
+/** Reserve tint — drones no visual of the selected scene uses right now. */
+const RESERVE_RGB: [number, number, number] = [0.32, 0.24, 0.46];
+
 function Swarm({
   project,
   time,
@@ -58,6 +61,7 @@ function Swarm({
   selectedGroupId,
   dynamicSelected,
   dynamicGroupRgbByDrone,
+  reserveDrones,
   lightingStatesAt,
   onSelectDrone,
 }: {
