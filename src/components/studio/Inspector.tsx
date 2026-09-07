@@ -348,6 +348,8 @@ export default function Inspector({
     showConflicts,
     showSafetyVolume,
     setShowSafetyVolume,
+    showReserveDrones,
+    setShowReserveDrones,
     setShowConflicts,
     fullShowReport,
     fullShowStale,
