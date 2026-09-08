@@ -138,7 +138,7 @@ export function deriveVisualStateCueSafety(
 export function visualStateCueStatusClass(status: VisualStateCueSafetyStatus): string {
   switch (status) {
     case "SAFE":
-      return "border-success/60 bg-success/15 text-success";
+      return "border-safe/60 bg-safe/15 text-safe";
     case "WARNING":
       return "border-warning/60 bg-warning/15 text-warning";
     case "BLOCKED":
