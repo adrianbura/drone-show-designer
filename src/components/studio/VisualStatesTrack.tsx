@@ -20,6 +20,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStudio } from "@/lib/studio/store";
 import { snapTimelineTime, type SnapContext } from "@/lib/studio/timelineEdit";
 import {
+  deriveVisualStateCueSafety,
+  VISUAL_STATE_CUE_SAFETY_LABEL,
+  visualStateCueStatusClass,
+} from "@/lib/studio/visualStateCueSafety";
+
+import {
   setSelectedVisualStateCueId,
   useSelectedVisualStateCueId,
 } from "@/lib/studio/visualStateCueSelection";
@@ -90,6 +96,21 @@ export default function VisualStatesTrack({
         };
       });
   }, [clip, selectedScene]);
+
+  /**
+   * Canonical safety projection (report only). No physics is computed here.
+   */
+  const safety = useMemo(
+    () =>
+      deriveVisualStateCueSafety({
+        report: fullShowReport,
+        stale: fullShowStale,
+        clip,
+        cues: selectedScene?.visualStateCues ?? [],
+      }),
+    [clip, fullShowReport, fullShowStale, selectedScene],
+  );
+
 
   const timeFromClientX = useCallback(
     (clientX: number) => {
