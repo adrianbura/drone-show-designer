@@ -371,6 +371,30 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
     return (
       <section className="panel-card" data-testid="visual-states">
         <h2 className="panel-title">Saved states</h2>
+        <div className="mb-2" data-testid="cue-safety-check">
+          <button
+            type="button"
+            className="chip-btn w-full justify-center"
+            data-testid="cue-safety-check-run"
+            disabled={fullShowBusy}
+            onClick={() => analyzeFullShow()}
+          >
+            {fullShowBusy ? "Checking transition safety…" : "Check transition safety"}
+          </button>
+          <p
+            className="mt-1 font-mono text-[9px] leading-relaxed text-muted-foreground"
+            data-testid="cue-safety-check-state"
+          >
+            {fullShowBusy
+              ? (fullShowProgress?.label ?? "Analysing the composed show…")
+              : !fullShowReport
+                ? "No safety result yet. The check validates the composed show and changes nothing."
+                : fullShowStale
+                  ? "The show changed after the last check — run it again."
+                  : "Result from the last full-show check."}
+          </p>
+        </div>
+
         {(() => {
           const cue = (selectedScene.visualStateCues ?? []).find(
             (candidate) => candidate.id === selectedCueId,
