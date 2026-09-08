@@ -64,12 +64,12 @@ async function mountWithCue(options: { readonly far: boolean; readonly duration:
   if (options.far) {
     // Move the group far away, capture that as the saved state, then restore the
     // original geometry so the CUE has to fly the whole distance.
-    act(() => api.transformSceneObjects(clipId, ids, { deltaPosition: [80, 0, 0] }));
+    act(() => api.transformSceneObjects(clipId, ids, { position: [80, 0, 0] }));
   }
   act(() => api.captureSceneVisualGroupState(groupId, "Target state"));
   await waitFor(() => expect(api.selectedScene!.visualStates ?? []).toHaveLength(1));
   if (options.far) {
-    act(() => api.transformSceneObjects(clipId, ids, { deltaPosition: [-80, 0, 0] }));
+    act(() => api.transformSceneObjects(clipId, ids, { position: [-80, 0, 0] }));
   }
   const stateId = api.selectedScene!.visualStates![0]!.id;
 
