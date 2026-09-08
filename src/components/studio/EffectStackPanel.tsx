@@ -170,9 +170,10 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
 
   const applyLighting = (id: LightingSelectionPresetId) => {
     if (!canApply) return;
-    previewLightingEffectsFromPreset(
+    const preset = lightingSelectionPreset(id);
+    const created = previewLightingEffectsFromPreset(
       clipId,
-      lightingSelectionPreset(id).canonicalPresetId,
+      preset.canonicalPresetId,
       context.targets,
       lightingPresetParameters(id, {
         primary: color,
@@ -181,13 +182,78 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
       }),
       lightingPresetTiming(id, time),
     );
+    cancelMotionEffectPreview();
+    setActivePreview(
+      (created?.length ?? 0) > 0
+        ? { kind: "LIGHTING", label: preset.label, startTime: Math.max(0, time) }
+        : null,
+    );
   };
 
   const applyMotion = (id: MotionSelectionPresetId) => {
     if (!canApply) return;
     const preset = MOTION_SELECTION_PRESETS.find((p) => p.id === id);
-    if (preset) previewMotionPresetToSceneSelection(preset.canonicalPresetId);
+    if (!preset) return;
+    const created = previewMotionPresetToSceneSelection(preset.canonicalPresetId);
+    cancelLightingEffectPreview();
+    setActivePreview(
+      (created?.length ?? 0) > 0
+        ? { kind: "MOTION", label: preset.label, startTime: Math.max(0, time) }
+        : null,
+    );
   };
+
+  /*
+   * TRUTHFUL PREVIEW TARGET — derived from canonical selection state and the
+   * canonical visual groups of this scene. No new selection or grouping model.
+   */
+  const matchedGroup =
+    sceneSelectionMode === "OBJECT"
+      ? (selectedScene.visualGroups ?? []).find(
+          (group) =>
+            group.objectIds.length === selectedSceneObjectIds.length &&
+            group.objectIds.every((id) => selectedSceneObjectIds.includes(id)),
+        )
+      : undefined;
+  const previewTargetLabel =
+    context.kind === "DRONES"
+      ? "Selected drones"
+      : matchedGroup
+        ? "Complete visual group"
+        : "Visual object";
+  const previewTargetName = matchedGroup ? matchedGroup.name : context.name;
+  const previewStart = activePreview?.startTime ?? 0;
+  const previewEnd = Math.max(
+    previewStart + 1,
+    lightingEffectPreview.reduce(
+      (end, effect) => Math.max(end, effect.start + effect.duration),
+      previewStart + 1,
+    ),
+  );
+
+  const livePreview =
+    previewActive && activePreview && canApply ? (
+      <LivePreviewBar
+        kind={activePreview.kind}
+        name={activePreview.label}
+        targetName={previewTargetName}
+        targetLabel={previewTargetLabel}
+        droneCount={context.droneCount}
+        time={time}
+        playing={playing}
+        seekMin={previewStart}
+        seekMax={previewEnd}
+        onPlayPause={() => (playing ? pause() : play())}
+        onRestart={() => setTime(previewStart)}
+        onSeek={setTime}
+        onApply={() => {
+          if (activePreview.kind === "LIGHTING") applyLightingEffectPreview();
+          else applyMotionEffectPreview();
+          setActivePreview(null);
+        }}
+        onCancel={cancelPreview}
+      />
+    ) : null;
 
   const selected =
     selectedLightingEffect && scopeIds.includes(selectedLightingEffect.id)
