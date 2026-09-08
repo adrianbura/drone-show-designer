@@ -37,6 +37,11 @@ import { resetProjectSessionState, type ProjectSessionResetSetters } from "./pro
 import { isAutosaveWriteAuthorized, isRecoveryOfferable } from "./autosaveAuthority";
 import { projectPersistenceOptions } from "./projectPersistence";
 import { createAnalysisRunAuthority } from "./analysisRunAuthority";
+import {
+  FullShowAnalysisTaskError,
+  startFullShowAnalysis,
+  type FullShowAnalysisTask,
+} from "./fullShowAnalysis";
 import { findSampleShow } from "../show/stories/samples";
 import { generatePoints, makeFormation, makeSceneLocalFormation } from "../show/formations";
 import {
@@ -95,10 +100,8 @@ import {
   type TransitionOptimizationResult,
 } from "../show/transition";
 import {
-  analyzeFullShow as analyzeFullShowCore,
   type AnalyzeFullShowOptions,
   computeAnalysisRevision,
-  FullShowError,
   type FullShowIssue,
   type FullShowPlan,
   type FullShowProgress,
@@ -1395,7 +1398,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [showSafetyVolume, setShowSafetyVolume] = useState(true);
   const [showReserveDrones, setShowReserveDrones] = useState(true);
   const [fullShow, setFullShow] = useState<{
-    plan: FullShowPlan;
+    plan: FullShowPlan | null;
     report: FullShowValidationReport;
   } | null>(null);
   const [fullShowBusy, setFullShowBusy] = useState(false);
@@ -1416,6 +1419,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * ./analysisRunAuthority). Held in a ref so every check reads CURRENT state.
    */
   const fullShowRunRef = useRef(createAnalysisRunAuthority());
+  const fullShowTaskRef = useRef<FullShowAnalysisTask | null>(null);
   /** CURRENT canonical analysis revision, readable from async callbacks. */
   const analysisRevisionRef = useRef("");
   /**
@@ -1432,7 +1436,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       setFullShowError,
       setHighlightedDrones,
       setPreShowPreview,
-      invalidateFullShowRun: () => fullShowRunRef.current.invalidate(),
+      invalidateFullShowRun: () => {
+        fullShowRunRef.current.invalidate();
+        fullShowTaskRef.current?.cancel();
+        fullShowTaskRef.current = null;
+      },
       setFullShowProgress,
       setFullShowBusy,
     }),
@@ -4237,53 +4245,57 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     setFullShowBusy(true);
     setFullShowError(null);
     setFullShowProgress(null);
-    // Deferred so the busy state and first progress label paint before the
-    // synchronous engine work starts.
-    const run = () => {
-      try {
-        const analyzedClipIds = transitionAnalysis ? [transitionAnalysis.clipId] : [];
-        const unresolvedClipIds =
-          transitionAnalysis &&
-          transitionAnalysis.analysis.conflicts.criticalCount > 0 &&
-          !transitionOverrides[transitionAnalysis.clipId]
-            ? [transitionAnalysis.clipId]
-            : [];
-        const result = analyzeFullShowCore(project, {
+    const analyzedClipIds = transitionAnalysis ? [transitionAnalysis.clipId] : [];
+    const unresolvedClipIds =
+      transitionAnalysis &&
+      transitionAnalysis.analysis.conflicts.criticalCount > 0 &&
+      !transitionOverrides[transitionAnalysis.clipId]
+        ? [transitionAnalysis.clipId]
+        : [];
+    const task = startFullShowAnalysis(
+      {
+        project,
+        options: {
           sampleRate,
           assignmentStrategy,
           transitionOverrides,
           analyzedClipIds,
           unresolvedClipIds,
-          onProgress: (progress) => {
-            if (fullShowRunRef.current.isCancelled(token)) return;
-            setFullShowProgress(progress);
-          },
-          isCancelled: () => fullShowRunRef.current.isCancelled(token),
           reference:
             referenceLayerRef.current && referenceLayerShow
               ? { layer: referenceLayerRef.current, show: referenceLayerShow }
               : null,
-        });
-        // Install ONLY when this is still the newest run AND the revision it was
-        // computed for is still the current one.
+        },
+      },
+      (progress) => {
+        if (!fullShowRunRef.current.isCancelled(token)) setFullShowProgress(progress);
+      },
+    );
+    fullShowTaskRef.current = task;
+    void task.promise
+      .then((report) => {
         if (!fullShowRunRef.current.accepts(token, analysisRevisionRef.current)) return;
-        setFullShow(result);
-      } catch (err) {
-        // A failure that belongs to a superseded revision must not surface.
+        // The worker returns only clone-safe canonical evidence. Playback and
+        // export already use the store's canonical plan/trajectory; no second
+        // plan is reconstructed on the rendering thread.
+        setFullShow({ plan: null, report });
+      })
+      .catch((err) => {
         if (!fullShowRunRef.current.accepts(token, analysisRevisionRef.current)) return;
         setFullShow(null);
         setFullShowError(
-          err instanceof FullShowError
+          err instanceof FullShowAnalysisTaskError
             ? { code: err.code, message: err.message }
             : { code: "UNKNOWN", message: err instanceof Error ? err.message : String(err) },
         );
-      } finally {
-        setFullShowBusy(false);
-        setFullShowProgress(null);
-      }
-    };
-    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => run());
-    else run();
+      })
+      .finally(() => {
+        if (fullShowTaskRef.current === task) fullShowTaskRef.current = null;
+        if (fullShowRunRef.current.accepts(token, analysisRevisionRef.current)) {
+          setFullShowBusy(false);
+          setFullShowProgress(null);
+        }
+      });
   }, [
     fullShowBusy,
     project,
@@ -4295,8 +4307,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   ]);
 
   const cancelFullShowAnalysis = useCallback(() => {
-    // Advancing the generation both stops the engine and rejects its result.
     fullShowRunRef.current.invalidate();
+    fullShowTaskRef.current?.cancel();
+    fullShowTaskRef.current = null;
+    setFullShowBusy(false);
+    setFullShowProgress(null);
   }, []);
 
   const clearFullShowReport = useCallback(() => {
