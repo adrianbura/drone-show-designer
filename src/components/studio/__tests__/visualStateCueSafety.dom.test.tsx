@@ -139,7 +139,11 @@ describe("visual state cue safety", () => {
     await waitFor(() =>
       expect(screen.getByTestId(`cue-safety-badge-${cueId}`).dataset["status"]).toBe("SAFE"),
     );
-    act(() => api.patchSceneVisualStateCueById(cueId, { transitionDuration: 2 }));
+    const previous = api.selectedScene!.visualStateCues![0]!.transitionDuration;
+    act(() => api.patchSceneVisualStateCueById(cueId, { transitionDuration: previous / 2 }));
+    await waitFor(() =>
+      expect(api.selectedScene!.visualStateCues![0]!.transitionDuration).toBe(previous / 2),
+    );
     // The canonical revision mechanism invalidates the previous result: the cue
     // can never keep showing "Safe" after its timing changed.
     await waitFor(() =>
