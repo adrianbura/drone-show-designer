@@ -102,7 +102,7 @@ describe("everyday visual groups UX", () => {
 
     const before = api.project;
     const depth = api.timelineHistoryDepth.past;
-    act(() => api.previewLightingEffectsFromPreset("SET_COLOR"));
+    fireEvent.click(screen.getByTestId("effect-stack-add-SOLID"));
     await waitFor(() => expect(screen.getByTestId("effect-live-preview")).toBeTruthy());
     expect(screen.getByTestId("effect-live-preview-target").textContent).toContain(
       "Complete visual group",
