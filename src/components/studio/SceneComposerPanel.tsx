@@ -639,6 +639,8 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
                     const state = selectedScene.visualStates?.find(
                       (candidate) => candidate.id === cue.stateId,
                     );
+                    const status: VisualStateCueSafetyStatus =
+                      cueSafety.get(cue.id)?.status ?? "NEEDS_CHECK";
                     return (
                       <div
                         key={cue.id}
@@ -649,6 +651,14 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
                           {state?.name ?? cue.stateId} · {cue.time.toFixed(2)}s ·{" "}
                           {cue.transitionDuration.toFixed(2)}s
                         </span>
+                        <span
+                          className={`shrink-0 rounded border px-1 font-mono text-[9px] ${visualStateCueStatusClass(status)}`}
+                          data-testid={`cue-safety-badge-${cue.id}`}
+                          data-status={status}
+                        >
+                          {VISUAL_STATE_CUE_SAFETY_LABEL[status]}
+                        </span>
+
                         <button
                           type="button"
                           aria-label={`Delete timeline state ${state?.name ?? cue.stateId}`}
