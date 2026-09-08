@@ -63,6 +63,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
   const [color, setColor] = useState<RGB>([255, 200, 120]);
   const [gradientColor, setGradientColor] = useState<RGB>([80, 120, 255]);
   const [gradientAxis, setGradientAxis] = useState<EffectAxis>("X");
+  const [activePreview, setActivePreview] = useState<ActivePreview | null>(null);
   const {
     selectedClipId,
     selectedScene,
@@ -72,6 +73,10 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
     sceneSelectionMode,
     selectedScenePointIds,
     time,
+    playing,
+    play,
+    pause,
+    setTime,
     lightingEffects,
     selectedLightingEffectId,
     selectedLightingEffect,
@@ -94,11 +99,38 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
   useEffect(() => {
     cancelLightingEffectPreview();
     cancelMotionEffectPreview();
+    setActivePreview(null);
     return () => {
       cancelLightingEffectPreview();
       cancelMotionEffectPreview();
+      setActivePreview(null);
     };
   }, [cancelLightingEffectPreview, cancelMotionEffectPreview, previewSelectionKey]);
+
+  /** ONE cancel path for every canonical preview. */
+  const cancelPreview = useCallback(() => {
+    cancelLightingEffectPreview();
+    cancelMotionEffectPreview();
+    setActivePreview(null);
+  }, [cancelLightingEffectPreview, cancelMotionEffectPreview]);
+
+  const previewActive = lightingEffectPreview.length > 0 || motionEffectPreviewIds.length > 0;
+
+  // A preview dropped by the canonical stale-preview protection also drops the
+  // local marking, so Apply can never linger on nothing.
+  useEffect(() => {
+    if (!previewActive) setActivePreview(null);
+  }, [previewActive]);
+
+  useEffect(() => {
+    if (!previewActive) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") cancelPreview();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [previewActive, cancelPreview]);
+
 
   if (!selectedClipId || !selectedScene) {
     return (
