@@ -170,7 +170,10 @@ export default function VisualGroupRow({
         Ungroup keeps all visual objects and their effects.
       </p>
 
-      <ul className="mt-1 space-y-1 border-l border-border pl-2" data-testid={`visual-group-children-${view.id}`}>
+      <ul
+        className="mt-1 space-y-1 border-l border-border pl-2"
+        data-testid={`visual-group-children-${view.id}`}
+      >
         {children}
       </ul>
     </li>

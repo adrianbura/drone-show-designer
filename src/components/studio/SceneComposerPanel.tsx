@@ -241,7 +241,6 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
     });
   }, [layers, selectedScene, selectedSceneObjectIds]);
 
-
   if (!selectedClipId || !selectedScene) {
     return (
       <section className="panel-card" data-testid="scene-composer">
@@ -717,9 +716,7 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
                         onClick={(event) =>
                           selectSceneObject(
                             child.id,
-                            event.ctrlKey || event.metaKey || event.shiftKey
-                              ? "TOGGLE"
-                              : "REPLACE",
+                            event.ctrlKey || event.metaKey || event.shiftKey ? "TOGGLE" : "REPLACE",
                           )
                         }
                         className={`w-full truncate rounded border px-1 py-0.5 text-left font-mono text-[10px] ${

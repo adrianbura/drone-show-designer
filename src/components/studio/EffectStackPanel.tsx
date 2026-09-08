@@ -138,7 +138,6 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [previewActive, cancelPreview]);
 
-
   if (!selectedClipId || !selectedScene) {
     return (
       <section className="panel-card" data-testid="effect-stacks">
@@ -314,7 +313,6 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
 
       {/* ---------------------------------------------- ONE live preview surface */}
       {livePreview}
-
 
       {/* ------------------------------------------------------------ lighting */}
       {view !== "MOTION" ? (
@@ -645,7 +643,6 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
               </div>
             </div>
           )}
-
         </div>
       ) : null}
 
