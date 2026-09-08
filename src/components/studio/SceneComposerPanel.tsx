@@ -31,6 +31,10 @@ import VisualGroupRow, { type VisualGroupView } from "@/components/studio/Visual
 import VisualLayerRow, { type VisualLayerView } from "@/components/studio/VisualLayerRow";
 import { inferMotionLabel } from "@/lib/studio/sceneMotionInspector";
 import { useStudio } from "@/lib/studio/store";
+import {
+  setSelectedVisualStateCueId,
+  useSelectedVisualStateCueId,
+} from "@/lib/studio/visualStateCueSelection";
 import { requestWorkspaceSection } from "@/lib/studio/workspaceSections";
 
 import type { RGB } from "@/lib/show/types";
@@ -130,6 +134,7 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
     removeSceneVisualGroupState,
     addSceneVisualStateCueAtPlayhead,
     removeSceneVisualStateCueById,
+    patchSceneVisualStateCueById,
     time,
     lightingEffects,
     gizmoMode,
@@ -147,6 +152,14 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
   const [visualStateName, setVisualStateName] = useState("New state");
   const [visualStateTransition, setVisualStateTransition] = useState(1);
   const [visualStateCueError, setVisualStateCueError] = useState<string | null>(null);
+  /**
+   * SELECTED CUE EDITING (presentation only). Drafts are local strings; the
+   * canonical `patchSceneVisualStateCueById` runs once per committed edit, so
+   * one edit is one undo revision and keystrokes mutate nothing.
+   */
+  const selectedCueId = useSelectedVisualStateCueId();
+  const [cueTimeDraft, setCueTimeDraft] = useState<string | null>(null);
+  const [cueDurationDraft, setCueDurationDraft] = useState<string | null>(null);
 
   /**
    * Derived layer rows. Pure projection of canonical state: no planner, no
