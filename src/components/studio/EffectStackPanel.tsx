@@ -15,8 +15,9 @@
  *   - Browsing presets mutates nothing: applying is an explicit click.
  */
 import { ArrowDown, ArrowUp, Copy, Sparkles, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
+import LivePreviewBar from "@/components/studio/LivePreviewBar";
 import MotionInspector from "@/components/studio/MotionInspector";
 import { Button } from "@/components/ui/button";
 import { reorderEffect, stackOrder } from "@/lib/studio/effectStack";
