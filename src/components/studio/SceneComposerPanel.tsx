@@ -206,6 +206,43 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
     lightingEffects,
   ]);
 
+  /**
+   * Derived visual-group hierarchy. Membership, allocation and motion facts all
+   * come from canonical scene / budget state — nothing is recomputed here.
+   */
+  const groupViews = useMemo<
+    readonly { readonly view: VisualGroupView; readonly children: readonly VisualLayerView[] }[]
+  >(() => {
+    const byId = new Map(layers.map((layer) => [layer.id, layer]));
+    return (selectedScene?.visualGroups ?? []).map((group) => {
+      const children = group.objectIds
+        .map((id) => byId.get(id))
+        .filter((layer): layer is VisualLayerView => Boolean(layer));
+      const animated = children.filter((child) => child.animated).length;
+      return {
+        view: {
+          id: group.id,
+          name: group.name,
+          objectCount: children.length,
+          droneCount: children.reduce((sum, child) => sum + child.droneCount, 0),
+          visibleCount: children.filter((child) => child.visible).length,
+          lightingCount: children.reduce((sum, child) => sum + child.lightingCount, 0),
+          motionStatus:
+            animated === 0
+              ? "No motion"
+              : animated === children.length
+                ? "All objects animated"
+                : `${animated} of ${children.length} animated`,
+          selected:
+            children.length > 0 &&
+            children.every((child) => selectedSceneObjectIds.includes(child.id)),
+        },
+        children,
+      };
+    });
+  }, [layers, selectedScene, selectedSceneObjectIds]);
+
+
   if (!selectedClipId || !selectedScene) {
     return (
       <section className="panel-card" data-testid="scene-composer">
