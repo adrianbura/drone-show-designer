@@ -56,7 +56,10 @@ export default function VisualStatesTrack({
     setTime,
     removeSceneVisualStateCueById,
     patchSceneVisualStateCueById,
+    fullShowReport,
+    fullShowStale,
   } = useStudio();
+
   const [open, setOpen] = useState(true);
   const selectedCueId = useSelectedVisualStateCueId();
   const [draft, setDraft] = useState<Draft | null>(null);
