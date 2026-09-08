@@ -698,36 +698,6 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
               </Button>
             ))}
           </div>
-          {motionEffectPreviewIds.length > 0 ? (
-            <div
-              className="sticky bottom-0 z-10 rounded border border-accent bg-panel p-2"
-              data-testid="motion-effect-preview"
-            >
-              <p className="font-mono text-[10px] text-accent">
-                Live preview · {motionEffectPreviewIds.length} motion
-                {motionEffectPreviewIds.length === 1 ? "" : "s"} · project unchanged
-              </p>
-              <div className="mt-1 grid grid-cols-2 gap-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  data-testid="motion-preview-apply"
-                  onClick={applyMotionEffectPreview}
-                >
-                  Apply
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  data-testid="motion-preview-cancel"
-                  onClick={cancelMotionEffectPreview}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : null}
           <MotionInspector />
         </div>
       ) : null}
