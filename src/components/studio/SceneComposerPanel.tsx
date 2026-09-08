@@ -343,6 +343,105 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
     return (
       <section className="panel-card" data-testid="visual-states">
         <h2 className="panel-title">Saved states</h2>
+        {(() => {
+          const cue = (selectedScene.visualStateCues ?? []).find(
+            (candidate) => candidate.id === selectedCueId,
+          );
+          if (!cue) return null;
+          const clip = project.timeline.find((candidate) => candidate.id === clipId);
+          const state = selectedScene.visualStates?.find((s) => s.id === cue.stateId);
+          const group = selectedScene.visualGroups?.find((g) => g.id === cue.groupId);
+          const hold = clip?.hold ?? cue.time;
+          const commitTime = (raw: string | null) => {
+            setCueTimeDraft(null);
+            if (raw === null) return;
+            const value = Number(raw);
+            if (!Number.isFinite(value)) return;
+            const next = Math.max(0, Math.min(hold, value));
+            if (Math.abs(next - cue.time) < 1e-6) return;
+            patchSceneVisualStateCueById(cue.id, { time: next });
+          };
+          const commitDuration = (raw: string | null) => {
+            setCueDurationDraft(null);
+            if (raw === null) return;
+            const value = Number(raw);
+            if (!Number.isFinite(value)) return;
+            const next = Math.max(0, value);
+            if (Math.abs(next - cue.transitionDuration) < 1e-6) return;
+            patchSceneVisualStateCueById(cue.id, { transitionDuration: next });
+          };
+          return (
+            <div
+              className="mb-2 rounded border border-warning/60 p-2"
+              data-testid="visual-state-cue-editor"
+            >
+              <p className="truncate font-mono text-[10px] text-foreground">
+                {state?.name ?? cue.stateId}
+              </p>
+              <p
+                className="truncate font-mono text-[9px] text-muted-foreground"
+                data-testid="visual-state-cue-editor-group"
+              >
+                {group?.name ?? cue.groupId}
+              </p>
+              <label className="mt-1 flex flex-wrap items-center justify-between gap-1 font-mono text-[10px] text-muted-foreground">
+                Target time
+                <span className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={cueTimeDraft ?? cue.time}
+                    data-testid="visual-state-cue-editor-time"
+                    onChange={(event) => setCueTimeDraft(event.target.value)}
+                    onBlur={() => commitTime(cueTimeDraft)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") commitTime(cueTimeDraft);
+                      if (event.key === "Escape") setCueTimeDraft(null);
+                    }}
+                    className="studio-input w-16 text-right font-mono"
+                  />
+                  s
+                </span>
+              </label>
+              <label className="mt-1 flex flex-wrap items-center justify-between gap-1 font-mono text-[10px] text-muted-foreground">
+                Transition duration
+                <span className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={cueDurationDraft ?? cue.transitionDuration}
+                    data-testid="visual-state-cue-editor-duration"
+                    onChange={(event) => setCueDurationDraft(event.target.value)}
+                    onBlur={() => commitDuration(cueDurationDraft)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") commitDuration(cueDurationDraft);
+                      if (event.key === "Escape") setCueDurationDraft(null);
+                    }}
+                    className="studio-input w-16 text-right font-mono"
+                  />
+                  s
+                </span>
+              </label>
+              <p
+                className="mt-1 font-mono text-[9px] text-muted-foreground"
+                data-testid="visual-state-cue-editor-start"
+              >
+                Transition starts at {Math.max(0, cue.time - cue.transitionDuration).toFixed(2)}s
+                (scene-local)
+              </p>
+              <button
+                type="button"
+                className="chip-btn mt-1"
+                data-testid="visual-state-cue-editor-clear"
+                onClick={() => setSelectedVisualStateCueId(null)}
+              >
+                Close
+              </button>
+            </div>
+          );
+        })()}
         {groupViews.length === 0 ? (
           <p className="font-mono text-[10px] text-muted-foreground">
             Group visuals first — saved states restore one visual group at a time.
