@@ -333,6 +333,7 @@ import {
   addObject,
   addScenePointGroup,
   addSceneVisualGroup,
+  addSceneVisualStateCue,
   applySceneVisualState,
   alignObjects,
   applySceneClick,
@@ -355,6 +356,7 @@ import {
   removeScenePointGroup,
   removeSceneVisualGroup,
   removeSceneVisualState,
+  removeSceneVisualStateCue,
   removeSceneObjects,
   resolveSceneAt,
   sceneBudget,
@@ -576,6 +578,11 @@ interface StudioContextValue {
   applySceneVisualGroupState: (stateId: string) => void;
   renameSceneVisualGroupState: (stateId: string, name: string) => void;
   removeSceneVisualGroupState: (stateId: string) => void;
+  addSceneVisualStateCueAtPlayhead: (
+    stateId: string,
+    transitionDuration: number,
+  ) => { readonly cueId: string | null; readonly reason: string | null };
+  removeSceneVisualStateCueById: (cueId: string) => void;
   /** Promotes and animates the current object/point selection in one undo revision. */
   applyMotionPresetToSceneSelection: (preset: DynamicPresetId) => readonly string[];
   /** Ephemeral motion audition rendered by the canonical planner; no project/history mutation. */
@@ -2837,6 +2844,40 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       const clipId = selectedClipIdRef.current;
       if (!clipId) return;
       editScene(clipId, (scene) => removeSceneVisualState(scene, stateId));
+    },
+    [editScene],
+  );
+
+  const addSceneVisualStateCueAtPlayhead = useCallback(
+    (
+      stateId: string,
+      transitionDuration: number,
+    ): { readonly cueId: string | null; readonly reason: string | null } => {
+      const clipId = selectedClipIdRef.current;
+      const clip = projectRef.current.timeline.find((candidate) => candidate.id === clipId);
+      if (!clipId || !clip) return { cueId: null, reason: "Select a scene first." };
+      const localTime = Math.max(0, Math.min(clip.hold, clock.time - clip.start - clip.transition));
+      let response: { readonly cueId: string | null; readonly reason: string | null } = {
+        cueId: null,
+        reason: "Saved state not found.",
+      };
+      editScene(clipId, (scene) => {
+        const result = addSceneVisualStateCue(scene, stateId, localTime, transitionDuration);
+        response = result.ok
+          ? { cueId: result.cueId, reason: null }
+          : { cueId: null, reason: result.reason };
+        return result.scene;
+      });
+      return response;
+    },
+    [clock.time, editScene],
+  );
+
+  const removeSceneVisualStateCueById = useCallback(
+    (cueId: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => removeSceneVisualStateCue(scene, cueId));
     },
     [editScene],
   );
@@ -6441,6 +6482,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       applySceneVisualGroupState,
       renameSceneVisualGroupState,
       removeSceneVisualGroupState,
+      addSceneVisualStateCueAtPlayhead,
+      removeSceneVisualStateCueById,
       applyMotionPresetToSceneSelection,
       previewMotionPresetToSceneSelection,
       motionEffectPreviewIds: motionEffectPreview?.dynamicFormationIds ?? [],
@@ -6848,6 +6891,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       applySceneVisualGroupState,
       renameSceneVisualGroupState,
       removeSceneVisualGroupState,
+      addSceneVisualStateCueAtPlayhead,
+      removeSceneVisualStateCueById,
       applyMotionPresetToSceneSelection,
       previewMotionPresetToSceneSelection,
       motionEffectPreview,

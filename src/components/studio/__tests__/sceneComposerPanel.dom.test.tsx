@@ -24,6 +24,11 @@ function Harness() {
   );
 }
 
+function StatesHarness() {
+  api = useStudio();
+  return <SceneComposerPanel view="STATES" />;
+}
+
 function projectFile(project: ShowProject): File {
   return new File([projectFileToJson(serializeProject(project, {}))], "composer.dsp.json", {
     type: "application/json",
@@ -65,6 +70,19 @@ async function mount(project: ShowProject, clipId: string) {
   await waitFor(() =>
     expect(screen.getByTestId("composer-budget").textContent).toContain("50 reserve"),
   );
+}
+
+async function mountStates(project: ShowProject, clipId: string) {
+  render(
+    <StudioProvider>
+      <StatesHarness />
+    </StudioProvider>,
+  );
+  await act(async () => {
+    await api.openProjectFile(projectFile(project));
+  });
+  act(() => api.selectClip(clipId));
+  await waitFor(() => expect(screen.getByTestId("visual-states")).toBeTruthy());
 }
 
 afterEach(cleanup);
@@ -161,6 +179,33 @@ describe("scene composer drone budget DOM", () => {
         [12, 4, 0],
       ]),
     );
+  });
+
+  it("adds a saved state to the canonical timeline at the playhead in one revision", async () => {
+    const { project, clipId } = projectWithReserve();
+    await mountStates(project, clipId);
+    const firstId = api.selectedScene!.objects[0]!.id;
+    act(() => api.duplicateSceneObject(clipId, firstId));
+    await waitFor(() => expect(api.selectedScene!.objects).toHaveLength(2));
+    const secondId = api.selectedScene!.objects[1]!.id;
+    act(() => api.setSelectedSceneObjectIds([firstId, secondId], secondId));
+    act(() => api.createSceneVisualGroup("Logo"));
+    await waitFor(() => expect(api.selectedScene!.visualGroups).toHaveLength(1));
+    const groupId = api.selectedScene!.visualGroups![0]!.id;
+    act(() => api.captureSceneVisualGroupState(groupId, "Hero"));
+    await waitFor(() => expect(api.selectedScene!.visualStates).toHaveLength(1));
+    const stateId = api.selectedScene!.visualStates![0]!.id;
+    act(() => api.setTime(15));
+    const historyBefore = api.timelineHistoryDepth.past;
+
+    fireEvent.click(screen.getByTestId(`visual-state-add-cue-${stateId}`));
+    await waitFor(() => expect(api.selectedScene!.visualStateCues).toHaveLength(1));
+    expect(api.selectedScene!.visualStateCues![0]!.time).toBe(3);
+    expect(api.selectedScene!.visualStateCues![0]!.transitionDuration).toBe(1);
+    expect(api.timelineHistoryDepth.past).toBe(historyBefore + 1);
+    expect(
+      screen.getByTestId(`visual-state-cue-${api.selectedScene!.visualStateCues![0]!.id}`),
+    ).toBeTruthy();
   });
 
   it("commits the latest move, rotate and scale gizmo deltas atomically", async () => {

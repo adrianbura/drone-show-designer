@@ -231,7 +231,8 @@ export function resolveSceneAt(
     groups,
     points,
     pointIds,
-    animated: prepared.some((p) => p.evaluator !== null),
+    animated:
+      prepared.some((p) => p.evaluator !== null) || (scene.visualStateCues?.length ?? 0) > 0,
   };
 }
 

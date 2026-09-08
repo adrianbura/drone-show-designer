@@ -128,6 +128,9 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
     captureSceneVisualGroupState,
     applySceneVisualGroupState,
     removeSceneVisualGroupState,
+    addSceneVisualStateCueAtPlayhead,
+    removeSceneVisualStateCueById,
+    time,
     lightingEffects,
     gizmoMode,
     setGizmoMode,
@@ -142,6 +145,8 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
   const [renamingVisualGroupId, setRenamingVisualGroupId] = useState<string | null>(null);
   const [visualGroupRenameDraft, setVisualGroupRenameDraft] = useState("");
   const [visualStateName, setVisualStateName] = useState("New state");
+  const [visualStateTransition, setVisualStateTransition] = useState(1);
+  const [visualStateCueError, setVisualStateCueError] = useState<string | null>(null);
 
   /**
    * Derived layer rows. Pure projection of canonical state: no planner, no
@@ -366,6 +371,20 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
                         </button>
                         <button
                           type="button"
+                          className="chip-btn"
+                          data-testid={`visual-state-add-cue-${state.id}`}
+                          onClick={() => {
+                            const result = addSceneVisualStateCueAtPlayhead(
+                              state.id,
+                              visualStateTransition,
+                            );
+                            setVisualStateCueError(result.reason);
+                          }}
+                        >
+                          Add at playhead
+                        </button>
+                        <button
+                          type="button"
                           className="text-muted-foreground hover:text-destructive"
                           aria-label={`Delete state ${state.name}`}
                           data-testid={`visual-state-remove-${state.id}`}
@@ -376,6 +395,58 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
                       </div>
                     ))}
                 </div>
+                <label className="mt-1 flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
+                  Transition
+                  <span className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.1}
+                      value={visualStateTransition}
+                      data-testid={`visual-state-transition-${groupView.id}`}
+                      onChange={(event) =>
+                        setVisualStateTransition(Math.max(0, Number(event.target.value) || 0))
+                      }
+                      className="studio-input w-16 text-right font-mono"
+                    />
+                    s
+                  </span>
+                </label>
+                {(selectedScene.visualStateCues ?? [])
+                  .filter((cue) => cue.groupId === groupView.id)
+                  .map((cue) => {
+                    const state = selectedScene.visualStates?.find(
+                      (candidate) => candidate.id === cue.stateId,
+                    );
+                    return (
+                      <div
+                        key={cue.id}
+                        className="mt-1 flex items-center gap-1 rounded border border-border px-1.5 py-1"
+                        data-testid={`visual-state-cue-${cue.id}`}
+                      >
+                        <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground">
+                          {state?.name ?? cue.stateId} · {cue.time.toFixed(2)}s ·{" "}
+                          {cue.transitionDuration.toFixed(2)}s
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`Delete timeline state ${state?.name ?? cue.stateId}`}
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => removeSceneVisualStateCueById(cue.id)}
+                        >
+                          <Trash2 className="size-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                {visualStateCueError ? (
+                  <p className="mt-1 font-mono text-[10px] text-destructive" role="alert">
+                    {visualStateCueError}
+                  </p>
+                ) : null}
+                <p className="mt-1 font-mono text-[9px] text-muted-foreground">
+                  Added at the current playhead ({time.toFixed(2)}s). Drone allocation stays fixed.
+                </p>
               </div>
             ))}
           </div>

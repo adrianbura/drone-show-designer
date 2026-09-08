@@ -195,6 +195,21 @@ function interpolateTransform(
   };
 }
 
+function interpolateAnimation(
+  from: SceneFormationInstance["animation"],
+  to: SceneVisualStateObject["animation"],
+  progress: number,
+): SceneFormationInstance["animation"] {
+  if (!from && !to) return undefined;
+  const value = (a: number | undefined, b: number | undefined, fallback: number) =>
+    lerp(a ?? fallback, b ?? fallback, progress);
+  return {
+    playbackRate: value(from?.playbackRate, to?.playbackRate, 1),
+    startOffset: value(from?.startOffset, to?.startOffset, 0),
+    phaseCycles: value(from?.phaseCycles, to?.phaseCycles, 0),
+  };
+}
+
 /** Applies timed visual-state transforms without mutating scene or asset data. */
 export function sceneAtVisualStateTime(scene: FormationScene, localTime: number): FormationScene {
   if (!scene.visualStateCues?.length || !scene.visualStates?.length) return scene;
@@ -239,10 +254,20 @@ export function sceneAtVisualStateTime(scene: FormationScene, localTime: number)
           continue;
         const snapshot = transition.to.get(object.id);
         if (!snapshot) return object;
-        const from = transition.from?.get(object.id)?.transform ?? object.transform;
+        const fromSnapshot = transition.from?.get(object.id);
+        const from = fromSnapshot?.transform ?? object.transform;
+        const animation = interpolateAnimation(
+          fromSnapshot?.animation ?? object.animation,
+          snapshot.animation,
+          transition.progress,
+        );
         return {
           ...object,
           transform: interpolateTransform(from, snapshot.transform, transition.progress),
+          ...(animation ? { animation } : {}),
+          ...(transition.progress >= 1 && snapshot.lighting
+            ? { lighting: { ...snapshot.lighting } }
+            : {}),
         };
       }
       return object;

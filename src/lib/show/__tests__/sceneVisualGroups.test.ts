@@ -8,6 +8,7 @@ import {
   addSceneVisualGroup,
   applySceneVisualState,
   captureSceneVisualState,
+  createSceneEvaluator,
   emptyScene,
   removeObject,
   removeSceneVisualGroup,
@@ -44,7 +45,7 @@ describe("scene visual groups", () => {
   });
 
   it("regroups deterministically and never leaves one-object containers", () => {
-    const { scene, ids } = fixture();
+    const { project, scene, ids } = fixture();
     const first = addSceneVisualGroup(scene, "First", ids.slice(0, 2)).scene;
     const second = addSceneVisualGroup(first, "Second", ids.slice(1, 3)).scene;
     expect(second.visualGroups).toHaveLength(1);
@@ -117,9 +118,13 @@ describe("scene visual groups", () => {
     const grouped = addSceneVisualGroup(scene, "Logo", ids.slice(0, 2)).scene;
     const captured = captureSceneVisualState(grouped, grouped.visualGroups![0]!.id, "Draft");
     const renamed = renameSceneVisualState(captured.scene, captured.stateId!, "Final");
-    const envelope = serializeProject({ ...project, scenes: [renamed] });
+    const cued = addSceneVisualStateCue(renamed, captured.stateId!, 3, 1);
+    expect(cued.ok).toBe(true);
+    if (!cued.ok) return;
+    const envelope = serializeProject({ ...project, scenes: [cued.scene] });
     const reopened = parseProjectFile(JSON.stringify(envelope)).project.scenes![0]!;
     expect(reopened.visualStates?.[0]?.name).toBe("Final");
+    expect(reopened.visualStateCues?.[0]).toMatchObject({ time: 3, transitionDuration: 1 });
     expect(removeSceneVisualGroup(reopened, reopened.visualGroups![0]!.id).visualStates).toEqual(
       [],
     );
@@ -135,7 +140,7 @@ describe("scene visual groups", () => {
   });
 
   it("interpolates a compatible saved state on the canonical scene timeline", () => {
-    const { scene, ids } = fixture();
+    const { project, scene, ids } = fixture();
     const grouped = addSceneVisualGroup(scene, "Logo", ids.slice(0, 2)).scene;
     const moved = {
       ...grouped,
@@ -155,6 +160,9 @@ describe("scene visual groups", () => {
     expect(sceneAtVisualStateTime(cued.scene, 4).objects[0]!.transform.position).toEqual([
       10, 0, 0,
     ]);
+    const evaluator = createSceneEvaluator(project, cued.scene);
+    expect(evaluator.animated).toBe(true);
+    expect(evaluator.positionsAt(3)).not.toEqual(evaluator.positionsAt(2));
   });
 
   it("rejects timed states that would change the scene drone topology", () => {

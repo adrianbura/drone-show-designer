@@ -342,6 +342,7 @@ export default function Inspector({
     selectedScene,
     selectedSceneBudget,
     selectedSceneObjectIds,
+    primarySceneObjectId,
     selectedScenePointIds,
     lightingEffects,
     time,
@@ -447,7 +448,8 @@ export default function Inspector({
   const selectedObjects = (selectedScene?.objects ?? []).filter((o) =>
     selectedSceneObjectIds.includes(o.id),
   );
-  const primarySelectedObject = selectedObjects[selectedObjects.length - 1] ?? null;
+  const primarySelectedObject =
+    selectedObjects.find((object) => object.id === primarySceneObjectId) ?? null;
   const selectedObjectDrones = (selectedSceneBudget?.objects ?? [])
     .filter((o) => selectedSceneObjectIds.includes(o.instanceId))
     .reduce((sum, o) => sum + o.count, 0);
