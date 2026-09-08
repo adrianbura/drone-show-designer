@@ -34,8 +34,10 @@ import { useStudio } from "@/lib/studio/store";
 import {
   deriveVisualStateCueSafety,
   VISUAL_STATE_CUE_SAFETY_LABEL,
+  visualStateCueStatusClass,
   type VisualStateCueSafetyStatus,
 } from "@/lib/studio/visualStateCueSafety";
+
 
 import {
   setSelectedVisualStateCueId,
