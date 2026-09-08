@@ -133,6 +133,12 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
     applySceneVisualGroupState,
     removeSceneVisualGroupState,
     addSceneVisualStateCueAtPlayhead,
+    fullShowReport,
+    fullShowStale,
+    fullShowBusy,
+    fullShowProgress,
+    analyzeFullShow,
+
     removeSceneVisualStateCueById,
     patchSceneVisualStateCueById,
     time,
