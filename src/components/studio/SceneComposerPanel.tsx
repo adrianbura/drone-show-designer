@@ -32,6 +32,12 @@ import VisualLayerRow, { type VisualLayerView } from "@/components/studio/Visual
 import { inferMotionLabel } from "@/lib/studio/sceneMotionInspector";
 import { useStudio } from "@/lib/studio/store";
 import {
+  deriveVisualStateCueSafety,
+  VISUAL_STATE_CUE_SAFETY_LABEL,
+  type VisualStateCueSafetyStatus,
+} from "@/lib/studio/visualStateCueSafety";
+
+import {
   setSelectedVisualStateCueId,
   useSelectedVisualStateCueId,
 } from "@/lib/studio/visualStateCueSelection";
@@ -166,6 +172,22 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
   const selectedCueId = useSelectedVisualStateCueId();
   const [cueTimeDraft, setCueTimeDraft] = useState<string | null>(null);
   const [cueDurationDraft, setCueDurationDraft] = useState<string | null>(null);
+
+  /**
+   * CANONICAL cue safety. Pure projection of the last `analyzeFullShow()` report
+   * onto each cue's transition window — no second safety calculation exists.
+   */
+  const cueSafety = useMemo(
+    () =>
+      deriveVisualStateCueSafety({
+        report: fullShowReport,
+        stale: fullShowStale,
+        clip: project.timeline.find((candidate) => candidate.id === selectedClipId) ?? null,
+        cues: selectedScene?.visualStateCues ?? [],
+      }),
+    [fullShowReport, fullShowStale, project.timeline, selectedClipId, selectedScene],
+  );
+
 
   /**
    * Derived layer rows. Pure projection of canonical state: no planner, no
