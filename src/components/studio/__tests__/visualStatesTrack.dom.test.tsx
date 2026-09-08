@@ -66,18 +66,20 @@ async function addCue() {
   await waitFor(() => expect(api.selectedScene!.objects).toHaveLength(2));
   const secondId = api.selectedScene!.objects[1]!.id;
   act(() => api.setSelectedSceneObjectIds([objectId, secondId], secondId));
-  let groupId: string | null = null;
   act(() => {
-    groupId = api.createSceneVisualGroup("Ring group");
+    api.createSceneVisualGroup("Ring group");
   });
-  let stateId: string | null = null;
+  await waitFor(() => expect(api.selectedScene!.visualGroups ?? []).toHaveLength(1));
+  const groupId = api.selectedScene!.visualGroups![0]!.id;
   act(() => {
-    stateId = api.captureSceneVisualGroupState(groupId!, "Wide");
+    api.captureSceneVisualGroupState(groupId, "Wide");
   });
+  await waitFor(() => expect(api.selectedScene!.visualStates ?? []).toHaveLength(1));
+  const stateId = api.selectedScene!.visualStates![0]!.id;
   // Playhead 3s into the hold => canonical local cue time 3.
   act(() => api.setTime(4 + 6 + 3));
   act(() => {
-    api.addSceneVisualStateCueAtPlayhead(stateId!, 2);
+    api.addSceneVisualStateCueAtPlayhead(stateId, 2);
   });
   await waitFor(() => expect(api.selectedScene!.visualStateCues).toHaveLength(1));
   return { clipId, cueId: api.selectedScene!.visualStateCues![0]!.id };
