@@ -97,10 +97,12 @@ describe("visual state cue editor", () => {
     expect(screen.getByTestId("visual-state-cue-editor").textContent).toContain(LONG_NAME);
     expect(screen.getByTestId("visual-state-cue-editor-group").textContent).toContain("Ring group");
     expect(screen.getByTestId("visual-state-cue-editor-start").textContent).toContain("1.00s");
-    expect((screen.getByTestId("visual-state-cue-editor-time") as HTMLInputElement).value).toBe("3");
-    expect(
-      (screen.getByTestId("visual-state-cue-editor-duration") as HTMLInputElement).value,
-    ).toBe("2");
+    expect((screen.getByTestId("visual-state-cue-editor-time") as HTMLInputElement).value).toBe(
+      "3",
+    );
+    expect((screen.getByTestId("visual-state-cue-editor-duration") as HTMLInputElement).value).toBe(
+      "2",
+    );
   });
 
   it("commits target time once on Enter and once on blur", async () => {

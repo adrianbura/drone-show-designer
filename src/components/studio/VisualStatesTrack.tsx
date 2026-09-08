@@ -19,7 +19,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useStudio } from "@/lib/studio/store";
 import { snapTimelineTime, type SnapContext } from "@/lib/studio/timelineEdit";
-import { setSelectedVisualStateCueId, useSelectedVisualStateCueId } from "@/lib/studio/visualStateCueSelection";
+import {
+  setSelectedVisualStateCueId,
+  useSelectedVisualStateCueId,
+} from "@/lib/studio/visualStateCueSelection";
 import { requestWorkspaceSection } from "@/lib/studio/workspaceSections";
 
 function fmt(value: number): string {

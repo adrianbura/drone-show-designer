@@ -159,7 +159,9 @@ describe("visual states timeline lane", () => {
     fireEvent.pointerMove(window, { clientX: 160 });
     expect(api.selectedScene!.visualStateCues![0]).toEqual(before);
     await waitFor(() =>
-      expect(screen.getByTestId(`visual-state-cue-${cueId}`).getAttribute("data-preview")).toBe("1"),
+      expect(screen.getByTestId(`visual-state-cue-${cueId}`).getAttribute("data-preview")).toBe(
+        "1",
+      ),
     );
     fireEvent.pointerUp(window, { clientX: 160 });
     await waitFor(() => expect(api.selectedScene!.visualStateCues![0]!.time).toBeCloseTo(6, 5));
@@ -177,7 +179,9 @@ describe("visual states timeline lane", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     fireEvent.pointerUp(window, { clientX: 160 });
     await waitFor(() =>
-      expect(screen.getByTestId(`visual-state-cue-${cueId}`).getAttribute("data-preview")).toBe("0"),
+      expect(screen.getByTestId(`visual-state-cue-${cueId}`).getAttribute("data-preview")).toBe(
+        "0",
+      ),
     );
     expect(api.selectedScene!.visualStateCues![0]).toEqual(before);
   });
