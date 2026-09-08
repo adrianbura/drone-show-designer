@@ -226,12 +226,13 @@ function interpolateTransform(
   to: InstanceTransform,
   progress: number,
 ): InstanceTransform {
+  const t = progress * progress * progress * (10 + progress * (-15 + 6 * progress));
   const vector = (a: readonly [number, number, number], b: readonly [number, number, number]) =>
-    [lerp(a[0], b[0], progress), lerp(a[1], b[1], progress), lerp(a[2], b[2], progress)] as const;
+    [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)] as const;
   return {
     position: vector(from.position, to.position),
     rotationDeg: vector(from.rotationDeg, to.rotationDeg),
-    scale: lerp(from.scale, to.scale, progress),
+    scale: lerp(from.scale, to.scale, t),
     ...(progress >= 1 && to.mirrorX ? { mirrorX: true } : from.mirrorX ? { mirrorX: true } : {}),
     ...(to.pivot ? { pivot: [...to.pivot] } : from.pivot ? { pivot: [...from.pivot] } : {}),
   };
@@ -243,8 +244,9 @@ function interpolateAnimation(
   progress: number,
 ): SceneFormationInstance["animation"] {
   if (!from && !to) return undefined;
+  const t = progress * progress * progress * (10 + progress * (-15 + 6 * progress));
   const value = (a: number | undefined, b: number | undefined, fallback: number) =>
-    lerp(a ?? fallback, b ?? fallback, progress);
+    lerp(a ?? fallback, b ?? fallback, t);
   return {
     playbackRate: value(from?.playbackRate, to?.playbackRate, 1),
     startOffset: value(from?.startOffset, to?.startOffset, 0),

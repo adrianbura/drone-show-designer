@@ -16,12 +16,7 @@ import type { ShowProject } from "../types";
 import { composeFullShow, describeSegment, segmentAt } from "./composer";
 import { segmentBoundaries, validateContinuity } from "./continuity";
 import { validateLightProgram } from "./lighting";
-import {
-  droneMetrics,
-  phaseMetrics,
-  transitionAggregate,
-  transitionReports,
-} from "./metrics";
+import { droneMetrics, phaseMetrics, transitionAggregate, transitionReports } from "./metrics";
 import { validateHomePads, validateTimelineStructure } from "./timeline";
 import {
   FULL_SHOW_ENGINE_VERSION,
@@ -200,11 +195,26 @@ export function analyzeFullShow(
 
   for (const issue of safety.issues.slice(0, 200)) {
     const seg = segmentAt(plan, issue.time);
+    const scene = seg
+      ? project.scenes?.find((candidate) => candidate.id === seg.clipId)
+      : undefined;
+    const clip = seg
+      ? project.timeline.find((candidate) => candidate.id === seg.clipId)
+      : undefined;
+    const duringVisualStateTransition =
+      seg?.kind === "hold" &&
+      clip !== undefined &&
+      (scene?.visualStateCues ?? []).some((cue) => {
+        const target = clip.start + clip.transition + cue.time;
+        return issue.time >= target - cue.transitionDuration - 1e-6 && issue.time <= target + 1e-6;
+      });
+    const visualStateAcceleration =
+      duringVisualStateTransition && issue.category === "acceleration";
     add({
-      severity: issue.severity === "critical" ? "error" : "warning",
+      severity: issue.severity === "critical" || visualStateAcceleration ? "error" : "warning",
       category: "safety",
       code: issue.category.toUpperCase(),
-      message: `${issue.message} (${describeSegment(seg)})`,
+      message: `${visualStateAcceleration ? "Visual-state transition is not flyable: " : ""}${issue.message} (${describeSegment(seg)})`,
       time: issue.time,
       droneIds: issue.droneIds,
       droneIndices: issue.drones,
@@ -285,7 +295,8 @@ export function analyzeFullShow(
 
   const blockers = errors.slice(0, 20).map((e) => e.message);
   const exportReadiness: ExportReadiness = {
-    status: errors.length > 0 ? "BLOCKED" : realWarnings.length > 0 ? "READY_WITH_WARNINGS" : "READY",
+    status:
+      errors.length > 0 ? "BLOCKED" : realWarnings.length > 0 ? "READY_WITH_WARNINGS" : "READY",
     blockers,
     warnings: realWarnings.slice(0, 20).map((w) => w.message),
   };
