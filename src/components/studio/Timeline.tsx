@@ -1154,7 +1154,11 @@ export default function Timeline({
           <LightingTrack viewStart={viewStart} viewEnd={viewEndTime} />
           <MotionTrack viewStart={viewStart} viewEnd={viewEndTime} />
           {/* VISUAL STATES — canonical saved-state cues of the selected scene. */}
-          <VisualStatesTrack viewStart={viewStart} viewEnd={viewEndTime} />
+          <VisualStatesTrack
+            viewStart={viewStart}
+            viewEnd={viewEndTime}
+            snapContext={snapContext}
+          />
 
           {selectedClipId && (
             <div className="flex justify-end">
