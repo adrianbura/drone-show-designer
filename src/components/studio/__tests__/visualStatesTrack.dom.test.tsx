@@ -117,7 +117,7 @@ describe("visual states timeline lane", () => {
     const { cueId } = await addCue();
     fireEvent.click(screen.getByTestId(`visual-state-cue-delete-${cueId}`));
     await waitFor(() => expect(api.selectedScene!.visualStateCues ?? []).toHaveLength(0));
-    act(() => api.undo());
+    act(() => api.undoTimeline());
     await waitFor(() => expect(api.selectedScene!.visualStateCues ?? []).toHaveLength(1));
   });
 
