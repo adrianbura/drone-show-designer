@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import SceneComposerPanel from "@/components/studio/SceneComposerPanel";
 import { projectFileToJson, serializeProject } from "@/lib/project/serialize";
-import { createDefaultProject } from "@/lib/show/defaultProject";
+import { createDemoProject } from "@/lib/show/defaultProject";
 import { addObject, emptyScene, upsertScene } from "@/lib/show/scene";
 import type { ShowProject } from "@/lib/show/types";
 import { StudioProvider, useStudio } from "@/lib/studio/store";
@@ -25,7 +25,7 @@ function Harness() {
 }
 
 function fixture(): { project: ShowProject; clipId: string } {
-  const base = createDefaultProject(12);
+  const base = createDemoProject(12);
   const clip = base.timeline.find((candidate) => candidate.phase === "SHOW")!;
   let scene = emptyScene(clip.id, "Composition");
   for (const formation of base.formations.slice(0, 2)) {
