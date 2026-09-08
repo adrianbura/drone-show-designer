@@ -21,7 +21,6 @@ import {
   Pencil,
   FolderPlus,
   Trash2,
-  Ungroup,
   Waves,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -704,7 +703,7 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
                   }}
                   onSelect={() => selectSceneVisualGroup(groupView.id)}
                   onUngroup={() => removeSceneVisualGroupById(groupView.id)}
-                  onFocusTransform={() => focusEffectControl("transform-inspector")}
+                  onFocusTransform={() => focusEffectControl("transform-section")}
                   onFocusColor={() => focusEffectControl("effect-stack-presets")}
                   onFocusMotion={() => focusEffectControl("motion-stack-presets")}
                 >
