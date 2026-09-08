@@ -10,6 +10,7 @@ import {
   captureSceneVisualState,
   createSceneEvaluator,
   emptyScene,
+  patchSceneVisualStateCue,
   removeObject,
   removeSceneVisualGroup,
   renameSceneVisualGroup,
@@ -178,5 +179,26 @@ describe("scene visual groups", () => {
     const result = addSceneVisualStateCue(changed, captured.stateId!, 4, 2);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toContain("drone allocation");
+  });
+
+  it("clamps cue transitions to the hold boundary and prevents overlap", () => {
+    const { scene, ids } = fixture();
+    const grouped = addSceneVisualGroup(scene, "Logo", ids.slice(0, 2)).scene;
+    const captured = captureSceneVisualState(grouped, grouped.visualGroups![0]!.id, "Pose");
+    const first = addSceneVisualStateCue(captured.scene, captured.stateId!, 4, 3);
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const second = addSceneVisualStateCue(first.scene, captured.stateId!, 5, 4);
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.scene.visualStateCues?.map((cue) => cue.transitionDuration)).toEqual([3, 1]);
+    const moved = patchSceneVisualStateCue(second.scene, second.cueId, {
+      time: 2,
+      transitionDuration: 8,
+    });
+    expect(moved.visualStateCues?.map((cue) => [cue.time, cue.transitionDuration])).toEqual([
+      [2, 2],
+      [4, 2],
+    ]);
   });
 });

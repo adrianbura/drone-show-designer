@@ -257,7 +257,7 @@ export function sanitizeScenes(raw: unknown): FormationScene[] {
         }, [])
       : [];
     const visualStateIds = new Set(visualStates.map((state) => state.id));
-    const visualStateCues: SceneVisualStateCue[] = Array.isArray(scene.visualStateCues)
+    const rawVisualStateCues: SceneVisualStateCue[] = Array.isArray(scene.visualStateCues)
       ? scene.visualStateCues.reduce<SceneVisualStateCue[]>((result, rawCue) => {
           const cue = rawCue as Partial<SceneVisualStateCue>;
           if (
@@ -283,6 +283,17 @@ export function sanitizeScenes(raw: unknown): FormationScene[] {
           return result;
         }, [])
       : [];
+    const previousCueTime = new Map<string, number>();
+    const visualStateCues = rawVisualStateCues
+      .sort((a, b) => a.time - b.time || a.id.localeCompare(b.id))
+      .map((cue) => {
+        const previous = previousCueTime.get(cue.groupId) ?? 0;
+        previousCueTime.set(cue.groupId, cue.time);
+        return {
+          ...cue,
+          transitionDuration: Math.min(cue.transitionDuration, Math.max(0, cue.time - previous)),
+        };
+      });
     out.push({
       id: scene.id,
       name: typeof scene.name === "string" && scene.name ? scene.name : scene.id,
@@ -293,9 +304,7 @@ export function sanitizeScenes(raw: unknown): FormationScene[] {
       ...(visualStates.length > 0 ? { visualStates } : {}),
       ...(visualStateCues.length > 0
         ? {
-            visualStateCues: visualStateCues.sort(
-              (a, b) => a.time - b.time || a.id.localeCompare(b.id),
-            ),
+            visualStateCues,
           }
         : {}),
       transform: sanitizeTransform(scene.transform),

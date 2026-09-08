@@ -206,6 +206,16 @@ describe("scene composer drone budget DOM", () => {
     expect(
       screen.getByTestId(`visual-state-cue-${api.selectedScene!.visualStateCues![0]!.id}`),
     ).toBeTruthy();
+    const cueId = api.selectedScene!.visualStateCues![0]!.id;
+    const historyBeforePatch = api.timelineHistoryDepth.past;
+    act(() => api.patchSceneVisualStateCueById(cueId, { time: 5, transitionDuration: 2 }));
+    await waitFor(() =>
+      expect(api.selectedScene!.visualStateCues![0]).toMatchObject({
+        time: 5,
+        transitionDuration: 2,
+      }),
+    );
+    expect(api.timelineHistoryDepth.past).toBe(historyBeforePatch + 1);
   });
 
   it("commits the latest move, rotate and scale gizmo deltas atomically", async () => {

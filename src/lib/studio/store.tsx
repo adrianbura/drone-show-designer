@@ -349,6 +349,7 @@ import {
   patchObject,
   patchObjectTransform,
   patchScenePointGroup,
+  patchSceneVisualStateCue,
   captureSceneVisualState,
   renameSceneVisualGroup,
   renameSceneVisualState,
@@ -583,6 +584,10 @@ interface StudioContextValue {
     transitionDuration: number,
   ) => { readonly cueId: string | null; readonly reason: string | null };
   removeSceneVisualStateCueById: (cueId: string) => void;
+  patchSceneVisualStateCueById: (
+    cueId: string,
+    patch: { readonly time?: number; readonly transitionDuration?: number },
+  ) => void;
   /** Promotes and animates the current object/point selection in one undo revision. */
   applyMotionPresetToSceneSelection: (preset: DynamicPresetId) => readonly string[];
   /** Ephemeral motion audition rendered by the canonical planner; no project/history mutation. */
@@ -2878,6 +2883,26 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       const clipId = selectedClipIdRef.current;
       if (!clipId) return;
       editScene(clipId, (scene) => removeSceneVisualStateCue(scene, cueId));
+    },
+    [editScene],
+  );
+
+  const patchSceneVisualStateCueById = useCallback(
+    (
+      cueId: string,
+      patch: { readonly time?: number; readonly transitionDuration?: number },
+    ) => {
+      const clipId = selectedClipIdRef.current;
+      const clip = projectRef.current.timeline.find((candidate) => candidate.id === clipId);
+      if (!clipId || !clip) return;
+      editScene(clipId, (scene) =>
+        patchSceneVisualStateCue(scene, cueId, {
+          ...(patch.time === undefined ? {} : { time: Math.min(clip.hold, patch.time) }),
+          ...(patch.transitionDuration === undefined
+            ? {}
+            : { transitionDuration: patch.transitionDuration }),
+        }),
+      );
     },
     [editScene],
   );
@@ -6484,6 +6509,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       removeSceneVisualGroupState,
       addSceneVisualStateCueAtPlayhead,
       removeSceneVisualStateCueById,
+      patchSceneVisualStateCueById,
       applyMotionPresetToSceneSelection,
       previewMotionPresetToSceneSelection,
       motionEffectPreviewIds: motionEffectPreview?.dynamicFormationIds ?? [],
@@ -6893,6 +6919,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       removeSceneVisualGroupState,
       addSceneVisualStateCueAtPlayhead,
       removeSceneVisualStateCueById,
+      patchSceneVisualStateCueById,
       applyMotionPresetToSceneSelection,
       previewMotionPresetToSceneSelection,
       motionEffectPreview,

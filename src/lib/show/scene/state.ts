@@ -122,6 +122,20 @@ export type AddVisualStateCueResult =
   | { readonly ok: true; readonly scene: FormationScene; readonly cueId: string }
   | { readonly ok: false; readonly scene: FormationScene; readonly reason: string };
 
+function normalizeCueTiming(cues: readonly SceneVisualStateCue[]): SceneVisualStateCue[] {
+  const previousTimeByGroup = new Map<string, number>();
+  return [...cues]
+    .sort((a, b) => a.time - b.time || a.id.localeCompare(b.id))
+    .map((cue) => {
+      const previousTime = previousTimeByGroup.get(cue.groupId) ?? 0;
+      previousTimeByGroup.set(cue.groupId, cue.time);
+      return {
+        ...cue,
+        transitionDuration: Math.min(cue.transitionDuration, Math.max(0, cue.time - previousTime)),
+      };
+    });
+}
+
 function isTimelineCompatible(scene: FormationScene, state: SceneVisualState): boolean {
   const current = new Map(scene.objects.map((object) => [object.id, object]));
   return state.objects.every((snapshot) => {
@@ -153,23 +167,51 @@ export function addSceneVisualStateCue(
   let index = (scene.visualStateCues?.length ?? 0) + 1;
   let cueId = `${scene.id}-state-cue-${index}`;
   while (used.has(cueId)) cueId = `${scene.id}-state-cue-${++index}`;
+  const cueTime = Math.max(0, Number.isFinite(time) ? time : 0);
   const cue: SceneVisualStateCue = {
     id: cueId,
     groupId: state.groupId,
     stateId,
-    time: Math.max(0, Number.isFinite(time) ? time : 0),
-    transitionDuration: Math.max(0, Number.isFinite(transitionDuration) ? transitionDuration : 0),
+    time: cueTime,
+    transitionDuration: Math.min(
+      cueTime,
+      Math.max(0, Number.isFinite(transitionDuration) ? transitionDuration : 0),
+    ),
   };
   return {
     ok: true,
     cueId,
     scene: {
       ...scene,
-      visualStateCues: [...(scene.visualStateCues ?? []), cue].sort(
-        (a, b) => a.time - b.time || a.id.localeCompare(b.id),
-      ),
+      visualStateCues: normalizeCueTiming([...(scene.visualStateCues ?? []), cue]),
     },
   };
+}
+
+export function patchSceneVisualStateCue(
+  scene: FormationScene,
+  cueId: string,
+  patch: { readonly time?: number; readonly transitionDuration?: number },
+): FormationScene {
+  if (!scene.visualStateCues?.some((cue) => cue.id === cueId)) return scene;
+  const updated = scene.visualStateCues.map((cue) => {
+    if (cue.id !== cueId) return cue;
+    const time =
+      patch.time === undefined
+        ? cue.time
+        : Math.max(0, Number.isFinite(patch.time) ? patch.time : cue.time);
+    const transitionDuration =
+      patch.transitionDuration === undefined
+        ? cue.transitionDuration
+        : Math.max(
+            0,
+            Number.isFinite(patch.transitionDuration)
+              ? patch.transitionDuration
+              : cue.transitionDuration,
+          );
+    return { ...cue, time, transitionDuration: Math.min(time, transitionDuration) };
+  });
+  return { ...scene, visualStateCues: normalizeCueTiming(updated) };
 }
 
 export function removeSceneVisualStateCue(scene: FormationScene, cueId: string): FormationScene {
