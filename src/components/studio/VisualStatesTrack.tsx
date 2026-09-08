@@ -226,7 +226,10 @@ export default function VisualStatesTrack({
               const left = pct(transitionStart);
               const width = pct(target) - left;
               const selected = cue.id === selectedCueId;
-              const details = `${cue.stateName} · ${cue.groupName} · transition ${fmt(transitionStart)} → target ${fmt(target)} · duration ${fmt(duration)}${dragging ? " · preview (not applied yet)" : " · drag body to retime, drag left edge to resize"}`;
+              const status = safety.get(cue.id)?.status ?? "NEEDS_CHECK";
+              const statusLabel = VISUAL_STATE_CUE_SAFETY_LABEL[status];
+              const details = `${cue.stateName} · ${cue.groupName} · transition ${fmt(transitionStart)} → target ${fmt(target)} · duration ${fmt(duration)} · safety: ${statusLabel}${dragging ? " · preview (not applied yet)" : " · drag body to retime, drag left edge to resize"}`;
+
               return (
                 <div
                   key={cue.id}
