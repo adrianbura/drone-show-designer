@@ -4,6 +4,7 @@ import { parseProjectFile, serializeProject } from "../../project/serialize";
 import { createDefaultProject } from "../defaultProject";
 import {
   addObject,
+  addSceneVisualStateCue,
   addSceneVisualGroup,
   applySceneVisualState,
   captureSceneVisualState,
@@ -13,6 +14,7 @@ import {
   renameSceneVisualGroup,
   renameSceneVisualState,
   resolveSceneAt,
+  sceneAtVisualStateTime,
   sanitizeScenes,
 } from "../scene";
 
@@ -130,5 +132,43 @@ describe("scene visual groups", () => {
     const regrouped = addSceneVisualGroup(captured.scene, "Other", ids.slice(1, 3)).scene;
     expect(regrouped.visualStates).toEqual([]);
     expect(applySceneVisualState(regrouped, captured.stateId!)).toBe(regrouped);
+  });
+
+  it("interpolates a compatible saved state on the canonical scene timeline", () => {
+    const { scene, ids } = fixture();
+    const grouped = addSceneVisualGroup(scene, "Logo", ids.slice(0, 2)).scene;
+    const moved = {
+      ...grouped,
+      objects: grouped.objects.map((object, index) =>
+        index < 2
+          ? { ...object, transform: { ...object.transform, position: [10, 0, 0] as const } }
+          : object,
+      ),
+    };
+    const captured = captureSceneVisualState(moved, moved.visualGroups![0]!.id, "Right");
+    const base = { ...captured.scene, objects: grouped.objects };
+    const cued = addSceneVisualStateCue(base, captured.stateId!, 4, 2);
+    expect(cued.ok).toBe(true);
+    if (!cued.ok) return;
+    expect(sceneAtVisualStateTime(cued.scene, 2).objects[0]!.transform.position).toEqual([0, 0, 0]);
+    expect(sceneAtVisualStateTime(cued.scene, 3).objects[0]!.transform.position).toEqual([5, 0, 0]);
+    expect(sceneAtVisualStateTime(cued.scene, 4).objects[0]!.transform.position).toEqual([
+      10, 0, 0,
+    ]);
+  });
+
+  it("rejects timed states that would change the scene drone topology", () => {
+    const { scene, ids } = fixture();
+    const grouped = addSceneVisualGroup(scene, "Logo", ids.slice(0, 2)).scene;
+    const captured = captureSceneVisualState(grouped, grouped.visualGroups![0]!.id, "100 drones");
+    const changed = {
+      ...captured.scene,
+      objects: captured.scene.objects.map((object, index) =>
+        index === 0 ? { ...object, requestedDroneCount: 5 } : object,
+      ),
+    };
+    const result = addSceneVisualStateCue(changed, captured.stateId!, 4, 2);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain("drone allocation");
   });
 });

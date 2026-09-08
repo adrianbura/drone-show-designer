@@ -179,12 +179,17 @@ export function removeObject(scene: FormationScene, objectId: string): Formation
       ...state,
       objects: state.objects.filter((object) => object.objectId !== objectId),
     }));
+  const validStateIds = new Set((visualStates ?? []).map((state) => state.id));
+  const visualStateCues = scene.visualStateCues?.filter(
+    (cue) => validGroupIds.has(cue.groupId) && validStateIds.has(cue.stateId),
+  );
   return {
     ...scene,
     objects: scene.objects.filter((o) => o.id !== objectId),
     ...(pointGroups ? { pointGroups } : {}),
     ...(visualGroups ? { visualGroups } : {}),
     ...(visualStates ? { visualStates } : {}),
+    ...(visualStateCues ? { visualStateCues } : {}),
   };
 }
 
@@ -217,21 +222,26 @@ export function addSceneVisualGroup(
   const membersByGroup = new Map(
     [...previous, group].map((candidate) => [candidate.id, new Set(candidate.objectIds)]),
   );
+  const retainedStates = scene.visualStates
+    ?.filter((state) => validGroupIds.has(state.groupId))
+    .map((state) => ({
+      ...state,
+      objects: state.objects.filter((object) =>
+        membersByGroup.get(state.groupId)?.has(object.objectId),
+      ),
+    }))
+    .filter((state) => state.objects.length > 1);
+  const retainedStateIds = new Set((retainedStates ?? []).map((state) => state.id));
   return {
     scene: {
       ...scene,
       visualGroups: [...previous, group],
-      ...(scene.visualStates
+      ...(scene.visualStates ? { visualStates: retainedStates ?? [] } : {}),
+      ...(scene.visualStateCues
         ? {
-            visualStates: scene.visualStates
-              .filter((state) => validGroupIds.has(state.groupId))
-              .map((state) => ({
-                ...state,
-                objects: state.objects.filter((object) =>
-                  membersByGroup.get(state.groupId)?.has(object.objectId),
-                ),
-              }))
-              .filter((state) => state.objects.length > 1),
+            visualStateCues: scene.visualStateCues.filter(
+              (cue) => validGroupIds.has(cue.groupId) && retainedStateIds.has(cue.stateId),
+            ),
           }
         : {}),
     },
@@ -261,6 +271,7 @@ export function removeSceneVisualGroup(scene: FormationScene, groupId: string): 
     ...scene,
     visualGroups: scene.visualGroups.filter((group) => group.id !== groupId),
     visualStates: scene.visualStates?.filter((state) => state.groupId !== groupId) ?? [],
+    visualStateCues: scene.visualStateCues?.filter((cue) => cue.groupId !== groupId) ?? [],
   };
 }
 

@@ -149,6 +149,15 @@ export interface SceneVisualState {
   readonly objects: readonly SceneVisualStateObject[];
 }
 
+/** A timed transition to a saved visual state, in scene-local seconds. */
+export interface SceneVisualStateCue {
+  readonly id: string;
+  readonly groupId: string;
+  readonly stateId: string;
+  readonly time: number;
+  readonly transitionDuration: number;
+}
+
 export interface FormationScene {
   /** Always equal to the timeline clip id that plays this scene. */
   readonly id: string;
@@ -161,6 +170,8 @@ export interface FormationScene {
   readonly visualGroups?: readonly SceneVisualGroup[];
   /** Named restorable configurations of visual groups. */
   readonly visualStates?: readonly SceneVisualState[];
+  /** Ordered state changes evaluated by the canonical scene resolver. */
+  readonly visualStateCues?: readonly SceneVisualStateCue[];
   /** Parent transform applied to the whole composition. */
   readonly transform: InstanceTransform;
   /** EDITOR-ONLY timeline expansion state. */

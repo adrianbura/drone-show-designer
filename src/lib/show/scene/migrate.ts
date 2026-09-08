@@ -20,6 +20,7 @@ import {
   type ScenePointGroup,
   type SceneVisualGroup,
   type SceneVisualState,
+  type SceneVisualStateCue,
   type SceneVisualStateObject,
 } from "./types";
 import { isIdentityTransform } from "./resolve";
@@ -255,6 +256,33 @@ export function sanitizeScenes(raw: unknown): FormationScene[] {
           return result;
         }, [])
       : [];
+    const visualStateIds = new Set(visualStates.map((state) => state.id));
+    const visualStateCues: SceneVisualStateCue[] = Array.isArray(scene.visualStateCues)
+      ? scene.visualStateCues.reduce<SceneVisualStateCue[]>((result, rawCue) => {
+          const cue = rawCue as Partial<SceneVisualStateCue>;
+          if (
+            typeof cue.id !== "string" ||
+            typeof cue.groupId !== "string" ||
+            typeof cue.stateId !== "string" ||
+            !visualGroupIds.has(cue.groupId) ||
+            !visualStateIds.has(cue.stateId) ||
+            typeof cue.time !== "number" ||
+            !Number.isFinite(cue.time)
+          )
+            return result;
+          result.push({
+            id: cue.id,
+            groupId: cue.groupId,
+            stateId: cue.stateId,
+            time: Math.max(0, cue.time),
+            transitionDuration:
+              typeof cue.transitionDuration === "number" && Number.isFinite(cue.transitionDuration)
+                ? Math.max(0, cue.transitionDuration)
+                : 0,
+          });
+          return result;
+        }, [])
+      : [];
     out.push({
       id: scene.id,
       name: typeof scene.name === "string" && scene.name ? scene.name : scene.id,
@@ -263,6 +291,13 @@ export function sanitizeScenes(raw: unknown): FormationScene[] {
       ...(pointGroups.length > 0 ? { pointGroups } : {}),
       ...(visualGroups.length > 0 ? { visualGroups } : {}),
       ...(visualStates.length > 0 ? { visualStates } : {}),
+      ...(visualStateCues.length > 0
+        ? {
+            visualStateCues: visualStateCues.sort(
+              (a, b) => a.time - b.time || a.id.localeCompare(b.id),
+            ),
+          }
+        : {}),
       transform: sanitizeTransform(scene.transform),
       ...(scene.expanded ? { expanded: true } : {}),
     });

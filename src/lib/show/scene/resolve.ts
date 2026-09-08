@@ -27,6 +27,7 @@ import {
   type ResolvedSceneGroup,
   type SceneFormationInstance,
 } from "./types";
+import { sceneAtVisualStateTime } from "./state";
 
 /** Deterministic even sub-sample of `n` indices down to `k` (k <= n). */
 export function subsampleIndices(n: number, k: number): number[] {
@@ -50,10 +51,7 @@ export function findStaticSource(project: ShowProject, id: string): Formation | 
   return project.formations.find((f) => f.id === id);
 }
 
-export function findDynamicSource(
-  project: ShowProject,
-  id: string,
-): DynamicFormation | undefined {
+export function findDynamicSource(project: ShowProject, id: string): DynamicFormation | undefined {
   return project.dynamicFormations?.find((d) => d.id === id);
 }
 
@@ -202,8 +200,9 @@ export function resolveSceneAt(
   scene: FormationScene,
   localTime = 0,
 ): ResolvedScene {
-  const prepared = prepare(project, scene);
-  const sceneTransform = scene.transform ?? IDENTITY_INSTANCE_TRANSFORM;
+  const effectiveScene = sceneAtVisualStateTime(scene, localTime);
+  const prepared = prepare(project, effectiveScene);
+  const sceneTransform = effectiveScene.transform ?? IDENTITY_INSTANCE_TRANSFORM;
   const points: Vector3Tuple[] = [];
   const pointIds: string[] = [];
   const groups: ResolvedSceneGroup[] = [];
@@ -215,9 +214,7 @@ export function resolveSceneAt(
 
   for (const p of prepared) {
     groups.push(p.group);
-    const animated = p.evaluator
-      ? p.evaluator.positionsAt(localTime)
-      : null;
+    const animated = p.evaluator ? p.evaluator.positionsAt(localTime) : null;
     const local = p.indices.map((assetIndex, k) =>
       animated ? (animated[assetIndex] ?? p.base[k]!) : p.base[k]!,
     );
@@ -281,6 +278,7 @@ export function createSceneEvaluator(
     animated: initial.animated,
     pointIds: initial.pointIds,
     positionsAt,
-    pointAt: (pointIndex, t) => positionsAt(t)[pointIndex] ?? initial.points[pointIndex] ?? [0, 0, 0],
+    pointAt: (pointIndex, t) =>
+      positionsAt(t)[pointIndex] ?? initial.points[pointIndex] ?? [0, 0, 0],
   };
 }
