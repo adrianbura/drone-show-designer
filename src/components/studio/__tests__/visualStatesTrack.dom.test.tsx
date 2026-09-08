@@ -91,7 +91,12 @@ afterEach(() => {
   setSelectedVisualStateCueId(null);
 });
 
-/** jsdom reports a zero-size lane; give it a deterministic 1px-per-... mapping. */
+/** jsdom reports a zero-size lane; give it a deterministic 400px = 40s mapping. */
+function stubLane() {
+  const lane = document.getElementById("visual-states-track-lane")!;
+  lane.getBoundingClientRect = () => ({ left: 0, width: 400, top: 0, height: 20 }) as DOMRect;
+}
+
 function dragBody(cueId: string, clientX: number, release = true) {
   const block = screen.getByTestId(`visual-state-cue-${cueId}`);
   fireEvent.pointerDown(block, { clientX: 0 });
@@ -148,14 +153,15 @@ describe("visual states timeline lane", () => {
   it("does not mutate the project while the pointer moves, then commits once", async () => {
     const { cueId } = await addCue();
     const before = api.selectedScene!.visualStateCues![0]!;
+    stubLane();
     const block = screen.getByTestId(`visual-state-cue-${cueId}`);
     fireEvent.pointerDown(block, { clientX: 0 });
-    fireEvent.pointerMove(window, { clientX: 0.4 });
+    fireEvent.pointerMove(window, { clientX: 160 });
     expect(api.selectedScene!.visualStateCues![0]).toEqual(before);
     await waitFor(() =>
       expect(screen.getByTestId(`visual-state-cue-${cueId}`).getAttribute("data-preview")).toBe("1"),
     );
-    fireEvent.pointerUp(window, { clientX: 0.4 });
+    fireEvent.pointerUp(window, { clientX: 160 });
     await waitFor(() => expect(api.selectedScene!.visualStateCues![0]!.time).toBeCloseTo(6, 5));
     act(() => api.undoTimeline());
     await waitFor(() => expect(api.selectedScene!.visualStateCues![0]!.time).toBeCloseTo(3, 5));
@@ -166,9 +172,10 @@ describe("visual states timeline lane", () => {
   it("cancels a drag on Escape without mutating the project", async () => {
     const { cueId } = await addCue();
     const before = api.selectedScene!.visualStateCues![0]!;
-    dragBody(cueId, 0.4, false);
+    stubLane();
+    dragBody(cueId, 160, false);
     fireEvent.keyDown(window, { key: "Escape" });
-    fireEvent.pointerUp(window, { clientX: 0.4 });
+    fireEvent.pointerUp(window, { clientX: 160 });
     await waitFor(() =>
       expect(screen.getByTestId(`visual-state-cue-${cueId}`).getAttribute("data-preview")).toBe("0"),
     );
@@ -177,11 +184,12 @@ describe("visual states timeline lane", () => {
 
   it("resizes the transition through one canonical commit", async () => {
     const { cueId } = await addCue();
+    stubLane();
     const handle = screen.getByTestId(`visual-state-cue-resize-${cueId}`);
     fireEvent.pointerDown(handle, { clientX: 0 });
-    fireEvent.pointerMove(window, { clientX: 0.3 });
+    fireEvent.pointerMove(window, { clientX: 120 });
     expect(api.selectedScene!.visualStateCues![0]!.transitionDuration).toBe(2);
-    fireEvent.pointerUp(window, { clientX: 0.3 });
+    fireEvent.pointerUp(window, { clientX: 120 });
     await waitFor(() =>
       expect(api.selectedScene!.visualStateCues![0]!.transitionDuration).toBeCloseTo(1, 5),
     );
