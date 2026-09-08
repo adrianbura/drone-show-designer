@@ -171,6 +171,31 @@ describe("visual states timeline lane", () => {
     await waitFor(() => expect(api.selectedScene!.visualStateCues![0]!.time).toBeCloseTo(6, 5));
   });
 
+  it("does not seek back to the stale target when click follows a completed drag", async () => {
+    const { cueId } = await addCue();
+    stubLane();
+    act(() => api.setTime(0));
+    const block = screen.getByTestId(`visual-state-cue-${cueId}`);
+    fireEvent.pointerDown(block, { clientX: 0, pointerId: 1 });
+    fireEvent.pointerMove(window, { clientX: 160, pointerId: 1 });
+    fireEvent.pointerUp(window, { clientX: 160, pointerId: 1 });
+    fireEvent.click(block);
+    await waitFor(() => expect(api.selectedScene!.visualStateCues![0]!.time).toBeCloseTo(6, 5));
+    expect(api.time).toBe(0);
+  });
+
+  it("cancels an interrupted pointer gesture", async () => {
+    const { cueId } = await addCue();
+    const before = api.selectedScene!.visualStateCues![0]!;
+    stubLane();
+    const block = screen.getByTestId(`visual-state-cue-${cueId}`);
+    fireEvent.pointerDown(block, { clientX: 0, pointerId: 1 });
+    fireEvent.pointerMove(window, { clientX: 160, pointerId: 1 });
+    fireEvent.pointerCancel(window, { pointerId: 1 });
+    fireEvent.pointerUp(window, { clientX: 160, pointerId: 1 });
+    expect(api.selectedScene!.visualStateCues![0]).toEqual(before);
+  });
+
   it("cancels a drag on Escape without mutating the project", async () => {
     const { cueId } = await addCue();
     const before = api.selectedScene!.visualStateCues![0]!;

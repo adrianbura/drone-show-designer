@@ -62,6 +62,7 @@ export default function VisualStatesTrack({
   const [draft, setDraft] = useState<Draft | null>(null);
   const laneRef = useRef<HTMLDivElement | null>(null);
   const draftRef = useRef<Draft | null>(null);
+  const suppressClickRef = useRef(false);
   draftRef.current = draft;
 
   const clip = project.timeline.find((candidate) => candidate.id === selectedClipId) ?? null;
@@ -101,7 +102,7 @@ export default function VisualStatesTrack({
 
   /** Pointer gesture: ephemeral draft only, one canonical patch on release. */
   useEffect(() => {
-    if (!draft || !clip) return;
+    if (!draftRef.current || !clip) return;
     const formationReady = clip.start + clip.transition;
     const snap = (raw: number, altKey: boolean) =>
       snapContext ? snapTimelineTime(raw, snapContext(altKey)).time : raw;
@@ -126,6 +127,9 @@ export default function VisualStatesTrack({
       setDraft(null);
       if (!current) return;
       if (!current.moved) return; // click without drag keeps click-to-seek behaviour
+      // Pointer-up is normally followed by click. Do not let that click seek
+      // back to the cue's pre-drag target from this render.
+      suppressClickRef.current = true;
       if (current.kind === "MOVE") {
         patchSceneVisualStateCueById(current.cueId, { time: current.target - formationReady });
       } else {
@@ -136,15 +140,26 @@ export default function VisualStatesTrack({
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       draftRef.current = null;
+      suppressClickRef.current = true;
+      setDraft(null);
+    };
+
+    const onCancel = () => {
+      draftRef.current = null;
+      suppressClickRef.current = true;
       setDraft(null);
     };
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+    window.addEventListener("blur", onCancel);
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      window.removeEventListener("blur", onCancel);
       window.removeEventListener("keydown", onKey);
     };
     // Gesture identity only: the draft values live in draftRef.
@@ -205,6 +220,7 @@ export default function VisualStatesTrack({
                     title={`Drag to change transition duration · ${cue.stateName}`}
                     onPointerDown={(event) => {
                       event.stopPropagation();
+                      event.currentTarget.setPointerCapture?.(event.pointerId);
                       setSelectedVisualStateCueId(cue.id);
                       setDraft({
                         cueId: cue.id,
@@ -226,6 +242,7 @@ export default function VisualStatesTrack({
                     title={details}
                     onPointerDown={(event) => {
                       setSelectedVisualStateCueId(cue.id);
+                      event.currentTarget.setPointerCapture?.(event.pointerId);
                       setDraft({
                         cueId: cue.id,
                         kind: "MOVE",
@@ -236,6 +253,10 @@ export default function VisualStatesTrack({
                       });
                     }}
                     onClick={() => {
+                      if (suppressClickRef.current) {
+                        suppressClickRef.current = false;
+                        return;
+                      }
                       setSelectedVisualStateCueId(cue.id);
                       setTime(cue.target);
                       requestWorkspaceSection("visual-states");
