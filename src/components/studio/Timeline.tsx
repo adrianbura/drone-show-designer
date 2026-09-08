@@ -80,6 +80,7 @@ import { useStudio } from "@/lib/studio/store";
 import AudioWaveformTrack from "./AudioWaveformTrack";
 import LightingTrack from "./LightingTrack";
 import MotionTrack from "./MotionTrack";
+import VisualStatesTrack from "./VisualStatesTrack";
 import TimelineScrollbar from "./TimelineScrollbar";
 import TimelineAnnotations from "./TimelineAnnotations";
 
@@ -1152,6 +1153,8 @@ export default function Timeline({
           {/* LIGHTING TRACK — effects of the selected scene, in show time. */}
           <LightingTrack viewStart={viewStart} viewEnd={viewEndTime} />
           <MotionTrack viewStart={viewStart} viewEnd={viewEndTime} />
+          {/* VISUAL STATES — canonical saved-state cues of the selected scene. */}
+          <VisualStatesTrack viewStart={viewStart} viewEnd={viewEndTime} />
 
           {selectedClipId && (
             <div className="flex justify-end">
