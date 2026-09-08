@@ -62,7 +62,10 @@ async function mount() {
 async function addCue() {
   const clipId = await mount();
   const objectId = api.selectedScene!.objects[0]!.id;
-  act(() => api.setSelectedSceneObjectIds([objectId], objectId));
+  act(() => api.duplicateSceneObject(clipId, objectId));
+  await waitFor(() => expect(api.selectedScene!.objects).toHaveLength(2));
+  const secondId = api.selectedScene!.objects[1]!.id;
+  act(() => api.setSelectedSceneObjectIds([objectId, secondId], secondId));
   let groupId: string | null = null;
   act(() => {
     groupId = api.createSceneVisualGroup("Ring group");
