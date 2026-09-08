@@ -12,8 +12,9 @@
  *   .. clip.start + clip.transition + cue.time
  */
 import type { FullShowIssue, FullShowValidationReport } from "@/lib/show/fullshow/types";
-import type { SceneVisualStateCue } from "@/lib/show/types";
+import type { SceneVisualStateCue } from "@/lib/show/scene/types";
 import type { TimelineClip } from "@/lib/show/types";
+
 
 export type VisualStateCueSafetyStatus = "SAFE" | "WARNING" | "BLOCKED" | "NEEDS_CHECK";
 
