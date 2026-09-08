@@ -31,16 +31,24 @@ import VisualGroupRow, { type VisualGroupView } from "@/components/studio/Visual
 import VisualLayerRow, { type VisualLayerView } from "@/components/studio/VisualLayerRow";
 import { inferMotionLabel } from "@/lib/studio/sceneMotionInspector";
 import { useStudio } from "@/lib/studio/store";
+import { requestWorkspaceSection } from "@/lib/studio/workspaceSections";
+
 import type { RGB } from "@/lib/show/types";
 
-/** Scrolls to an existing Selection Effects control and focuses it. Navigation only. */
+/**
+ * Asks the ONE workspace-section authority to open the section that owns this
+ * control and focus it, then falls back to a direct scroll when that section is
+ * already visible. Navigation only — nothing is mutated.
+ */
 function focusEffectControl(testId: string) {
   if (typeof document === "undefined") return;
+  requestWorkspaceSection(testId);
   const host = document.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
   if (!host) return;
   host.scrollIntoView({ block: "center" });
   (host.querySelector("button") as HTMLElement | null)?.focus();
 }
+
 
 const toHex = (rgb: RGB): string =>
   `#${rgb
@@ -88,7 +96,7 @@ function NumberField({
   );
 }
 
-export type SceneComposerView = "ALL" | "VISUAL" | "TRANSFORM";
+export type SceneComposerView = "ALL" | "VISUAL" | "TRANSFORM" | "STATES";
 
 export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneComposerView }) {
   const {
@@ -313,6 +321,71 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
       </section>
     );
   }
+
+  if (view === "STATES") {
+    return (
+      <section className="panel-card" data-testid="visual-states">
+        <h2 className="panel-title">Saved states</h2>
+        {groupViews.length === 0 ? (
+          <p className="font-mono text-[10px] text-muted-foreground">
+            Group visuals first — saved states restore one visual group at a time.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {groupViews.map(({ view: groupView }) => (
+              <div key={groupView.id} className="rounded border border-border p-2">
+                <p className="truncate font-mono text-[10px] text-foreground">{groupView.name}</p>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  <input
+                    value={visualStateName}
+                    onChange={(event) => setVisualStateName(event.target.value)}
+                    className="studio-input min-w-0 flex-1 font-mono"
+                    aria-label={`State name for ${groupView.name}`}
+                  />
+                  <button
+                    type="button"
+                    className="chip-btn"
+                    data-testid={`visual-state-capture-${groupView.id}`}
+                    onClick={() => captureSceneVisualGroupState(groupView.id, visualStateName)}
+                  >
+                    Save state
+                  </button>
+                </div>
+                <div className="mt-1 space-y-1">
+                  {(selectedScene.visualStates ?? [])
+                    .filter((state) => state.groupId === groupView.id)
+                    .map((state) => (
+                      <div key={state.id} className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          className="chip-btn min-w-0 flex-1 justify-start"
+                          data-testid={`visual-state-apply-${state.id}`}
+                          onClick={() => applySceneVisualGroupState(state.id)}
+                        >
+                          <span className="truncate">{state.name}</span>
+                          <span className="ml-auto text-muted-foreground">Restore</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-destructive"
+                          aria-label={`Delete state ${state.name}`}
+                          data-testid={`visual-state-remove-${state.id}`}
+                          onClick={() => removeSceneVisualGroupState(state.id)}
+                        >
+                          <Trash2 className="size-3" />
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  }
+
+
 
   return (
     <section className="panel-card" data-testid="scene-composer">

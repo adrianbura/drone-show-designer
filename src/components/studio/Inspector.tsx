@@ -27,6 +27,12 @@ import VerticalStackPanel from "./VerticalStackPanel";
 import GeometryProposalPanel from "./GeometryProposalPanel";
 import ConversionPanel from "./ConversionPanel";
 import NativeConversionPanel from "./NativeConversionPanel";
+import WorkspaceSection from "./WorkspaceSection";
+import {
+  onWorkspaceSectionRequest,
+  type WorkspaceSectionId,
+} from "@/lib/studio/workspaceSections";
+
 
 import { useEffect, useRef, useState } from "react";
 
@@ -52,8 +58,18 @@ const INSPECTOR_GROUPS: readonly { id: InspectorGroupId; label: string }[] = [
   { id: "ADVANCED", label: "Advanced" },
 ];
 
-const AUTHORING_TOOLS = ["VISUAL", "TRANSFORM", "COLOR", "MOTION"] as const;
-type AuthoringTool = (typeof AUTHORING_TOOLS)[number];
+const AUTHORING_SECTIONS: readonly {
+  id: WorkspaceSectionId;
+  label: string;
+  tool: string;
+}[] = [
+  { id: "VISUALS", label: "Visuals", tool: "visual" },
+  { id: "TRANSFORM", label: "Transform", tool: "transform" },
+  { id: "COLOUR", label: "Colour", tool: "color" },
+  { id: "MOTION", label: "Motion", tool: "motion" },
+  { id: "STATES", label: "Saved states", tool: "states" },
+];
+
 
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
 import type { EsspExportResult } from "@/lib/adapters/esspExport";
@@ -268,7 +284,9 @@ export default function Inspector({
   focusHostPriority?: number;
 } = {}) {
   const [group, setGroup] = useState<InspectorGroupId>("AUTHORING");
-  const [authoringTool, setAuthoringTool] = useState<AuthoringTool>("VISUAL");
+  /** ONE open everyday section at a time — short, predictable vertical scroll. */
+  const [openSection, setOpenSection] = useState<WorkspaceSectionId | null>("VISUALS");
+
   const rootRef = useRef<HTMLDivElement | null>(null);
   /**
    * FOCUS REQUESTS from other surfaces (timeline context menu, double-click,
@@ -326,6 +344,13 @@ export default function Inspector({
     setSampleRate,
     safety,
     selectedClipId,
+    selectedScene,
+    selectedSceneBudget,
+    selectedSceneObjectIds,
+    selectedScenePointIds,
+    lightingEffects,
+    time,
+
     patchClip,
     setLimits,
     beatGrid,
@@ -420,6 +445,58 @@ export default function Inspector({
     ) ?? null;
   const authority = authorityLabel(referenceOwnership);
 
+  /**
+   * CONTEXT + BADGES. Pure projections of canonical state — no second engine
+   * recomputes allocation, lighting or motion facts here.
+   */
+  const selectedObjects = (selectedScene?.objects ?? []).filter((o) =>
+    selectedSceneObjectIds.includes(o.id),
+  );
+  const primarySelectedObject = selectedObjects[selectedObjects.length - 1] ?? null;
+  const selectedObjectDrones = (selectedSceneBudget?.objects ?? [])
+    .filter((o) => selectedSceneObjectIds.includes(o.instanceId))
+    .reduce((sum, o) => sum + o.count, 0);
+  const contextDroneCount =
+    selectedScenePointIds.length > 0 ? selectedScenePointIds.length : selectedObjectDrones;
+  const sceneLightingCount = lightingEffects.length;
+  const animatedObjects = (selectedScene?.objects ?? []).filter(
+    (o) => o.source.kind === "DYNAMIC",
+  ).length;
+  const savedStateCount = (selectedScene?.visualStates ?? []).length;
+  const sectionBadges: Record<WorkspaceSectionId, string | null> = {
+    VISUALS: selectedScene
+      ? `${selectedScene.objects.length} obj · ${selectedSceneBudget?.active ?? 0} drones`
+      : null,
+    TRANSFORM: selectedSceneObjectIds.length > 0 ? `${selectedSceneObjectIds.length} sel` : null,
+    COLOUR: sceneLightingCount > 0 ? `${sceneLightingCount} effects` : null,
+    MOTION: animatedObjects > 0 ? `${animatedObjects} animated` : "No motion",
+    STATES: savedStateCount > 0 ? `${savedStateCount} saved` : null,
+  };
+
+  /** Everyday actions elsewhere ask for a section; open it, then focus its control. */
+  const [pendingControl, setPendingControl] = useState<string | null>(null);
+  useEffect(
+    () =>
+      onWorkspaceSectionRequest((request) => {
+        setGroup("AUTHORING");
+        setOpenSection(request.section);
+        setPendingControl(request.controlTestId ?? null);
+      }),
+    [],
+  );
+  useEffect(() => {
+    if (!pendingControl) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const el = root.querySelector<HTMLElement>(`[data-testid="${pendingControl}"]`);
+    setPendingControl(null);
+    if (!el || el.offsetParent === null) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.setAttribute("tabindex", "-1");
+    el.focus({ preventScroll: true });
+  }, [pendingControl, openSection]);
+
+
   return (
     <div className="flex h-full min-h-0 flex-col" ref={rootRef}>
       {/* INSPECTOR INFORMATION ARCHITECTURE — three operator-facing groups.
@@ -473,6 +550,28 @@ export default function Inspector({
                 : ` · ${selectionSummary.ownership}`} · {formatShowTime(selectionSummary.start)} →{" "}
               {formatShowTime(selectionSummary.end)}
             </p>
+            {/* EVERYDAY CONTEXT — scene, selected visual, drones, playhead. */}
+            <p
+              className="font-mono text-[9px] text-muted-foreground"
+              data-testid="inspector-context-line"
+            >
+              <span data-testid="inspector-context-scene">
+                {selectedScene ? selectedScene.name : "No scene"}
+              </span>
+              {" · "}
+              <span data-testid="inspector-context-visual">
+                {primarySelectedObject
+                  ? primarySelectedObject.name
+                  : selectedScenePointIds.length > 0
+                    ? "Drone selection"
+                    : "No visual selected"}
+              </span>
+              {" · "}
+              <span data-testid="inspector-context-drones">{contextDroneCount} drones</span>
+              {" · "}
+              <span data-testid="inspector-context-time">{formatShowTime(time)}</span>
+            </p>
+
             <div className="flex flex-wrap gap-1.5">
               {(() => {
                 const menu = resolveTimelineCommands(selectionContext);
@@ -509,40 +608,35 @@ export default function Inspector({
           hidden={group !== "AUTHORING"}
           className={`flex flex-col gap-5 ${group === "AUTHORING" ? "" : "hidden"}`}
         >
-          {/* ONE contextual everyday tool at a time. This prevents the operator
-          from scrolling through duplicate surfaces to edit one selection. */}
+          {/* Compact collapsible everyday sections. One open at a time keeps the
+          vertical scroll short and removes duplicate surfaces. */}
           <div
-            className="sticky top-0 z-10 grid grid-cols-2 gap-1 rounded border border-border bg-panel p-1 sm:grid-cols-4"
-            role="tablist"
+            className="flex flex-col gap-2"
             aria-label="Visual authoring tools"
             data-testid="authoring-tools"
+            id="composer-panel"
+            data-panel-id="composer-panel"
           >
-            {AUTHORING_TOOLS.map((tool) => (
-              <button
-                key={tool}
-                type="button"
-                role="tab"
-                aria-selected={authoringTool === tool}
-                onClick={() => setAuthoringTool(tool)}
-                data-testid={`authoring-tool-${tool.toLowerCase()}`}
-                className={`chip-btn min-w-0 justify-center ${authoringTool === tool ? "chip-btn-active" : ""}`}
+            {AUTHORING_SECTIONS.map((section) => (
+              <WorkspaceSection
+                key={section.id}
+                id={`workspace-${section.id.toLowerCase()}`}
+                label={section.label}
+                badge={sectionBadges[section.id]}
+                open={openSection === section.id}
+                onToggle={() => setOpenSection(openSection === section.id ? null : section.id)}
+                testId={`workspace-section-${section.id.toLowerCase()}`}
+                headerTestId={`authoring-tool-${section.tool}`}
               >
-                {tool === "VISUAL"
-                  ? "Visual"
-                  : tool === "TRANSFORM"
-                    ? "Transform"
-                    : tool === "COLOR"
-                      ? "Color"
-                      : "Motion"}
-              </button>
+                {section.id === "VISUALS" ? <SceneComposerPanel view="VISUAL" /> : null}
+                {section.id === "TRANSFORM" ? <SceneComposerPanel view="TRANSFORM" /> : null}
+                {section.id === "COLOUR" ? <EffectStackPanel view="COLOR" /> : null}
+                {section.id === "MOTION" ? <EffectStackPanel view="MOTION" /> : null}
+                {section.id === "STATES" ? <SceneComposerPanel view="STATES" /> : null}
+              </WorkspaceSection>
             ))}
           </div>
-          <div id="composer-panel" data-panel-id="composer-panel">
-            {authoringTool === "VISUAL" ? <SceneComposerPanel view="VISUAL" /> : null}
-            {authoringTool === "TRANSFORM" ? <SceneComposerPanel view="TRANSFORM" /> : null}
-            {authoringTool === "COLOR" ? <EffectStackPanel view="COLOR" /> : null}
-            {authoringTool === "MOTION" ? <EffectStackPanel view="MOTION" /> : null}
-          </div>
+
 
           {/* Reference show: importing an ESSP and converting it into an editable
           timeline is a first-class entry path. */}
