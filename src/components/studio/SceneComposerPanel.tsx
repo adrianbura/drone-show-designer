@@ -28,6 +28,7 @@ import { useMemo, useState } from "react";
 
 import AddVisualWizard from "@/components/studio/AddVisualWizard";
 import TransformInspector from "@/components/studio/TransformInspector";
+import VisualGroupRow, { type VisualGroupView } from "@/components/studio/VisualGroupRow";
 import VisualLayerRow, { type VisualLayerView } from "@/components/studio/VisualLayerRow";
 import { inferMotionLabel } from "@/lib/studio/sceneMotionInspector";
 import { useStudio } from "@/lib/studio/store";
