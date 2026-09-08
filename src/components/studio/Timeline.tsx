@@ -80,6 +80,7 @@ import { useStudio } from "@/lib/studio/store";
 import AudioWaveformTrack from "./AudioWaveformTrack";
 import LightingTrack from "./LightingTrack";
 import MotionTrack from "./MotionTrack";
+import VisualStatesTrack from "./VisualStatesTrack";
 import TimelineScrollbar from "./TimelineScrollbar";
 import TimelineAnnotations from "./TimelineAnnotations";
 
