@@ -265,6 +265,7 @@ export default function VisualStatesTrack({
                     data-testid={`visual-state-cue-${cue.id}`}
                     data-selected={selected ? "1" : "0"}
                     data-preview={dragging ? "1" : "0"}
+                    data-status={status}
                     aria-pressed={selected}
                     title={details}
                     onPointerDown={(event) => {
@@ -299,6 +300,15 @@ export default function VisualStatesTrack({
                     {dragging ? "Preview · " : null}
                     {cue.stateName} · {cue.groupName} · {fmt(target)}
                   </button>
+                  <span
+                    data-testid={`visual-state-cue-status-${cue.id}`}
+                    data-status={status}
+                    title={`Transition safety: ${statusLabel}`}
+                    className={`flex h-5 shrink-0 items-center border-y px-1 font-mono text-[8px] uppercase ${visualStateCueStatusClass(status)}`}
+                  >
+                    {statusLabel}
+                  </span>
+
                   <button
                     type="button"
                     data-testid={`visual-state-cue-delete-${cue.id}`}
