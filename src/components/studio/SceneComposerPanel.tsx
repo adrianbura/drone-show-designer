@@ -38,7 +38,6 @@ import {
   type VisualStateCueSafetyStatus,
 } from "@/lib/studio/visualStateCueSafety";
 
-
 import {
   setSelectedVisualStateCueId,
   useSelectedVisualStateCueId,
@@ -189,7 +188,6 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
       }),
     [fullShowReport, fullShowStale, project.timeline, selectedClipId, selectedScene],
   );
-
 
   /**
    * Derived layer rows. Pure projection of canonical state: no planner, no

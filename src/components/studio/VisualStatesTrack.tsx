@@ -111,7 +111,6 @@ export default function VisualStatesTrack({
     [clip, fullShowReport, fullShowStale, selectedScene],
   );
 
-
   const timeFromClientX = useCallback(
     (clientX: number) => {
       const el = laneRef.current;

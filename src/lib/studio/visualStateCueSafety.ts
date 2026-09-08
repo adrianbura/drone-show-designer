@@ -15,7 +15,6 @@ import type { FullShowIssue, FullShowValidationReport } from "@/lib/show/fullsho
 import type { SceneVisualStateCue } from "@/lib/show/scene/types";
 import type { TimelineClip } from "@/lib/show/types";
 
-
 export type VisualStateCueSafetyStatus = "SAFE" | "WARNING" | "BLOCKED" | "NEEDS_CHECK";
 
 export interface VisualStateCueSafety {
