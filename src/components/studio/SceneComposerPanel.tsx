@@ -49,7 +49,6 @@ function focusEffectControl(testId: string) {
   (host.querySelector("button") as HTMLElement | null)?.focus();
 }
 
-
 const toHex = (rgb: RGB): string =>
   `#${rgb
     .map((c) =>
@@ -384,8 +383,6 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
       </section>
     );
   }
-
-
 
   return (
     <section className="panel-card" data-testid="scene-composer">

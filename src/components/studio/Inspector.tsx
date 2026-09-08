@@ -28,11 +28,7 @@ import GeometryProposalPanel from "./GeometryProposalPanel";
 import ConversionPanel from "./ConversionPanel";
 import NativeConversionPanel from "./NativeConversionPanel";
 import WorkspaceSection from "./WorkspaceSection";
-import {
-  onWorkspaceSectionRequest,
-  type WorkspaceSectionId,
-} from "@/lib/studio/workspaceSections";
-
+import { onWorkspaceSectionRequest, type WorkspaceSectionId } from "@/lib/studio/workspaceSections";
 
 import { useEffect, useRef, useState } from "react";
 
@@ -69,7 +65,6 @@ const AUTHORING_SECTIONS: readonly {
   { id: "MOTION", label: "Motion", tool: "motion" },
   { id: "STATES", label: "Saved states", tool: "states" },
 ];
-
 
 import { ADAPTER_REGISTRY } from "@/lib/adapters";
 import type { EsspExportResult } from "@/lib/adapters/esspExport";
@@ -496,7 +491,6 @@ export default function Inspector({
     el.focus({ preventScroll: true });
   }, [pendingControl, openSection]);
 
-
   return (
     <div className="flex h-full min-h-0 flex-col" ref={rootRef}>
       {/* INSPECTOR INFORMATION ARCHITECTURE — three operator-facing groups.
@@ -636,7 +630,6 @@ export default function Inspector({
               </WorkspaceSection>
             ))}
           </div>
-
 
           {/* Reference show: importing an ESSP and converting it into an editable
           timeline is a first-class entry path. */}

@@ -86,7 +86,9 @@ describe("everyday workspace navigation", () => {
 
     act(() => void requestWorkspaceSection("motion-stack-presets"));
     await waitFor(() =>
-      expect(screen.getByTestId("authoring-tool-motion").getAttribute("aria-expanded")).toBe("true"),
+      expect(screen.getByTestId("authoring-tool-motion").getAttribute("aria-expanded")).toBe(
+        "true",
+      ),
     );
 
     act(() => void requestWorkspaceSection("transform-section"));

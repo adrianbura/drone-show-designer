@@ -54,7 +54,12 @@ export default function WorkspaceSection({
           </span>
         ) : null}
       </button>
-      <div id={`${id}-region`} role="region" hidden={!open} className={open ? "px-2 pb-2" : "hidden"}>
+      <div
+        id={`${id}-region`}
+        role="region"
+        hidden={!open}
+        className={open ? "px-2 pb-2" : "hidden"}
+      >
         {open ? children : null}
       </div>
     </section>
