@@ -483,6 +483,61 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
                 Transition starts at {Math.max(0, cue.time - cue.transitionDuration).toFixed(2)}s
                 (scene-local)
               </p>
+              {(() => {
+                const safety = cueSafety.get(cue.id);
+                if (!safety) return null;
+                return (
+                  <div
+                    className={`mt-2 rounded border p-1.5 ${visualStateCueStatusClass(safety.status)}`}
+                    data-testid="cue-safety-details"
+                    data-status={safety.status}
+                  >
+                    <p className="font-mono text-[10px]">
+                      Transition safety: {VISUAL_STATE_CUE_SAFETY_LABEL[safety.status]}
+                    </p>
+                    <p className="mt-0.5 font-mono text-[9px] text-muted-foreground">
+                      Window {safety.windowStart.toFixed(2)}s → {safety.windowEnd.toFixed(2)}s (show
+                      time)
+                    </p>
+                    {safety.maxVelocity !== null ||
+                    safety.maxAcceleration !== null ||
+                    safety.minSeparation !== null ? (
+                      <p
+                        className="mt-0.5 font-mono text-[9px] text-muted-foreground"
+                        data-testid="cue-safety-metrics"
+                      >
+                        {safety.maxVelocity !== null
+                          ? `max speed ${safety.maxVelocity.toFixed(2)} m/s · `
+                          : ""}
+                        {safety.maxAcceleration !== null
+                          ? `max acceleration ${safety.maxAcceleration.toFixed(2)} m/s² · `
+                          : ""}
+                        {safety.minSeparation !== null
+                          ? `min separation ${safety.minSeparation.toFixed(2)} m`
+                          : ""}
+                      </p>
+                    ) : null}
+                    {[...safety.errors, ...safety.warnings].slice(0, 4).map((issue) => (
+                      <p
+                        key={issue.id}
+                        className="mt-0.5 font-mono text-[9px] leading-relaxed text-muted-foreground"
+                        data-testid={`cue-safety-issue-${issue.id}`}
+                      >
+                        {issue.message}
+                      </p>
+                    ))}
+                    {safety.guidance ? (
+                      <p
+                        className="mt-0.5 font-mono text-[9px] leading-relaxed"
+                        data-testid="cue-safety-guidance"
+                      >
+                        {safety.guidance}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })()}
+
               <button
                 type="button"
                 className="chip-btn mt-1"
