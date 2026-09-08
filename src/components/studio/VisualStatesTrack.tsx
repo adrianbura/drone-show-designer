@@ -31,6 +31,7 @@ type Draft = {
   readonly kind: "MOVE" | "RESIZE";
   readonly target: number;
   readonly duration: number;
+  readonly startX: number;
   readonly moved: boolean;
 };
 
@@ -99,16 +100,13 @@ export default function VisualStatesTrack({
   useEffect(() => {
     if (!draft || !clip) return;
     const formationReady = clip.start + clip.transition;
-    const startX = { value: null as number | null };
-
     const snap = (raw: number, altKey: boolean) =>
       snapContext ? snapTimelineTime(raw, snapContext(altKey)).time : raw;
 
     const onMove = (event: PointerEvent) => {
-      if (startX.value === null) startX.value = event.clientX;
       const current = draftRef.current;
       if (!current) return;
-      const moved = current.moved || Math.abs(event.clientX - startX.value) > DRAG_THRESHOLD_PX;
+      const moved = current.moved || Math.abs(event.clientX - current.startX) > DRAG_THRESHOLD_PX;
       if (!moved) return;
       const raw = snap(timeFromClientX(event.clientX), event.altKey);
       if (current.kind === "MOVE") {
@@ -210,6 +208,7 @@ export default function VisualStatesTrack({
                         kind: "RESIZE",
                         target: cue.target,
                         duration: cue.duration,
+                        startX: event.clientX,
                         moved: false,
                       });
                     }}
@@ -222,13 +221,14 @@ export default function VisualStatesTrack({
                     data-preview={dragging ? "1" : "0"}
                     aria-pressed={selected}
                     title={details}
-                    onPointerDown={() => {
+                    onPointerDown={(event) => {
                       setSelectedVisualStateCueId(cue.id);
                       setDraft({
                         cueId: cue.id,
                         kind: "MOVE",
                         target: cue.target,
                         duration: cue.duration,
+                        startX: event.clientX,
                         moved: false,
                       });
                     }}
