@@ -312,6 +312,10 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
         </p>
       )}
 
+      {/* ---------------------------------------------- ONE live preview surface */}
+      {livePreview}
+
+
       {/* ------------------------------------------------------------ lighting */}
       {view !== "MOTION" ? (
         <div className="mt-2 space-y-1.5">
