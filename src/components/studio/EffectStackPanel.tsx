@@ -15,8 +15,9 @@
  *   - Browsing presets mutates nothing: applying is an explicit click.
  */
 import { ArrowDown, ArrowUp, Copy, Sparkles, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
+import LivePreviewBar from "@/components/studio/LivePreviewBar";
 import MotionInspector from "@/components/studio/MotionInspector";
 import { Button } from "@/components/ui/button";
 import { reorderEffect, stackOrder } from "@/lib/studio/effectStack";
@@ -58,10 +59,18 @@ const fromHex = (hex: string): RGB => [
 
 export type EffectStackView = "ALL" | "COLOR" | "MOTION";
 
+/** Local marking of which canonical preview the operator started. */
+interface ActivePreview {
+  readonly kind: "LIGHTING" | "MOTION";
+  readonly label: string;
+  readonly startTime: number;
+}
+
 export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackView }) {
   const [color, setColor] = useState<RGB>([255, 200, 120]);
   const [gradientColor, setGradientColor] = useState<RGB>([80, 120, 255]);
   const [gradientAxis, setGradientAxis] = useState<EffectAxis>("X");
+  const [activePreview, setActivePreview] = useState<ActivePreview | null>(null);
   const {
     selectedClipId,
     selectedScene,
@@ -71,6 +80,10 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
     sceneSelectionMode,
     selectedScenePointIds,
     time,
+    playing,
+    play,
+    pause,
+    setTime,
     lightingEffects,
     selectedLightingEffectId,
     selectedLightingEffect,
@@ -93,11 +106,37 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
   useEffect(() => {
     cancelLightingEffectPreview();
     cancelMotionEffectPreview();
+    setActivePreview(null);
     return () => {
       cancelLightingEffectPreview();
       cancelMotionEffectPreview();
+      setActivePreview(null);
     };
   }, [cancelLightingEffectPreview, cancelMotionEffectPreview, previewSelectionKey]);
+
+  /** ONE cancel path for every canonical preview. */
+  const cancelPreview = useCallback(() => {
+    cancelLightingEffectPreview();
+    cancelMotionEffectPreview();
+    setActivePreview(null);
+  }, [cancelLightingEffectPreview, cancelMotionEffectPreview]);
+
+  const previewActive = lightingEffectPreview.length > 0 || motionEffectPreviewIds.length > 0;
+
+  // A preview dropped by the canonical stale-preview protection also drops the
+  // local marking, so Apply can never linger on nothing.
+  useEffect(() => {
+    if (!previewActive) setActivePreview(null);
+  }, [previewActive]);
+
+  useEffect(() => {
+    if (!previewActive) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") cancelPreview();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [previewActive, cancelPreview]);
 
   if (!selectedClipId || !selectedScene) {
     return (
@@ -130,9 +169,10 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
 
   const applyLighting = (id: LightingSelectionPresetId) => {
     if (!canApply) return;
-    previewLightingEffectsFromPreset(
+    const preset = lightingSelectionPreset(id);
+    const created = previewLightingEffectsFromPreset(
       clipId,
-      lightingSelectionPreset(id).canonicalPresetId,
+      preset.canonicalPresetId,
       context.targets,
       lightingPresetParameters(id, {
         primary: color,
@@ -141,13 +181,78 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
       }),
       lightingPresetTiming(id, time),
     );
+    cancelMotionEffectPreview();
+    setActivePreview(
+      (created?.length ?? 0) > 0
+        ? { kind: "LIGHTING", label: preset.label, startTime: Math.max(0, time) }
+        : null,
+    );
   };
 
   const applyMotion = (id: MotionSelectionPresetId) => {
     if (!canApply) return;
     const preset = MOTION_SELECTION_PRESETS.find((p) => p.id === id);
-    if (preset) previewMotionPresetToSceneSelection(preset.canonicalPresetId);
+    if (!preset) return;
+    const created = previewMotionPresetToSceneSelection(preset.canonicalPresetId);
+    cancelLightingEffectPreview();
+    setActivePreview(
+      (created?.length ?? 0) > 0
+        ? { kind: "MOTION", label: preset.label, startTime: Math.max(0, time) }
+        : null,
+    );
   };
+
+  /*
+   * TRUTHFUL PREVIEW TARGET — derived from canonical selection state and the
+   * canonical visual groups of this scene. No new selection or grouping model.
+   */
+  const matchedGroup =
+    sceneSelectionMode === "OBJECT"
+      ? (selectedScene.visualGroups ?? []).find(
+          (group) =>
+            group.objectIds.length === selectedSceneObjectIds.length &&
+            group.objectIds.every((id) => selectedSceneObjectIds.includes(id)),
+        )
+      : undefined;
+  const previewTargetLabel =
+    context.kind === "DRONES"
+      ? "Selected drones"
+      : matchedGroup
+        ? "Complete visual group"
+        : "Visual object";
+  const previewTargetName = matchedGroup ? matchedGroup.name : context.name;
+  const previewStart = activePreview?.startTime ?? 0;
+  const previewEnd = Math.max(
+    previewStart + 1,
+    lightingEffectPreview.reduce(
+      (end, effect) => Math.max(end, effect.start + effect.duration),
+      previewStart + 1,
+    ),
+  );
+
+  const livePreview =
+    previewActive && activePreview && canApply ? (
+      <LivePreviewBar
+        kind={activePreview.kind}
+        name={activePreview.label}
+        targetName={previewTargetName}
+        targetLabel={previewTargetLabel}
+        droneCount={context.droneCount}
+        time={time}
+        playing={playing}
+        seekMin={previewStart}
+        seekMax={previewEnd}
+        onPlayPause={() => (playing ? pause() : play())}
+        onRestart={() => setTime(previewStart)}
+        onSeek={setTime}
+        onApply={() => {
+          if (activePreview.kind === "LIGHTING") applyLightingEffectPreview();
+          else applyMotionEffectPreview();
+          setActivePreview(null);
+        }}
+        onCancel={cancelPreview}
+      />
+    ) : null;
 
   const selected =
     selectedLightingEffect && scopeIds.includes(selectedLightingEffect.id)
@@ -205,6 +310,9 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
           accident.
         </p>
       )}
+
+      {/* ---------------------------------------------- ONE live preview surface */}
+      {livePreview}
 
       {/* ------------------------------------------------------------ lighting */}
       {view !== "MOTION" ? (
@@ -535,37 +643,6 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
               </div>
             </div>
           )}
-
-          {lightingEffectPreview.length > 0 ? (
-            <div
-              className="sticky bottom-0 z-10 mt-2 rounded border border-accent bg-panel p-2"
-              data-testid="lighting-effect-preview"
-            >
-              <p className="font-mono text-[10px] text-accent">
-                Preview · {lightingEffectPreview.length} effect
-                {lightingEffectPreview.length === 1 ? "" : "s"} · project unchanged
-              </p>
-              <div className="mt-1 grid grid-cols-2 gap-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  data-testid="lighting-preview-apply"
-                  onClick={applyLightingEffectPreview}
-                >
-                  Apply
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  data-testid="lighting-preview-cancel"
-                  onClick={cancelLightingEffectPreview}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : null}
         </div>
       ) : null}
 
@@ -592,36 +669,6 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
               </Button>
             ))}
           </div>
-          {motionEffectPreviewIds.length > 0 ? (
-            <div
-              className="sticky bottom-0 z-10 rounded border border-accent bg-panel p-2"
-              data-testid="motion-effect-preview"
-            >
-              <p className="font-mono text-[10px] text-accent">
-                Live preview · {motionEffectPreviewIds.length} motion
-                {motionEffectPreviewIds.length === 1 ? "" : "s"} · project unchanged
-              </p>
-              <div className="mt-1 grid grid-cols-2 gap-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  data-testid="motion-preview-apply"
-                  onClick={applyMotionEffectPreview}
-                >
-                  Apply
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  data-testid="motion-preview-cancel"
-                  onClick={cancelMotionEffectPreview}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : null}
           <MotionInspector />
         </div>
       ) : null}
