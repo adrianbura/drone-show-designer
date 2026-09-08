@@ -131,6 +131,24 @@ export interface SceneVisualGroup {
   readonly objectIds: readonly string[];
 }
 
+/** Snapshot of editable object properties captured by a visual state. */
+export interface SceneVisualStateObject {
+  readonly objectId: string;
+  readonly transform: InstanceTransform;
+  readonly visible?: boolean;
+  readonly requestedDroneCount?: number | null;
+  readonly lighting?: SceneObjectLighting;
+  readonly animation?: SceneObjectAnimation;
+}
+
+/** A reusable named pose/configuration for one visual group. */
+export interface SceneVisualState {
+  readonly id: string;
+  readonly groupId: string;
+  readonly name: string;
+  readonly objects: readonly SceneVisualStateObject[];
+}
+
 export interface FormationScene {
   /** Always equal to the timeline clip id that plays this scene. */
   readonly id: string;
@@ -141,6 +159,8 @@ export interface FormationScene {
   readonly pointGroups?: readonly ScenePointGroup[];
   /** Named object compositions; never changes geometry, allocation or flight identity. */
   readonly visualGroups?: readonly SceneVisualGroup[];
+  /** Named restorable configurations of visual groups. */
+  readonly visualStates?: readonly SceneVisualState[];
   /** Parent transform applied to the whole composition. */
   readonly transform: InstanceTransform;
   /** EDITOR-ONLY timeline expansion state. */

@@ -172,11 +172,19 @@ export function removeObject(scene: FormationScene, objectId: string): Formation
   const visualGroups = scene.visualGroups
     ?.map((group) => ({ ...group, objectIds: group.objectIds.filter((id) => id !== objectId) }))
     .filter((group) => group.objectIds.length > 1);
+  const validGroupIds = new Set((visualGroups ?? []).map((group) => group.id));
+  const visualStates = scene.visualStates
+    ?.filter((state) => validGroupIds.has(state.groupId))
+    .map((state) => ({
+      ...state,
+      objects: state.objects.filter((object) => object.objectId !== objectId),
+    }));
   return {
     ...scene,
     objects: scene.objects.filter((o) => o.id !== objectId),
     ...(pointGroups ? { pointGroups } : {}),
     ...(visualGroups ? { visualGroups } : {}),
+    ...(visualStates ? { visualStates } : {}),
   };
 }
 
@@ -205,7 +213,30 @@ export function addSceneVisualGroup(
       objectIds: candidate.objectIds.filter((id) => !ids.includes(id)),
     }))
     .filter((candidate) => candidate.objectIds.length > 1);
-  return { scene: { ...scene, visualGroups: [...previous, group] }, groupId };
+  const validGroupIds = new Set([...previous.map((candidate) => candidate.id), groupId]);
+  const membersByGroup = new Map(
+    [...previous, group].map((candidate) => [candidate.id, new Set(candidate.objectIds)]),
+  );
+  return {
+    scene: {
+      ...scene,
+      visualGroups: [...previous, group],
+      ...(scene.visualStates
+        ? {
+            visualStates: scene.visualStates
+              .filter((state) => validGroupIds.has(state.groupId))
+              .map((state) => ({
+                ...state,
+                objects: state.objects.filter((object) =>
+                  membersByGroup.get(state.groupId)?.has(object.objectId),
+                ),
+              }))
+              .filter((state) => state.objects.length > 1),
+          }
+        : {}),
+    },
+    groupId,
+  };
 }
 
 export function renameSceneVisualGroup(
@@ -229,6 +260,7 @@ export function removeSceneVisualGroup(scene: FormationScene, groupId: string): 
   return {
     ...scene,
     visualGroups: scene.visualGroups.filter((group) => group.id !== groupId),
+    visualStates: scene.visualStates?.filter((state) => state.groupId !== groupId) ?? [],
   };
 }
 

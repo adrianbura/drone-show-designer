@@ -333,6 +333,7 @@ import {
   addObject,
   addScenePointGroup,
   addSceneVisualGroup,
+  applySceneVisualState,
   alignObjects,
   applySceneClick,
   EMPTY_SCENE_SELECTION,
@@ -347,10 +348,13 @@ import {
   patchObject,
   patchObjectTransform,
   patchScenePointGroup,
+  captureSceneVisualState,
   renameSceneVisualGroup,
+  renameSceneVisualState,
   removeObject,
   removeScenePointGroup,
   removeSceneVisualGroup,
+  removeSceneVisualState,
   removeSceneObjects,
   resolveSceneAt,
   sceneBudget,
@@ -568,6 +572,10 @@ interface StudioContextValue {
   renameSceneVisualGroupById: (groupId: string, name: string) => void;
   removeSceneVisualGroupById: (groupId: string) => void;
   selectSceneVisualGroup: (groupId: string) => void;
+  captureSceneVisualGroupState: (groupId: string, name: string) => string | null;
+  applySceneVisualGroupState: (stateId: string) => void;
+  renameSceneVisualGroupState: (stateId: string, name: string) => void;
+  removeSceneVisualGroupState: (stateId: string) => void;
   /** Promotes and animates the current object/point selection in one undo revision. */
   applyMotionPresetToSceneSelection: (preset: DynamicPresetId) => readonly string[];
   /** Ephemeral motion audition rendered by the canonical planner; no project/history mutation. */
@@ -2790,6 +2798,48 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     });
     setSelectedScenePointIds([]);
   }, []);
+
+  const captureSceneVisualGroupState = useCallback(
+    (groupId: string, name: string): string | null => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return null;
+      let stateId: string | null = null;
+      editScene(clipId, (scene) => {
+        const result = captureSceneVisualState(scene, groupId, name);
+        stateId = result.stateId;
+        return result.scene;
+      });
+      return stateId;
+    },
+    [editScene],
+  );
+
+  const applySceneVisualGroupState = useCallback(
+    (stateId: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => applySceneVisualState(scene, stateId));
+    },
+    [editScene],
+  );
+
+  const renameSceneVisualGroupState = useCallback(
+    (stateId: string, name: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => renameSceneVisualState(scene, stateId, name));
+    },
+    [editScene],
+  );
+
+  const removeSceneVisualGroupState = useCallback(
+    (stateId: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => removeSceneVisualState(scene, stateId));
+    },
+    [editScene],
+  );
 
   const previewMotionPresetToSceneSelection = useCallback(
     (preset: DynamicPresetId): readonly string[] => {
@@ -6387,6 +6437,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       renameSceneVisualGroupById,
       removeSceneVisualGroupById,
       selectSceneVisualGroup,
+      captureSceneVisualGroupState,
+      applySceneVisualGroupState,
+      renameSceneVisualGroupState,
+      removeSceneVisualGroupState,
       applyMotionPresetToSceneSelection,
       previewMotionPresetToSceneSelection,
       motionEffectPreviewIds: motionEffectPreview?.dynamicFormationIds ?? [],
@@ -6790,6 +6844,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       renameSceneVisualGroupById,
       removeSceneVisualGroupById,
       selectSceneVisualGroup,
+      captureSceneVisualGroupState,
+      applySceneVisualGroupState,
+      renameSceneVisualGroupState,
+      removeSceneVisualGroupState,
       applyMotionPresetToSceneSelection,
       previewMotionPresetToSceneSelection,
       motionEffectPreview,

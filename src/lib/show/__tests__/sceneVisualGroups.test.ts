@@ -5,10 +5,13 @@ import { createDefaultProject } from "../defaultProject";
 import {
   addObject,
   addSceneVisualGroup,
+  applySceneVisualState,
+  captureSceneVisualState,
   emptyScene,
   removeObject,
   removeSceneVisualGroup,
   renameSceneVisualGroup,
+  renameSceneVisualState,
   resolveSceneAt,
   sanitizeScenes,
 } from "../scene";
@@ -80,5 +83,52 @@ describe("scene visual groups", () => {
     const envelope = serializeProject({ ...project, scenes: [grouped] });
     const reopened = parseProjectFile(JSON.stringify(envelope)).project;
     expect(reopened.scenes?.[0]?.visualGroups).toEqual(grouped.visualGroups);
+  });
+
+  it("captures and restores a complete visual state without duplicating assets", () => {
+    const { project, scene, ids } = fixture();
+    const grouped = addSceneVisualGroup(scene, "Logo", ids.slice(0, 2)).scene;
+    const captured = captureSceneVisualState(grouped, grouped.visualGroups![0]!.id, "Normal");
+    expect(captured.stateId).toBeTruthy();
+    const changed = {
+      ...captured.scene,
+      objects: captured.scene.objects.map((object, index) =>
+        index < 2
+          ? {
+              ...object,
+              visible: false,
+              transform: { ...object.transform, position: [99, 99, 99] as const },
+            }
+          : object,
+      ),
+    };
+    const restored = applySceneVisualState(changed, captured.stateId!);
+    expect(restored.objects.slice(0, 2)).toEqual(scene.objects.slice(0, 2));
+    expect(restored.objects.map((object) => object.source)).toEqual(
+      scene.objects.map((object) => object.source),
+    );
+    expect(resolveSceneAt(project, restored, 0)).toEqual(resolveSceneAt(project, scene, 0));
+  });
+
+  it("persists states and removes them with their visual group", () => {
+    const { project, scene, ids } = fixture();
+    const grouped = addSceneVisualGroup(scene, "Logo", ids.slice(0, 2)).scene;
+    const captured = captureSceneVisualState(grouped, grouped.visualGroups![0]!.id, "Draft");
+    const renamed = renameSceneVisualState(captured.scene, captured.stateId!, "Final");
+    const envelope = serializeProject({ ...project, scenes: [renamed] });
+    const reopened = parseProjectFile(JSON.stringify(envelope)).project.scenes![0]!;
+    expect(reopened.visualStates?.[0]?.name).toBe("Final");
+    expect(removeSceneVisualGroup(reopened, reopened.visualGroups![0]!.id).visualStates).toEqual(
+      [],
+    );
+  });
+
+  it("never restores an object after it leaves the captured group", () => {
+    const { scene, ids } = fixture();
+    const grouped = addSceneVisualGroup(scene, "Original", ids).scene;
+    const captured = captureSceneVisualState(grouped, grouped.visualGroups![0]!.id, "Before");
+    const regrouped = addSceneVisualGroup(captured.scene, "Other", ids.slice(1, 3)).scene;
+    expect(regrouped.visualStates).toEqual([]);
+    expect(applySceneVisualState(regrouped, captured.stateId!)).toBe(regrouped);
   });
 });

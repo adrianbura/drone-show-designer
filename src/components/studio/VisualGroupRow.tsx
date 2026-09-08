@@ -34,6 +34,7 @@ export default function VisualGroupRow({
   onFocusColor,
   onFocusMotion,
   children,
+  footer,
 }: {
   view: VisualGroupView;
   renaming: boolean;
@@ -48,6 +49,7 @@ export default function VisualGroupRow({
   onFocusColor: () => void;
   onFocusMotion: () => void;
   children: React.ReactNode;
+  footer?: React.ReactNode;
 }) {
   return (
     <li
@@ -176,6 +178,7 @@ export default function VisualGroupRow({
       >
         {children}
       </ul>
+      {footer}
     </li>
   );
 }

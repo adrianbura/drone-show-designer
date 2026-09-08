@@ -118,6 +118,9 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
     renameSceneVisualGroupById,
     removeSceneVisualGroupById,
     selectSceneVisualGroup,
+    captureSceneVisualGroupState,
+    applySceneVisualGroupState,
+    removeSceneVisualGroupState,
     lightingEffects,
     gizmoMode,
     setGizmoMode,
@@ -131,6 +134,7 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
   const [visualGroupName, setVisualGroupName] = useState("Visual group");
   const [renamingVisualGroupId, setRenamingVisualGroupId] = useState<string | null>(null);
   const [visualGroupRenameDraft, setVisualGroupRenameDraft] = useState("");
+  const [visualStateName, setVisualStateName] = useState("New state");
 
   /**
    * Derived layer rows. Pure projection of canonical state: no planner, no
@@ -705,6 +709,52 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
                   onFocusTransform={() => focusEffectControl("transform-section")}
                   onFocusColor={() => focusEffectControl("effect-stack-presets")}
                   onFocusMotion={() => focusEffectControl("motion-stack-presets")}
+                  footer={
+                    <div className="mt-1 space-y-1 border-t border-border pt-1">
+                      <div className="flex flex-wrap gap-1">
+                        <input
+                          value={visualStateName}
+                          onChange={(event) => setVisualStateName(event.target.value)}
+                          className="studio-input min-w-0 flex-1 font-mono"
+                          aria-label={`State name for ${groupView.name}`}
+                        />
+                        <button
+                          type="button"
+                          className="chip-btn"
+                          data-testid={`visual-state-capture-${groupView.id}`}
+                          onClick={() =>
+                            captureSceneVisualGroupState(groupView.id, visualStateName)
+                          }
+                        >
+                          Save state
+                        </button>
+                      </div>
+                      {(selectedScene.visualStates ?? [])
+                        .filter((state) => state.groupId === groupView.id)
+                        .map((state) => (
+                          <div key={state.id} className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              className="chip-btn min-w-0 flex-1 justify-start"
+                              data-testid={`visual-state-apply-${state.id}`}
+                              onClick={() => applySceneVisualGroupState(state.id)}
+                            >
+                              <span className="truncate">{state.name}</span>
+                              <span className="ml-auto text-muted-foreground">Restore</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="text-muted-foreground hover:text-destructive"
+                              aria-label={`Delete state ${state.name}`}
+                              data-testid={`visual-state-remove-${state.id}`}
+                              onClick={() => removeSceneVisualGroupState(state.id)}
+                            >
+                              <Trash2 className="size-3" />
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  }
                 >
                   {children.map((child) => (
                     <li key={child.id}>

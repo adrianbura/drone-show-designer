@@ -19,6 +19,8 @@ import {
   type SceneFormationInstance,
   type ScenePointGroup,
   type SceneVisualGroup,
+  type SceneVisualState,
+  type SceneVisualStateObject,
 } from "./types";
 import { isIdentityTransform } from "./resolve";
 
@@ -202,6 +204,57 @@ export function sanitizeScenes(raw: unknown): FormationScene[] {
           return result;
         }, [])
       : [];
+    const visualGroupIds = new Set(visualGroups.map((group) => group.id));
+    const visualGroupMembers = new Map(
+      visualGroups.map((group) => [group.id, new Set(group.objectIds)]),
+    );
+    const visualStates: SceneVisualState[] = Array.isArray(scene.visualStates)
+      ? scene.visualStates.reduce<SceneVisualState[]>((result, rawState) => {
+          const state = rawState as {
+            id?: unknown;
+            groupId?: unknown;
+            name?: unknown;
+            objects?: unknown;
+          };
+          if (
+            typeof state.id !== "string" ||
+            typeof state.groupId !== "string" ||
+            !visualGroupIds.has(state.groupId) ||
+            !Array.isArray(state.objects)
+          )
+            return result;
+          const groupId = state.groupId;
+          const snapshots = state.objects.flatMap<SceneVisualStateObject>((rawObject) => {
+            const snapshot = rawObject as Partial<SceneVisualStateObject>;
+            if (
+              typeof snapshot.objectId !== "string" ||
+              !objectIds.has(snapshot.objectId) ||
+              !visualGroupMembers.get(groupId)?.has(snapshot.objectId)
+            )
+              return [];
+            const parsed: SceneVisualStateObject = {
+              objectId: snapshot.objectId,
+              transform: sanitizeTransform(snapshot.transform),
+              visible: snapshot.visible !== false,
+              requestedDroneCount:
+                typeof snapshot.requestedDroneCount === "number" && snapshot.requestedDroneCount > 0
+                  ? Math.round(snapshot.requestedDroneCount)
+                  : null,
+              ...(snapshot.lighting ? { lighting: snapshot.lighting } : {}),
+              ...(snapshot.animation ? { animation: snapshot.animation } : {}),
+            };
+            return [parsed];
+          });
+          if (snapshots.length < 2) return result;
+          result.push({
+            id: state.id,
+            groupId,
+            name: typeof state.name === "string" && state.name ? state.name : state.id,
+            objects: snapshots,
+          });
+          return result;
+        }, [])
+      : [];
     out.push({
       id: scene.id,
       name: typeof scene.name === "string" && scene.name ? scene.name : scene.id,
@@ -209,6 +262,7 @@ export function sanitizeScenes(raw: unknown): FormationScene[] {
       objects,
       ...(pointGroups.length > 0 ? { pointGroups } : {}),
       ...(visualGroups.length > 0 ? { visualGroups } : {}),
+      ...(visualStates.length > 0 ? { visualStates } : {}),
       transform: sanitizeTransform(scene.transform),
       ...(scene.expanded ? { expanded: true } : {}),
     });

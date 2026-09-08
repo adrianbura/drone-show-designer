@@ -18,3 +18,4 @@ export * from "./selection";
 export * from "./group";
 export * from "./design";
 export * from "./thumbnail";
+export * from "./state";

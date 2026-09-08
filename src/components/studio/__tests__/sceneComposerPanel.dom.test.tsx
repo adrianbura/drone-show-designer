@@ -106,6 +106,63 @@ describe("scene composer drone budget DOM", () => {
     await waitFor(() => expect(api.selectedScene!.visualGroups![0]!.name).toBe("Complete logo"));
   });
 
+  it("captures and restores a visual state as one undoable project revision", async () => {
+    const { project, clipId } = projectWithReserve();
+    await mount(project, clipId);
+    const firstId = api.selectedScene!.objects[0]!.id;
+    act(() => api.duplicateSceneObject(clipId, firstId));
+    await waitFor(() => expect(api.selectedScene!.objects).toHaveLength(2));
+    const secondId = api.selectedScene!.objects[1]!.id;
+    act(() => api.setSelectedSceneObjectIds([firstId, secondId], secondId));
+    fireEvent.change(screen.getByLabelText("Visual group name"), {
+      target: { value: "Logo" },
+    });
+    fireEvent.click(screen.getByTestId("composer-create-visual-group"));
+    await waitFor(() => expect(api.selectedScene!.visualGroups).toHaveLength(1));
+    const groupId = api.selectedScene!.visualGroups![0]!.id;
+
+    fireEvent.change(screen.getByLabelText("State name for Logo"), {
+      target: { value: "Hero" },
+    });
+    const historyBeforeCapture = api.timelineHistoryDepth.past;
+    fireEvent.click(screen.getByTestId(`visual-state-capture-${groupId}`));
+    await waitFor(() => expect(api.selectedScene!.visualStates?.[0]?.name).toBe("Hero"));
+    expect(api.timelineHistoryDepth.past).toBe(historyBeforeCapture + 1);
+    const stateId = api.selectedScene!.visualStates![0]!.id;
+
+    act(() => {
+      api.transformSceneObjects(clipId, [firstId, secondId], { position: [12, 4, 0] });
+    });
+    await waitFor(() =>
+      expect(
+        api.selectedScene!.objects.slice(0, 2).map((object) => object.transform.position),
+      ).toEqual([
+        [12, 4, 0],
+        [12, 4, 0],
+      ]),
+    );
+    const historyBeforeRestore = api.timelineHistoryDepth.past;
+    fireEvent.click(screen.getByTestId(`visual-state-apply-${stateId}`));
+    await waitFor(() =>
+      expect(
+        api.selectedScene!.objects.slice(0, 2).map((object) => object.transform.position),
+      ).toEqual([
+        [0, 0, 0],
+        [0, 0, 0],
+      ]),
+    );
+    expect(api.timelineHistoryDepth.past).toBe(historyBeforeRestore + 1);
+    act(() => api.undoTimeline());
+    await waitFor(() =>
+      expect(
+        api.selectedScene!.objects.slice(0, 2).map((object) => object.transform.position),
+      ).toEqual([
+        [12, 4, 0],
+        [12, 4, 0],
+      ]),
+    );
+  });
+
   it("commits the latest move, rotate and scale gizmo deltas atomically", async () => {
     const { project, clipId } = projectWithReserve();
     await mount(project, clipId);
