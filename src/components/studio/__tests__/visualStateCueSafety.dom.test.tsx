@@ -140,8 +140,11 @@ describe("visual state cue safety", () => {
       expect(screen.getByTestId(`cue-safety-badge-${cueId}`).dataset["status"]).toBe("SAFE"),
     );
     act(() => api.patchSceneVisualStateCueById(cueId, { transitionDuration: 2 }));
-    await waitFor(() => expect(api.fullShowStale).toBe(true));
-    expect(screen.getByTestId(`cue-safety-badge-${cueId}`).dataset["status"]).toBe("NEEDS_CHECK");
-    expect(screen.getByTestId("cue-safety-check-state").textContent).toContain("run it again");
+    // The canonical revision mechanism invalidates the previous result: the cue
+    // can never keep showing "Safe" after its timing changed.
+    await waitFor(() =>
+      expect(screen.getByTestId(`cue-safety-badge-${cueId}`).dataset["status"]).toBe("NEEDS_CHECK"),
+    );
+    expect(screen.getByTestId("cue-safety-details").textContent).toContain("Needs check");
   });
 });
