@@ -133,3 +133,17 @@ export function deriveVisualStateCueSafety(
   }
   return map;
 }
+
+/** Semantic colour classes for a status. Text label is always rendered too. */
+export function visualStateCueStatusClass(status: VisualStateCueSafetyStatus): string {
+  switch (status) {
+    case "SAFE":
+      return "border-success/60 bg-success/15 text-success";
+    case "WARNING":
+      return "border-warning/60 bg-warning/15 text-warning";
+    case "BLOCKED":
+      return "border-destructive/60 bg-destructive/15 text-destructive";
+    default:
+      return "border-border bg-surface-sunken text-muted-foreground";
+  }
+}
