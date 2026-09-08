@@ -123,6 +123,56 @@ export default function SvgImportPanel() {
             aria-label="SVG formation name"
           />
 
+          {/* Primary commit actions stay pinned at the top of the draft so they are
+              reachable without scrolling past every geometry slider. */}
+          <div className="sticky top-0 z-10 space-y-2 rounded-md border border-border/60 bg-surface-sunken/95 p-2 backdrop-blur">
+            <button
+              data-testid="svg-add-to-scene"
+              onClick={() => {
+                commitSvgDraft({
+                  ...(name.trim() ? { name } : {}),
+                  target: "SCENE",
+                  droneCount: params.targetCount,
+                });
+                setName("");
+              }}
+              disabled={!draft.result || !selectedClipId || exceedsSceneReserve}
+              title={
+                selectedClipId
+                  ? "Places one visual inside the selected scene"
+                  : "Select a scene in the timeline first"
+              }
+              className="chip-btn mini-btn-accent w-full justify-center disabled:opacity-40"
+            >
+              <Check className="size-3" /> Add to current scene
+            </button>
+            <div className="flex gap-2">
+              <button
+                data-testid="svg-add-as-clip"
+                onClick={() => {
+                  commitSvgDraft({
+                    ...(name.trim() ? { name } : {}),
+                    target: "NEW_CLIP",
+                    droneCount: params.targetCount,
+                  });
+                  setName("");
+                }}
+                disabled={!draft.result}
+                className="chip-btn flex-1 justify-center disabled:opacity-40"
+              >
+                New scene
+              </button>
+              <button onClick={cancelSvgDraft} className="chip-btn justify-center">
+                <X className="size-3" /> Discard
+              </button>
+            </div>
+            {!selectedClipId ? (
+              <p className="font-mono text-[9px] leading-relaxed text-muted-foreground">
+                No scene selected — use “New scene” to put this visual on the timeline.
+              </p>
+            ) : null}
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             {(["outline", "fill"] as SvgSamplingMode[]).map((mode) => (
               <button
