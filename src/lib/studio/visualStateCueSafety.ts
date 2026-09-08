@@ -34,7 +34,7 @@ export interface VisualStateCueSafety {
 }
 
 export const VISUAL_STATE_CUE_SAFETY_LABEL: Record<VisualStateCueSafetyStatus, string> = {
-  SAFE: "Safe",
+  SAFE: "No issues found",
   WARNING: "Warning",
   BLOCKED: "Blocked",
   NEEDS_CHECK: "Needs check",

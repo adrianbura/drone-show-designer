@@ -2,8 +2,8 @@
 /**
  * Canonical safety feedback for Visual State cues (presentation only).
  * Proves: no report / stale report => "Needs check", a fresh canonical report
- * decides Safe vs Blocked, analysis creates no history entry, and a corrected
- * cue cannot show Safe until the show is re-analysed.
+ * decides No issues found vs Blocked, analysis creates no history entry, and a
+ * corrected cue cannot show a cleared result until the show is re-analysed.
  */
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
@@ -109,7 +109,7 @@ describe("visual state cue safety", () => {
     );
   });
 
-  it("reports Safe from the canonical report without creating a history entry", async () => {
+  it("reports no issues from the canonical report without creating a history entry", async () => {
     const cueId = await mountWithCue({ far: false, duration: 4 });
     const before = api.timelineHistoryDepth.past;
     await runCheck();
@@ -117,7 +117,7 @@ describe("visual state cue safety", () => {
     await waitFor(() =>
       expect(screen.getByTestId(`cue-safety-badge-${cueId}`).dataset["status"]).toBe("SAFE"),
     );
-    expect(screen.getByTestId("cue-safety-details").textContent).toContain("Safe");
+    expect(screen.getByTestId("cue-safety-details").textContent).toContain("No issues found");
   });
 
   it("reports Blocked for an unflyable cue and offers duration guidance", async () => {
@@ -145,7 +145,7 @@ describe("visual state cue safety", () => {
       expect(api.selectedScene!.visualStateCues![0]!.transitionDuration).toBe(previous / 2),
     );
     // The canonical revision mechanism invalidates the previous result: the cue
-    // can never keep showing "Safe" after its timing changed.
+    // can never keep showing a cleared result after its timing changed.
     await waitFor(() =>
       expect(screen.getByTestId(`cue-safety-badge-${cueId}`).dataset["status"]).toBe("NEEDS_CHECK"),
     );
