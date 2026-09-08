@@ -123,6 +123,7 @@ export default function LightingTrack({
     selectedClipId,
     selectedScene,
     lightingEffects,
+    lightingEffectPreview,
     selectedLightingEffectId,
     selectLightingEffect,
     commitLightingTiming,
