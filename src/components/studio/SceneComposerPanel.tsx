@@ -604,86 +604,98 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
             </p>
           </div>
           <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
-            Combine related objects, then select and transform the complete visual in one step.
+            A group keeps related visual parts together. Objects remain individually editable.
           </p>
-          <div className="flex gap-1">
-            <input
-              value={visualGroupName}
-              onChange={(event) => setVisualGroupName(event.target.value)}
-              className="studio-input min-w-0 flex-1 font-mono"
-              aria-label="Visual group name"
-            />
-            <button
-              type="button"
-              className="chip-btn mini-btn-accent disabled:opacity-40"
-              disabled={selectedSceneObjectIds.length < 2}
-              data-testid="composer-create-visual-group"
-              onClick={() => createSceneVisualGroup(visualGroupName)}
+
+          {selectedSceneObjectIds.length >= 2 ? (
+            <div
+              className="space-y-1 rounded border border-accent/40 bg-accent/5 p-1.5"
+              data-testid="composer-multi-selection-summary"
             >
-              Group selected
-            </button>
-          </div>
-          {(selectedScene.visualGroups?.length ?? 0) === 0 ? (
+              <p className="font-mono text-[10px] text-foreground">
+                {selectedSceneObjectIds.length} objects selected
+              </p>
+              <div className="flex flex-wrap gap-1">
+                <input
+                  value={visualGroupName}
+                  onChange={(event) => setVisualGroupName(event.target.value)}
+                  className="studio-input min-w-0 flex-1 font-mono"
+                  aria-label="Visual group name"
+                />
+                <button
+                  type="button"
+                  className="chip-btn mini-btn-accent"
+                  data-testid="composer-create-visual-group"
+                  onClick={() => {
+                    const created = createSceneVisualGroup(visualGroupName || "Visual group");
+                    if (created) setVisualGroupName("Visual group");
+                  }}
+                >
+                  Group selected
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {groupViews.length === 0 ? (
             <p
               className="font-mono text-[10px] text-muted-foreground"
               data-testid="visual-groups-empty"
             >
-              Select at least two objects, such as an SVG and its underline.
+              No visual groups yet. Select at least two objects, such as an SVG text and its
+              underline, then choose “Group selected”.
             </p>
           ) : (
             <ul className="space-y-1" data-testid="visual-groups">
-              {selectedScene.visualGroups?.map((group) => (
-                <li key={group.id} className="flex items-center gap-1">
-                  {renamingVisualGroupId === group.id ? (
-                    <input
-                      autoFocus
-                      value={visualGroupRenameDraft}
-                      aria-label={`Rename visual group ${group.name}`}
-                      data-testid={`visual-group-rename-input-${group.id}`}
-                      onChange={(event) => setVisualGroupRenameDraft(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          renameSceneVisualGroupById(group.id, visualGroupRenameDraft);
-                          setRenamingVisualGroupId(null);
+              {groupViews.map(({ view: groupView, children }) => (
+                <VisualGroupRow
+                  key={groupView.id}
+                  view={groupView}
+                  renaming={renamingVisualGroupId === groupView.id}
+                  renameDraft={visualGroupRenameDraft}
+                  onRenameDraftChange={setVisualGroupRenameDraft}
+                  onRenameCommit={() => {
+                    if (visualGroupRenameDraft.trim())
+                      renameSceneVisualGroupById(groupView.id, visualGroupRenameDraft.trim());
+                    setRenamingVisualGroupId(null);
+                  }}
+                  onRenameCancel={() => setRenamingVisualGroupId(null)}
+                  onRenameStart={() => {
+                    setVisualGroupRenameDraft(groupView.name);
+                    setRenamingVisualGroupId(groupView.id);
+                  }}
+                  onSelect={() => selectSceneVisualGroup(groupView.id)}
+                  onUngroup={() => removeSceneVisualGroupById(groupView.id)}
+                  onFocusTransform={() => focusEffectControl("transform-inspector")}
+                  onFocusColor={() => focusEffectControl("effect-stack-presets")}
+                  onFocusMotion={() => focusEffectControl("motion-stack-presets")}
+                >
+                  {children.map((child) => (
+                    <li key={child.id}>
+                      <button
+                        type="button"
+                        data-testid={`visual-group-child-${child.id}`}
+                        data-selected={selectedSceneObjectIds.includes(child.id) ? "1" : "0"}
+                        aria-pressed={selectedSceneObjectIds.includes(child.id)}
+                        onClick={(event) =>
+                          selectSceneObject(
+                            child.id,
+                            event.ctrlKey || event.metaKey || event.shiftKey
+                              ? "TOGGLE"
+                              : "REPLACE",
+                          )
                         }
-                        if (event.key === "Escape") setRenamingVisualGroupId(null);
-                      }}
-                      className="studio-input min-w-0 flex-1 font-mono"
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      className="chip-btn min-w-0 flex-1 justify-start"
-                      data-testid={`visual-group-select-${group.id}`}
-                      onClick={() => selectSceneVisualGroup(group.id)}
-                    >
-                      <span className="truncate">{group.name}</span>
-                      <span className="ml-auto text-muted-foreground">
-                        {group.objectIds.length} objects
-                      </span>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="chip-btn"
-                    title="Rename visual group"
-                    onClick={() => {
-                      setVisualGroupRenameDraft(group.name);
-                      setRenamingVisualGroupId(group.id);
-                    }}
-                  >
-                    <Pencil className="size-3" />
-                  </button>
-                  <button
-                    type="button"
-                    className="chip-btn"
-                    title="Ungroup without deleting objects"
-                    data-testid={`visual-group-remove-${group.id}`}
-                    onClick={() => removeSceneVisualGroupById(group.id)}
-                  >
-                    <Ungroup className="size-3" />
-                  </button>
-                </li>
+                        className={`w-full truncate rounded border px-1 py-0.5 text-left font-mono text-[10px] ${
+                          selectedSceneObjectIds.includes(child.id)
+                            ? "border-accent bg-accent/10 text-foreground"
+                            : "border-border text-muted-foreground"
+                        }`}
+                      >
+                        {child.name} · {child.typeLabel} · {child.droneCount} drones
+                      </button>
+                    </li>
+                  ))}
+                </VisualGroupRow>
               ))}
             </ul>
           )}
