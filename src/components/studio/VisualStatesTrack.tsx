@@ -6,32 +6,59 @@
  *   - Reads `scene.visualStateCues`, `scene.visualStates` and `scene.visualGroups`
  *     (canonical) and nothing else. No second state or timeline engine.
  *   - Seeking uses the canonical `setTime`; deletion uses the canonical
- *     `removeSceneVisualStateCueById` (one existing undo revision).
- *   - Dragging is deliberately NOT implemented: no canonical move-cue action
- *     exists, so the lane declares dragging unavailable instead of mutating
- *     cue timing locally.
+ *     `removeSceneVisualStateCueById`; editing uses the canonical
+ *     `patchSceneVisualStateCueById` (one existing undo revision each).
+ *   - Dragging keeps an ephemeral draft in component state and calls the
+ *     canonical patch exactly once, on pointer release. Escape cancels the
+ *     gesture without mutating the project.
+ *   - Snapping goes through the single timeline snap authority supplied by the
+ *     timeline (`snapContext`); no second snapping system exists here.
  */
 import { ChevronDown, ChevronRight, Layers, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useStudio } from "@/lib/studio/store";
+import { snapTimelineTime, type SnapContext } from "@/lib/studio/timelineEdit";
+import { setSelectedVisualStateCueId, useSelectedVisualStateCueId } from "@/lib/studio/visualStateCueSelection";
 import { requestWorkspaceSection } from "@/lib/studio/workspaceSections";
 
 function fmt(value: number): string {
   return `${value.toFixed(2)}s`;
 }
 
+type Draft = {
+  readonly cueId: string;
+  readonly kind: "MOVE" | "RESIZE";
+  readonly target: number;
+  readonly duration: number;
+  readonly moved: boolean;
+};
+
+const DRAG_THRESHOLD_PX = 3;
+
 export default function VisualStatesTrack({
   viewStart,
   viewEnd,
+  snapContext,
 }: {
   viewStart: number;
   viewEnd: number;
+  snapContext?: (altKey: boolean) => SnapContext;
 }) {
-  const { project, selectedClipId, selectedScene, setTime, removeSceneVisualStateCueById } =
-    useStudio();
+  const {
+    project,
+    selectedClipId,
+    selectedScene,
+    setTime,
+    removeSceneVisualStateCueById,
+    patchSceneVisualStateCueById,
+  } = useStudio();
   const [open, setOpen] = useState(true);
-  const [selectedCueId, setSelectedCueId] = useState<string | null>(null);
+  const selectedCueId = useSelectedVisualStateCueId();
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const laneRef = useRef<HTMLDivElement | null>(null);
+  const draftRef = useRef<Draft | null>(null);
+  draftRef.current = draft;
 
   const clip = project.timeline.find((candidate) => candidate.id === selectedClipId) ?? null;
 
@@ -56,6 +83,72 @@ export default function VisualStatesTrack({
       });
   }, [clip, selectedScene]);
 
+  const timeFromClientX = useCallback(
+    (clientX: number) => {
+      const el = laneRef.current;
+      const span = Math.max(0.001, viewEnd - viewStart);
+      if (!el) return viewStart;
+      const rect = el.getBoundingClientRect();
+      const width = rect.width || 1;
+      return viewStart + ((clientX - rect.left) / width) * span;
+    },
+    [viewEnd, viewStart],
+  );
+
+  /** Pointer gesture: ephemeral draft only, one canonical patch on release. */
+  useEffect(() => {
+    if (!draft || !clip) return;
+    const formationReady = clip.start + clip.transition;
+    const startX = { value: null as number | null };
+
+    const snap = (raw: number, altKey: boolean) =>
+      snapContext ? snapTimelineTime(raw, snapContext(altKey)).time : raw;
+
+    const onMove = (event: PointerEvent) => {
+      if (startX.value === null) startX.value = event.clientX;
+      const current = draftRef.current;
+      if (!current) return;
+      const moved = current.moved || Math.abs(event.clientX - startX.value) > DRAG_THRESHOLD_PX;
+      if (!moved) return;
+      const raw = snap(timeFromClientX(event.clientX), event.altKey);
+      if (current.kind === "MOVE") {
+        const target = Math.min(formationReady + clip.hold, Math.max(formationReady, raw));
+        setDraft({ ...current, target, moved: true });
+      } else {
+        const duration = Math.max(0, current.target - Math.min(current.target, raw));
+        setDraft({ ...current, duration, moved: true });
+      }
+    };
+
+    const onUp = () => {
+      const current = draftRef.current;
+      setDraft(null);
+      if (!current) return;
+      if (!current.moved) return; // click without drag keeps click-to-seek behaviour
+      if (current.kind === "MOVE") {
+        patchSceneVisualStateCueById(current.cueId, { time: current.target - formationReady });
+      } else {
+        patchSceneVisualStateCueById(current.cueId, { transitionDuration: current.duration });
+      }
+    };
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      draftRef.current = null;
+      setDraft(null);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("keydown", onKey);
+    };
+    // Gesture identity only: the draft values live in draftRef.
+  }, [draft?.cueId, draft?.kind, clip, patchSceneVisualStateCueById, snapContext, timeFromClientX]);
+
   // Empty scenes / scenes without cues add no visual noise at all.
   if (!clip || cues.length === 0) return null;
 
@@ -72,7 +165,7 @@ export default function VisualStatesTrack({
           aria-controls="visual-states-track-lane"
           onClick={() => setOpen((value) => !value)}
           className="flex min-w-0 items-center gap-1 rounded px-1 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-          title={`Visual states · ${cues.length} cue(s) · dragging unavailable`}
+          title={`Visual states · ${cues.length} cue(s) · drag to retime`}
         >
           {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
           <Layers className="size-3" />
@@ -81,14 +174,19 @@ export default function VisualStatesTrack({
       </div>
       <div
         id="visual-states-track-lane"
+        ref={laneRef}
         className="relative min-w-0 flex-1 overflow-hidden bg-surface-sunken"
       >
         {open
           ? cues.map((cue, index) => {
-              const left = pct(cue.transitionStart);
-              const width = pct(cue.target) - left;
+              const dragging = draft?.cueId === cue.id && draft.moved;
+              const target = dragging ? draft.target : cue.target;
+              const duration = dragging ? draft.duration : cue.duration;
+              const transitionStart = target - duration;
+              const left = pct(transitionStart);
+              const width = pct(target) - left;
               const selected = cue.id === selectedCueId;
-              const details = `${cue.stateName} · ${cue.groupName} · transition ${fmt(cue.transitionStart)} → target ${fmt(cue.target)} · duration ${fmt(cue.duration)} · dragging unavailable`;
+              const details = `${cue.stateName} · ${cue.groupName} · transition ${fmt(transitionStart)} → target ${fmt(target)} · duration ${fmt(duration)}${dragging ? " · preview (not applied yet)" : " · drag body to retime, drag left edge to resize"}`;
               return (
                 <div
                   key={cue.id}
@@ -99,24 +197,56 @@ export default function VisualStatesTrack({
                     top: 3 + (index % 2) * 2,
                   }}
                 >
+                  <span
+                    role="separator"
+                    aria-label={`Resize transition of ${cue.stateName}`}
+                    data-testid={`visual-state-cue-resize-${cue.id}`}
+                    title={`Drag to change transition duration · ${cue.stateName}`}
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      setSelectedVisualStateCueId(cue.id);
+                      setDraft({
+                        cueId: cue.id,
+                        kind: "RESIZE",
+                        target: cue.target,
+                        duration: cue.duration,
+                        moved: false,
+                      });
+                    }}
+                    className="h-5 w-1.5 shrink-0 cursor-ew-resize rounded-l border border-r-0 border-warning/70 bg-warning/40"
+                  />
                   <button
                     type="button"
                     data-testid={`visual-state-cue-${cue.id}`}
                     data-selected={selected ? "1" : "0"}
+                    data-preview={dragging ? "1" : "0"}
                     aria-pressed={selected}
                     title={details}
+                    onPointerDown={() => {
+                      setSelectedVisualStateCueId(cue.id);
+                      setDraft({
+                        cueId: cue.id,
+                        kind: "MOVE",
+                        target: cue.target,
+                        duration: cue.duration,
+                        moved: false,
+                      });
+                    }}
                     onClick={() => {
-                      setSelectedCueId(cue.id);
+                      setSelectedVisualStateCueId(cue.id);
                       setTime(cue.target);
                       requestWorkspaceSection("visual-states");
                     }}
-                    className={`min-w-0 flex-1 truncate rounded-l border px-1 text-left font-mono text-[9px] ${
-                      selected
-                        ? "border-warning bg-warning/30 text-foreground ring-1 ring-warning"
-                        : "border-warning/50 bg-warning/15 text-muted-foreground"
+                    className={`min-w-0 flex-1 cursor-grab truncate border px-1 text-left font-mono text-[9px] ${
+                      dragging
+                        ? "border-dashed border-warning bg-warning/20 text-foreground"
+                        : selected
+                          ? "border-warning bg-warning/30 text-foreground ring-1 ring-warning"
+                          : "border-warning/50 bg-warning/15 text-muted-foreground"
                     }`}
                   >
-                    {cue.stateName} · {cue.groupName} · {fmt(cue.target)}
+                    {dragging ? "Preview · " : null}
+                    {cue.stateName} · {cue.groupName} · {fmt(target)}
                   </button>
                   <button
                     type="button"
@@ -125,7 +255,7 @@ export default function VisualStatesTrack({
                     title={`Delete cue · ${cue.stateName}`}
                     onClick={() => {
                       removeSceneVisualStateCueById(cue.id);
-                      setSelectedCueId((current) => (current === cue.id ? null : current));
+                      setSelectedVisualStateCueId(selectedCueId === cue.id ? null : selectedCueId);
                     }}
                     className="flex h-5 shrink-0 items-center rounded-r border border-l-0 border-warning/50 px-1 text-muted-foreground hover:text-destructive"
                   >
