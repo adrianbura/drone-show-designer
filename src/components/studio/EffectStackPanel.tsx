@@ -59,6 +59,13 @@ const fromHex = (hex: string): RGB => [
 
 export type EffectStackView = "ALL" | "COLOR" | "MOTION";
 
+/** Local marking of which canonical preview the operator started. */
+interface ActivePreview {
+  readonly kind: "LIGHTING" | "MOTION";
+  readonly label: string;
+  readonly startTime: number;
+}
+
 export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackView }) {
   const [color, setColor] = useState<RGB>([255, 200, 120]);
   const [gradientColor, setGradientColor] = useState<RGB>([80, 120, 255]);
