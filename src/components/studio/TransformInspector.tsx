@@ -159,6 +159,11 @@ export default function TransformInspector({
         })}
       </div>
 
+      <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">
+        Choose a tool, then drag its coloured axes in the viewport. Exact values can be entered
+        below.
+      </p>
+
       {!group && position && rotationDeg && typeof scale === "number" ? (
         <div className="mt-2 space-y-1.5" data-testid="transform-single">
           <div className="grid grid-cols-3 gap-1">

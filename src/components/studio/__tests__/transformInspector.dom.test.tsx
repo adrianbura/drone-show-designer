@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import SceneComposerPanel from "@/components/studio/SceneComposerPanel";
 import { projectFileToJson, serializeProject } from "@/lib/project/serialize";
 import { createDefaultProject } from "@/lib/show/defaultProject";
-import { addObject, emptyScene, upsertScene } from "@/lib/show/scene";
+import { addObject, emptyScene, resolveSceneAt, upsertScene } from "@/lib/show/scene";
 import type { Formation, ShowProject } from "@/lib/show/types";
 import { StudioProvider, useStudio } from "@/lib/studio/store";
 
@@ -118,6 +118,8 @@ describe("transform inspector", () => {
     await waitFor(() =>
       expect(api.selectedScene!.objects[0]!.transform.position[1]).toBeCloseTo(35),
     );
+    const movedPoints = resolveSceneAt(api.project, api.selectedScene!, 0).points.slice(0, 30);
+    expect(movedPoints.every((point) => point[1] === 55)).toBe(true);
     fireEvent.change(screen.getByTestId("transform-rotation-Z"), { target: { value: "45" } });
     fireEvent.blur(screen.getByTestId("transform-rotation-Z"));
     await waitFor(() =>
@@ -126,6 +128,11 @@ describe("transform inspector", () => {
     fireEvent.change(screen.getByTestId("transform-scale"), { target: { value: "1.5" } });
     fireEvent.blur(screen.getByTestId("transform-scale"));
     await waitFor(() => expect(api.selectedScene!.objects[0]!.transform.scale).toBeCloseTo(1.5));
+    const transformedPoints = resolveSceneAt(api.project, api.selectedScene!, 0).points.slice(
+      0,
+      30,
+    );
+    expect(transformedPoints).not.toEqual(movedPoints);
     expect(screen.getByTestId("transform-position-Y").getAttribute("value") ?? "").not.toBe("0");
 
     const mirrorBefore = api.selectedScene!.objects[0]!.transform.mirrorX;
@@ -139,6 +146,19 @@ describe("transform inspector", () => {
 
     act(() => api.undoTimeline());
     await waitFor(() => expect(api.selectedScene!.objects[0]!.transform.scale).toBeCloseTo(1.5));
+  });
+
+  it("leaves imported reference playback when the operator enters transform editing", async () => {
+    const ids = await mount();
+    act(() => api.setReferencePlayback(true));
+    await waitFor(() => expect(api.referencePlayback).toBe(true));
+
+    select(ids[0]!);
+    await waitFor(() => expect(api.referencePlayback).toBe(false));
+
+    act(() => api.setReferencePlayback(true));
+    fireEvent.click(screen.getByTestId("transform-mode-rotate"));
+    await waitFor(() => expect(api.referencePlayback).toBe(false));
   });
 
   it("shows the newly selected object's canonical values when selection changes", async () => {
