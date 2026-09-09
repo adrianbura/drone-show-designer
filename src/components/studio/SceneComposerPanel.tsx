@@ -145,6 +145,7 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
     fullShowBusy,
     fullShowProgress,
     analyzeFullShow,
+    cancelFullShowAnalysis,
 
     removeSceneVisualStateCueById,
     patchSceneVisualStateCueById,
@@ -182,11 +183,13 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
     () =>
       deriveVisualStateCueSafety({
         report: fullShowReport,
-        stale: fullShowStale,
+        // A running analysis makes the previous result unusable: the cue rows and
+        // details fall back to "Needs check" until the new report is installed.
+        stale: fullShowStale || fullShowBusy,
         clip: project.timeline.find((candidate) => candidate.id === selectedClipId) ?? null,
         cues: selectedScene?.visualStateCues ?? [],
       }),
-    [fullShowReport, fullShowStale, project.timeline, selectedClipId, selectedScene],
+    [fullShowReport, fullShowStale, fullShowBusy, project.timeline, selectedClipId, selectedScene],
   );
 
   /**
@@ -372,21 +375,73 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
       <section className="panel-card" data-testid="visual-states">
         <h2 className="panel-title">Saved states</h2>
         <div className="mb-2" data-testid="cue-safety-check">
-          <button
-            type="button"
-            className="chip-btn w-full justify-center"
-            data-testid="cue-safety-check-run"
-            disabled={fullShowBusy}
-            onClick={() => analyzeFullShow()}
-          >
-            {fullShowBusy ? "Checking transition safety…" : "Check transition safety"}
-          </button>
+          <div className="flex flex-wrap items-center gap-1">
+            <button
+              type="button"
+              className="chip-btn min-w-0 flex-1 justify-center"
+              data-testid="cue-safety-check-run"
+              // One run at a time: while busy the launcher cannot start a second run.
+              disabled={fullShowBusy}
+              aria-busy={fullShowBusy}
+              onClick={() => {
+                if (fullShowBusy) return;
+                analyzeFullShow();
+              }}
+            >
+              {fullShowBusy ? "Checking transition safety…" : "Check transition safety"}
+            </button>
+            {fullShowBusy ? (
+              <button
+                type="button"
+                className="chip-btn justify-center"
+                data-testid="cue-safety-check-cancel"
+                onClick={() => cancelFullShowAnalysis()}
+              >
+                Cancel
+              </button>
+            ) : null}
+          </div>
+          {fullShowBusy ? (
+            /* Canonical progress only: step / totalSteps come from the analyser. */
+            <div
+              className="mt-1"
+              data-testid="cue-safety-progress"
+              data-step={fullShowProgress?.step ?? 0}
+              data-total-steps={fullShowProgress?.totalSteps ?? 0}
+              role="progressbar"
+              aria-label="Transition safety check progress"
+              aria-valuemin={0}
+              aria-valuemax={fullShowProgress?.totalSteps ?? 0}
+              aria-valuenow={fullShowProgress?.step ?? 0}
+            >
+              <div className="h-1 w-full overflow-hidden rounded bg-surface-sunken">
+                <div
+                  className="h-full bg-primary transition-[width]"
+                  data-testid="cue-safety-progress-fill"
+                  style={{
+                    width:
+                      fullShowProgress && fullShowProgress.totalSteps > 0
+                        ? `${Math.min(100, Math.max(0, (fullShowProgress.step / fullShowProgress.totalSteps) * 100))}%`
+                        : "0%",
+                  }}
+                />
+              </div>
+              {fullShowProgress ? (
+                <p
+                  className="mt-1 font-mono text-[9px] text-muted-foreground"
+                  data-testid="cue-safety-progress-label"
+                >
+                  {`Step ${fullShowProgress.step}/${fullShowProgress.totalSteps} · ${fullShowProgress.label}`}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           <p
             className="mt-1 font-mono text-[9px] leading-relaxed text-muted-foreground"
             data-testid="cue-safety-check-state"
           >
             {fullShowBusy
-              ? (fullShowProgress?.label ?? "Analysing the composed show…")
+              ? `${fullShowProgress?.label ?? "Analysing the composed show…"} Previous results are unavailable until the check finishes.`
               : !fullShowReport
                 ? "No safety result yet. The check validates the composed show and changes nothing."
                 : fullShowStale

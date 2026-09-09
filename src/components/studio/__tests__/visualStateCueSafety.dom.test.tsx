@@ -151,4 +151,46 @@ describe("visual state cue safety", () => {
     );
     expect(screen.getByTestId("cue-safety-details").textContent).toContain("Needs check");
   });
+
+  it("shows canonical progress, hides previous results, and Cancel restores the idle UI", async () => {
+    const cueId = await mountWithCue({ far: false, duration: 4 });
+    await runCheck();
+    await waitFor(() =>
+      expect(screen.getByTestId(`cue-safety-badge-${cueId}`).dataset["status"]).toBe("SAFE"),
+    );
+    const historyBefore = api.timelineHistoryDepth.past;
+    const projectBefore = api.project;
+
+    // Launch and inspect the busy UI in the same synchronous tick: the analysis
+    // keeps running in pending microtasks, so no timing assumption is needed.
+    act(() => {
+      void api.analyzeFullShow();
+    });
+    expect(api.fullShowBusy).toBe(true);
+
+    // Canonical progress only; the run button cannot launch a second analysis.
+    const progress = screen.getByTestId("cue-safety-progress");
+    expect(progress.getAttribute("role")).toBe("progressbar");
+    expect(Number(progress.dataset["totalSteps"])).toBeGreaterThanOrEqual(0);
+
+    expect((screen.getByTestId("cue-safety-check-run") as HTMLButtonElement).disabled).toBe(true);
+    // Previous cleared result is not shown while a new check is running.
+    expect(screen.getByTestId(`cue-safety-badge-${cueId}`).dataset["status"]).toBe("NEEDS_CHECK");
+
+
+    await act(async () => {
+      screen.getByTestId("cue-safety-check-cancel").click();
+    });
+    await waitFor(() => expect(api.fullShowBusy).toBe(false));
+    expect(screen.queryByTestId("cue-safety-progress")).toBeNull();
+    expect(screen.queryByTestId("cue-safety-check-cancel")).toBeNull();
+    expect((screen.getByTestId("cue-safety-check-run") as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByTestId("cue-safety-check-state").textContent).not.toContain(
+      "Previous results are unavailable",
+    );
+
+    // Cancelling changes neither the project nor its history.
+    expect(api.timelineHistoryDepth.past).toBe(historyBefore);
+    expect(api.project).toEqual(projectBefore);
+  });
 });
