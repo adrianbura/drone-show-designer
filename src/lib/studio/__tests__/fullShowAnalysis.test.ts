@@ -2,10 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { analyzeFullShow } from "../../show/fullshow";
 import { createDemoProject } from "../../show/defaultProject";
-import {
-  FullShowAnalysisTaskError,
-  startFullShowAnalysis,
-} from "../fullShowAnalysis";
+import { FullShowAnalysisTaskError, startFullShowAnalysis } from "../fullShowAnalysis";
 
 describe("full-show analysis task", () => {
   it("returns the canonical report and forwards canonical progress", async () => {
@@ -13,9 +10,8 @@ describe("full-show analysis task", () => {
     const expected = analyzeFullShow(project, { sampleRate: 10 }).report;
     const progress: string[] = [];
 
-    const task = startFullShowAnalysis(
-      { project, options: { sampleRate: 10 } },
-      (value) => progress.push(value.stage),
+    const task = startFullShowAnalysis({ project, options: { sampleRate: 10 } }, (value) =>
+      progress.push(value.stage),
     );
     const report = await task.promise;
 
@@ -41,8 +37,8 @@ describe("full-show analysis task", () => {
     );
     task.cancel();
 
-    await expect(task.promise).rejects.toMatchObject<Partial<FullShowAnalysisTaskError>>({
+    await expect(task.promise).rejects.toMatchObject({
       code: "ANALYSIS_CANCELLED",
-    });
+    } satisfies Partial<FullShowAnalysisTaskError>);
   });
 });

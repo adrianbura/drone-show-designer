@@ -41,6 +41,8 @@ export interface TelemetryFrame {
   mode: string;
 }
 
+export * from "./simulationHandoff";
+
 /**
  * Simulation/fleet transport contract. The in-browser virtual fleet implements
  * it today; the PX4/SITL + MAVSDK backends implement the same interface over
@@ -82,7 +84,8 @@ export const ADAPTER_REGISTRY: AdapterDescriptor[] = [
     status: "planned",
     upstream: "Skybrush Studio / Live",
     license: "format interop only — no GPL sources vendored",
-    notes: "NOT IMPLEMENTED: needs the real, verified Skybrush format. Generic Show JSON is used meanwhile.",
+    notes:
+      "NOT IMPLEMENTED: needs the real, verified Skybrush format. Generic Show JSON is used meanwhile.",
   },
   {
     id: "generic-csv",
