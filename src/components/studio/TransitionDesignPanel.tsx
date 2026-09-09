@@ -5,6 +5,7 @@ import {
   departureGroups,
   describeBulkTransitionResult,
   describeTransitionDesign,
+  staggerClampInfo,
   staggerPatternLabel,
   STAGGER_DISTRIBUTIONS,
   STAGGER_PATTERNS,
@@ -22,6 +23,8 @@ const MODE_HINT: Record<TransitionModeId, string> = {
   STAGGERED: "Authored departure wave derived from the transition source geometry.",
   MANUAL: "Advanced: edit the per-drone start and lane offsets of this transition.",
 };
+
+const WAVE_CHOICES: readonly number[] = [2, 3, 4, 5, 6, 8, 10, 12];
 
 /**
  * DESIGNER-FACING TRANSITION MODE UI.
@@ -42,6 +45,7 @@ export default function TransitionDesignPanel() {
     applyTransitionDesignToAllClips,
     bulkTransitionResult,
     patchTransitionDroneOffset,
+    patchClip,
   } = useStudio();
   const [manualOpen, setManualOpen] = useState(false);
 
@@ -53,6 +57,14 @@ export default function TransitionDesignPanel() {
   const groups = useMemo(
     () => (override ? departureGroups(override.startOffsets) : null),
     [override],
+  );
+
+  const clampInfo = useMemo(
+    () =>
+      design && clip
+        ? staggerClampInfo(design, clip.transition)
+        : { requested: 0, effective: 0, clamped: false, requiredTransitionDuration: 0 },
+    [design, clip],
   );
 
   if (!clip || !design) {
@@ -167,10 +179,65 @@ export default function TransitionDesignPanel() {
                   className="w-full accent-primary"
                 />
                 <span className="block text-[10px] text-muted-foreground">
-                  Clamped by the scheduler to half the transition (
+                  Flown spread: {clampInfo.effective.toFixed(1)} s (scheduler bound{" "}
                   {(clip.transition * 0.5).toFixed(1)} s).
                 </span>
               </label>
+
+              {clampInfo.clamped && (
+                <div
+                  data-testid="stagger-clamp-warning"
+                  className="space-y-1 rounded border border-warning/60 bg-warning/10 p-2"
+                >
+                  <p className="text-[10px] leading-relaxed text-warning">
+                    This transition is too short for {clampInfo.requested.toFixed(1)} s of stagger —
+                    only {clampInfo.effective.toFixed(1)} s will be flown. It needs at least{" "}
+                    {clampInfo.requiredTransitionDuration.toFixed(1)} s.
+                  </p>
+                  <button
+                    data-testid="stagger-extend-transition"
+                    onClick={() =>
+                      patchClip(clip.id, {
+                        transition: clampInfo.requiredTransitionDuration,
+                      })
+                    }
+                    className="chip-btn w-full justify-center"
+                  >
+                    <Timer className="size-3" /> Extend transition to{" "}
+                    {clampInfo.requiredTransitionDuration.toFixed(1)} s
+                  </button>
+                </div>
+              )}
+
+              <label className="space-y-1.5">
+                <span className="flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                  Departure waves
+                  <span className="font-mono text-foreground">
+                    {design.waveCount >= 2 ? `${design.waveCount} waves` : "continuous"}
+                  </span>
+                </span>
+                <select
+                  value={design.waveCount}
+                  aria-label="Departure waves"
+                  data-testid="stagger-waves"
+                  onChange={(e) =>
+                    setTransitionDesign(clip.id, { waveCount: Number(e.target.value) })
+                  }
+                  className="studio-input"
+                >
+                  <option value={0}>Continuous ramp</option>
+                  {WAVE_CHOICES.map((n) => (
+                    <option key={n} value={n}>
+                      {n} waves
+                    </option>
+                  ))}
+                </select>
+                <span className="block text-[10px] text-muted-foreground">
+                  Waves group drones into equal bands that leave together — easier to brief and to
+                  watch than a continuous ramp.
+                </span>
+              </label>
+
               <label className="space-y-1.5">
                 <span className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                   Distribution
@@ -178,12 +245,13 @@ export default function TransitionDesignPanel() {
                 <select
                   value={design.distribution}
                   aria-label="Stagger distribution"
+                  disabled={design.waveCount >= 2}
                   onChange={(e) =>
                     setTransitionDesign(clip.id, {
                       distribution: e.target.value as StaggerDistributionId,
                     })
                   }
-                  className="studio-input"
+                  className="studio-input disabled:opacity-50"
                 >
                   {STAGGER_DISTRIBUTIONS.map((d) => (
                     <option key={d} value={d}>
@@ -191,6 +259,11 @@ export default function TransitionDesignPanel() {
                     </option>
                   ))}
                 </select>
+                {design.waveCount >= 2 && (
+                  <span className="block text-[10px] text-muted-foreground">
+                    Distribution shaping does not apply to discrete waves.
+                  </span>
+                )}
               </label>
             </div>
           )}

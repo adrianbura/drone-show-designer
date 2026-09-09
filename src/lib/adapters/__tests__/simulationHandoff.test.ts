@@ -44,7 +44,9 @@ describe("simulator handoff bundle", () => {
     expect(manifest.analysisRevision).toBe(input.fullShow.analysisRevision);
     expect(manifest.files).toHaveLength(3);
     expect(manifest.files.every((file) => file.sha256.length === 64 && file.bytes > 0)).toBe(true);
-  });
+    // Builds the whole handoff twice (two full compositions + hashing): slow by
+    // nature, so it gets an explicit budget instead of the 5 s default.
+  }, 30000);
 
   it("refuses missing, stale and blocked validation evidence", async () => {
     const input = await fixture();
