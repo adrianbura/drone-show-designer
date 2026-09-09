@@ -177,7 +177,6 @@ describe("visual state cue safety", () => {
     // Previous cleared result is not shown while a new check is running.
     expect(screen.getByTestId(`cue-safety-badge-${cueId}`).dataset["status"]).toBe("NEEDS_CHECK");
 
-
     await act(async () => {
       screen.getByTestId("cue-safety-check-cancel").click();
     });
