@@ -12,6 +12,8 @@ import {
 import FullShowPanel from "./FullShowPanel";
 import TransitionDesignPanel from "./TransitionDesignPanel";
 import LaunchPanel from "./LaunchPanel";
+import SitePanel from "./SitePanel";
+
 import ParticipationPanel from "./ParticipationPanel";
 import SceneObjectsPanel from "./SceneObjectsPanel";
 import SceneComposerPanel from "./SceneComposerPanel";
@@ -1057,6 +1059,10 @@ export default function Inspector({
               onChange={(v) => setLimits({ maxAltitude: v })}
             />
           </section>
+
+          <SitePanel />
+
+
 
           <section className="panel-card">
             <h2 className="panel-title">

@@ -20,6 +20,8 @@ import ReferenceGhostSwarm from "./ReferenceGhostSwarm";
 import GeometryProposalGhost from "./GeometryProposalGhost";
 import SceneGizmo from "./SceneGizmo";
 import SafetyVolumeOverlay from "./SafetyVolumeOverlay";
+import SiteGeofenceOverlay from "./SiteGeofenceOverlay";
+
 import SceneGizmoPreview from "./SceneGizmoPreview";
 import {
   indicesInsideBox,
@@ -454,6 +456,8 @@ export default function Viewport3D() {
         {showSafetyVolume ? (
           <SafetyVolumeOverlay area={project.area} limits={project.limits} />
         ) : null}
+        {showSafetyVolume && project.site ? <SiteGeofenceOverlay site={project.site} /> : null}
+
         {conversionComparisonFrame ? (
           <ConversionOverlay
             frame={conversionComparisonFrame}

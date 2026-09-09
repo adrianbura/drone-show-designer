@@ -24,6 +24,8 @@ import type { MusicSection, TimelineMarker } from "./markers";
 import type { ParticipationSettings } from "./participation/types";
 import type { FormationScene } from "./scene/types";
 import type { LightingProgram } from "./lighting/types";
+import type { ShowSite } from "./geo";
+
 
 
 
@@ -212,7 +214,15 @@ export interface ShowProject {
    * exactly as before, and lighting never influences flight computation.
    */
   lighting?: LightingProgram;
+  /**
+   * REAL-WORLD SITE / GPS GEOFENCE. Anchors the show-local frame to WGS84 and
+   * carries the authorised flight polygon, clearance margin and ceiling. Purely
+   * additive: a project without a site reports no geofence result at all and
+   * behaves exactly as before.
+   */
+  site?: ShowSite | undefined;
 }
+
 
 
 export interface DroneSample {

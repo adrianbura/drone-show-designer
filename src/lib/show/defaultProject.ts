@@ -1,4 +1,6 @@
+import { sanitizeShowSite } from "./geo";
 import { DYNAMIC_FORMATION_ALGORITHM_VERSION } from "./dynamic/types";
+
 import { makeFormation } from "./formations";
 import { sanitizeMarkers, sanitizeSections } from "./markers";
 import { sanitizeScenes } from "./scene/migrate";
@@ -174,10 +176,13 @@ export function migrateProject(input: unknown): ShowProject {
   const count = typeof raw.droneCount === "number" ? raw.droneCount : 48;
   const base = createDefaultProject(count);
   const lastIndex = timeline.length - 1;
+  const sanitizedSite = sanitizeShowSite(raw.site);
+  const { site: _rawSite, ...rawWithoutSite } = raw;
 
   return {
     ...base,
-    ...raw,
+    ...rawWithoutSite,
+
     id: raw.id ?? base.id,
     name: raw.name ?? base.name,
     droneCount: count,
@@ -212,6 +217,11 @@ export function migrateProject(input: unknown): ShowProject {
     // Editor annotations are restored defensively; they are never required.
     markers: sanitizeMarkers(raw.markers),
     musicSections: sanitizeSections(raw.musicSections),
+    // REAL-WORLD SITE: absent in projects authored before the GPS geofence. A
+    // malformed payload yields no site at all rather than a fabricated one.
+    ...(sanitizedSite ? { site: sanitizedSite } : {}),
+
+
     // An empty timeline is a VALID authored state and is preserved as-is: no
     // demo choreography is ever re-injected into a reopened project.
     timeline: timeline.map((clip, i) => ({
