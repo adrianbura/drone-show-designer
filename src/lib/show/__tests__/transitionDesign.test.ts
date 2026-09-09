@@ -143,6 +143,7 @@ describe("transition design modes", () => {
       pattern: "LEFT_RIGHT",
       totalStagger: 10,
       distribution: "linear",
+      waveCount: 0,
     });
   });
 });

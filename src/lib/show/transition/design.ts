@@ -63,6 +63,12 @@ export interface TransitionDesignState {
   /** Total stagger spread in seconds (first drone 0 .. last drone total). */
   readonly totalStagger: number;
   readonly distribution: StaggerDistributionId;
+  /**
+   * DEPARTURE WAVES. 0 = continuous ramp (every drone its own offset).
+   * 2..MAX_DEPARTURE_WAVES = discrete groups: all drones of a wave leave at the
+   * SAME offset, which is what a real operator can observe and brief.
+   */
+  readonly waveCount: number;
 }
 
 export const DEFAULT_TRANSITION_DESIGN: TransitionDesignState = {
@@ -70,9 +76,11 @@ export const DEFAULT_TRANSITION_DESIGN: TransitionDesignState = {
   pattern: "LEFT_RIGHT",
   totalStagger: 2,
   distribution: "linear",
+  waveCount: 0,
 };
 
 export const MAX_TOTAL_STAGGER = 10;
+export const MAX_DEPARTURE_WAVES = 12;
 
 const PATTERN_LABEL: Record<StaggerPatternId, string> = {
   LEFT_RIGHT: "L→R",
@@ -115,18 +123,29 @@ export function normalizeTransitionDesign(raw: unknown): TransitionDesignState {
     distribution: isStaggerDistribution(o.distribution)
       ? o.distribution
       : DEFAULT_TRANSITION_DESIGN.distribution,
+    waveCount: normalizeWaveCount(o.waveCount),
   };
 }
 
-/** Compact designer-facing summary, e.g. "STAGGER 3.0s L→R". */
+/** 0 (continuous) or an integer wave count in [2, MAX_DEPARTURE_WAVES]. */
+export function normalizeWaveCount(raw: unknown): number {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return DEFAULT_TRANSITION_DESIGN.waveCount;
+  const n = Math.round(raw);
+  if (n < 2) return 0;
+  return Math.min(MAX_DEPARTURE_WAVES, n);
+}
+
+/** Compact designer-facing summary, e.g. "STAGGER 3.0s L→R · 4 WAVES". */
 export function describeTransitionDesign(design: TransitionDesignState): string {
   switch (design.mode) {
     case "AUTO":
       return "AUTO";
     case "SYNCHRONIZED":
       return "SYNC";
-    case "STAGGERED":
-      return `STAGGER ${design.totalStagger.toFixed(1)}s ${staggerPatternLabel(design.pattern)}`;
+    case "STAGGERED": {
+      const base = `STAGGER ${design.totalStagger.toFixed(1)}s ${staggerPatternLabel(design.pattern)}`;
+      return design.waveCount >= 2 ? `${base} · ${design.waveCount} WAVES` : base;
+    }
     case "MANUAL":
       return "MANUAL";
   }
@@ -189,6 +208,11 @@ function shape(u: number, distribution: StaggerDistributionId): number {
  *
  * `total` is the spread between the first and last departing drone; every
  * offset is additionally clamped to `duration * 0.5`, the scheduler bound.
+ *
+ * With `waveCount >= 2` the continuous ramp is quantised into that many groups:
+ * drones inside a group share one exact departure time, and the LAST group
+ * departs at the full (clamped) spread. Ranking ties keep input order, so the
+ * result is stable for identical geometry.
  */
 export function staggerStartOffsets(
   from: readonly Vector3Tuple[],
@@ -196,13 +220,11 @@ export function staggerStartOffsets(
   total: number,
   duration: number,
   distribution: StaggerDistributionId = "linear",
+  waveCount = 0,
 ): number[] {
   const n = from.length;
   if (n === 0) return [];
-  const cap = Math.max(
-    0,
-    Math.min(Math.max(0, total), Math.max(0, duration) * 0.5, MAX_TOTAL_STAGGER),
-  );
+  const cap = effectiveStagger(total, duration);
   if (cap <= 0) return new Array<number>(n).fill(0);
   const keys = ranking(from, pattern);
   let min = Infinity;
@@ -213,7 +235,50 @@ export function staggerStartOffsets(
   }
   const span = max - min;
   if (!(span > 1e-9)) return new Array<number>(n).fill(0);
-  return keys.map((k) => round4(shape((k - min) / span, distribution) * cap));
+  const waves = normalizeWaveCount(waveCount);
+  return keys.map((k) => {
+    const u = (k - min) / span;
+    if (waves >= 2) {
+      // Equal-width rank bands; band index / (waves - 1) is the group's slot.
+      const band = Math.min(waves - 1, Math.floor(u * waves));
+      return round4((band / (waves - 1)) * cap);
+    }
+    return round4(shape(u, distribution) * cap);
+  });
+}
+
+/** Stagger actually flown once the scheduler's `duration * 0.5` bound applies. */
+export function effectiveStagger(total: number, duration: number): number {
+  return Math.max(0, Math.min(Math.max(0, total), Math.max(0, duration) * 0.5, MAX_TOTAL_STAGGER));
+}
+
+export interface StaggerClampInfo {
+  /** Stagger the operator asked for (seconds). */
+  readonly requested: number;
+  /** Stagger the scheduler will actually fly with the current clip duration. */
+  readonly effective: number;
+  readonly clamped: boolean;
+  /** Transition duration needed to fly `requested` in full (seconds). */
+  readonly requiredTransitionDuration: number;
+}
+
+/**
+ * Honest reporting of the scheduler bound: a stagger of S seconds needs a
+ * transition of at least 2·S, because an offset is consumed as
+ * `duration = transition - startOffset` and bounded by `transition * 0.5`.
+ */
+export function staggerClampInfo(
+  design: TransitionDesignState,
+  transitionDuration: number,
+): StaggerClampInfo {
+  const requested = Math.max(0, Math.min(MAX_TOTAL_STAGGER, design.totalStagger));
+  const effective = effectiveStagger(requested, transitionDuration);
+  return {
+    requested,
+    effective,
+    clamped: requested - effective > 1e-6,
+    requiredTransitionDuration: Number((requested * 2).toFixed(1)),
+  };
 }
 
 function round4(v: number): number {
@@ -244,6 +309,7 @@ export function buildDesignOverride(
       strategy: `${analysis.metrics.assignmentStrategy}+sync`,
     };
   }
+  const waves = normalizeWaveCount(design.waveCount);
   return {
     targetPointIndex,
     startOffsets: staggerStartOffsets(
@@ -252,10 +318,13 @@ export function buildDesignOverride(
       design.totalStagger,
       duration,
       design.distribution,
+      waves,
     ),
     laneOffsets: [...zeros],
     lateralOffsets: [...zeros],
-    strategy: `${analysis.metrics.assignmentStrategy}+stagger:${design.pattern}`,
+    strategy: `${analysis.metrics.assignmentStrategy}+stagger:${design.pattern}${
+      waves >= 2 ? `:waves${waves}` : ""
+    }`,
   };
 }
 
