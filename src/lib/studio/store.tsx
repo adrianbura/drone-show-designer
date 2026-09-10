@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 67474)
-Total output lines: 7237
-
 /**
  * Studio store — the controller layer between UI and the pure show core.
  *
@@ -2490,7 +2487,1938 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [editScene],
   );
 
-  con…17474 tokens truncated…hing this run produces — show, playback
+  const mirrorSceneObjectsBatch = useCallback(
+    (clipId: string, objectIds: readonly string[]) => {
+      if (objectIds.length === 0) return;
+      editScene(clipId, (scene) => mirrorSceneObjects(scene, objectIds));
+    },
+    [editScene],
+  );
+
+  const duplicateSceneObjectsBatch = useCallback(
+    (clipId: string, objectIds: readonly string[]) => {
+      if (objectIds.length === 0) return;
+      let created: readonly string[] = [];
+      editScene(clipId, (scene) => {
+        const result = duplicateSceneObjects(scene, objectIds);
+        created = result.objectIds;
+        return result.scene;
+      });
+      if (created.length > 0)
+        setSelectedSceneObjectIds(created, created[created.length - 1] ?? null);
+    },
+    [editScene, setSelectedSceneObjectIds],
+  );
+
+  const removeSceneObjectsBatch = useCallback(
+    (clipId: string, objectIds: readonly string[]) => {
+      if (objectIds.length === 0) return;
+      editScene(clipId, (scene) => removeSceneObjects(scene, objectIds));
+      setSceneSelectionState(EMPTY_SCENE_SELECTION);
+    },
+    [editScene],
+  );
+
+  /* ------------------------------------------- fast design actions -------- */
+  const applySceneDesign = useCallback(
+    (
+      clipId: string,
+      objectIds: readonly string[],
+      action: SceneDesignActionKind,
+      options: { readonly altitudeStep?: number } = {},
+    ) => {
+      if (objectIds.length === 0) return;
+      editScene(clipId, (scene, p) => applySceneDesignAction(p, scene, objectIds, action, options));
+    },
+    [editScene],
+  );
+
+  const alignSceneObjectsByMode = useCallback(
+    (clipId: string, objectIds: readonly string[], mode: SceneAlignMode) => {
+      if (objectIds.length < 2) return;
+      editScene(clipId, (scene, p) => alignSceneObjectsBy(p, scene, objectIds, mode));
+    },
+    [editScene],
+  );
+
+  /* ------------------------------------------- clip design commands ------- */
+  const canEditClipAsScene = useCallback(
+    (clipId: string) => canConvertClipToScene(projectRef.current, clipId),
+    [],
+  );
+
+  /**
+   * THUMBNAILS: one decimated pass per project revision. Never per frame, never
+   * exported — purely an identification aid on the timeline.
+   */
+  const clipThumbnails = useMemo(() => timelineThumbnails(project, 48), [project]);
+
+  /** "Edit as Scene": materialises the clip's implicit scene, one undo entry. */
+  const editClipAsScene = useCallback(
+    (clipId: string) => {
+      let created: readonly string[] = [];
+      setProject((p) => {
+        const result = convertClipToScene(p, clipId);
+        if (!result) return p;
+        created = result.sceneObjectIds;
+        pushSnapshot(p);
+        return result.project;
+      });
+      if (created.length > 0) {
+        setSelectedSceneObjectIds(created.slice(0, 1), created[0] ?? null);
+      }
+      return created.length > 0;
+    },
+    [pushSnapshot, setSelectedSceneObjectIds],
+  );
+
+  /* ------------------------------------------- viewport transform gizmo ---- */
+  const [gizmoMode, setGizmoModeState] = useState<SceneGizmoMode>("MOVE");
+  const setGizmoMode = useCallback((mode: SceneGizmoMode) => {
+    // Reference playback replaces the authored swarm in the viewport. Entering
+    // a transform tool must reveal the editable scene or a valid edit appears
+    // to do nothing while the imported reference remains on screen.
+    setReferencePlayback(false);
+    setGizmoModeState(mode);
+  }, []);
+  const [gizmoTranslateSnap, setGizmoTranslateSnap] = useState(0);
+  const [gizmoRotateSnap, setGizmoRotateSnap] = useState(0);
+  const [sceneGizmoDraft, setSceneGizmoDraft] = useState<SceneGroupDelta | null>(null);
+  /** Ids captured at pointer-down, so a mid-gesture selection change is inert. */
+  const gizmoIdsRef = useRef<readonly string[]>([]);
+  /** Latest pointer delta; React state may not have rendered before mouse-up. */
+  const sceneGizmoDraftRef = useRef<SceneGroupDelta | null>(null);
+
+  const sceneGizmoPivot = useMemo<Vector3Tuple | null>(() => {
+    if (!selectedScene || sceneSelection.ids.length === 0) return null;
+    try {
+      return sceneGroupPivot(project, selectedScene, sceneSelection.ids);
+    } catch {
+      return null;
+    }
+  }, [project, selectedScene, sceneSelection]);
+
+  /** DRAFT PREVIEW: pure scene resolution, never a plan and never persisted. */
+  const sceneGizmoPreviewPoints = useMemo<Vector3Tuple[]>(() => {
+    if (!sceneGizmoDraft || !selectedScene || gizmoIdsRef.current.length === 0) return [];
+    try {
+      const drafted = applySceneGroupDelta(
+        project,
+        selectedScene,
+        gizmoIdsRef.current,
+        sceneGizmoDraft,
+      );
+      const resolved = resolveSceneAt(project, drafted, 0);
+      const wanted = new Set(gizmoIdsRef.current);
+      const points: Vector3Tuple[] = [];
+      for (const group of resolved.groups) {
+        if (!wanted.has(group.instanceId)) continue;
+        for (let i = 0; i < group.pointCount; i++) {
+          const p = resolved.points[group.offset + i];
+          if (p) points.push(p);
+        }
+      }
+      return points;
+    } catch {
+      return [];
+    }
+  }, [project, selectedScene, sceneGizmoDraft]);
+
+  const beginSceneGizmo = useCallback(() => {
+    gizmoIdsRef.current = sceneSelection.ids;
+    sceneGizmoDraftRef.current = {};
+    setSceneGizmoDraft({});
+  }, [sceneSelection]);
+
+  const updateSceneGizmo = useCallback((delta: SceneGroupDelta) => {
+    if (gizmoIdsRef.current.length === 0) return;
+    sceneGizmoDraftRef.current = delta;
+    setSceneGizmoDraft(delta);
+  }, []);
+
+  const commitSceneGizmo = useCallback(() => {
+    const ids = gizmoIdsRef.current;
+    const delta = sceneGizmoDraftRef.current;
+    gizmoIdsRef.current = [];
+    sceneGizmoDraftRef.current = null;
+    setSceneGizmoDraft(null);
+    if (!delta || ids.length === 0 || !selectedClipId) return;
+    const moved =
+      (delta.position && (delta.position[0] || delta.position[1] || delta.position[2])) ||
+      (delta.rotationDeg &&
+        (delta.rotationDeg[0] || delta.rotationDeg[1] || delta.rotationDeg[2])) ||
+      (delta.scaleFactor !== undefined && delta.scaleFactor !== 1);
+    if (!moved) return;
+    transformSceneObjects(selectedClipId, ids, delta);
+  }, [selectedClipId, transformSceneObjects]);
+
+  /** Escape: the draft is discarded, so the scene is byte-identical again. */
+  const cancelSceneGizmo = useCallback(() => {
+    gizmoIdsRef.current = [];
+    sceneGizmoDraftRef.current = null;
+    setSceneGizmoDraft(null);
+  }, []);
+
+  /**
+   * VIEWPORT PICKING: drone index -> scene object. The drone flies the target
+   * point its ASSIGNMENT maps to, and `ResolvedSceneGroup` owns which object a
+   * combined point index belongs to. No new identity mapping is invented, and
+   * padded (non-participating) drones resolve to null.
+   */
+  const sceneTargetByDrone = useMemo<{ objectId: string | null; pointId: string | null }[]>(() => {
+    if (!selectedScene || !selectedClipId) return [];
+    let resolved;
+    try {
+      resolved = resolveSceneAt(project, selectedScene, 0);
+    } catch {
+      return [];
+    }
+    const clipAssignment = plan.assignments.find((a) => a.clipId === selectedClipId);
+    return Array.from({ length: project.droneCount }, (_, i) => {
+      const target = clipAssignment?.assignments[i]?.targetPointIndex ?? i;
+      const group = resolved.groups.find(
+        (g) => target >= g.offset && target < g.offset + g.pointCount,
+      );
+      return {
+        objectId: group?.instanceId ?? null,
+        pointId: resolved.pointIds[target] ?? null,
+      };
+    });
+  }, [plan, project, selectedClipId, selectedScene]);
+
+  const sceneObjectIdForDrone = useCallback(
+    (droneIndex: number) => sceneTargetByDrone[droneIndex]?.objectId ?? null,
+    [sceneTargetByDrone],
+  );
+
+  const selectScenePointForDrone = useCallback(
+    (droneIndex: number, additive: boolean) => {
+      const target = sceneTargetByDrone[droneIndex];
+      if (!target?.objectId || !target.pointId) return;
+      if (sceneSelection.primaryId !== target.objectId) {
+        setSceneSelectionState({ ids: [target.objectId], primaryId: target.objectId });
+        setSelectedScenePointIds([target.pointId]);
+        return;
+      }
+      setSelectedScenePointIds((current) =>
+        additive
+          ? current.includes(target.pointId!)
+            ? current.filter((id) => id !== target.pointId)
+            : [...current, target.pointId!]
+          : [target.pointId!],
+      );
+    },
+    [sceneSelection.primaryId, sceneTargetByDrone],
+  );
+
+  const selectScenePointsForDrones = useCallback(
+    (droneIndices: readonly number[], operation: ScenePointSelectionOperation) => {
+      const requested = droneIndices
+        .map((index) => sceneTargetByDrone[index])
+        .filter((target): target is { objectId: string; pointId: string } =>
+          Boolean(target?.objectId && target.pointId),
+        );
+      const objectId =
+        (sceneSelection.primaryId &&
+        requested.some((target) => target.objectId === sceneSelection.primaryId)
+          ? sceneSelection.primaryId
+          : requested[0]?.objectId) ?? null;
+      if (!objectId) {
+        if (operation === "REPLACE") setSelectedScenePointIds([]);
+        return;
+      }
+      const pointIds = requested
+        .filter((target) => target.objectId === objectId)
+        .map((target) => target.pointId);
+      if (sceneSelection.primaryId !== objectId) {
+        setSceneSelectionState({ ids: [objectId], primaryId: objectId });
+        setSelectedScenePointIds(applyPointSelection([], pointIds, operation));
+        return;
+      }
+      setSelectedScenePointIds((current) => applyPointSelection(current, pointIds, operation));
+    },
+    [sceneSelection.primaryId, sceneTargetByDrone],
+  );
+
+  const selectedScenePointDroneIndices = useMemo(() => {
+    const wanted = new Set(selectedScenePointIds);
+    return sceneTargetByDrone.reduce<number[]>((indices, target, index) => {
+      if (target.pointId && wanted.has(target.pointId)) indices.push(index);
+      return indices;
+    }, []);
+  }, [sceneTargetByDrone, selectedScenePointIds]);
+
+  const clearScenePointSelection = useCallback(() => setSelectedScenePointIds([]), []);
+
+  const createScenePointGroup = useCallback(
+    (name: string): string | null => {
+      if (!selectedClipId || !sceneSelection.primaryId || selectedScenePointIds.length === 0)
+        return null;
+      let createdId: string | null = null;
+      editScene(selectedClipId, (scene) => {
+        const result = addScenePointGroup(
+          scene,
+          sceneSelection.primaryId!,
+          name,
+          selectedScenePointIds,
+        );
+        createdId = result.groupId;
+        return result.scene;
+      });
+      return createdId;
+    },
+    [editScene, sceneSelection.primaryId, selectedClipId, selectedScenePointIds],
+  );
+
+  const renameScenePointGroup = useCallback(
+    (groupId: string, name: string) => {
+      if (!selectedClipId) return;
+      editScene(selectedClipId, (scene) => patchScenePointGroup(scene, groupId, { name }));
+    },
+    [editScene, selectedClipId],
+  );
+
+  const removeScenePointGroupById = useCallback(
+    (groupId: string) => {
+      if (!selectedClipId) return;
+      editScene(selectedClipId, (scene) => removeScenePointGroup(scene, groupId));
+    },
+    [editScene, selectedClipId],
+  );
+
+  const selectScenePointGroup = useCallback((groupId: string) => {
+    const group = sceneRef.current?.pointGroups?.find((candidate) => candidate.id === groupId);
+    if (!group) return;
+    setSceneSelectionModeState("POINT");
+    setSceneSelectionState({ ids: [group.instanceId], primaryId: group.instanceId });
+    setSelectedScenePointIds([...group.pointIds]);
+  }, []);
+
+  const createSceneVisualGroup = useCallback(
+    (name: string): string | null => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId || sceneSelection.ids.length < 2) return null;
+      let createdId: string | null = null;
+      editScene(clipId, (scene) => {
+        const result = addSceneVisualGroup(scene, name, sceneSelection.ids);
+        createdId = result.groupId;
+        return result.scene;
+      });
+      return createdId;
+    },
+    [editScene, sceneSelection.ids],
+  );
+
+  const renameSceneVisualGroupById = useCallback(
+    (groupId: string, name: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => renameSceneVisualGroup(scene, groupId, name));
+    },
+    [editScene],
+  );
+
+  const removeSceneVisualGroupById = useCallback(
+    (groupId: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => removeSceneVisualGroup(scene, groupId));
+    },
+    [editScene],
+  );
+
+  const selectSceneVisualGroup = useCallback((groupId: string) => {
+    const group = sceneRef.current?.visualGroups?.find((candidate) => candidate.id === groupId);
+    if (!group) return;
+    setSceneSelectionModeState("OBJECT");
+    setSceneSelectionState({
+      ids: [...group.objectIds],
+      primaryId: group.objectIds.at(-1) ?? null,
+    });
+    setSelectedScenePointIds([]);
+  }, []);
+
+  const captureSceneVisualGroupState = useCallback(
+    (groupId: string, name: string): string | null => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return null;
+      let stateId: string | null = null;
+      editScene(clipId, (scene) => {
+        const result = captureSceneVisualState(scene, groupId, name);
+        stateId = result.stateId;
+        return result.scene;
+      });
+      return stateId;
+    },
+    [editScene],
+  );
+
+  const applySceneVisualGroupState = useCallback(
+    (stateId: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => applySceneVisualState(scene, stateId));
+    },
+    [editScene],
+  );
+
+  const renameSceneVisualGroupState = useCallback(
+    (stateId: string, name: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => renameSceneVisualState(scene, stateId, name));
+    },
+    [editScene],
+  );
+
+  const removeSceneVisualGroupState = useCallback(
+    (stateId: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => removeSceneVisualState(scene, stateId));
+    },
+    [editScene],
+  );
+
+  const addSceneVisualStateCueAtPlayhead = useCallback(
+    (
+      stateId: string,
+      transitionDuration: number,
+    ): { readonly cueId: string | null; readonly reason: string | null } => {
+      const clipId = selectedClipIdRef.current;
+      const clip = projectRef.current.timeline.find((candidate) => candidate.id === clipId);
+      if (!clipId || !clip) return { cueId: null, reason: "Select a scene first." };
+      const localTime = Math.max(0, Math.min(clip.hold, clock.time - clip.start - clip.transition));
+      let response: { readonly cueId: string | null; readonly reason: string | null } = {
+        cueId: null,
+        reason: "Saved state not found.",
+      };
+      editScene(clipId, (scene) => {
+        const result = addSceneVisualStateCue(scene, stateId, localTime, transitionDuration);
+        response = result.ok
+          ? { cueId: result.cueId, reason: null }
+          : { cueId: null, reason: result.reason };
+        return result.scene;
+      });
+      return response;
+    },
+    [clock.time, editScene],
+  );
+
+  const removeSceneVisualStateCueById = useCallback(
+    (cueId: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => removeSceneVisualStateCue(scene, cueId));
+    },
+    [editScene],
+  );
+
+  const patchSceneVisualStateCueById = useCallback(
+    (
+      cueId: string,
+      patch: { readonly time?: number; readonly transitionDuration?: number },
+    ) => {
+      const clipId = selectedClipIdRef.current;
+      const clip = projectRef.current.timeline.find((candidate) => candidate.id === clipId);
+      if (!clipId || !clip) return;
+      editScene(clipId, (scene) =>
+        patchSceneVisualStateCue(scene, cueId, {
+          ...(patch.time === undefined ? {} : { time: Math.min(clip.hold, patch.time) }),
+          ...(patch.transitionDuration === undefined
+            ? {}
+            : { transitionDuration: patch.transitionDuration }),
+        }),
+      );
+    },
+    [editScene],
+  );
+
+  const previewMotionPresetToSceneSelection = useCallback(
+    (preset: DynamicPresetId): readonly string[] => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return [];
+      const result = authorSceneMotion(projectRef.current, {
+        clipId,
+        objectIds: sceneSelection.ids,
+        primaryObjectId: sceneSelection.primaryId,
+        selectedPointIds: sceneSelectionMode === "POINT" ? selectedScenePointIds : [],
+        preset,
+        createId: () => nextId("dyn"),
+      });
+      if (result.project === projectRef.current || result.dynamicFormationIds.length === 0)
+        return [];
+      setMotionEffectPreview({
+        baseProject: projectRef.current,
+        selectionKey: `${clipId}|${sceneSelectionMode}|${sceneSelection.ids.join(",")}|${selectedScenePointIds.join(",")}`,
+        project: result.project,
+        dynamicFormationIds: result.dynamicFormationIds,
+      });
+      return result.dynamicFormationIds;
+    },
+    [sceneSelection.ids, sceneSelection.primaryId, sceneSelectionMode, selectedScenePointIds],
+  );
+
+  const cancelMotionEffectPreview = useCallback(() => setMotionEffectPreview(null), []);
+
+  const applyMotionEffectPreview = useCallback((): readonly string[] => {
+    if (!motionEffectPreview) return [];
+    if (projectRef.current !== motionEffectPreview.baseProject) {
+      setMotionEffectPreview(null);
+      return [];
+    }
+    pushTimelineHistory();
+    setProject(motionEffectPreview.project);
+    setExplicitDynamicId(motionEffectPreview.dynamicFormationIds.at(-1) ?? null);
+    setMotionEffectPreview(null);
+    return motionEffectPreview.dynamicFormationIds;
+  }, [motionEffectPreview, pushTimelineHistory]);
+
+  const applyMotionPresetToSceneSelection = useCallback(
+    (preset: DynamicPresetId): readonly string[] => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return [];
+      const result = authorSceneMotion(projectRef.current, {
+        clipId,
+        objectIds: sceneSelection.ids,
+        primaryObjectId: sceneSelection.primaryId,
+        selectedPointIds: sceneSelectionMode === "POINT" ? selectedScenePointIds : [],
+        preset,
+        createId: () => nextId("dyn"),
+      });
+      setMotionEffectPreview(null);
+      if (result.dynamicFormationIds.length === 0) return [];
+      pushTimelineHistory();
+      setProject(result.project);
+      setExplicitDynamicId(result.dynamicFormationIds.at(-1) ?? null);
+      return result.dynamicFormationIds;
+    },
+    [
+      pushTimelineHistory,
+      sceneSelection.ids,
+      sceneSelection.primaryId,
+      sceneSelectionMode,
+      selectedScenePointIds,
+    ],
+  );
+
+  /* ------------------------------------------- everyday motion inspector */
+
+  /** Per-instance playback edit: ONE scene revision == ONE undo entry. */
+  const patchSceneObjectAnimation = useCallback(
+    (clipId: string, objectId: string, patch: SceneObjectAnimation) => {
+      editScene(clipId, (scene) => {
+        const object = scene.objects.find((candidate) => candidate.id === objectId);
+        if (!object) return scene;
+        return patchObject(scene, objectId, {
+          animation: { ...(object.animation ?? {}), ...patch },
+        });
+      });
+    },
+    [editScene],
+  );
+
+  /**
+   * Canonical dynamic-asset edit committed through the TIMELINE history, so an
+   * everyday motion edit is exactly one undo entry alongside the scene edits.
+   */
+  const patchSceneMotion = useCallback(
+    (dynamicFormationId: string, patch: Partial<DynamicFormation>) => {
+      setProject((p) => {
+        const list = p.dynamicFormations ?? [];
+        if (!list.some((candidate) => candidate.id === dynamicFormationId)) return p;
+        pushSnapshot(p);
+        return {
+          ...p,
+          dynamicFormations: list.map((candidate) =>
+            candidate.id === dynamicFormationId ? { ...candidate, ...patch } : candidate,
+          ),
+        };
+      });
+    },
+    [pushSnapshot],
+  );
+
+  const patchSceneMotionGroup = useCallback(
+    (dynamicFormationId: string, groupId: string, patch: Partial<MotionGroup>) => {
+      setProject((p) => {
+        const list = p.dynamicFormations ?? [];
+        const target = list.find((candidate) => candidate.id === dynamicFormationId);
+        if (!target || !target.groups.some((group) => group.id === groupId)) return p;
+        pushSnapshot(p);
+        return {
+          ...p,
+          dynamicFormations: list.map((candidate) =>
+            candidate.id === dynamicFormationId
+              ? patchMotionGroup(candidate, groupId, patch)
+              : candidate,
+          ),
+        };
+      });
+    },
+    [pushSnapshot],
+  );
+
+  const duplicateSceneObjectMotion = useCallback(
+    (clipId: string, objectId: string) => {
+      const newId = nextId("dyn");
+      const next = duplicateObjectMotion(projectRef.current, clipId, objectId, newId);
+      if (next === projectRef.current) return null;
+      pushTimelineHistory();
+      setProject(next);
+      setExplicitDynamicId(newId);
+      return newId;
+    },
+    [pushTimelineHistory],
+  );
+
+  const removeSceneObjectMotion = useCallback(
+    (clipId: string, objectId: string) => {
+      const next = removeObjectMotion(projectRef.current, clipId, objectId);
+      if (next === projectRef.current) return;
+      pushTimelineHistory();
+      setProject(next);
+      setExplicitDynamicId(null);
+    },
+    [pushTimelineHistory],
+  );
+
+  const addSceneObject = useCallback(
+    (
+      clipId: string,
+      input: {
+        source: SceneObjectSource;
+        name: string;
+        assetId?: string;
+        requestedDroneCount?: number | null;
+        position?: Vector3Tuple;
+        rotationDeg?: Vector3Tuple;
+        mirrorX?: boolean;
+        color?: RGB;
+      },
+    ) => {
+      let createdId: string | null = null;
+      editScene(clipId, (scene, p) => {
+        const result = addObject(p, scene, input);
+        createdId = result.objectId;
+        let next = input.mirrorX ? mirrorObjectX(result.scene, result.objectId) : result.scene;
+        if (input.rotationDeg) {
+          next = patchObjectTransform(next, result.objectId, { rotationDeg: input.rotationDeg });
+        }
+        if (input.color) {
+          next = patchObject(next, result.objectId, { lighting: { color: input.color } });
+        }
+        return next;
+      });
+      if (createdId) setSelectedSceneObjectId(createdId);
+      return createdId;
+    },
+    [editScene],
+  );
+
+  /**
+   * ADD VISUAL — creates a native formation ASSET and places ONE instance of it
+   * in the scene of `clipId` in a SINGLE undoable revision.
+   *
+   * Geometry only: the asset feeds the same static-source path as any library
+   * formation, so participation, assignment, trajectory and safety stay the sole
+   * authorities. `requestedDroneCount` is an artistic budget, never an identity.
+   */
+  const addNativeVisual = useCallback(
+    (
+      clipId: string,
+      input: {
+        readonly kind: FormationKind;
+        readonly name: string;
+        readonly droneCount: number;
+        readonly params?: Record<string, number | string>;
+        readonly position?: Vector3Tuple;
+        readonly color?: RGB;
+        readonly mirrorX?: boolean;
+        readonly rotationDeg?: Vector3Tuple;
+      },
+    ): string | null => {
+      const droneCount = Math.max(1, Math.round(input.droneCount));
+      const formationId = nextId("f");
+      let createdId: string | null = null;
+      setProject((p) => {
+        const clip = p.timeline.find((c) => c.id === clipId);
+        if (!clip) return p;
+        const formation = makeSceneLocalFormation(
+          formationId,
+          input.name,
+          input.kind,
+          droneCount,
+          p.area,
+          input.params ?? {},
+        );
+        const withAsset: ShowProject = { ...p, formations: [...p.formations, formation] };
+        const added = addObject(withAsset, sceneForClip(withAsset, clip), {
+          source: { kind: "STATIC", formationId },
+          name: input.name,
+          requestedDroneCount: droneCount,
+          ...(input.position ? { position: input.position } : {}),
+        });
+        createdId = added.objectId;
+        let scene = input.mirrorX ? mirrorObjectX(added.scene, added.objectId) : added.scene;
+        if (input.rotationDeg) {
+          scene = patchObjectTransform(scene, added.objectId, { rotationDeg: input.rotationDeg });
+        }
+        if (input.color) {
+          scene = patchObject(scene, added.objectId, { lighting: { color: input.color } });
+        }
+        pushSnapshot(p);
+        return upsertScene(withAsset, scene);
+      });
+      if (createdId) setSelectedSceneObjectId(createdId);
+      return createdId;
+    },
+    [pushSnapshot],
+  );
+
+  /**
+   * ADD TEXT VISUAL — deterministic stroke text as a NORMAL scene object.
+   *
+   * The recipe comes from the canonical text pipeline; geometry is produced by
+   * `makeTextFormation` and nothing else. Participation (the drone budget) is
+   * used exactly as requested. Failure mutates nothing.
+   */
+  const addTextVisual = useCallback(
+    (
+      clipId: string,
+      input: {
+        readonly recipe: TextGeometryRecipe;
+        readonly name: string;
+        readonly position?: Vector3Tuple;
+        readonly color?: RGB;
+        readonly mirrorX?: boolean;
+        readonly rotationDeg?: Vector3Tuple;
+      },
+    ): string | null => {
+      let built: ReturnType<typeof makeTextFormation>;
+      try {
+        built = makeTextFormation({
+          id: nextId("f"),
+          name: input.name,
+          recipe: input.recipe,
+          authoredForClipId: clipId,
+        });
+      } catch {
+        return null;
+      }
+      let createdId: string | null = null;
+      setProject((p) => {
+        const clip = p.timeline.find((c) => c.id === clipId);
+        if (!clip) return p;
+        const withAsset: ShowProject = { ...p, formations: [...p.formations, built.formation] };
+        const added = addObject(withAsset, sceneForClip(withAsset, clip), {
+          source: { kind: "STATIC", formationId: built.formation.id },
+          name: input.name,
+          requestedDroneCount: input.recipe.participation,
+          ...(input.position ? { position: input.position } : {}),
+        });
+        createdId = added.objectId;
+        let scene = input.mirrorX ? mirrorObjectX(added.scene, added.objectId) : added.scene;
+        if (input.rotationDeg) {
+          scene = patchObjectTransform(scene, added.objectId, { rotationDeg: input.rotationDeg });
+        }
+        if (input.color) {
+          scene = patchObject(scene, added.objectId, { lighting: { color: input.color } });
+        }
+        pushSnapshot(p);
+        return upsertScene(withAsset, scene);
+      });
+      if (createdId) setSelectedSceneObjectId(createdId);
+      return createdId;
+    },
+    [pushSnapshot],
+  );
+
+  /**
+   * COMMIT AN IMPORTED SVG.
+   *
+   * `target` decides where the asset lands:
+   *   "SCENE"     one instance inside the CURRENT clip's scene (default when a
+   *               clip is selected) — no new clip is ever created implicitly.
+   *   "NEW_CLIP"  an explicitly requested new timeline clip.
+   *   "ASSET_ONLY" library asset only.
+   * `droneCount` is the artistic budget of the placed instance.
+   */
+  const commitSvgDraft = useCallback(
+    (
+      options: {
+        name?: string;
+        target?: "SCENE" | "NEW_CLIP" | "ASSET_ONLY";
+        clipId?: string;
+        droneCount?: number | null;
+        /** SCENE target only: initial mirror of the placed instance. */
+        mirrorX?: boolean;
+        /** SCENE target only: base colour of the placed instance. */
+        color?: RGB;
+      } = {},
+    ) => {
+      if (!svgDraft?.result) return null;
+      const formation = makeSvgFormation(
+        nextId("f"),
+        options.name?.trim() || defaultFormationName(svgDraft.asset, svgDraft.params.mode),
+        svgDraft.asset,
+        svgDraft.result,
+      );
+      const sceneClipId = options.clipId ?? selectedClipId;
+      const target = options.target ?? (sceneClipId ? ("SCENE" as const) : ("NEW_CLIP" as const));
+      const newClipId = nextId("c");
+      let createdObjectId: string | null = null;
+      setProject((p) => {
+        const withAsset: ShowProject = { ...p, formations: [...p.formations, formation] };
+        if (target === "ASSET_ONLY") return withAsset;
+        if (target === "SCENE") {
+          const clip = sceneClipId ? p.timeline.find((c) => c.id === sceneClipId) : null;
+          if (!clip) return withAsset;
+          const added = addObject(withAsset, sceneForClip(withAsset, clip), {
+            source: { kind: "STATIC", formationId: formation.id },
+            name: formation.name,
+            ...(formation.svg ? { assetId: formation.svg.assetId } : {}),
+            ...(options.droneCount
+              ? { requestedDroneCount: Math.max(1, Math.round(options.droneCount)) }
+              : {}),
+          });
+          createdObjectId = added.objectId;
+          let scene = added.scene;
+          if (options.mirrorX) scene = mirrorObjectX(scene, added.objectId);
+          if (options.color) {
+            scene = patchObject(scene, added.objectId, { lighting: { color: options.color } });
+          }
+          pushSnapshot(p);
+          return upsertScene(withAsset, scene);
+        }
+        const clip: TimelineClip = {
+          id: newClipId,
+          formationId: formation.id,
+          start: 0,
+          transition: 10,
+          hold: 8,
+          easing: "minJerk",
+          color: [140, 220, 255],
+          effect: "solid",
+          phase: "SHOW",
+        };
+        return { ...withAsset, timeline: insertClipBeforeLanding(p.timeline, clip) };
+      });
+      if (target === "NEW_CLIP") setSelectedClipId(newClipId);
+      if (target === "SCENE" && createdObjectId) setSelectedSceneObjectId(createdObjectId);
+      setSvgDraft(null);
+      return formation;
+    },
+    [svgDraft, selectedClipId, pushSnapshot],
+  );
+
+  const patchSceneObject = useCallback(
+    (clipId: string, objectId: string, patch: Partial<SceneFormationInstance>) => {
+      editScene(clipId, (scene) => patchObject(scene, objectId, patch));
+    },
+    [editScene],
+  );
+
+  const patchSceneObjectTransform = useCallback(
+    (clipId: string, objectId: string, patch: Partial<InstanceTransform>) => {
+      editScene(clipId, (scene) => patchObjectTransform(scene, objectId, patch));
+    },
+    [editScene],
+  );
+
+  const duplicateSceneObject = useCallback(
+    (clipId: string, objectId: string) => {
+      let createdId: string | null = null;
+      editScene(clipId, (scene) => {
+        const result = duplicateObject(scene, objectId);
+        createdId = result.objectId;
+        return result.scene;
+      });
+      if (createdId) setSelectedSceneObjectId(createdId);
+    },
+    [editScene],
+  );
+
+  const removeSceneObject = useCallback(
+    (clipId: string, objectId: string) => {
+      editScene(clipId, (scene) => removeObject(scene, objectId));
+      setSceneSelectionState((current) =>
+        current.ids.includes(objectId)
+          ? {
+              ids: current.ids.filter((id) => id !== objectId),
+              primaryId: current.primaryId === objectId ? null : current.primaryId,
+            }
+          : current,
+      );
+    },
+    [editScene],
+  );
+
+  const mirrorSceneObject = useCallback(
+    (clipId: string, objectId: string) => {
+      editScene(clipId, (scene) => mirrorObjectX(scene, objectId));
+    },
+    [editScene],
+  );
+
+  const alignSceneObjects = useCallback(
+    (clipId: string, alignment: SceneAlignment) => {
+      editScene(clipId, (scene, p) => alignObjects(p, scene, alignment));
+    },
+    [editScene],
+  );
+
+  const patchSceneTransform = useCallback(
+    (clipId: string, patch: Partial<InstanceTransform>) => {
+      editScene(clipId, (scene) => ({
+        ...scene,
+        transform: { ...scene.transform, ...patch },
+      }));
+    },
+    [editScene],
+  );
+
+  /* ---------------- reference-assisted scene editing (design only) --------- */
+  /**
+   * The comparison surface is PURELY a design aid: it reads the imported
+   * reference show and the resolved editable scene, and never influences
+   * ownership, promotion, planning or export.
+   */
+  const selectedClipBinding = useMemo<ReferenceClipBinding | null>(
+    () =>
+      selectedClipId
+        ? (referenceLayer?.bindings.find((b) => b.clipId === selectedClipId) ?? null)
+        : null,
+    [referenceLayer, selectedClipId],
+  );
+
+  const sceneGhostFrame = useMemo<ReferenceGhostFrame | null>(() => {
+    if (!sceneReferenceGhost) return null;
+    if (!referenceLayerShow || !selectedClip || !selectedScene || !selectedClipBinding) return null;
+    return referenceGhostFrame({
+      show: referenceLayerShow,
+      project,
+      scene: selectedScene,
+      clip: selectedClip,
+      binding: selectedClipBinding,
+      frame: sceneComparisonFrame,
+      currentTime: clock.time,
+    });
+  }, [
+    sceneReferenceGhost,
+    sceneComparisonFrame,
+    referenceLayerShow,
+    project,
+    selectedScene,
+    selectedClip,
+    selectedClipBinding,
+    clock.time,
+  ]);
+
+  const sceneDeviation = useMemo<SceneDeviationReport | null>(() => {
+    if (!referenceLayerShow || !selectedClip || !selectedScene || !selectedClipBinding) return null;
+    return sceneDeviationReport({
+      show: referenceLayerShow,
+      project,
+      scene: selectedScene,
+      clip: selectedClip,
+      binding: selectedClipBinding,
+      frame: sceneComparisonFrame,
+      currentTime: clock.time,
+    });
+  }, [
+    sceneComparisonFrame,
+    referenceLayerShow,
+    project,
+    selectedScene,
+    selectedClip,
+    selectedClipBinding,
+    clock.time,
+  ]);
+
+  const sceneCorrespondence = useMemo<CorrespondenceLine[]>(() => {
+    if (!sceneReferenceGhost || !resolvedSceneObjectId) return [];
+    if (!referenceLayerShow || !selectedClip || !selectedScene || !selectedClipBinding) return [];
+    return correspondenceLines({
+      show: referenceLayerShow,
+      project,
+      scene: selectedScene,
+      clip: selectedClip,
+      binding: selectedClipBinding,
+      frame: sceneComparisonFrame,
+      currentTime: clock.time,
+      objectId: resolvedSceneObjectId,
+    });
+  }, [
+    sceneReferenceGhost,
+    sceneComparisonFrame,
+    resolvedSceneObjectId,
+    referenceLayerShow,
+    project,
+    selectedScene,
+    selectedClip,
+    selectedClipBinding,
+    clock.time,
+  ]);
+
+  const canResetSelectedSceneObject = useMemo(
+    () =>
+      !!selectedClipId &&
+      !!resolvedSceneObjectId &&
+      canResetSceneObject(referenceLayer, selectedClipId, resolvedSceneObjectId),
+    [referenceLayer, selectedClipId, resolvedSceneObjectId],
+  );
+
+  /** ONE undo entry; restores geometry + transform of a single object. */
+  const resetSceneObject = useCallback(
+    (clipId: string, objectId: string) => {
+      const layer = referenceLayerRef.current;
+      const next = resetSceneObjectToExtracted(projectRef.current, layer, clipId, objectId);
+      if (!next) return;
+      pushTimelineHistory();
+      setProject(next);
+    },
+    [pushTimelineHistory],
+  );
+
+  /** Planner-owned experiment copy; the reference-owned clip is untouched. */
+  const duplicateSceneAsEditable = useCallback(
+    (clipId: string) => {
+      const newClipId = nextId("clip");
+      const result = duplicateSceneAsEditableCopy(projectRef.current, clipId, {
+        clipId: newClipId,
+        formationId: () => nextId("f"),
+        dynamicFormationId: () => nextId("dyn"),
+      });
+      if (!result) return null;
+      pushTimelineHistory();
+      setProject(result.project);
+      setSelectedClipId(result.clipId);
+      setSelectedSceneObjectId(null);
+      return result.clipId;
+    },
+    [pushTimelineHistory],
+  );
+
+  const addLibraryFormation = useCallback((formation: Formation) => {
+    // A library asset is a template: the project always gets a fresh id so the
+    // stored asset and the project copy can diverge independently.
+    const created: Formation = { ...formation, id: nextId("f") };
+    setProject((p) => ({ ...p, formations: [...p.formations, created] }));
+    return created;
+  }, []);
+
+  const addLibraryDynamicFormation = useCallback(
+    (formation: DynamicFormation) => {
+      const created: DynamicFormation = { ...formation, id: nextId("dyn") };
+      commitDynamic((list) => [...list, created]);
+      return created;
+    },
+    [commitDynamic],
+  );
+
+  /**
+   * REUSE A WHOLE COMPOSITION (scene asset).
+   *
+   * The library asset is an immutable snapshot, so insertion COPIES everything
+   * it needs into the project under fresh ids: the formation dependencies, the
+   * dynamic formation dependencies and the scene itself. The scene is bound to a
+   * brand new timeline clip (`scene.id === clip.id`) inserted with the ordinary
+   * timeline semantics, LANDING-last included. There is no ESSP-only path: an
+   * imported scene is reused exactly like an authored one, as planner-owned
+   * project content.
+   */
+  const addSceneAssetToShow = useCallback(
+    (asset: FormationAsset, timing?: AssetInsertionTiming) => {
+      if (asset.formationData.kind !== "SCENE") return null;
+      return insertLibraryAssetIntoShowRef.current(asset, timing);
+    },
+    [],
+  );
+
+  /** Assigned below, once the selection reconciliation authority exists. */
+  const insertLibraryAssetIntoShowRef = useRef<
+    (asset: FormationAsset, timing?: AssetInsertionTiming) => string | null
+  >(() => null);
+
+  /**
+   * SAVE THE CURRENT SCENE AS A LIBRARY ASSET (payload only — the library owns
+   * persistence). Only a clip with an EXPLICIT authored scene qualifies; the
+   * bundle carries exactly the dependencies that scene references.
+   *
+   * Provenance is inherited, never overwritten: a clip extracted from an
+   * imported ESSP show stays ESSP_DERIVED even when the user saves it manually.
+   * Saving is metadata only, so it never promotes the source clip.
+   */
+  const sceneAssetPayloadForClip = useCallback(
+    (
+      clipId: string,
+    ): {
+      readonly scene: FormationScene;
+      readonly dependencies: SceneAssetDependencies;
+      readonly source: FormationAsset["source"];
+      readonly sourceRef: FormationAsset["sourceRef"];
+    } | null => {
+      const p = projectRef.current;
+      const scene = projectScene(p, clipId);
+      if (!scene || scene.objects.length === 0) return null;
+      const dependencies = collectSceneDependencies(scene, p);
+      const binding = referenceLayerRef.current?.bindings.find((b) => b.clipId === clipId) ?? null;
+      if (!binding) return { scene, dependencies, source: "USER", sourceRef: undefined };
+      return {
+        scene,
+        dependencies,
+        source: "ESSP_DERIVED",
+        sourceRef: {
+          kind: "FILE",
+          name: "imported ESSP show",
+          fingerprint: referenceLayerRef.current?.showHash,
+          params: {
+            clipId,
+            segmentId: binding.sourceSegmentId ?? "",
+            classification: binding.sourceClassification ?? "",
+            startTime: binding.referenceStart,
+            endTime: binding.referenceEnd,
+          },
+        },
+      };
+    },
+    [],
+  );
+
+  const editDynamic = useCallback(
+    (id: string, fn: (formation: DynamicFormation) => DynamicFormation) => {
+      commitDynamic((list) => list.map((d) => (d.id === id ? fn(d) : d)));
+    },
+    [commitDynamic],
+  );
+
+  const undoDynamic = useCallback(() => {
+    const previous = dynamicHistory.current.past.pop();
+    if (!previous) return;
+    setProject((p) => {
+      dynamicHistory.current.future.push(p.dynamicFormations ?? []);
+      setDynamicHistoryDepth({
+        past: dynamicHistory.current.past.length,
+        future: dynamicHistory.current.future.length,
+      });
+      return { ...p, dynamicFormations: previous };
+    });
+  }, []);
+
+  const redoDynamic = useCallback(() => {
+    const next = dynamicHistory.current.future.pop();
+    if (!next) return;
+    setProject((p) => {
+      dynamicHistory.current.past.push(p.dynamicFormations ?? []);
+      setDynamicHistoryDepth({
+        past: dynamicHistory.current.past.length,
+        future: dynamicHistory.current.future.length,
+      });
+      return { ...p, dynamicFormations: next };
+    });
+  }, []);
+
+  const createDynamicFromFormation = useCallback(
+    (formationId: string) => {
+      const formation = project.formations.find((f) => f.id === formationId);
+      if (!formation) return null;
+      const created = dynamicFromFormation(formation, {
+        id: nextId("dyn"),
+        duration: 8,
+        seed: project.seed,
+      });
+      commitDynamic((list) => [...list, created]);
+      setExplicitDynamicId(created.id);
+      setSelectedPointIdsState([]);
+      setSelectedMotionGroupId(null);
+      setDynamicEditTime(0);
+      return created;
+    },
+    [commitDynamic, project.formations, project.seed],
+  );
+
+  const removeDynamicFormation = useCallback(
+    (id: string) => {
+      commitDynamic((list) => list.filter((d) => d.id !== id));
+      setProject((p) => ({
+        ...p,
+        timeline: p.timeline.map((c) => {
+          if (c.dynamicFormationId !== id) return c;
+          const { dynamicFormationId: _detached, ...rest } = c;
+          return rest;
+        }),
+      }));
+
+      setExplicitDynamicId((current) => (current === id ? null : current));
+    },
+    [commitDynamic],
+  );
+
+  const patchDynamicFormation = useCallback(
+    (id: string, patch: Partial<DynamicFormation>) => {
+      editDynamic(id, (d) => ({ ...d, ...patch }));
+    },
+    [editDynamic],
+  );
+
+  const setClipDynamicFormation = useCallback(
+    (clipId: string, dynamicFormationId: string | null) => {
+      setProject((p) => ({
+        ...p,
+        timeline: p.timeline.map((c) => {
+          if (c.id !== clipId) return c;
+          if (dynamicFormationId) return { ...c, dynamicFormationId };
+          const { dynamicFormationId: _detached, ...rest } = c;
+          return rest;
+        }),
+      }));
+    },
+    [],
+  );
+
+  const addDynamicClip = useCallback(
+    (dynamicFormationId: string, timing?: { transition?: number; hold?: number }) => {
+      const id = nextId("c");
+      // Resolve the dynamic formation INSIDE the updater: a library insert adds
+      // the formation and the clip in the same tick, so the closure snapshot of
+      // project.dynamicFormations would still be empty here.
+      setProject((p) => {
+        const dynamic = (p.dynamicFormations ?? []).find((d) => d.id === dynamicFormationId);
+        if (!dynamic) return p;
+        const sourceId =
+          dynamic.sourceFormationId && p.formations.some((f) => f.id === dynamic.sourceFormationId)
+            ? dynamic.sourceFormationId
+            : (p.formations[0]?.id ?? "");
+        const clip: TimelineClip = {
+          id,
+          formationId: sourceId,
+          start: 0,
+          transition: Math.max(0.5, timing?.transition ?? 10),
+          // A dynamic clip holds for at least one full animation cycle.
+          hold: Math.max(timing?.hold ?? 0, dynamic.duration, 4),
+          easing: "minJerk",
+          color: [140, 210, 255],
+          effect: "solid",
+          phase: "SHOW",
+          dynamicFormationId: dynamic.id,
+          playbackRate: 1,
+          dynamicStartOffset: 0,
+        };
+        return { ...p, timeline: insertClipBeforeLanding(p.timeline, clip) };
+      });
+
+      setSelectedClipId(id);
+      setExplicitDynamicId(dynamicFormationId);
+    },
+    [],
+  );
+
+  const applyDynamicPreset = useCallback(
+    (id: string, preset: DynamicPresetId, amount = 1) => {
+      editDynamic(id, (d) => applyPreset(d, preset, amount));
+      setSelectedMotionGroupId(null);
+    },
+    [editDynamic],
+  );
+
+  const mirrorDynamicGroups = useCallback(
+    (id: string) => editDynamic(id, mirrorGroupsX),
+    [editDynamic],
+  );
+
+  // ---- point selection ----------------------------------------------------
+  const setSelectedPointIds = useCallback((ids: string[]) => {
+    setSelectedPointIdsState([...new Set(ids)]);
+  }, []);
+
+  const togglePointSelection = useCallback((id: string) => {
+    setSelectedPointIdsState((current) =>
+      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+    );
+  }, []);
+
+  const clearPointSelection = useCallback(() => setSelectedPointIdsState([]), []);
+
+  const selectPointSide = useCallback(
+    (side: "left" | "right" | "centre" | "all") => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      if (side === "all") {
+        setSelectedPointIdsState(formation.points.map((p) => p.id));
+        return;
+      }
+      const split = splitLeftRight(formation);
+      setSelectedPointIdsState(split[side]);
+    },
+    [selectedDynamicFormation],
+  );
+
+  /**
+   * Viewport bridge: a drone in a dynamic clip is flying ONE base point, given by
+   * that clip's assignment. Selection is therefore stored per point id, not per
+   * drone, and survives re-assignment.
+   */
+  const dynamicClipForFormation = useMemo(() => {
+    const formation = selectedDynamicFormation;
+    if (!formation) return null;
+    if (selectedClip?.dynamicFormationId === formation.id) return selectedClip;
+    return project.timeline.find((c) => c.dynamicFormationId === formation.id) ?? null;
+  }, [project.timeline, selectedClip, selectedDynamicFormation]);
+
+  const pointIdByDrone = useMemo(() => {
+    const formation = selectedDynamicFormation;
+    if (!formation || formation.points.length === 0) return [] as string[];
+    const clipAssignment = dynamicClipForFormation
+      ? plan.assignments.find((a) => a.clipId === dynamicClipForFormation.id)
+      : undefined;
+    return Array.from({ length: project.droneCount }, (_, i) => {
+      const target = clipAssignment?.assignments[i]?.targetPointIndex ?? i;
+      return (
+        formation.points[target % formation.points.length]?.id ??
+        dynamicPointId(target % formation.points.length)
+      );
+    });
+  }, [dynamicClipForFormation, plan.assignments, project.droneCount, selectedDynamicFormation]);
+
+  const pointIdForDrone = useCallback(
+    (droneIndex: number) => pointIdByDrone[droneIndex] ?? null,
+    [pointIdByDrone],
+  );
+
+  const selectedDroneIndices = useMemo(() => {
+    if (selectedPointIds.length === 0) return [];
+    const wanted = new Set(selectedPointIds);
+    return pointIdByDrone.reduce<number[]>((acc, id, i) => {
+      if (wanted.has(id)) acc.push(i);
+      return acc;
+    }, []);
+  }, [pointIdByDrone, selectedPointIds]);
+
+  const dynamicGroupRgbByDrone = useMemo(() => {
+    const map = new Map<number, [number, number, number]>();
+    const formation = selectedDynamicFormation;
+    if (!formation) return map;
+    const colorByPoint = new Map<string, [number, number, number]>();
+    for (const group of formation.groups) {
+      const rgb: [number, number, number] = [
+        group.color[0] / 255,
+        group.color[1] / 255,
+        group.color[2] / 255,
+      ];
+      for (const id of group.pointIds) colorByPoint.set(id, rgb);
+    }
+    pointIdByDrone.forEach((id, i) => {
+      const rgb = colorByPoint.get(id);
+      if (rgb) map.set(i, rgb);
+    });
+    return map;
+  }, [pointIdByDrone, selectedDynamicFormation]);
+
+  // ---- motion groups -----------------------------------------------------
+  const createMotionGroupFromSelection = useCallback(
+    (name: string) => {
+      const formation = selectedDynamicFormation;
+      if (!formation || selectedPointIds.length === 0) return;
+      const groupId = nextId("mg");
+      editDynamic(formation.id, (d) => addMotionGroup(d, name, selectedPointIds, groupId));
+      setSelectedMotionGroupId(groupId);
+    },
+    [editDynamic, selectedDynamicFormation, selectedPointIds],
+  );
+
+  const deleteMotionGroup = useCallback(
+    (groupId: string) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => removeMotionGroup(d, groupId));
+      setSelectedMotionGroupId((current) => (current === groupId ? null : current));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const patchMotionGroupState = useCallback(
+    (groupId: string, patch: Partial<MotionGroup>) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => patchMotionGroup(d, groupId, patch));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const assignSelectionToGroup = useCallback(
+    (groupId: string) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) =>
+        patchMotionGroup(d, groupId, { pointIds: selectedPointIds }),
+      );
+    },
+    [editDynamic, selectedDynamicFormation, selectedPointIds],
+  );
+
+  // ---- keyframes ---------------------------------------------------------
+  const upsertGlobalKeyframe = useCallback(
+    (key: TransformKeyframe) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => upsertTransformKeyframe(d, key));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const deleteGlobalKeyframe = useCallback(
+    (t: number) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => removeTransformKeyframe(d, t));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const upsertDeformationKeyframe = useCallback(
+    (groupId: string, key: GroupDeformationKeyframe) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => upsertGroupKeyframe(d, groupId, key));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const deleteDeformationKeyframe = useCallback(
+    (groupId: string, t: number) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => removeGroupKeyframe(d, groupId, t));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const dynamicPreviewPoints = useMemo(() => {
+    if (!selectedDynamicFormation) return null;
+    try {
+      return sampleDynamicFormation(selectedDynamicFormation, dynamicEditTime);
+    } catch {
+      return null;
+    }
+  }, [dynamicEditTime, selectedDynamicFormation]);
+
+  const dynamicReport = useMemo(() => {
+    if (!selectedDynamicFormation) return null;
+    return validateDynamicFormation(selectedDynamicFormation, {
+      limits: project.limits,
+      area: project.area,
+      expectedPointCount: project.droneCount,
+    });
+  }, [project.area, project.droneCount, project.limits, selectedDynamicFormation]);
+
+  const selectDynamicFormation = useCallback((id: string | null) => {
+    setExplicitDynamicId(id);
+    setSelectedPointIdsState([]);
+    setSelectedMotionGroupId(null);
+    setDynamicEditTime(0);
+  }, []);
+
+  // ---- Transition analysis / optimisation --------------------------------
+  const canAnalyzeSelectedClip =
+    !!selectedClipId && isOptimizableClip(project, selectedClipId, plan);
+
+  /**
+   * Converts an analysis into a plan override the full-show planner can apply.
+   * `targetPointIndex` indexes the CANONICAL fleet-indexed target list the
+   * analysis was run against (see trajectory/target.ts), so no re-mapping
+   * against base formation points happens here.
+   */
+  const overrideFromAnalysis = useCallback(
+    (clipId: string, analysis: TransitionAnalysis): ClipTransitionOverride | null => {
+      if (!isOptimizableClip(project, clipId, plan)) return null;
+      if (analysis.dronePlans.length === 0) return null;
+      return {
+        targetPointIndex: analysis.dronePlans.map((p) => p.targetPointIndex),
+        startOffsets: analysis.dronePlans.map((p) => p.startOffset),
+        laneOffsets: analysis.dronePlans.map((p) => p.lane.offsetMetres),
+        lateralOffsets: analysis.dronePlans.map((p) => p.lateralOffsetMetres ?? 0),
+        strategy: `${analysis.metrics.assignmentStrategy}+optimized`,
+      };
+    },
+    [project, plan],
+  );
+
+  const analyzeSelectedTransition = useCallback(() => {
+    const clipId = selectedClipId;
+    if (!clipId || !isOptimizableClip(project, clipId, plan)) return;
+    setTransitionBusy(true);
+    setTransitionError(null);
+    try {
+      const input = transitionInputForClip(project, plan, clipId, {
+        strategy: assignmentStrategy,
+        sampleRate,
+      });
+      const analysis = analyzeTransitionCore(input, DEFAULT_OPTIMIZATION_SETTINGS);
+      setTransitionAnalysis({ clipId, analysis });
+      setAssignmentComparison({
+        clipId,
+        comparison: compareAssignmentStrategies({
+          source: input.source,
+          target: input.target,
+          drones: input.drones,
+        }),
+      });
+      setOptimization(null);
+    } catch (err) {
+      setTransitionAnalysis(null);
+      setAssignmentComparison(null);
+      setTransitionError(describeTransitionError(err));
+    } finally {
+      setTransitionBusy(false);
+    }
+  }, [project, plan, selectedClipId, assignmentStrategy, sampleRate]);
+
+  const optimizeSelectedTransition = useCallback(() => {
+    const clipId = selectedClipId;
+    if (!clipId || !isOptimizableClip(project, clipId, plan)) return;
+    setTransitionBusy(true);
+    setTransitionError(null);
+    try {
+      const input = transitionInputForClip(project, plan, clipId, {
+        strategy: assignmentStrategy,
+        sampleRate,
+      });
+      const result = optimizeTransitionCore(input, DEFAULT_OPTIMIZATION_SETTINGS);
+      setOptimization({ clipId, result });
+      setTransitionAnalysis({ clipId, analysis: result.final });
+      const override = overrideFromAnalysis(clipId, result.final);
+      // Only the preview/validation layer changes; the project stays untouched.
+      if (override) {
+        // Record the planning basis this override was computed for, so a later
+        // timing/geometry edit invalidates exactly this clip.
+        overrideBasisRef.current = {
+          ...overrideBasisRef.current,
+          ...computeOverrideBasis(project, { [clipId]: override }),
+        };
+        setTransitionOverrides((prev) => ({ ...prev, [clipId]: override }));
+      }
+    } catch (err) {
+      setTransitionError(describeTransitionError(err));
+    } finally {
+      setTransitionBusy(false);
+    }
+  }, [project, plan, selectedClipId, assignmentStrategy, sampleRate, overrideFromAnalysis]);
+
+  const clearTransitionAnalysis = useCallback(() => {
+    setTransitionAnalysis(null);
+    setAssignmentComparison(null);
+    setOptimization(null);
+    setTransitionError(null);
+    overrideBasisRef.current = {};
+    setTransitionOverrides({});
+    setTransitionDesigns({});
+  }, []);
+
+  // ---- Transition design (designer-facing mode over the SAME override) ----
+  //
+  // No second scheduler and no parallel offset storage: a design is translated
+  // by `buildDesignOverride` into the existing `ClipTransitionOverride`, using
+  // the canonical assignment of the existing analyzer. The 3D preview, the
+  // full-show analysis and the export therefore all read one authority.
+
+  /** Design of a clip: authored, else derived from its override data. */
+  const transitionDesignFor = useCallback(
+    (clipId: string): TransitionDesignState =>
+      transitionDesigns[clipId] ??
+      normalizeTransitionDesign({
+        ...DEFAULT_TRANSITION_DESIGN,
+        mode: deriveTransitionMode(transitionOverrides[clipId]),
+      }),
+    [transitionDesigns, transitionOverrides],
+  );
+
+  /**
+   * True when an authored design no longer has the override it produced —
+   * exactly the semantic invalidation of `pruneTransitionOverrides` (geometry,
+   * timing, fleet or limits moved). Hold-only edits keep the override, so they
+   * never raise this flag.
+   */
+  const transitionDesignNeedsRecalculation = useCallback(
+    (clipId: string): boolean => {
+      const design = transitionDesigns[clipId];
+      if (!design || design.mode === "AUTO") return false;
+      return !transitionOverrides[clipId];
+    },
+    [transitionDesigns, transitionOverrides],
+  );
+
+  /** ONE designer change = ONE undo entry (project + overrides + designs). */
+  const setTransitionDesign = useCallback(
+    (clipId: string, patch: Partial<TransitionDesignState>) => {
+      if (!isOptimizableClip(project, clipId, plan)) return;
+      const current =
+        transitionDesignsRef.current[clipId] ??
+        normalizeTransitionDesign({
+          ...DEFAULT_TRANSITION_DESIGN,
+          mode: deriveTransitionMode(transitionOverridesRef.current[clipId]),
+        });
+      const design = normalizeTransitionDesign({ ...current, ...patch });
+      setTransitionError(null);
+      try {
+        let nextOverride: ClipTransitionOverride | null = null;
+        if (design.mode !== "AUTO") {
+          const input = transitionInputForClip(project, plan, clipId, {
+            strategy: assignmentStrategy,
+            sampleRate,
+          });
+          if (design.mode === "MANUAL") {
+            // MANUAL edits the CURRENT offset data; seed it from the canonical
+            // analysis when the clip has no override yet.
+            nextOverride =
+              transitionOverridesRef.current[clipId] ??
+              overrideFromAnalysis(
+                clipId,
+                analyzeTransitionCore(input, DEFAULT_OPTIMIZATION_SETTINGS),
+              );
+          } else {
+            nextOverride = buildDesignOverride(
+              analyzeTransitionCore(input, DEFAULT_OPTIMIZATION_SETTINGS),
+              design,
+              input.duration,
+            );
+          }
+        }
+        pushSnapshot(projectRef.current);
+        setTransitionOverrides((prev) => {
+          const next = { ...prev };
+          const basis = { ...overrideBasisRef.current };
+          if (nextOverride) {
+            next[clipId] = nextOverride;
+            Object.assign(basis, computeOverrideBasis(project, { [clipId]: nextOverride }));
+          } else {
+            delete next[clipId];
+            delete basis[clipId];
+          }
+          overrideBasisRef.current = basis;
+          return next;
+        });
+        setTransitionDesigns((prev) => ({ ...prev, [clipId]: design }));
+      } catch (err) {
+        setTransitionError(describeTransitionError(err));
+      }
+    },
+    [project, plan, assignmentStrategy, sampleRate, overrideFromAnalysis, pushSnapshot],
+  );
+
+  const [bulkTransitionResult, setBulkTransitionResult] =
+    useState<BulkTransitionDesignResult | null>(null);
+
+  /**
+   * SHOW-WIDE DESIGN APPLICATION. One undo entry for the whole timeline, using
+   * exactly the per-clip translation authority (`applyTransitionDesignToShow`).
+   * MANUAL is rejected: it edits existing per-drone data, not a pattern.
+   */
+  const applyTransitionDesignToAllClips = useCallback(
+    (patch?: Partial<TransitionDesignState>) => {
+      const seed =
+        transitionDesignsRef.current[selectedClipIdRef.current ?? ""] ?? DEFAULT_TRANSITION_DESIGN;
+      const design = normalizeTransitionDesign({ ...seed, ...patch });
+      if (design.mode === "MANUAL") {
+        setTransitionError({
+          code: "OPTIMIZATION_FAILED",
+          message: "MANUAL offsets are authored per drone and cannot be applied show-wide.",
+        });
+        return;
+      }
+      setTransitionError(null);
+      try {
+        const result = applyTransitionDesignToShow(project, plan, design, {
+          strategy: assignmentStrategy,
+          sampleRate,
+        });
+        pushSnapshot(projectRef.current);
+        setTransitionOverrides((prev) => {
+          const next = { ...prev };
+          const basis = { ...overrideBasisRef.current };
+          for (const outcome of result.outcomes) {
+            if (outcome.status === "applied") {
+              next[outcome.clipId] = outcome.override;
+              Object.assign(
+                basis,
+                computeOverrideBasis(project, { [outcome.clipId]: outcome.override }),
+              );
+            } else if (outcome.status === "cleared") {
+              delete next[outcome.clipId];
+              delete basis[outcome.clipId];
+            }
+          }
+          overrideBasisRef.current = basis;
+          return next;
+        });
+        setTransitionDesigns((prev) => {
+          const next = { ...prev };
+          for (const outcome of result.outcomes) {
+            if (outcome.status === "applied" || outcome.status === "cleared") {
+              next[outcome.clipId] = design;
+            }
+          }
+          return next;
+        });
+        setBulkTransitionResult(result);
+      } catch (err) {
+        setTransitionError(describeTransitionError(err));
+      }
+    },
+    [project, plan, assignmentStrategy, sampleRate, pushSnapshot],
+  );
+
+  /**
+   * MANUAL per-drone editing of the EXISTING override arrays. Bounds follow the
+   * scheduler contract (start offset <= transition * 0.5) and the optimiser's
+   * vertical lane bound.
+   */
+  const patchTransitionDroneOffset = useCallback(
+    (clipId: string, index: number, patch: { startOffset?: number; laneOffset?: number }) => {
+      const override = transitionOverridesRef.current[clipId];
+      const clip = projectRef.current.timeline.find((c) => c.id === clipId);
+      if (!override || !clip) return;
+      if (index < 0 || index >= override.startOffsets.length) return;
+      const startCap = Math.max(0, clip.transition * 0.5);
+      const laneCap = DEFAULT_OPTIMIZATION_SETTINGS.maxVerticalOffset;
+      const startOffsets = [...override.startOffsets];
+      const laneOffsets = [...override.laneOffsets];
+      if (patch.startOffset !== undefined && Number.isFinite(patch.startOffset)) {
+        startOffsets[index] = Number(Math.max(0, Math.min(startCap, patch.startOffset)).toFixed(4));
+      }
+      if (patch.laneOffset !== undefined && Number.isFinite(patch.laneOffset)) {
+        laneOffsets[index] = Number(
+          Math.max(-laneCap, Math.min(laneCap, patch.laneOffset)).toFixed(4),
+        );
+      }
+      const next: ClipTransitionOverride = {
+        ...override,
+        targetPointIndex: [...override.targetPointIndex],
+        startOffsets,
+        laneOffsets,
+        strategy: override.strategy.includes("+manual")
+          ? override.strategy
+          : `${override.strategy}+manual`,
+      };
+      pushSnapshot(projectRef.current);
+      setTransitionOverrides((prev) => ({ ...prev, [clipId]: next }));
+      setTransitionDesigns((prev) => ({
+        ...prev,
+        [clipId]: normalizeTransitionDesign({
+          ...(prev[clipId] ?? DEFAULT_TRANSITION_DESIGN),
+          mode: "MANUAL",
+        }),
+      }));
+    },
+    [pushSnapshot],
+  );
+
+  const applySuggestedDuration = useCallback(() => {
+    if (!transitionAnalysis) return;
+    const { clipId, analysis } = transitionAnalysis;
+    const next = Math.ceil(analysis.feasibility.minimumEstimatedDuration * 10) / 10;
+    if (!Number.isFinite(next) || next <= 0) return;
+    patchClip(clipId, { transition: Math.max(0.5, next) });
+  }, [transitionAnalysis, patchClip]);
+
+  /**
+   * CANONICAL FULL-SHOW OPTIONS (single source).
+   *
+   * Read-only consumers (diagnostics, consequence previews) must analyse with
+   * EXACTLY these settings so they can never build a second planner path.
+   */
+  const fullShowAnalysisOptions = useMemo<AnalyzeFullShowOptions>(
+    () => ({
+      sampleRate,
+      assignmentStrategy,
+      transitionOverrides,
+      reference:
+        referenceLayer && referenceLayerShow
+          ? { layer: referenceLayer, show: referenceLayerShow }
+          : null,
+    }),
+    [sampleRate, assignmentStrategy, transitionOverrides, referenceLayer, referenceLayerShow],
+  );
+
+  // ---- Full show simulation & validation ---------------------------------
+  //
+  // The analysis composes the show with EXACTLY the settings the viewport plays
+  // (same project, strategy, overrides and sample rate), so a report can never
+  // describe a different show than the one on screen.
+  const analyzeFullShow = useCallback(() => {
+    if (fullShowBusy) return;
+    // One run token per invocation: any later invalidation (apply, undo/redo,
+    // project load, manual cancel) advances the generation and this run's
+    // result — success OR error — is dropped instead of installed.
+    const token = fullShowRunRef.current.begin(analysisRevisionRef.current);
+    setFullShowBusy(true);
+    setFullShowError(null);
+    setFullShowProgress(null);
+    const analyzedClipIds = transitionAnalysis ? [transitionAnalysis.clipId] : [];
+    const unresolvedClipIds =
+      transitionAnalysis &&
+      transitionAnalysis.analysis.conflicts.criticalCount > 0 &&
+      !transitionOverrides[transitionAnalysis.clipId]
+        ? [transitionAnalysis.clipId]
+        : [];
+    const task = startFullShowAnalysis(
+      {
+        project,
+        options: {
+          sampleRate,
+          assignmentStrategy,
+          transitionOverrides,
+          analyzedClipIds,
+          unresolvedClipIds,
+          reference:
+            referenceLayerRef.current && referenceLayerShow
+              ? { layer: referenceLayerRef.current, show: referenceLayerShow }
+              : null,
+        },
+      },
+      (progress) => {
+        if (!fullShowRunRef.current.isCancelled(token)) setFullShowProgress(progress);
+      },
+    );
+    fullShowTaskRef.current = task;
+    void task.promise
+      .then((report) => {
+        if (!fullShowRunRef.current.accepts(token, analysisRevisionRef.current)) return;
+        // The worker returns only clone-safe canonical evidence. Playback and
+        // export already use the store's canonical plan/trajectory; no second
+        // plan is reconstructed on the rendering thread.
+        setFullShow({ plan: null, report });
+      })
+      .catch((err) => {
+        if (!fullShowRunRef.current.accepts(token, analysisRevisionRef.current)) return;
+        setFullShow(null);
+        setFullShowError(
+          err instanceof FullShowAnalysisTaskError
+            ? { code: err.code, message: err.message }
+            : { code: "UNKNOWN", message: err instanceof Error ? err.message : String(err) },
+        );
+      })
+      .finally(() => {
+        if (fullShowTaskRef.current === task) fullShowTaskRef.current = null;
+        if (fullShowRunRef.current.accepts(token, analysisRevisionRef.current)) {
+          setFullShowBusy(false);
+          setFullShowProgress(null);
+        }
+      });
+  }, [
+    fullShowBusy,
+    project,
+    sampleRate,
+    assignmentStrategy,
+    transitionOverrides,
+    transitionAnalysis,
+    referenceLayerShow,
+  ]);
+
+  const cancelFullShowAnalysis = useCallback(() => {
+    fullShowRunRef.current.invalidate();
+    fullShowTaskRef.current?.cancel();
+    fullShowTaskRef.current = null;
+    setFullShowBusy(false);
+    setFullShowProgress(null);
+  }, []);
+
+  const clearFullShowReport = useCallback(() => {
+    setFullShow(null);
+    setFullShowError(null);
+    setHighlightedDrones([]);
+  }, []);
+
+  // ---- Pre-show (launch grid / staging / grouped take-off) ---------------
+  const preShowConfig = useMemo(() => resolvePreShowConfig(project.preShow), [project.preShow]);
+  const preShowEnabled = !!project.preShow?.enabled;
+
+  const patchPreShow = useCallback((patch: DeepPartialPreShow) => {
+    setProject((p) => ({
+      ...p,
+      preShow: patchPreShowConfig(resolvePreShowConfig(p.preShow), patch),
+    }));
+  }, []);
+
+  const setPreShowEnabled = useCallback(
+    (enabled: boolean) => patchPreShow({ enabled }),
+    [patchPreShow],
+  );
+
+  const launchSchedule = useMemo(
+    () => (preShowEnabled && plan.preShow ? suggestLaunchSchedule(project, preShowConfig) : null),
+    [preShowEnabled, plan.preShow, project, preShowConfig],
+  );
+
+  const preShowOverlay = useMemo(
+    () => (plan.preShow ? buildPreShowOverlay(plan.preShow) : null),
+    [plan.preShow],
+  );
+
+  const previewLaunch = useCallback(() => {
+    setPreShowBusy(true);
+    setPreShowError(null);
+    try {
+      const { plan: preShowPlan, report } = analyzePreShow(project, {
+        config: preShowConfig,
+        sampleRate,
+      });
+      setPreShowPreview({ plan: preShowPlan, report, revision: analysisRevision });
+    } catch (err) {
+      setPreShowPreview(null);
+      setPreShowError({
+        code: "PRE_SHOW_PREVIEW_FAILED",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setPreShowBusy(false);
+    }
+  }, [project, preShowConfig, sampleRate, analysisRevision]);
+
+  const clearPreShowReport = useCallback(() => {
+    setPreShowPreview(null);
+    setPreShowError(null);
+    setIntervalSuggestion(null);
+    setGroupOrderComparison(null);
+  }, []);
+
+  const suggestInterval = useCallback(() => {
+    setPreShowBusy(true);
+    try {
+      setIntervalSuggestion(suggestGroupInterval(project, { sampleRate: 10 }));
+    } finally {
+      setPreShowBusy(false);
+    }
+  }, [project]);
+
+  const compareOrders = useCallback(() => {
+    setPreShowBusy(true);
+    try {
+      setGroupOrderComparison(compareGroupOrders(project));
+    } finally {
+      setPreShowBusy(false);
+    }
+  }, [project]);
+
+  const applySuggestedInterval = useCallback(() => {
+    const suggested = intervalSuggestion?.suggestedInterval;
+    if (typeof suggested !== "number") return;
+    patchPreShow({ grouping: { groupIntervalSeconds: suggested } });
+  }, [intervalSuggestion, patchPreShow]);
+
+  const focusIssue = useCallback(
+    (issue: FullShowIssue) => {
+      if (typeof issue.time === "number" && Number.isFinite(issue.time)) clock.seek(issue.time);
+      if (issue.clipId) setSelectedClipId(issue.clipId);
+      setHighlightedDrones(issue.droneIndices ?? []);
+    },
+    [clock],
+  );
+
+  // ---- ESSP reference import (read-only) --------------------------------
+  /**
+   * SESSION-SCOPED ESSP IMPORT. Reading bytes, unzipping and building the
+   * reference show are all async, so nothing this run produces — show, playback
    * authority, forensics reset, diagnostics or the failure — may be installed
    * once another document has been adopted. The import never adopts a project
    * itself: extraction into the timeline is a separate, synchronous authored
