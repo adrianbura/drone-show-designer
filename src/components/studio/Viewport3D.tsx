@@ -66,6 +66,7 @@ function Swarm({
   reserveDrones,
   lightingStatesAt,
   onSelectDrone,
+  gizmoPreviewByDrone,
 }: {
   project: ShowProject;
   time: number;
@@ -85,6 +86,8 @@ function Swarm({
   /** Per-drone LED state from the lighting engine; empty = no lighting program. */
   lightingStatesAt: (t: number) => DroneLightState[];
   onSelectDrone: (index: number, additive: boolean) => void;
+  /** Drafted target positions while the viewport gizmo is being dragged. */
+  gizmoPreviewByDrone: readonly (readonly [number, number, number] | null)[];
 }) {
   const bodies = useRef<THREE.InstancedMesh>(null);
   const halos = useRef<THREE.InstancedMesh>(null);
@@ -109,7 +112,7 @@ function Swarm({
     const lights = time >= 0 ? lightingStatesAt(time) : [];
 
     samples.forEach((sample, i) => {
-      const p = sample.position;
+      const p = gizmoPreviewByDrone[i] ?? sample.position;
       dummy.position.set(p[0], p[1], p[2]);
       dummy.rotation.set(0, (-sample.yaw * Math.PI) / 180, 0);
       dummy.scale.setScalar(1);
@@ -337,6 +340,7 @@ export default function Viewport3D() {
     gizmoRotateSnap,
     sceneGizmoPivot,
     sceneGizmoPreviewPoints,
+    sceneGizmoPreviewByDrone,
     beginSceneGizmo,
     updateSceneGizmo,
     commitSceneGizmo,
@@ -506,6 +510,7 @@ export default function Viewport3D() {
             reserveDrones={reserveDrones}
             lightingStatesAt={lightingStatesAt}
             onSelectDrone={handleSelectDrone}
+            gizmoPreviewByDrone={sceneGizmoPreviewByDrone}
           />
         )}
         {!reference && preShowOverlay && plan.preShow && (showLaunchPads || showStaging) ? (

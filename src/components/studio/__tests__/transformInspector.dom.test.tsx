@@ -113,11 +113,17 @@ describe("transform inspector", () => {
     select(ids[0]!);
     await waitFor(() => expect(screen.getByTestId("transform-single")).toBeTruthy());
 
+    const clip = api.project.timeline.find((candidate) => candidate.id === api.selectedClipId)!;
+    const previewTime = clip.start + clip.transition + 0.001;
+    const beforeViewport = api.samplesAtTime(previewTime).map((sample) => sample.position);
+
     fireEvent.change(screen.getByTestId("transform-position-Y"), { target: { value: "35" } });
     fireEvent.blur(screen.getByTestId("transform-position-Y"));
     await waitFor(() =>
       expect(api.selectedScene!.objects[0]!.transform.position[1]).toBeCloseTo(35),
     );
+    const afterViewport = api.samplesAtTime(previewTime).map((sample) => sample.position);
+    expect(afterViewport).not.toEqual(beforeViewport);
     const movedPoints = resolveSceneAt(api.project, api.selectedScene!, 0).points.slice(0, 30);
     expect(movedPoints.every((point) => point[1] === 55)).toBe(true);
     fireEvent.change(screen.getByTestId("transform-rotation-Z"), { target: { value: "45" } });

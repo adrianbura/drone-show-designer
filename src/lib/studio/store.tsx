@@ -660,6 +660,8 @@ interface StudioContextValue {
   sceneGizmoDraft: SceneGroupDelta | null;
   /** Preview points of the drafted scene — diagnostics only, never planned. */
   sceneGizmoPreviewPoints: Vector3Tuple[];
+  /** Live authored positions keyed to physical drones during a gizmo drag. */
+  sceneGizmoPreviewByDrone: (Vector3Tuple | null)[];
   beginSceneGizmo: () => void;
   updateSceneGizmo: (delta: SceneGroupDelta) => void;
   /** Commits exactly one canonical mutation (one undo entry). */
@@ -2626,8 +2628,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, [project, selectedScene, sceneSelection]);
 
   /** DRAFT PREVIEW: pure scene resolution, never a plan and never persisted. */
-  const sceneGizmoPreviewPoints = useMemo<Vector3Tuple[]>(() => {
-    if (!sceneGizmoDraft || !selectedScene || gizmoIdsRef.current.length === 0) return [];
+  const sceneGizmoPreview = useMemo<{
+    readonly points: Vector3Tuple[];
+    readonly positionsByPointId: ReadonlyMap<string, Vector3Tuple>;
+  }>(() => {
+    const empty = { points: [], positionsByPointId: new Map<string, Vector3Tuple>() };
+    if (!sceneGizmoDraft || !selectedScene || gizmoIdsRef.current.length === 0) return empty;
     try {
       const drafted = applySceneGroupDelta(
         project,
@@ -2638,18 +2644,23 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       const resolved = resolveSceneAt(project, drafted, 0);
       const wanted = new Set(gizmoIdsRef.current);
       const points: Vector3Tuple[] = [];
+      const positionsByPointId = new Map<string, Vector3Tuple>();
       for (const group of resolved.groups) {
         if (!wanted.has(group.instanceId)) continue;
         for (let i = 0; i < group.pointCount; i++) {
-          const p = resolved.points[group.offset + i];
+          const index = group.offset + i;
+          const p = resolved.points[index];
+          const pointId = resolved.pointIds[index];
           if (p) points.push(p);
+          if (p && pointId) positionsByPointId.set(pointId, p);
         }
       }
-      return points;
+      return { points, positionsByPointId };
     } catch {
-      return [];
+      return empty;
     }
   }, [project, selectedScene, sceneGizmoDraft]);
+  const sceneGizmoPreviewPoints = sceneGizmoPreview.points;
 
   const beginSceneGizmo = useCallback(() => {
     gizmoIdsRef.current = sceneSelection.ids;
@@ -2712,6 +2723,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       };
     });
   }, [plan, project, selectedClipId, selectedScene]);
+
+  // A gizmo gesture previews the selected visual itself, not merely the handle.
+  // Point identity comes from the canonical assignment, so even a reassigned or
+  // partially participating fleet receives the correct drafted target.
+  const sceneGizmoPreviewByDrone = useMemo<(Vector3Tuple | null)[]>(() => {
+    if (sceneGizmoPreview.positionsByPointId.size === 0) return [];
+    return sceneTargetByDrone.map(({ pointId }) =>
+      pointId ? (sceneGizmoPreview.positionsByPointId.get(pointId) ?? null) : null,
+    );
+  }, [sceneGizmoPreview.positionsByPointId, sceneTargetByDrone]);
 
   const sceneObjectIdForDrone = useCallback(
     (droneIndex: number) => sceneTargetByDrone[droneIndex]?.objectId ?? null,
@@ -6600,6 +6621,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       sceneGizmoPivot,
       sceneGizmoDraft,
       sceneGizmoPreviewPoints,
+      sceneGizmoPreviewByDrone,
       beginSceneGizmo,
       updateSceneGizmo,
       commitSceneGizmo,
@@ -7007,6 +7029,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       sceneGizmoPivot,
       sceneGizmoDraft,
       sceneGizmoPreviewPoints,
+      sceneGizmoPreviewByDrone,
       beginSceneGizmo,
       updateSceneGizmo,
       commitSceneGizmo,

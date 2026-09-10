@@ -229,8 +229,11 @@ describe("scene composer drone budget DOM", () => {
     act(() => {
       api.beginSceneGizmo();
       api.updateSceneGizmo({ position: [3, 4, 5] });
-      api.commitSceneGizmo();
     });
+    await waitFor(() =>
+      expect(api.sceneGizmoPreviewByDrone.some((position) => position !== null)).toBe(true),
+    );
+    act(() => api.commitSceneGizmo());
     await waitFor(() =>
       expect(api.selectedScene!.objects[0]!.transform.position).toEqual([3, 4, 5]),
     );

@@ -60,13 +60,15 @@ export default function SceneGizmo({
       <TransformControls
         object={proxy.current}
         mode={MODE[mode]}
-        // Larger handles: the thin default axes were very hard to grab in a
-        // 200 m arena, which made Move / Rotate / Scale look unresponsive.
+        // Larger handles: the thin default axes are hard to grab in a 200 m arena.
         size={1.8}
         translationSnap={translateSnap > 0 ? translateSnap : null}
         rotationSnap={rotateSnap > 0 ? (rotateSnap * Math.PI) / 180 : null}
         onMouseDown={() => {
-          resetProxy();
+          // TransformControls has already captured its start matrix when this
+          // event fires. Mutating the proxy here desynchronises that internal
+          // snapshot and can move only the handle while leaving the authored
+          // visual unchanged. The effect above seeds the identity beforehand.
           onBegin();
         }}
         onMouseUp={() => {
