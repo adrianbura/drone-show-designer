@@ -1020,6 +1020,8 @@ export default function Inspector({
             </p>
           </section>
 
+          <ShowReadinessPanel />
+
           <FullShowPanel />
 
           <section className="panel-card">
