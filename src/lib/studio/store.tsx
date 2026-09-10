@@ -2377,11 +2377,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     const clipId = selectedClipIdRef.current;
     const clip = projectRef.current.timeline.find((candidate) => candidate.id === clipId);
     if (!clip) return;
+    const holdStart = clip.start + clip.transition;
     const end = clip.start + clip.transition + clip.hold;
-    // Timeline intervals are semi-open: the exact end already belongs to the
-    // following clip (or to the end state), so it must reveal this scene too.
-    if (clock.time < clip.start || clock.time >= end - 1e-6) {
-      clock.seek(clip.start + clip.transition);
+    // During the incoming transition the selected visual is not yet stable,
+    // which makes a correct transform look ineffective. Edit at the first
+    // complete hold frame; keep the playhead only while it is already in hold.
+    // The exact end is semi-open and belongs to the following interval.
+    if (clock.time < holdStart || clock.time >= end - 1e-6) {
+      clock.seek(holdStart);
     }
   }, [clock]);
 
