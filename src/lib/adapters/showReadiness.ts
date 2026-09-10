@@ -57,6 +57,7 @@ export interface ShowReadinessModel {
 
 export interface ShowReadinessInput {
   readonly projectDirty: boolean;
+  readonly hasSavedProject: boolean;
   readonly hasFlightSite: boolean;
   readonly report: FullShowValidationReport | null | undefined;
   readonly stale: boolean;
@@ -77,20 +78,26 @@ function geofenceFacts(scan: GeofenceScanResult | null): ReadinessGeofenceFacts 
 }
 
 export function buildShowReadiness(input: ShowReadinessInput): ShowReadinessModel {
-  const { projectDirty, hasFlightSite, report, stale } = input;
+  const { projectDirty, hasSavedProject, hasFlightSite, report, stale } = input;
   const eligibility = evaluateExportEligibility(report, stale);
-  const geofence = geofenceFacts(report?.geofence ?? null);
-  const blockingIssues = (report?.issues ?? []).filter((i) => i.severity === "error");
+  // A stale report is visible in Full-Show history, but it cannot substantiate
+  // any readiness fact for the current revision.
+  const trustedReport = report && !stale ? report : null;
+  const geofence = geofenceFacts(trustedReport?.geofence ?? null);
+  const blockingIssues = (trustedReport?.issues ?? []).filter((i) => i.severity === "error");
 
   const items: ReadinessItem[] = [
     {
       id: "SAVED",
       label: "Project saved",
-      state: projectDirty ? "TODO" : "OK",
+      state: projectDirty || !hasSavedProject ? "TODO" : "OK",
       detail: projectDirty
         ? "Unsaved changes — save the Studio document before handing it over."
-        : "The Studio document matches the last save.",
-      action: projectDirty ? { id: "SAVE_PROJECT", label: "Save project" } : null,
+        : !hasSavedProject
+          ? "This project has not been saved as a Studio document yet."
+          : "The Studio document matches the last save.",
+      action:
+        projectDirty || !hasSavedProject ? { id: "SAVE_PROJECT", label: "Save project" } : null,
     },
     {
       id: "SITE",
@@ -115,12 +122,14 @@ export function buildShowReadiness(input: ShowReadinessInput): ShowReadinessMode
     {
       id: "TRAJECTORY",
       label: "No blocking trajectory issues",
-      state: !report ? "TODO" : blockingIssues.length > 0 ? "BLOCKED" : "OK",
+      state: !report || stale ? "TODO" : blockingIssues.length > 0 ? "BLOCKED" : "OK",
       detail: !report
         ? "Blocking issues are only known after a full-show analysis."
-        : blockingIssues.length > 0
-          ? `${blockingIssues.length} blocking issue(s) reported by full-show validation.`
-          : `${report.warnings.length} warning(s), no blocking issue.`,
+        : stale
+          ? "Re-run full-show analysis before trusting trajectory findings."
+          : blockingIssues.length > 0
+            ? `${blockingIssues.length} blocking issue(s) reported by full-show validation.`
+            : `${report.warnings.length} warning(s), no blocking issue.`,
       action:
         report && blockingIssues.length > 0
           ? { id: "OPEN_BLOCKING_ISSUES", label: "Open blocking issues" }
@@ -129,29 +138,34 @@ export function buildShowReadiness(input: ShowReadinessInput): ShowReadinessMode
     {
       id: "GEOFENCE",
       label: "Geofence checked",
-      state: !geofence
-        ? "TODO"
-        : geofence.outsideCount > 0 || geofence.ceilingCount > 0
-          ? "BLOCKED"
-          : geofence.marginCount > 0
-            ? "WARNING"
-            : "OK",
-      detail: !geofence
-        ? hasFlightSite
-          ? "Run the full-show analysis to scan the flown trajectory against the site."
-          : "Authorise a site first, then run the full-show analysis."
-        : geofence.outsideCount > 0 || geofence.ceilingCount > 0
-          ? `${geofence.outsideCount} sample(s) outside the perimeter, ${geofence.ceilingCount} above the ceiling.`
-          : geofence.marginCount > 0
-            ? `${geofence.marginCount} sample(s) inside the authored clearance margin.`
-            : `${geofence.sampleCount} sample(s) scanned; nothing outside the authored area.`,
-      action: !geofence
-        ? hasFlightSite
-          ? { id: "ANALYZE_FULL_SHOW", label: "Analyze full show" }
-          : { id: "CONFIGURE_SITE", label: "Configure site" }
-        : geofence.outsideCount > 0 || geofence.ceilingCount > 0
-          ? { id: "OPEN_BLOCKING_ISSUES", label: "Open blocking issues" }
-          : null,
+      state:
+        stale || !geofence
+          ? "TODO"
+          : geofence.outsideCount > 0 || geofence.ceilingCount > 0
+            ? "BLOCKED"
+            : geofence.marginCount > 0
+              ? "WARNING"
+              : "OK",
+      detail: stale
+        ? "The geofence scan belongs to an older project revision; run the analysis again."
+        : !geofence
+          ? hasFlightSite
+            ? "Run the full-show analysis to scan the flown trajectory against the site."
+            : "Authorise a site first, then run the full-show analysis."
+          : geofence.outsideCount > 0 || geofence.ceilingCount > 0
+            ? `${geofence.outsideCount} sample(s) outside the perimeter, ${geofence.ceilingCount} above the ceiling.`
+            : geofence.marginCount > 0
+              ? `${geofence.marginCount} sample(s) inside the authored clearance margin.`
+              : `${geofence.sampleCount} sample(s) scanned; nothing outside the authored area.`,
+      action: stale
+        ? { id: "ANALYZE_FULL_SHOW", label: "Analyze full show" }
+        : !geofence
+          ? hasFlightSite
+            ? { id: "ANALYZE_FULL_SHOW", label: "Analyze full show" }
+            : { id: "CONFIGURE_SITE", label: "Configure site" }
+          : geofence.outsideCount > 0 || geofence.ceilingCount > 0
+            ? { id: "OPEN_BLOCKING_ISSUES", label: "Open blocking issues" }
+            : null,
     },
     {
       id: "HANDOFF",

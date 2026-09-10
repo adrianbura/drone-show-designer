@@ -54,7 +54,12 @@ function view(
   return onAction;
 }
 
-const base = { projectDirty: false, hasFlightSite: true, stale: false };
+const base = {
+  projectDirty: false,
+  hasSavedProject: true,
+  hasFlightSite: true,
+  stale: false,
+};
 
 describe("Show readiness", () => {
   it("offers Analyze full show when no report exists", () => {
@@ -71,6 +76,15 @@ describe("Show readiness", () => {
     expect(screen.getByTestId("readiness-item-HANDOFF").getAttribute("data-state")).not.toBe("OK");
     expect(screen.queryByTestId("readiness-action-HANDOFF")).toBeNull();
     expect(screen.getByTestId("readiness-status").getAttribute("data-status")).toBe("BLOCKED");
+    expect(screen.getByTestId("readiness-item-TRAJECTORY").getAttribute("data-state")).toBe("TODO");
+    expect(screen.getByTestId("readiness-item-GEOFENCE").getAttribute("data-state")).toBe("TODO");
+    expect(screen.queryByTestId("readiness-geofence-facts")).toBeNull();
+  });
+
+  it("does not call a never-saved project saved merely because it is clean", () => {
+    view({ ...base, hasSavedProject: false, report: null });
+    expect(screen.getByTestId("readiness-item-SAVED").getAttribute("data-state")).toBe("TODO");
+    expect(screen.getByTestId("readiness-action-SAVED")).toBeTruthy();
   });
 
   it("a geofence breach reads BLOCKED with the canonical numbers", () => {

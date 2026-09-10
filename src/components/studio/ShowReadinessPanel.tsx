@@ -29,6 +29,7 @@ export default function ShowReadinessPanel() {
     preShowReport,
     preShowStale,
     projectDirty,
+    projectSavedAt,
     analyzeFullShow,
     saveProjectFile,
     buildProjectFile,
@@ -38,6 +39,7 @@ export default function ShowReadinessPanel() {
 
   const model = buildShowReadiness({
     projectDirty,
+    hasSavedProject: projectSavedAt !== null,
     hasFlightSite: isSiteUsable(project.site),
     report: fullShowReport,
     stale: fullShowStale,

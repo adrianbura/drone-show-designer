@@ -254,7 +254,7 @@ export function analyzeFullShow(
       time: breach.time,
       droneIds: [droneId],
       droneIndices: [breach.droneIndex],
-      value: ceiling ? breach.headroomM : breach.clearanceM,
+      value: ceiling ? project.site!.ceilingM - breach.headroomM : breach.clearanceM,
       limit: ceiling ? project.site!.ceilingM : project.site!.marginM,
       ...(seg ? { clipId: seg.clipId, phase: seg.phase } : {}),
     });

@@ -149,6 +149,28 @@ describe("full show composition", () => {
     expect(report.errors.some((issue) => issue.code === "GEOFENCE_OUTSIDE")).toBe(true);
     expect(report.exportReadiness.status).toBe("BLOCKED");
   });
+
+  it("reports actual altitude against the ceiling for a ceiling breach", () => {
+    const project = smallProject(4);
+    const origin = { lat: 44.4, lon: 26.1 };
+    const { report } = analyzeFullShow(
+      {
+        ...project,
+        site: {
+          origin,
+          headingDeg: 0,
+          perimeter: rectangularPerimeter({ origin, headingDeg: 0 }, 1000, 1000),
+          marginM: 0,
+          ceilingM: 1,
+        },
+      },
+      settings,
+    );
+    const issue = report.errors.find((candidate) => candidate.code === "GEOFENCE_CEILING");
+    expect(issue).toBeTruthy();
+    expect(issue!.value).toBeGreaterThan(issue!.limit!);
+    expect(issue!.limit).toBe(1);
+  });
 });
 
 describe("continuity validation", () => {
