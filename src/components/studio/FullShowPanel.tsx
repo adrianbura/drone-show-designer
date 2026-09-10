@@ -7,24 +7,11 @@ import {
   ShieldAlert,
   XCircle,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
-import type { FullShowIssueCategory, FullShowIssueSeverity } from "@/lib/show/fullshow";
+import FullShowIssueList from "./FullShowIssueList";
+import type { FullShowIssueSeverity } from "@/lib/show/fullshow";
 import { useStudio } from "@/lib/studio/store";
-
-const CATEGORY_LABEL: Record<FullShowIssueCategory, string> = {
-  timeline: "Timeline",
-  continuity: "Continuity",
-  conflict: "Proximity",
-  safety: "Safety",
-  geofence: "GPS geofence",
-  homePads: "Home pads",
-  takeoff: "Take-off",
-  landing: "Landing",
-  lighting: "Lighting",
-  transition: "Transition",
-  preShow: "Pre-show",
-};
 
 const SEVERITY_ORDER: FullShowIssueSeverity[] = ["error", "warning", "info"];
 
