@@ -55,6 +55,18 @@ export default function FullShowPanel() {
     );
   }, [report, filter]);
 
+  /** Clip naming only — the canonical report is displayed unchanged. */
+  const clipLabel = useCallback(
+    (clipId: string) => {
+      const clip = project.timeline.find((c) => c.id === clipId);
+      const formation = clip
+        ? project.formations.find((f) => f.id === clip.formationId)
+        : undefined;
+      return formation?.name ?? clip?.formationId ?? clipId;
+    },
+    [project],
+  );
+
   return (
     <section className="panel-card">
       <h2 className="panel-title">
