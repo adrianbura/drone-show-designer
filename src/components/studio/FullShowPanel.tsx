@@ -31,6 +31,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 export default function FullShowPanel() {
   const {
+    project,
     fullShowReport: report,
     fullShowBusy,
     fullShowProgress,
