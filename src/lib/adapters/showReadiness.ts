@@ -14,13 +14,7 @@ import { evaluateExportEligibility } from "./exportEligibility";
 import type { GeofenceScanResult } from "@/lib/show/geo";
 import type { FullShowValidationReport, FullShowIssue } from "@/lib/show/fullshow/types";
 
-export type ReadinessItemId =
-  | "SAVED"
-  | "SITE"
-  | "ANALYSIS"
-  | "TRAJECTORY"
-  | "GEOFENCE"
-  | "HANDOFF";
+export type ReadinessItemId = "SAVED" | "SITE" | "ANALYSIS" | "TRAJECTORY" | "GEOFENCE" | "HANDOFF";
 
 export type ReadinessItemState = "OK" | "WARNING" | "BLOCKED" | "TODO";
 
@@ -104,8 +98,7 @@ export function buildShowReadiness(input: ShowReadinessInput): ShowReadinessMode
       state: hasFlightSite ? "OK" : "TODO",
       detail: hasFlightSite
         ? "Take-off coordinates and authorised area are authored."
-        : "No GPS site: the authorised area cannot be checked."
-      ,
+        : "No GPS site: the authorised area cannot be checked.",
       action: hasFlightSite ? null : { id: "CONFIGURE_SITE", label: "Configure site" },
     },
     {
@@ -117,8 +110,7 @@ export function buildShowReadiness(input: ShowReadinessInput): ShowReadinessMode
         : stale
           ? "The project changed after this analysis; results cannot be trusted."
           : `Analysed revision ${report.analysisRevision.slice(0, 10)}.`,
-      action:
-        !report || stale ? { id: "ANALYZE_FULL_SHOW", label: "Analyze full show" } : null,
+      action: !report || stale ? { id: "ANALYZE_FULL_SHOW", label: "Analyze full show" } : null,
     },
     {
       id: "TRAJECTORY",

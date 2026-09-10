@@ -59,7 +59,9 @@ const base = { projectDirty: false, hasFlightSite: true, stale: false };
 describe("Show readiness", () => {
   it("offers Analyze full show when no report exists", () => {
     view({ ...base, report: null });
-    expect(screen.getByTestId("readiness-primary-action").getAttribute("data-action")).toBe("ANALYZE_FULL_SHOW");
+    expect(screen.getByTestId("readiness-primary-action").getAttribute("data-action")).toBe(
+      "ANALYZE_FULL_SHOW",
+    );
     expect(screen.getByTestId("readiness-item-ANALYSIS").getAttribute("data-state")).toBe("TODO");
     expect(screen.queryByTestId("readiness-action-HANDOFF")).toBeNull();
   });
@@ -79,7 +81,9 @@ describe("Show readiness", () => {
         exportReadiness: { status: "BLOCKED", blockers: ["geofence"], warnings: [] },
       }),
     });
-    expect(screen.getByTestId("readiness-item-GEOFENCE").getAttribute("data-state")).toBe("BLOCKED");
+    expect(screen.getByTestId("readiness-item-GEOFENCE").getAttribute("data-state")).toBe(
+      "BLOCKED",
+    );
     expect(screen.getByTestId("readiness-status").getAttribute("data-status")).toBe("BLOCKED");
     expect(screen.getByTestId("readiness-geofence-facts").textContent).toContain("-3.25 m");
   });
@@ -92,8 +96,12 @@ describe("Show readiness", () => {
         exportReadiness: { status: "READY_WITH_WARNINGS", blockers: [], warnings: ["margin"] },
       }),
     });
-    expect(screen.getByTestId("readiness-status").getAttribute("data-status")).toBe("READY_WITH_WARNINGS");
-    expect(screen.getByTestId("readiness-action-HANDOFF").getAttribute("data-action")).toBe("EXPORT_SIMULATOR_PACKAGE");
+    expect(screen.getByTestId("readiness-status").getAttribute("data-status")).toBe(
+      "READY_WITH_WARNINGS",
+    );
+    expect(screen.getByTestId("readiness-action-HANDOFF").getAttribute("data-action")).toBe(
+      "EXPORT_SIMULATOR_PACKAGE",
+    );
   });
 
   it("never mutates or acts while an analysis is running", () => {

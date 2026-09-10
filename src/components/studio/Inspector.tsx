@@ -1065,8 +1065,6 @@ export default function Inspector({
 
           <SitePanel />
 
-
-
           <section className="panel-card">
             <h2 className="panel-title">
               {safety.status === "ok" ? (
