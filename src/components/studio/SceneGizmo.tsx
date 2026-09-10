@@ -60,7 +60,9 @@ export default function SceneGizmo({
       <TransformControls
         object={proxy.current}
         mode={MODE[mode]}
-        size={0.85}
+        // Larger handles: the thin default axes were very hard to grab in a
+        // 200 m arena, which made Move / Rotate / Scale look unresponsive.
+        size={1.8}
         translationSnap={translateSnap > 0 ? translateSnap : null}
         rotationSnap={rotateSnap > 0 ? (rotateSnap * Math.PI) / 180 : null}
         onMouseDown={() => {
