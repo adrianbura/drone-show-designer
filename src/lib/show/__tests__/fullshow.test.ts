@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createDemoProject } from "../defaultProject";
 import { makeFormation } from "../formations";
+import { rectangularPerimeter } from "../geo";
 import {
   analyzeFullShow,
   composeFullShow,
@@ -110,6 +111,43 @@ describe("full show composition", () => {
         settings,
       ),
     ).not.toBe(base);
+    const origin = { lat: 44.4, lon: 26.1 };
+    expect(
+      computeAnalysisRevision(
+        {
+          ...project,
+          site: {
+            origin,
+            headingDeg: 0,
+            perimeter: rectangularPerimeter({ origin, headingDeg: 0 }, 300, 300),
+            marginM: 5,
+            ceilingM: 120,
+          },
+        },
+        settings,
+      ),
+    ).not.toBe(base);
+  });
+
+  it("blocks export when the flown trajectory leaves the authored GPS geofence", () => {
+    const project = smallProject(4);
+    const origin = { lat: 44.4, lon: 26.1 };
+    const withSite: ShowProject = {
+      ...project,
+      site: {
+        origin,
+        headingDeg: 0,
+        perimeter: rectangularPerimeter({ origin, headingDeg: 0 }, 2, 2),
+        marginM: 0,
+        ceilingM: 120,
+      },
+    };
+
+    const { report } = analyzeFullShow(withSite, settings);
+    expect(report.geofence).not.toBeNull();
+    expect(report.geofence!.outsideCount).toBeGreaterThan(0);
+    expect(report.errors.some((issue) => issue.code === "GEOFENCE_OUTSIDE")).toBe(true);
+    expect(report.exportReadiness.status).toBe("BLOCKED");
   });
 });
 
@@ -140,7 +178,9 @@ describe("continuity validation", () => {
         {
           droneId: drone.droneId,
           samples: drone.samples.map((s, i) =>
-            i === k ? { ...s, position: [s.position[0] + 60, s.position[1], s.position[2]] as const } : s,
+            i === k
+              ? { ...s, position: [s.position[0] + 60, s.position[1], s.position[2]] as const }
+              : s,
           ),
         },
         ...set.drones.slice(1),
@@ -168,9 +208,33 @@ describe("timeline and home pad validation", () => {
     const project = smallProject();
     const f = project.formations[0]!.id;
     const authored: TimelineClip[] = [
-      { ...project.timeline[0]!, id: "a1", formationId: f, start: 0, transition: 8, hold: 4, phase: "TAKEOFF" },
-      { ...project.timeline[0]!, id: "a2", formationId: f, start: 12, transition: 8, hold: 6, phase: "SHOW" },
-      { ...project.timeline[0]!, id: "a3", formationId: f, start: 26, transition: 8, hold: 2, phase: "LANDING" },
+      {
+        ...project.timeline[0]!,
+        id: "a1",
+        formationId: f,
+        start: 0,
+        transition: 8,
+        hold: 4,
+        phase: "TAKEOFF",
+      },
+      {
+        ...project.timeline[0]!,
+        id: "a2",
+        formationId: f,
+        start: 12,
+        transition: 8,
+        hold: 6,
+        phase: "SHOW",
+      },
+      {
+        ...project.timeline[0]!,
+        id: "a3",
+        formationId: f,
+        start: 26,
+        transition: 8,
+        hold: 2,
+        phase: "LANDING",
+      },
     ];
     const report = validateTimelineStructure({ ...project, timeline: authored });
     const codes = report.issues.map((i) => i.code);

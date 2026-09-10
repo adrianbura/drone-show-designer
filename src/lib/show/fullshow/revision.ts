@@ -154,6 +154,8 @@ export function computeAnalysisRevision(project: ShowProject, inputs: RevisionIn
     // Participation settings change WHICH drones fly the image and where the
     // remaining fleet goes, so they invalidate the whole analysis.
     `pa=${JSON.stringify(project.participation ?? null)}`,
+    // The authored GPS perimeter and ceiling change the validated envelope.
+    `site=${JSON.stringify(project.site ?? null)}`,
     `li=${lighting}`,
     `sr=${inputs.sampleRate}`,
     `as=${inputs.assignmentStrategy}`,

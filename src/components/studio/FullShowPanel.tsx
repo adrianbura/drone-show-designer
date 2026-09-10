@@ -17,6 +17,7 @@ const CATEGORY_LABEL: Record<FullShowIssueCategory, string> = {
   continuity: "Continuity",
   conflict: "Proximity",
   safety: "Safety",
+  geofence: "GPS geofence",
   homePads: "Home pads",
   takeoff: "Take-off",
   landing: "Landing",
@@ -57,7 +58,8 @@ export default function FullShowPanel() {
 
   const issues = useMemo(() => {
     if (!report) return [];
-    const list = filter === "all" ? report.issues : report.issues.filter((i) => i.severity === filter);
+    const list =
+      filter === "all" ? report.issues : report.issues.filter((i) => i.severity === filter);
     return [...list].sort(
       (a, b) =>
         SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity) ||
@@ -77,7 +79,11 @@ export default function FullShowPanel() {
           disabled={fullShowBusy}
           className="chip-btn flex-1 justify-center"
         >
-          {fullShowBusy ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
+          {fullShowBusy ? (
+            <Loader2 className="size-3 animate-spin" />
+          ) : (
+            <RefreshCw className="size-3" />
+          )}
           {fullShowBusy ? "Analyzing…" : "Analyze full show"}
         </button>
         {fullShowBusy && (
@@ -138,8 +144,8 @@ export default function FullShowPanel() {
           {report.effectiveAuthority.kind === "SPLICED" && (
             <p className="rounded border border-border/60 bg-muted/30 p-2 text-[11px] text-muted-foreground">
               Validated trajectory is <strong>hybrid</strong>:{" "}
-              {report.effectiveAuthority.referenceSeconds.toFixed(1)}s imported (verbatim, sampled at{" "}
-              {report.effectiveAuthority.sampleRate} Hz on the source clock) and{" "}
+              {report.effectiveAuthority.referenceSeconds.toFixed(1)}s imported (verbatim, sampled
+              at {report.effectiveAuthority.sampleRate} Hz on the source clock) and{" "}
               {report.effectiveAuthority.plannerSeconds.toFixed(1)}s planned
               {report.effectiveAuthority.promotedClipIds.length > 0
                 ? ` · ${report.effectiveAuthority.promotedClipIds.length} promoted clip(s)`
@@ -155,8 +161,8 @@ export default function FullShowPanel() {
           {fullShowStale && (
             <p className="flex items-start gap-1.5 rounded border border-warning/50 bg-warning/10 p-2 text-[11px] text-warning">
               <Info className="mt-[1px] size-3.5 shrink-0" />
-              The project changed after this report was produced. Re-run the analysis before trusting
-              or exporting it.
+              The project changed after this report was produced. Re-run the analysis before
+              trusting or exporting it.
             </p>
           )}
 

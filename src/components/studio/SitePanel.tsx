@@ -71,6 +71,8 @@ export default function SitePanel() {
   const { project, patchProject } = useStudio();
   const site = project.site;
   const [result, setResult] = useState<ReturnType<typeof checkProjectGeofence> | null>(null);
+  const [draftLatitude, setDraftLatitude] = useState("");
+  const [draftLongitude, setDraftLongitude] = useState("");
 
   const verdict = geofenceVerdict(result);
   const checkedSummary = useMemo(() => (site ? siteSummary(site) : ""), [site]);
@@ -83,7 +85,11 @@ export default function SitePanel() {
   };
 
   const createSite = () => {
-    const origin: GeoPoint = { lat: 44.4268, lon: 26.1025 };
+    const lat = Number(draftLatitude);
+    const lon = Number(draftLongitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180)
+      return;
+    const origin: GeoPoint = { lat, lon };
     const created: ShowSite = {
       origin,
       headingDeg: 0,
@@ -133,6 +139,13 @@ export default function SitePanel() {
   };
 
   if (!site) {
+    const validDraft =
+      draftLatitude.trim() !== "" &&
+      draftLongitude.trim() !== "" &&
+      Number.isFinite(Number(draftLatitude)) &&
+      Number.isFinite(Number(draftLongitude)) &&
+      Math.abs(Number(draftLatitude)) <= 90 &&
+      Math.abs(Number(draftLongitude)) <= 180;
     return (
       <section className="panel-card" data-testid="site-panel">
         <h2 className="panel-title">
@@ -142,12 +155,41 @@ export default function SitePanel() {
           No real-world site is set, so no GPS boundary can be checked. Add one to anchor the show
           to real coordinates and check the authorised area.
         </p>
+        <div className="grid grid-cols-2 gap-2 pb-2">
+          <label className="space-y-1">
+            <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              Take-off latitude
+            </span>
+            <input
+              data-testid="site-create-lat"
+              type="number"
+              value={draftLatitude}
+              onChange={(event) => setDraftLatitude(event.target.value)}
+              className="studio-input font-mono text-xs"
+              placeholder="e.g. 44.4268"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              Take-off longitude
+            </span>
+            <input
+              data-testid="site-create-lon"
+              type="number"
+              value={draftLongitude}
+              onChange={(event) => setDraftLongitude(event.target.value)}
+              className="studio-input font-mono text-xs"
+              placeholder="e.g. 26.1025"
+            />
+          </label>
+        </div>
         <button
           data-testid="site-create"
           onClick={createSite}
-          className="chip-btn w-full justify-center"
+          disabled={!validDraft}
+          className="chip-btn w-full justify-center disabled:opacity-40"
         >
-          Set flight site
+          Create flight site
         </button>
       </section>
     );

@@ -10,6 +10,7 @@
  * airspace clearance, and it is never an authorisation to fly.
  */
 import { detectConflicts, type ConflictReport } from "../conflicts";
+import { isSiteUsable, scanGeofence, type GeofenceScanSample } from "../geo";
 import { validatePreShow, type PreShowValidationReport } from "../preshow/validate";
 import { validateTrajectorySet, type SafetyReport } from "../safety";
 import type { ShowProject } from "../types";
@@ -46,7 +47,7 @@ const STAGES: FullShowStage[] = [
 const nowMs = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
 
 export const HONEST_PASS_STATEMENT =
-  "Validated against the configured simulation and safety profile. This is NOT a certification of flight safety and NOT an authorisation to fly: wind, battery, GNSS, radio link, geofence and airspace clearance are out of scope.";
+  "Validated against the configured simulation and safety profile, including the authored GPS geofence when present. This is NOT a certification of flight safety and NOT an authorisation to fly: wind, battery, GNSS, radio link, regulatory site approval and airspace clearance are out of scope.";
 
 export const HONEST_FAIL_STATEMENT =
   "The composed show violates the configured simulation and safety profile. Resolve every blocking issue before exporting or attempting any flight.";
@@ -109,6 +110,18 @@ export function analyzeFullShow(
     boundaries: segmentBoundaries(plan),
   });
   const lighting = validateLightProgram(project, plan);
+  const geofence = isSiteUsable(project.site)
+    ? scanGeofence(
+        (function* (): Generator<GeofenceScanSample> {
+          for (let droneIndex = 0; droneIndex < plan.trajectorySet.drones.length; droneIndex++) {
+            for (const sample of plan.trajectorySet.drones[droneIndex]!.samples) {
+              yield { droneIndex, time: sample.t, position: sample.position };
+            }
+          }
+        })(),
+        project.site,
+      )
+    : null;
 
   advance("buildingReport");
   const contextualConflicts: ContextualConflict[] = conflicts.conflicts.map((c) => {
@@ -220,6 +233,29 @@ export function analyzeFullShow(
       droneIndices: issue.drones,
       value: issue.value,
       limit: issue.limit,
+      ...(seg ? { clipId: seg.clipId, phase: seg.phase } : {}),
+    });
+  }
+
+  for (const breach of geofence?.breaches ?? []) {
+    const seg = segmentAt(plan, breach.time);
+    const droneId = plan.drones[breach.droneIndex]?.id ?? `drone-${breach.droneIndex + 1}`;
+    const outside = breach.status === "outside";
+    const ceiling = breach.status === "ceiling";
+    add({
+      severity: outside || ceiling ? "error" : "warning",
+      category: "geofence",
+      code: outside ? "GEOFENCE_OUTSIDE" : ceiling ? "GEOFENCE_CEILING" : "GEOFENCE_MARGIN",
+      message: outside
+        ? `${droneId} leaves the authored GPS perimeter by ${Math.abs(breach.clearanceM).toFixed(2)} m at ${breach.time.toFixed(2)}s (${describeSegment(seg)}).`
+        : ceiling
+          ? `${droneId} exceeds the authored ceiling by ${Math.abs(breach.headroomM).toFixed(2)} m at ${breach.time.toFixed(2)}s (${describeSegment(seg)}).`
+          : `${droneId} enters the authored boundary clearance margin at ${breach.time.toFixed(2)}s; ${breach.clearanceM.toFixed(2)} m remains (${describeSegment(seg)}).`,
+      time: breach.time,
+      droneIds: [droneId],
+      droneIndices: [breach.droneIndex],
+      value: ceiling ? breach.headroomM : breach.clearanceM,
+      limit: ceiling ? project.site!.ceilingM : project.site!.marginM,
       ...(seg ? { clipId: seg.clipId, phase: seg.phase } : {}),
     });
   }
@@ -347,6 +383,7 @@ export function analyzeFullShow(
     timeline,
     homePads,
     lighting,
+    geofence,
     preShow: preShowReport,
     phaseReports,
     transitionReports: transitions,

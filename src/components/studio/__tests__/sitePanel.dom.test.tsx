@@ -26,6 +26,12 @@ function renderPanel() {
   );
 }
 
+function createSite() {
+  fireEvent.change(screen.getByTestId("site-create-lat"), { target: { value: "44.4268" } });
+  fireEvent.change(screen.getByTestId("site-create-lon"), { target: { value: "26.1025" } });
+  fireEvent.click(screen.getByTestId("site-create"));
+}
+
 async function loadProject(project: ShowProject) {
   const file = new File([projectFileToJson(serializeProject(project, {}))], "site.dsp.json", {
     type: "application/json",
@@ -67,9 +73,10 @@ describe("SitePanel", () => {
   it("offers to set a site when the project has none", () => {
     renderPanel();
     expect(screen.getByTestId("site-create")).toBeTruthy();
+    expect((screen.getByTestId("site-create") as HTMLButtonElement).disabled).toBe(true);
 
     act(() => {
-      fireEvent.click(screen.getByTestId("site-create"));
+      createSite();
     });
 
     expect(api.project.site).toBeTruthy();
@@ -82,7 +89,7 @@ describe("SitePanel", () => {
     renderPanel();
     await loadProject(project);
     act(() => {
-      fireEvent.click(screen.getByTestId("site-create"));
+      createSite();
     });
 
     act(() => {
@@ -151,7 +158,7 @@ describe("SitePanel", () => {
   it("clears a stale verdict as soon as the site is edited", () => {
     renderPanel();
     act(() => {
-      fireEvent.click(screen.getByTestId("site-create"));
+      createSite();
     });
     act(() => {
       fireEvent.click(screen.getByTestId("site-check"));
@@ -168,7 +175,7 @@ describe("SitePanel", () => {
   it("derives the viewing direction from the audience position", () => {
     renderPanel();
     act(() => {
-      fireEvent.click(screen.getByTestId("site-create"));
+      createSite();
     });
     expect(screen.getByTestId("site-audience-add")).toBeTruthy();
 
@@ -189,7 +196,7 @@ describe("SitePanel", () => {
   it("removes the site again without leaving a verdict behind", () => {
     renderPanel();
     act(() => {
-      fireEvent.click(screen.getByTestId("site-create"));
+      createSite();
     });
 
     act(() => {

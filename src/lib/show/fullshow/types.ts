@@ -14,6 +14,7 @@
 import type { AssignmentStrategyId } from "../assignment";
 import type { ConflictReport, TrajectoryConflict } from "../conflicts";
 import type { DroneDefinition } from "../drones";
+import type { GeofenceScanResult } from "../geo";
 import type { SafetyReport } from "../safety";
 import type { ClipTransitionOverride, ShowPlan } from "../trajectory/schedule";
 import type { TrajectorySet } from "../trajectory/types";
@@ -199,6 +200,7 @@ export type FullShowIssueCategory =
   | "landing"
   | "lighting"
   | "transition"
+  | "geofence"
   | "preShow";
 
 export interface FullShowIssue {
@@ -394,6 +396,8 @@ export interface FullShowValidationReport {
   readonly timeline: TimelineValidationReport;
   readonly homePads: HomePadReport;
   readonly lighting: LightingReport;
+  /** Full flown-trajectory geofence scan; null when no usable site is authored. */
+  readonly geofence: GeofenceScanResult | null;
   /** PRE-SHOW section (launch grid, staging, takeoff schedule). */
   readonly preShow: PreShowValidationReport | null;
   readonly phaseReports: PhaseMetrics[];
