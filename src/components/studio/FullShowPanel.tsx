@@ -225,31 +225,7 @@ export default function FullShowPanel() {
                 ))}
               </div>
             </div>
-            <ul className="max-h-64 space-y-1 overflow-y-auto">
-              {issues.length === 0 && (
-                <li className="text-[11px] text-safe">
-                  No issue in this category for the composed show.
-                </li>
-              )}
-              {issues.slice(0, 200).map((issue) => (
-                <li key={issue.id}>
-                  <button
-                    onClick={() => focusIssue(issue)}
-                    className={`issue-row ${issue.severity === "error" ? "issue-row-critical" : ""}`}
-                  >
-                    <span className="font-mono text-[10px]">
-                      {typeof issue.time === "number" ? `${issue.time.toFixed(1)}s` : "—"}
-                    </span>
-                    <span className="truncate">
-                      <span className="font-mono text-[9px] uppercase tracking-wider opacity-70">
-                        {CATEGORY_LABEL[issue.category]}
-                      </span>{" "}
-                      {issue.message}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <FullShowIssueList issues={issues} clipLabel={clipLabel} onFocus={focusIssue} />
           </div>
 
           <div className="rounded border border-border/70 p-2 text-[10px] text-muted-foreground">
