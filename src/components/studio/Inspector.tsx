@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import FullShowPanel from "./FullShowPanel";
+import ShowReadinessPanel from "./ShowReadinessPanel";
 import TransitionDesignPanel from "./TransitionDesignPanel";
 import LaunchPanel from "./LaunchPanel";
 import SitePanel from "./SitePanel";
