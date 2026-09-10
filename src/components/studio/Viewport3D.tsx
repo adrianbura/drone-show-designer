@@ -309,6 +309,7 @@ export default function Viewport3D() {
     highlightedDrones,
     referenceShow,
     referencePlayback,
+    referenceOwnedNow,
     showReferencePaths,
     forensicActiveDroneIds,
     selectedReferenceDroneId,
@@ -592,6 +593,14 @@ export default function Viewport3D() {
             />
           )}
         </svg>
+      ) : null}
+      {!referencePlayback && referenceOwnedNow && selectedSceneObjectIds.length > 0 ? (
+        <div
+          className="pointer-events-none absolute left-3 top-3 rounded border border-warning/50 bg-background/90 px-2 py-1 font-mono text-[10px] text-warning shadow"
+          data-testid="viewport-planner-edit-preview"
+        >
+          Edit preview · PLANNER candidate · export remains imported until validated
+        </div>
       ) : null}
     </div>
   );
