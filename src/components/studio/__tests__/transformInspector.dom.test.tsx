@@ -161,6 +161,18 @@ describe("transform inspector", () => {
     await waitFor(() => expect(api.referencePlayback).toBe(false));
   });
 
+  it("reveals the selected visual when the playhead is outside its clip", async () => {
+    const ids = await mount();
+    const clip = api.project.timeline.find((candidate) => candidate.id === api.selectedClipId)!;
+    act(() => api.setTime(999));
+    await waitFor(() => expect(api.time).toBeCloseTo(clip.start + clip.transition + clip.hold, 5));
+
+    select(ids[0]!);
+
+    await waitFor(() => expect(api.time).toBeCloseTo(clip.start + clip.transition, 5));
+    expect(api.selectedSceneObjectIds).toEqual([ids[0]]);
+  });
+
   it("shows the newly selected object's canonical values when selection changes", async () => {
     const ids = await mount();
     select(ids[0]!);

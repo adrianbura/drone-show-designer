@@ -2367,6 +2367,24 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     [selectedScene?.pointGroups],
   );
 
+  /**
+   * Makes a selected visual observable before editing it. Layer selection can
+   * happen while the playhead is in another clip; in that case the canonical
+   * edit was previously real but invisible in the viewport.
+   */
+  const revealSelectedSceneForEditing = useCallback(() => {
+    setReferencePlayback(false);
+    const clipId = selectedClipIdRef.current;
+    const clip = projectRef.current.timeline.find((candidate) => candidate.id === clipId);
+    if (!clip) return;
+    const end = clip.start + clip.transition + clip.hold;
+    // Timeline intervals are semi-open: the exact end already belongs to the
+    // following clip (or to the end state), so it must reveal this scene too.
+    if (clock.time < clip.start || clock.time >= end - 1e-6) {
+      clock.seek(clip.start + clip.transition);
+    }
+  }, [clock]);
+
   const setSceneSelectionMode = useCallback((mode: "OBJECT" | "POINT") => {
     setSceneSelectionModeState(mode);
     if (mode === "OBJECT") {
@@ -2377,28 +2395,31 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const setSelectedSceneObjectIds = useCallback(
     (ids: readonly string[], primaryId: string | null = null) => {
-      if (ids.length > 0) setReferencePlayback(false);
+      if (ids.length > 0) revealSelectedSceneForEditing();
       setSceneSelectionState({ ids: [...ids], primaryId });
     },
-    [],
+    [revealSelectedSceneForEditing],
   );
   /** Compatibility helper for the single-object call sites. */
-  const setSelectedSceneObjectId = useCallback((id: string | null) => {
-    if (id) setReferencePlayback(false);
-    setSceneSelectionState(id ? { ids: [id], primaryId: id } : EMPTY_SCENE_SELECTION);
-  }, []);
+  const setSelectedSceneObjectId = useCallback(
+    (id: string | null) => {
+      if (id) revealSelectedSceneForEditing();
+      setSceneSelectionState(id ? { ids: [id], primaryId: id } : EMPTY_SCENE_SELECTION);
+    },
+    [revealSelectedSceneForEditing],
+  );
   const selectSceneObject = useCallback(
     (objectId: string | null, mode: SceneClickMode = "REPLACE") => {
       if (!objectId) {
         setSceneSelectionState(EMPTY_SCENE_SELECTION);
         return;
       }
-      setReferencePlayback(false);
+      revealSelectedSceneForEditing();
       setSceneSelectionState((current) =>
         applySceneClick(sceneRef.current, current, objectId, mode),
       );
     },
-    [],
+    [revealSelectedSceneForEditing],
   );
   const selectAllSceneObjectsInScene = useCallback(() => {
     setSceneSelectionState((current) => selectAllSceneObjects(sceneRef.current, current.primaryId));
@@ -2574,13 +2595,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   /* ------------------------------------------- viewport transform gizmo ---- */
   const [gizmoMode, setGizmoModeState] = useState<SceneGizmoMode>("MOVE");
-  const setGizmoMode = useCallback((mode: SceneGizmoMode) => {
-    // Reference playback replaces the authored swarm in the viewport. Entering
-    // a transform tool must reveal the editable scene or a valid edit appears
-    // to do nothing while the imported reference remains on screen.
-    setReferencePlayback(false);
-    setGizmoModeState(mode);
-  }, []);
+  const setGizmoMode = useCallback(
+    (mode: SceneGizmoMode) => {
+      // Reference playback replaces the authored swarm in the viewport. Entering
+      // a transform tool must reveal the editable scene or a valid edit appears
+      // to do nothing while the imported reference remains on screen.
+      revealSelectedSceneForEditing();
+      setGizmoModeState(mode);
+    },
+    [revealSelectedSceneForEditing],
+  );
   const [gizmoTranslateSnap, setGizmoTranslateSnap] = useState(0);
   const [gizmoRotateSnap, setGizmoRotateSnap] = useState(0);
   const [sceneGizmoDraft, setSceneGizmoDraft] = useState<SceneGroupDelta | null>(null);
