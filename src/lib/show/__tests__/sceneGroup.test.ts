@@ -12,8 +12,11 @@ import { createDefaultProject } from "../defaultProject";
 import { makeFormation } from "../formations";
 import {
   addObject,
+  addSceneVisualGroup,
+  addSceneVisualStateCue,
   applySceneClick,
   applySceneGroupDelta,
+  captureSceneVisualState,
   duplicateSceneObjects,
   EMPTY_SCENE_SELECTION,
   emptyScene,
@@ -130,6 +133,30 @@ describe("group transforms", () => {
     const next = applySceneGroupDelta(project, scene, [a, b], {});
     expect(next.objects.map((o) => o.transform)).toEqual(scene.objects.map((o) => o.transform));
     expect(scene.objects[0]!.transform.position).toEqual([-10, 20, 0]);
+  });
+
+  it("keeps viewport transforms visible when a saved-state cue is active", () => {
+    const { project, scene, a, b } = fixture();
+    const grouped = addSceneVisualGroup(scene, "Animated pair", [a, b]).scene;
+    const groupId = grouped.visualGroups?.[0]?.id;
+    expect(groupId).toBeTruthy();
+    if (!groupId) return;
+    const captured = captureSceneVisualState(grouped, groupId, "Pose");
+    expect(captured.stateId).toBeTruthy();
+    if (!captured.stateId) return;
+    const cued = addSceneVisualStateCue(captured.scene, captured.stateId, 1, 0);
+    expect(cued.ok).toBe(true);
+    if (!cued.ok) return;
+
+    const rotated = applySceneGroupDelta(project, cued.scene, [a, b], {
+      rotationDeg: [0, 45, 0],
+    });
+    const active = resolveSceneAt(project, rotated, 1);
+    const original = resolveSceneAt(project, cued.scene, 1);
+
+    expect(active.points).not.toEqual(original.points);
+    expect(rotated.objects[0]!.transform.rotationDeg[1]).toBeCloseTo(45, 5);
+    expect(rotated.visualStates?.[0]?.objects[0]?.transform.rotationDeg[1]).toBeCloseTo(45, 5);
   });
 
   it("mirrors, duplicates and deletes whole selections", () => {
