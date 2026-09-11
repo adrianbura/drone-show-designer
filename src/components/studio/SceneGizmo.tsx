@@ -48,6 +48,31 @@ export default function SceneGizmo({
     object.updateMatrixWorld();
   }, [pivot]);
 
+  const readDelta = useCallback((): SceneGroupDelta => {
+    const object = proxy.current;
+    const scaleComponents = [object.scale.x, object.scale.y, object.scale.z];
+    // Scene objects have one canonical uniform scale. TransformControls changes
+    // only the component belonging to a coloured axis, so averaging all three
+    // made an axis drag look almost inert. Preserve the component moved furthest
+    // from identity instead.
+    const scale = scaleComponents.reduce((selected, component) =>
+      Math.abs(component - 1) > Math.abs(selected - 1) ? component : selected,
+    );
+    return {
+      position: [
+        object.position.x - pivot[0],
+        object.position.y - pivot[1],
+        object.position.z - pivot[2],
+      ],
+      rotationDeg: [
+        THREE.MathUtils.radToDeg(object.rotation.x),
+        THREE.MathUtils.radToDeg(object.rotation.y),
+        THREE.MathUtils.radToDeg(object.rotation.z),
+      ],
+      scaleFactor: scale > 0 ? scale : 1,
+    };
+  }, [pivot]);
+
   // The proxy is re-seeded at the pivot whenever the selection or the mode
   // changes, so every gesture starts from an identity delta.
   useEffect(() => {
@@ -72,26 +97,15 @@ export default function SceneGizmo({
           onBegin();
         }}
         onMouseUp={() => {
+          // Flush the proxy's exact release value before committing. The final
+          // objectChange event is not guaranteed to precede mouseUp, especially
+          // for large or dynamic visuals such as Butterfly.
+          onUpdate(readDelta());
           onCommit();
           resetProxy();
         }}
         onObjectChange={() => {
-          const object = proxy.current;
-          if (!object) return;
-          const scale = (object.scale.x + object.scale.y + object.scale.z) / 3;
-          onUpdate({
-            position: [
-              object.position.x - pivot[0],
-              object.position.y - pivot[1],
-              object.position.z - pivot[2],
-            ],
-            rotationDeg: [
-              THREE.MathUtils.radToDeg(object.rotation.x),
-              THREE.MathUtils.radToDeg(object.rotation.y),
-              THREE.MathUtils.radToDeg(object.rotation.z),
-            ],
-            scaleFactor: scale > 0 ? scale : 1,
-          });
+          onUpdate(readDelta());
         }}
       />
     </>
