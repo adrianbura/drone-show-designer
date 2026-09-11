@@ -81,7 +81,11 @@ async function mount(phase: "TAKEOFF" | "SHOW" | "LANDING" = "SHOW") {
     await api.openProjectFile(projectFile(project));
   });
   act(() => api.selectClip(clipId));
-  await waitFor(() => expect(screen.getByTestId("visual-layers")).toBeTruthy());
+  await waitFor(() =>
+    expect(
+      screen.getByTestId(phase === "SHOW" ? "visual-layers" : "visual-authoring-show-only"),
+    ).toBeTruthy(),
+  );
   return api.selectedScene!.objects.map((o) => o.id);
 }
 
@@ -213,6 +217,11 @@ describe("transform inspector", () => {
       act(() => api.selectSceneObject(ids[0]!));
       const projectBefore = api.project;
       const historyBefore = api.timelineHistoryDepth.past;
+      const selectedClipId = api.selectedClipId;
+      const objectId = ids[0];
+      expect(selectedClipId).not.toBeNull();
+      expect(objectId).toBeTruthy();
+      if (!selectedClipId || !objectId) return;
       const timingBefore = api.project.timeline.map(({ start, transition, hold }) => ({
         start,
         transition,
@@ -222,7 +231,7 @@ describe("transform inspector", () => {
       act(() => api.updateSceneGizmo({ rotationDeg: [0, 35, 0] }));
       act(() => api.commitSceneGizmo());
       act(() =>
-        api.patchSceneObjectTransform(api.selectedClipId!, ids[0]!, {
+        api.patchSceneObjectTransform(selectedClipId, objectId, {
           position: [20, 0, 0],
         }),
       );

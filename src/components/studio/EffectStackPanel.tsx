@@ -72,6 +72,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
   const [gradientAxis, setGradientAxis] = useState<EffectAxis>("X");
   const [activePreview, setActivePreview] = useState<ActivePreview | null>(null);
   const {
+    project,
     selectedClipId,
     selectedScene,
     selectedSceneBudget,
