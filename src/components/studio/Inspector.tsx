@@ -31,7 +31,7 @@ import GeometryProposalPanel from "./GeometryProposalPanel";
 import ConversionPanel from "./ConversionPanel";
 import NativeConversionPanel from "./NativeConversionPanel";
 import WorkspaceSection from "./WorkspaceSection";
-import { clipPhaseBadge } from "./ClipPhaseNotice";
+import { clipPhaseBadge } from "@/lib/studio/clipPhaseNotice";
 import { onWorkspaceSectionRequest, type WorkspaceSectionId } from "@/lib/studio/workspaceSections";
 
 import { useEffect, useRef, useState } from "react";
