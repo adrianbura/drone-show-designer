@@ -118,7 +118,7 @@ import type {
   TimelineClip,
   Vector3Tuple,
 } from "../show/types";
-import { showDuration } from "../show/types";
+import { clipPhase, showDuration } from "../show/types";
 import { nextSelectedClipId, removeTimelineClipReferences } from "../show/timeline";
 import {
   createMarker,
@@ -2491,7 +2491,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       const history = options.history !== false;
       setProject((p) => {
         const clip = p.timeline.find((c) => c.id === clipId);
-        if (!clip) return p;
+        // TAKEOFF and LANDING are owned by dedicated planners. Their authored
+        // scene geometry is not a flight target, so accepting an apparent scene
+        // edit here would create a canonical value that the viewport plan must
+        // ignore. All everyday visual-authoring commands share this guard.
+        if (!clip || clipPhase(clip) !== "SHOW") return p;
         const next = upsertScene(p, fn(sceneForClip(p, clip), p));
         if (next === p) return p;
         // ATOMIC SCENE EDIT COMMAND: exactly one project mutation, so the
@@ -2619,13 +2623,19 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const sceneGizmoDraftRef = useRef<SceneGroupDelta | null>(null);
 
   const sceneGizmoPivot = useMemo<Vector3Tuple | null>(() => {
-    if (!selectedScene || sceneSelection.ids.length === 0) return null;
+    if (
+      !selectedScene ||
+      !selectedClip ||
+      clipPhase(selectedClip) !== "SHOW" ||
+      sceneSelection.ids.length === 0
+    )
+      return null;
     try {
       return sceneGroupPivot(project, selectedScene, sceneSelection.ids);
     } catch {
       return null;
     }
-  }, [project, selectedScene, sceneSelection]);
+  }, [project, selectedClip, selectedScene, sceneSelection]);
 
   /** DRAFT PREVIEW: pure scene resolution, never a plan and never persisted. */
   const sceneGizmoPreview = useMemo<{
@@ -2670,6 +2680,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const sceneGizmoPreviewPoints = sceneGizmoPreview.points;
 
   const beginSceneGizmo = useCallback(() => {
+    const clip = projectRef.current.timeline.find(
+      (candidate) => candidate.id === selectedClipIdRef.current,
+    );
+    if (!clip || clipPhase(clip) !== "SHOW") {
+      gizmoIdsRef.current = [];
+      sceneGizmoDraftRef.current = null;
+      setSceneGizmoDraft(null);
+      return;
+    }
     gizmoIdsRef.current = sceneSelection.ids;
     sceneGizmoDraftRef.current = {};
     setSceneGizmoDraft({});
@@ -2970,10 +2989,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   const patchSceneVisualStateCueById = useCallback(
-    (
-      cueId: string,
-      patch: { readonly time?: number; readonly transitionDuration?: number },
-    ) => {
+    (cueId: string, patch: { readonly time?: number; readonly transitionDuration?: number }) => {
       const clipId = selectedClipIdRef.current;
       const clip = projectRef.current.timeline.find((candidate) => candidate.id === clipId);
       if (!clipId || !clip) return;
@@ -5266,7 +5282,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           restoredShow = referenceShowFromLayer(restoredLayer);
         } catch (err) {
           return {
-          ok: false,
+            ok: false,
             error: {
               code: err instanceof ReferenceLayerError ? err.code : "MALFORMED_LAYER",
               message: err instanceof Error ? err.message : String(err),

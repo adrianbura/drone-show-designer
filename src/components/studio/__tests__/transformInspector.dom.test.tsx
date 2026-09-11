@@ -34,7 +34,10 @@ function formation(id: string, kind: Formation["kind"], points: number): Formati
   };
 }
 
-function composedProject(): { project: ShowProject; clipId: string } {
+function composedProject(phase: "TAKEOFF" | "SHOW" | "LANDING" = "SHOW"): {
+  project: ShowProject;
+  clipId: string;
+} {
   const base = createDefaultProject(150);
   const clip = {
     id: "transform-clip",
@@ -45,7 +48,7 @@ function composedProject(): { project: ShowProject; clipId: string } {
     easing: "minJerk" as const,
     color: [255, 255, 255] as const,
     effect: "solid" as const,
-    phase: "SHOW" as const,
+    phase,
   };
   let project: ShowProject = {
     ...base,
@@ -68,8 +71,8 @@ function composedProject(): { project: ShowProject; clipId: string } {
   return { project, clipId: clip.id };
 }
 
-async function mount() {
-  const { project, clipId } = composedProject();
+async function mount(phase: "TAKEOFF" | "SHOW" | "LANDING" = "SHOW") {
+  const { project, clipId } = composedProject(phase);
   render(
     <StudioProvider>
       <Harness />
@@ -79,7 +82,11 @@ async function mount() {
     await api.openProjectFile(projectFile(project));
   });
   act(() => api.selectClip(clipId));
-  await waitFor(() => expect(screen.getByTestId("visual-layers")).toBeTruthy());
+  await waitFor(() =>
+    expect(
+      screen.getByTestId(phase === "SHOW" ? "visual-layers" : "visual-authoring-show-only"),
+    ).toBeTruthy(),
+  );
   return api.selectedScene!.objects.map((o) => o.id);
 }
 
@@ -170,6 +177,78 @@ describe("transform inspector", () => {
     );
     expect(preview.length).toBeGreaterThan(0);
   });
+
+  it("commits each SHOW gizmo gesture once, changes viewport samples, and preserves timing", async () => {
+    const ids = await mount();
+    select(ids[0]!);
+    const clipBefore = { ...api.project.timeline[0]! };
+    let samples = api.samplesAtTime(clipBefore.start + clipBefore.transition + 0.001);
+
+    for (const delta of [
+      { position: [8, 0, 0] as [number, number, number] },
+      { rotationDeg: [0, 0, 30] as [number, number, number] },
+      { scaleFactor: 1.25 },
+    ]) {
+      const historyBefore = api.timelineHistoryDepth.past;
+      const previousSamples = samples.map((sample) => sample.position);
+      act(() => api.beginSceneGizmo());
+      act(() => api.updateSceneGizmo(delta));
+      act(() => api.commitSceneGizmo());
+      await waitFor(() => expect(api.timelineHistoryDepth.past).toBe(historyBefore + 1));
+      samples = api.samplesAtTime(clipBefore.start + clipBefore.transition + 0.001);
+      expect(samples.map((sample) => sample.position)).not.toEqual(previousSamples);
+    }
+
+    const clipAfter = api.project.timeline[0]!;
+    expect({
+      start: clipAfter.start,
+      transition: clipAfter.transition,
+      hold: clipAfter.hold,
+    }).toEqual({
+      start: clipBefore.start,
+      transition: clipBefore.transition,
+      hold: clipBefore.hold,
+    });
+  });
+
+  for (const phase of ["TAKEOFF", "LANDING"] as const) {
+    it(`blocks misleading scene transforms for ${phase}`, async () => {
+      const ids = await mount(phase);
+      expect(screen.getByTestId("visual-authoring-show-only").textContent).toBe(
+        "Transform is available on SHOW visuals. Select or create a SHOW scene.",
+      );
+      expect(screen.queryByTestId("transform-section")).toBeNull();
+
+      act(() => api.selectSceneObject(ids[0]!));
+      const projectBefore = api.project;
+      const historyBefore = api.timelineHistoryDepth.past;
+      const selectedClipId = api.selectedClipId;
+      const objectId = ids[0];
+      expect(selectedClipId).not.toBeNull();
+      expect(objectId).toBeTruthy();
+      if (!selectedClipId || !objectId) return;
+      const timingBefore = api.project.timeline.map(({ start, transition, hold }) => ({
+        start,
+        transition,
+        hold,
+      }));
+      act(() => api.beginSceneGizmo());
+      act(() => api.updateSceneGizmo({ rotationDeg: [0, 35, 0] }));
+      act(() => api.commitSceneGizmo());
+      act(() =>
+        api.patchSceneObjectTransform(selectedClipId, objectId, {
+          position: [20, 0, 0],
+        }),
+      );
+
+      expect(api.project).toBe(projectBefore);
+      expect(api.timelineHistoryDepth.past).toBe(historyBefore);
+      expect(
+        api.project.timeline.map(({ start, transition, hold }) => ({ start, transition, hold })),
+      ).toEqual(timingBefore);
+      expect(api.sceneGizmoPivot).toBeNull();
+    });
+  }
 
   it("leaves imported reference playback when the operator enters transform editing", async () => {
     const ids = await mount();

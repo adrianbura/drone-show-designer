@@ -9,7 +9,7 @@ import { lightColorAt } from "@/lib/show/lights";
 import { emittedColor, type DroneLightState } from "@/lib/show/lighting";
 import { activeClipAt } from "@/lib/show/timeline";
 import type { TrajectorySample } from "@/lib/show/trajectory";
-import type { ShowProject } from "@/lib/show/types";
+import { clipPhase, type ShowProject } from "@/lib/show/types";
 import { preShowStatesAt, type PreShowDroneState, type PreShowPlan } from "@/lib/show/preshow";
 import SvgDraftPreview from "./SvgDraftPreview";
 import PreShowOverlay from "./PreShowOverlay";
@@ -387,6 +387,8 @@ export default function Viewport3D() {
     transitionAnalysis && transitionAnalysis.clipId === selectedClipId
       ? transitionAnalysis.analysis
       : null;
+  const selectedClip = project.timeline.find((clip) => clip.id === selectedClipId);
+  const canTransformSelectedClip = selectedClip ? clipPhase(selectedClip) === "SHOW" : false;
   // Live critical violations near the playhead, plus whatever the operator
   // selected in the full-show issue list.
   const highlighted = useMemo(
@@ -538,7 +540,7 @@ export default function Viewport3D() {
             conflicts={showConflicts}
           />
         ) : null}
-        {!reference && sceneGizmoPivot ? (
+        {!reference && canTransformSelectedClip && sceneGizmoPivot ? (
           <>
             <SceneGizmoPreview points={sceneGizmoPreviewPoints} />
             <SceneGizmo

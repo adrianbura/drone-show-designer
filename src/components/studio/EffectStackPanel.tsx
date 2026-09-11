@@ -39,7 +39,7 @@ import {
   type MotionSelectionPresetId,
 } from "@/lib/studio/selectionEffects";
 import { LIGHTING_EASINGS, type LightingEasing } from "@/lib/show/lighting";
-import type { RGB } from "@/lib/show/types";
+import { clipPhase, type RGB } from "@/lib/show/types";
 import { useStudio } from "@/lib/studio/store";
 
 const toHex = (rgb: RGB): string =>
@@ -72,6 +72,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
   const [gradientAxis, setGradientAxis] = useState<EffectAxis>("X");
   const [activePreview, setActivePreview] = useState<ActivePreview | null>(null);
   const {
+    project,
     selectedClipId,
     selectedScene,
     selectedSceneBudget,
@@ -150,6 +151,19 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
   }
 
   const clipId = selectedClipId;
+  const selectedClip = project.timeline.find((candidate) => candidate.id === clipId);
+  if (!selectedClip || clipPhase(selectedClip) !== "SHOW") {
+    return (
+      <section className="panel-card" data-testid="effect-stacks-phase-locked">
+        <h2 className="panel-title flex items-center gap-1.5">
+          <Sparkles className="size-3" /> Selection effects
+        </h2>
+        <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+          Colour and Motion are available on SHOW visuals. Select or create a SHOW scene.
+        </p>
+      </section>
+    );
+  }
 
   const context = selectionEffectContext({
     clipId,

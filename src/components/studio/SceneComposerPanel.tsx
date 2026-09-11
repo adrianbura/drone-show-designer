@@ -44,7 +44,7 @@ import {
 } from "@/lib/studio/visualStateCueSelection";
 import { requestWorkspaceSection } from "@/lib/studio/workspaceSections";
 
-import type { RGB } from "@/lib/show/types";
+import { clipPhase, type RGB } from "@/lib/show/types";
 
 /**
  * Asks the ONE workspace-section authority to open the section that owns this
@@ -315,6 +315,22 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
   }
 
   const clipId = selectedClipId;
+  const selectedClip = project.timeline.find((candidate) => candidate.id === clipId);
+  if (!selectedClip || clipPhase(selectedClip) !== "SHOW") {
+    return (
+      <section className="panel-card" data-testid="scene-composer-phase-locked">
+        <h2 className="panel-title flex items-center gap-1.5">
+          <Layers className="size-3" /> {view === "TRANSFORM" ? "Transform" : "Visuals"}
+        </h2>
+        <p
+          className="font-mono text-[10px] leading-relaxed text-muted-foreground"
+          data-testid="visual-authoring-show-only"
+        >
+          Transform is available on SHOW visuals. Select or create a SHOW scene.
+        </p>
+      </section>
+    );
+  }
   const primaryId = selectedSceneObjectIds[selectedSceneObjectIds.length - 1] ?? null;
   const primary = selectedScene.objects.find((o) => o.id === primaryId) ?? null;
   const budget = selectedSceneBudget;
