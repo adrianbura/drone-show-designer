@@ -636,11 +636,6 @@ export default function Inspector({
             ))}
           </div>
 
-          {/* Reference show: importing an ESSP and converting it into an editable
-          timeline is a first-class entry path. */}
-          <div id="essp-panel" data-panel-id="essp-panel">
-            <EsspPanel />
-          </div>
 
           {/* Focused text rebuild for one eligible STATIC target. */}
           <div id="text-panel" data-panel-id="text-panel">
