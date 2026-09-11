@@ -788,6 +788,58 @@ export default function Inspector({
             )}
           </section>
 
+          {/* VIEWPORT OVERLAYS — everyday toggles stay next to the everyday tools. */}
+          <section className="panel-card" data-testid="viewport-overlays">
+            <h2 className="panel-title">
+              <Eye className="size-3.5" /> Viewport overlays
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setShowPaths(!showPaths)}
+                className={`chip-btn ${showPaths ? "chip-btn-active" : ""}`}
+              >
+                paths
+              </button>
+              <button
+                onClick={() => setShowConflicts(!showConflicts)}
+                className={`chip-btn ${showConflicts ? "chip-btn-active" : ""}`}
+              >
+                conflicts
+              </button>
+              <button
+                data-testid="overlay-safety-volume"
+                aria-pressed={showSafetyVolume}
+                onClick={() => setShowSafetyVolume(!showSafetyVolume)}
+                className={`chip-btn ${showSafetyVolume ? "chip-btn-active" : ""}`}
+              >
+                limits
+              </button>
+              <button
+                data-testid="overlay-reserve-drones"
+                aria-pressed={showReserveDrones}
+                onClick={() => setShowReserveDrones(!showReserveDrones)}
+                className={`chip-btn ${showReserveDrones ? "chip-btn-active" : ""}`}
+                title="Tints drones no visual of this scene uses"
+              >
+                reserve
+              </button>
+            </div>
+          </section>
+        </div>
+
+        {/* TECHNICAL AUTHORING SURFACES — moved out of the everyday Authoring tab
+        so the operator scrolls a short list. They belong to ADVANCED now. */}
+        <div
+          data-testid="advanced-technical-panels"
+          hidden={group !== "ADVANCED"}
+          className={`flex flex-col gap-5 ${group === "ADVANCED" ? "" : "hidden"}`}
+        >
+          {/* Reference show: importing an ESSP and converting it into an editable
+          timeline. */}
+          <div id="essp-panel" data-panel-id="essp-panel">
+            <EsspPanel />
+          </div>
+
           <div id="transition-panel" data-panel-id="transition-panel">
             <TransitionDesignPanel />
           </div>
