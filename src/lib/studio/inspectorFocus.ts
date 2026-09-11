@@ -139,4 +139,3 @@ export function onInspectorFocus(handler: (request: StudioFocusRequest) => void)
   window.addEventListener(EVENT, listener);
   return () => window.removeEventListener(EVENT, listener);
 }
-

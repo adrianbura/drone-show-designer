@@ -109,4 +109,19 @@ describe("everyday workspace navigation", () => {
       expect(header.getAttribute("aria-controls")).toBeTruthy();
     }
   });
+
+  it("keeps everyday overlays in Authoring and technical tools in Advanced", async () => {
+    mount();
+    await waitFor(() => expect(screen.getByTestId("viewport-overlays")).toBeTruthy());
+
+    const technical = screen.getByTestId("advanced-technical-panels");
+    expect(technical.hasAttribute("hidden")).toBe(true);
+    expect(screen.getByTestId("viewport-overlays").closest("[hidden]")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("inspector-tab-ADVANCED"));
+    await waitFor(() => expect(technical.hasAttribute("hidden")).toBe(false));
+    expect(screen.getByTestId("viewport-overlays").closest("[hidden]")).toBeTruthy();
+    expect(document.getElementById("essp-panel")?.closest("[hidden]")).toBeNull();
+    expect(document.getElementById("transition-panel")?.closest("[hidden]")).toBeNull();
+  });
 });

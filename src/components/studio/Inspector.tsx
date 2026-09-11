@@ -636,7 +636,6 @@ export default function Inspector({
             ))}
           </div>
 
-
           {/* Focused text rebuild for one eligible STATIC target. */}
           <div id="text-panel" data-panel-id="text-panel">
             <TextFormationPanel />

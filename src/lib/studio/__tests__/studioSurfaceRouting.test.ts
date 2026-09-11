@@ -165,7 +165,6 @@ describe("visible surface hosts", () => {
   });
 });
 
-
 describe("narrow dock host contract", () => {
   // Transforming the real component module can exceed the default 5s budget on
   // a cold cache; the assertions themselves are synchronous.
