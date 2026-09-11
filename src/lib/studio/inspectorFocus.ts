@@ -25,11 +25,11 @@ export type InspectorGroupId = "AUTHORING" | "VALIDATE" | "ADVANCED";
 /** Which Inspector group owns each panel. */
 export const INSPECTOR_PANEL_GROUP: Readonly<Record<InspectorPanelId, InspectorGroupId>> = {
   "clip-inspector": "AUTHORING",
-  "scene-panel": "AUTHORING",
-  "dynamic-panel": "AUTHORING",
-  "lighting-panel": "AUTHORING",
-  "transition-panel": "AUTHORING",
-  "essp-panel": "AUTHORING",
+  "scene-panel": "ADVANCED",
+  "dynamic-panel": "ADVANCED",
+  "lighting-panel": "ADVANCED",
+  "transition-panel": "ADVANCED",
+  "essp-panel": "ADVANCED",
   "text-panel": "AUTHORING",
   "forensics-panel": "ADVANCED",
 };
