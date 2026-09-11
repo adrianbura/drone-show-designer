@@ -980,42 +980,6 @@ export default function Inspector({
                 )}
               </>
             )}
-            <div className="flex items-center justify-between gap-2 pt-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Eye className="size-3" /> Overlays
-              </span>
-              <span className="flex gap-2">
-                <button
-                  onClick={() => setShowPaths(!showPaths)}
-                  className={`chip-btn ${showPaths ? "chip-btn-active" : ""}`}
-                >
-                  paths
-                </button>
-                <button
-                  onClick={() => setShowConflicts(!showConflicts)}
-                  className={`chip-btn ${showConflicts ? "chip-btn-active" : ""}`}
-                >
-                  conflicts
-                </button>
-                <button
-                  data-testid="overlay-safety-volume"
-                  aria-pressed={showSafetyVolume}
-                  onClick={() => setShowSafetyVolume(!showSafetyVolume)}
-                  className={`chip-btn ${showSafetyVolume ? "chip-btn-active" : ""}`}
-                >
-                  limits
-                </button>
-                <button
-                  data-testid="overlay-reserve-drones"
-                  aria-pressed={showReserveDrones}
-                  onClick={() => setShowReserveDrones(!showReserveDrones)}
-                  className={`chip-btn ${showReserveDrones ? "chip-btn-active" : ""}`}
-                  title="Tints drones no visual of this scene uses"
-                >
-                  reserve
-                </button>
-              </span>
-            </div>
           </section>
 
           <LaunchPanel />
