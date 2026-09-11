@@ -131,7 +131,7 @@ describe("visible surface hosts", () => {
     expect(got).toHaveLength(1);
     expect(got[0]).toEqual(request);
     expect(got[0]?.panel).toBe("transition-panel");
-    expect(got[0]?.group).toBe("AUTHORING");
+    expect(got[0]?.group).toBe("ADVANCED");
     expect(got[0]?.clipId).toBe("clip-42");
   });
 
