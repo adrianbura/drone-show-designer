@@ -50,7 +50,14 @@ export default function SceneGizmo({
 
   const readDelta = useCallback((): SceneGroupDelta => {
     const object = proxy.current;
-    const scale = (object.scale.x + object.scale.y + object.scale.z) / 3;
+    const scaleComponents = [object.scale.x, object.scale.y, object.scale.z];
+    // Scene objects have one canonical uniform scale. TransformControls changes
+    // only the component belonging to a coloured axis, so averaging all three
+    // made an axis drag look almost inert. Preserve the component moved furthest
+    // from identity instead.
+    const scale = scaleComponents.reduce((selected, component) =>
+      Math.abs(component - 1) > Math.abs(selected - 1) ? component : selected,
+    );
     return {
       position: [
         object.position.x - pivot[0],
@@ -90,9 +97,9 @@ export default function SceneGizmo({
           onBegin();
         }}
         onMouseUp={() => {
-          // Read once more on release. In some browsers the last pointer move
-          // and mouse-up arrive in the same frame, so React has not delivered
-          // the final objectChange callback before the canonical commit runs.
+          // Flush the proxy's exact release value before committing. The final
+          // objectChange event is not guaranteed to precede mouseUp, especially
+          // for large or dynamic visuals such as Butterfly.
           onUpdate(readDelta());
           onCommit();
           resetProxy();
