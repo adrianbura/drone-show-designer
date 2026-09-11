@@ -26,7 +26,9 @@ import { insertClipBeforeLanding, timelineBodyEnd } from "../clipInsertion";
 
 const N = 12;
 
-function clip(over: Partial<TimelineClip> & Pick<TimelineClip, "id" | "formationId">): TimelineClip {
+function clip(
+  over: Partial<TimelineClip> & Pick<TimelineClip, "id" | "formationId">,
+): TimelineClip {
   return {
     start: 0,
     transition: 8,
@@ -61,8 +63,14 @@ function baseProject() {
   };
   // Clip A carries an explicit 2-object scene.
   let scene = emptyScene(clipA.id, "Scene A");
-  scene = addObject(project, scene, { source: { kind: "STATIC", formationId: fa.id }, name: "Obj 1" }).scene;
-  scene = addObject(project, scene, { source: { kind: "STATIC", formationId: fb.id }, name: "Obj 2" }).scene;
+  scene = addObject(project, scene, {
+    source: { kind: "STATIC", formationId: fa.id },
+    name: "Obj 1",
+  }).scene;
+  scene = addObject(project, scene, {
+    source: { kind: "STATIC", formationId: fb.id },
+    name: "Obj 2",
+  }).scene;
   project = upsertScene(project, scene);
   return { project, scene: sceneForClip(project, clipA)!, dynamic, fa, fb };
 }
@@ -125,7 +133,12 @@ describe("clip selection lifecycle", () => {
   it("D. switching clip cancels the gizmo draft without touching the project", () => {
     const { project } = baseProject();
     const before = JSON.stringify(project);
-    const next = reconcileEditorSelection(project, "clip-b", state({ gizmoDraftActive: true }), "clip-a");
+    const next = reconcileEditorSelection(
+      project,
+      "clip-b",
+      state({ gizmoDraftActive: true }),
+      "clip-a",
+    );
     expect(next.gizmoDraftActive).toBe(false);
     expect(JSON.stringify(project)).toBe(before);
   });
@@ -163,7 +176,10 @@ describe("clip selection lifecycle", () => {
       afterDelete,
       "clip-b",
       state({
-        sceneSelection: { ids: base.scene.objects.map((o) => o.id), primaryId: base.scene.objects[0]!.id },
+        sceneSelection: {
+          ids: base.scene.objects.map((o) => o.id),
+          primaryId: base.scene.objects[0]!.id,
+        },
         selectedLightingEffectId: effect.id,
         gizmoDraftActive: true,
       }),
@@ -189,6 +205,20 @@ describe("library insertion is one authoring action", () => {
     clipId,
     formationId: (i: number) => `${clipId}-f-${i + 1}`,
     dynamicFormationId: (i: number) => `${clipId}-dyn-${i + 1}`,
+  });
+
+  it("makes the first library visual an editable SHOW clip", () => {
+    const project = createDefaultProject(N);
+    const source = makeFormation("first-visual", "First visual", "circle", N, project.area);
+    const asset = assetFromFormation(source, { name: "First visual" });
+    const result = insertLibraryAsset(
+      { ...project, timeline: [] },
+      asset,
+      ids("first-show-visual"),
+    );
+
+    const inserted = result.project.timeline.find((candidate) => candidate.id === result.clipId);
+    expect(inserted?.phase).toBe("SHOW");
   });
 
   it("F. STATIC insert = one project revision, LANDING stays final", () => {

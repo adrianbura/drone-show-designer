@@ -20,7 +20,6 @@ import { upsertScene } from "../show/scene";
 import type { DynamicFormation } from "../show/dynamic";
 import type { Formation, ShowProject, TimelineClip } from "../show/types";
 import { insertClipBeforeLanding } from "./clipInsertion";
-import { defaultPhaseForNewClip } from "./timelineEdit";
 
 export interface AssetInsertionIds {
   readonly clipId: string;
@@ -59,7 +58,11 @@ function baseClip(
     easing: "minJerk",
     color: [140, 210, 255],
     effect: "solid",
-    phase: defaultPhaseForNewClip(project.timeline),
+    // "Use in show" is a creative action: the chosen asset must always become
+    // an editable SHOW visual. Treating the first library asset as TAKEOFF made
+    // its transform controls appear to work during preview while the dedicated
+    // takeoff planner discarded those edits after release.
+    phase: "SHOW",
   };
 }
 
