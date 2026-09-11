@@ -2989,10 +2989,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   const patchSceneVisualStateCueById = useCallback(
-    (
-      cueId: string,
-      patch: { readonly time?: number; readonly transitionDuration?: number },
-    ) => {
+    (cueId: string, patch: { readonly time?: number; readonly transitionDuration?: number }) => {
       const clipId = selectedClipIdRef.current;
       const clip = projectRef.current.timeline.find((candidate) => candidate.id === clipId);
       if (!clipId || !clip) return;
@@ -5285,7 +5282,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           restoredShow = referenceShowFromLayer(restoredLayer);
         } catch (err) {
           return {
-          ok: false,
+            ok: false,
             error: {
               code: err instanceof ReferenceLayerError ? err.code : "MALFORMED_LAYER",
               message: err instanceof Error ? err.message : String(err),

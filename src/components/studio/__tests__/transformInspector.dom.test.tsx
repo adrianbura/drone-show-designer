@@ -34,9 +34,10 @@ function formation(id: string, kind: Formation["kind"], points: number): Formati
   };
 }
 
-function composedProject(
-  phase: "TAKEOFF" | "SHOW" | "LANDING" = "SHOW",
-): { project: ShowProject; clipId: string } {
+function composedProject(phase: "TAKEOFF" | "SHOW" | "LANDING" = "SHOW"): {
+  project: ShowProject;
+  clipId: string;
+} {
   const base = createDefaultProject(150);
   const clip = {
     id: "transform-clip",
@@ -199,7 +200,11 @@ describe("transform inspector", () => {
     }
 
     const clipAfter = api.project.timeline[0]!;
-    expect({ start: clipAfter.start, transition: clipAfter.transition, hold: clipAfter.hold }).toEqual({
+    expect({
+      start: clipAfter.start,
+      transition: clipAfter.transition,
+      hold: clipAfter.hold,
+    }).toEqual({
       start: clipBefore.start,
       transition: clipBefore.transition,
       hold: clipBefore.hold,
@@ -238,9 +243,9 @@ describe("transform inspector", () => {
 
       expect(api.project).toBe(projectBefore);
       expect(api.timelineHistoryDepth.past).toBe(historyBefore);
-      expect(api.project.timeline.map(({ start, transition, hold }) => ({ start, transition, hold }))).toEqual(
-        timingBefore,
-      );
+      expect(
+        api.project.timeline.map(({ start, transition, hold }) => ({ start, transition, hold })),
+      ).toEqual(timingBefore);
       expect(api.sceneGizmoPivot).toBeNull();
     });
   }
