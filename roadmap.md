@@ -4,3 +4,4 @@
 - [x] Site authoring panel + viewport geofence overlay
 - [x] Audience coordinates on the site, with derived viewing direction and facing yaw
 - [ ] Later: block export on GPS perimeter breach via full-show validation
+- [x] Restrict Visuals, Transform, Colour, and Motion authoring to SHOW clips
