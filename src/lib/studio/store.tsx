@@ -2641,7 +2641,14 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         gizmoIdsRef.current,
         sceneGizmoDraft,
       );
-      const resolved = resolveSceneAt(project, drafted, 0);
+      const clip = project.timeline.find((candidate) => candidate.id === selectedClipId);
+      const localTime = clip
+        ? Math.max(0, Math.min(clip.hold, clock.time - clip.start - clip.transition))
+        : 0;
+      // Dynamic visuals must preview the same animation frame that is already
+      // visible in the viewport. Resolving at t=0 made Butterfly jump to its
+      // first frame while dragging, then appear to revert on pointer release.
+      const resolved = resolveSceneAt(project, drafted, localTime);
       const wanted = new Set(gizmoIdsRef.current);
       const points: Vector3Tuple[] = [];
       const positionsByPointId = new Map<string, Vector3Tuple>();
@@ -2659,7 +2666,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     } catch {
       return empty;
     }
-  }, [project, selectedScene, sceneGizmoDraft]);
+  }, [clock.time, project, selectedClipId, selectedScene, sceneGizmoDraft]);
   const sceneGizmoPreviewPoints = sceneGizmoPreview.points;
 
   const beginSceneGizmo = useCallback(() => {

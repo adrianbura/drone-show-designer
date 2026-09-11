@@ -154,6 +154,23 @@ describe("transform inspector", () => {
     await waitFor(() => expect(api.selectedScene!.objects[0]!.transform.scale).toBeCloseTo(1.5));
   });
 
+  it("previews a dynamic visual at the current scene time while transforming it", async () => {
+    const ids = await mount();
+    select(ids[0]!);
+    const clip = api.project.timeline.find((candidate) => candidate.id === api.selectedClipId)!;
+    act(() => api.setTime(clip.start + clip.transition + Math.min(5, clip.hold)));
+    act(() => api.beginSceneGizmo());
+    act(() => api.updateSceneGizmo({ rotationDeg: [0, 35, 0] }));
+
+    await waitFor(() => expect(api.sceneGizmoPreviewPoints.length).toBeGreaterThan(0));
+    const preview = api.sceneGizmoPreviewPoints;
+    act(() => api.commitSceneGizmo());
+    await waitFor(() =>
+      expect(api.selectedScene!.objects[0]!.transform.rotationDeg[1]).toBeCloseTo(35),
+    );
+    expect(preview.length).toBeGreaterThan(0);
+  });
+
   it("leaves imported reference playback when the operator enters transform editing", async () => {
     const ids = await mount();
     act(() => api.setReferencePlayback(true));
