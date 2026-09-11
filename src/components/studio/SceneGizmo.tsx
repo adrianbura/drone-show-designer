@@ -48,6 +48,24 @@ export default function SceneGizmo({
     object.updateMatrixWorld();
   }, [pivot]);
 
+  const readDelta = useCallback((): SceneGroupDelta => {
+    const object = proxy.current;
+    const scale = (object.scale.x + object.scale.y + object.scale.z) / 3;
+    return {
+      position: [
+        object.position.x - pivot[0],
+        object.position.y - pivot[1],
+        object.position.z - pivot[2],
+      ],
+      rotationDeg: [
+        THREE.MathUtils.radToDeg(object.rotation.x),
+        THREE.MathUtils.radToDeg(object.rotation.y),
+        THREE.MathUtils.radToDeg(object.rotation.z),
+      ],
+      scaleFactor: scale > 0 ? scale : 1,
+    };
+  }, [pivot]);
+
   // The proxy is re-seeded at the pivot whenever the selection or the mode
   // changes, so every gesture starts from an identity delta.
   useEffect(() => {
@@ -72,26 +90,15 @@ export default function SceneGizmo({
           onBegin();
         }}
         onMouseUp={() => {
+          // Read once more on release. In some browsers the last pointer move
+          // and mouse-up arrive in the same frame, so React has not delivered
+          // the final objectChange callback before the canonical commit runs.
+          onUpdate(readDelta());
           onCommit();
           resetProxy();
         }}
         onObjectChange={() => {
-          const object = proxy.current;
-          if (!object) return;
-          const scale = (object.scale.x + object.scale.y + object.scale.z) / 3;
-          onUpdate({
-            position: [
-              object.position.x - pivot[0],
-              object.position.y - pivot[1],
-              object.position.z - pivot[2],
-            ],
-            rotationDeg: [
-              THREE.MathUtils.radToDeg(object.rotation.x),
-              THREE.MathUtils.radToDeg(object.rotation.y),
-              THREE.MathUtils.radToDeg(object.rotation.z),
-            ],
-            scaleFactor: scale > 0 ? scale : 1,
-          });
+          onUpdate(readDelta());
         }}
       />
     </>
