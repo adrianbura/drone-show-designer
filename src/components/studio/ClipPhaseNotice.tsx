@@ -9,39 +9,16 @@
  * `clipPhase()` is the only phase authority. Nothing here mutates the project,
  * creates history, or invents a second insertion path.
  */
+import {
+  CLIP_PHASE_NOTICE,
+  NO_SHOW_CLIP_NOTICE,
+  clipPhaseBadge,
+  nearestShowClip,
+} from "@/lib/studio/clipPhaseNotice";
 import { useStudio } from "@/lib/studio/store";
 import { requestWorkspaceSection } from "@/lib/studio/workspaceSections";
 
-import { clipPhase, type TimelineClip } from "@/lib/show/types";
-
-export const CLIP_PHASE_NOTICE = "This is a flight phase. Select a SHOW clip to edit visuals.";
-export const NO_SHOW_CLIP_NOTICE = "Add a visual to create a SHOW clip.";
-
-/** Semantic badge label for one clip. */
-export function clipPhaseBadge(clip: TimelineClip): string {
-  return clipPhase(clip) === "SHOW" ? "SHOW · Editable visual" : `${clipPhase(clip)} · Flight phase`;
-}
-
-/**
- * Nearest SHOW clip to a reference start time. Pure projection of the canonical
- * timeline — no reordering, no mutation.
- */
-export function nearestShowClip(
-  timeline: readonly TimelineClip[],
-  fromStart: number,
-): TimelineClip | null {
-  let best: TimelineClip | null = null;
-  let bestDistance = Number.POSITIVE_INFINITY;
-  for (const clip of timeline) {
-    if (clipPhase(clip) !== "SHOW") continue;
-    const distance = Math.abs(clip.start - fromStart);
-    if (distance < bestDistance) {
-      best = clip;
-      bestDistance = distance;
-    }
-  }
-  return best;
-}
+import type { TimelineClip } from "@/lib/show/types";
 
 export default function ClipPhaseNotice({ clip }: { clip: TimelineClip }) {
   const { project, selectClip } = useStudio();
