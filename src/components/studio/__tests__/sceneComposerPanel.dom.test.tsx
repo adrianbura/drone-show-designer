@@ -223,6 +223,12 @@ describe("scene composer drone budget DOM", () => {
     await mount(project, clipId);
     const objectId = api.selectedScene!.objects[0]!.id;
     const historyBefore = api.timelineHistoryDepth.past;
+    const timingBefore = api.project.timeline.map(({ id, start, transition, hold }) => ({
+      id,
+      start,
+      transition,
+      hold,
+    }));
     act(() => api.selectSceneObject(objectId, "REPLACE"));
     await waitFor(() => expect(api.selectedSceneObjectIds).toEqual([objectId]));
 
@@ -233,10 +239,26 @@ describe("scene composer drone budget DOM", () => {
     await waitFor(() =>
       expect(api.sceneGizmoPreviewByDrone.some((position) => position !== null)).toBe(true),
     );
+    expect(
+      api.project.timeline.map(({ id, start, transition, hold }) => ({
+        id,
+        start,
+        transition,
+        hold,
+      })),
+    ).toEqual(timingBefore);
     act(() => api.commitSceneGizmo());
     await waitFor(() =>
       expect(api.selectedScene!.objects[0]!.transform.position).toEqual([3, 4, 5]),
     );
+    expect(
+      api.project.timeline.map(({ id, start, transition, hold }) => ({
+        id,
+        start,
+        transition,
+        hold,
+      })),
+    ).toEqual(timingBefore);
 
     act(() => {
       api.beginSceneGizmo();
