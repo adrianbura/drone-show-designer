@@ -539,6 +539,14 @@ export default function Inspector({
             <p className="truncate text-xs font-medium" data-testid="inspector-selection-title">
               {selectionSummary.label}
             </p>
+            {clip ? (
+              <p
+                className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground"
+                data-testid="inspector-phase-badge"
+              >
+                {clipPhaseBadge(clip)}
+              </p>
+            ) : null}
             <p
               className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground"
               data-testid="inspector-selection-meta"
