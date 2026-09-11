@@ -218,42 +218,7 @@ export function applySceneGroupDelta(
       addVec(centre, delta.position ?? ZERO),
     );
   }
-  if (!scene.visualStates?.length) return next;
-
-  // Saved visual states contain complete object transforms and therefore take
-  // precedence during cue playback. A viewport transform is an edit of the
-  // visual itself, not only its uncued pose, so carry the same gesture through
-  // every snapshot containing a selected object. Otherwise the live preview is
-  // correct during the drag but the cue restores the old geometry on release.
-  const selected = new Set(objectIds);
-  const visualStates = scene.visualStates.map((state) => {
-    const snapshots = new Map(state.objects.map((snapshot) => [snapshot.objectId, snapshot]));
-    const stateIds = objectIds.filter((id) => selected.has(id) && snapshots.has(id));
-    if (stateIds.length === 0) return state;
-    const snapshotScene: FormationScene = {
-      ...scene,
-      objects: scene.objects.map((object) => {
-        const snapshot = snapshots.get(object.id);
-        return snapshot ? { ...object, transform: snapshot.transform } : object;
-      }),
-      visualStates: [],
-      visualStateCues: [],
-    };
-    const transformed = applySceneGroupDelta(project, snapshotScene, stateIds, delta);
-    const transforms = new Map(
-      transformed.objects
-        .filter((object) => selected.has(object.id))
-        .map((object) => [object.id, object.transform]),
-    );
-    return {
-      ...state,
-      objects: state.objects.map((snapshot) => {
-        const transform = transforms.get(snapshot.objectId);
-        return transform ? { ...snapshot, transform } : snapshot;
-      }),
-    };
-  });
-  return { ...next, visualStates };
+  return next;
 }
 
 /** Deterministic duplicate of every selected object; returns the new ids. */
