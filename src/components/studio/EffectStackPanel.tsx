@@ -17,6 +17,7 @@
 import { ArrowDown, ArrowUp, Copy, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import ClipPhaseNotice from "@/components/studio/ClipPhaseNotice";
 import LivePreviewBar from "@/components/studio/LivePreviewBar";
 import MotionInspector from "@/components/studio/MotionInspector";
 import { Button } from "@/components/ui/button";
@@ -158,9 +159,13 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
         <h2 className="panel-title flex items-center gap-1.5">
           <Sparkles className="size-3" /> Selection effects
         </h2>
-        <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
-          Colour and Motion are available on SHOW visuals. Select or create a SHOW scene.
-        </p>
+        {selectedClip ? (
+          <ClipPhaseNotice clip={selectedClip} />
+        ) : (
+          <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
+            Colour and Motion are available on SHOW visuals. Select or create a SHOW scene.
+          </p>
+        )}
       </section>
     );
   }

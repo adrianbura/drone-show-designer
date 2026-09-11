@@ -84,7 +84,7 @@ async function mount(phase: "TAKEOFF" | "SHOW" | "LANDING" = "SHOW") {
   act(() => api.selectClip(clipId));
   await waitFor(() =>
     expect(
-      screen.getByTestId(phase === "SHOW" ? "visual-layers" : "visual-authoring-show-only"),
+      screen.getByTestId(phase === "SHOW" ? "visual-layers" : "clip-phase-notice"),
     ).toBeTruthy(),
   );
   return api.selectedScene!.objects.map((o) => o.id);
@@ -214,8 +214,8 @@ describe("transform inspector", () => {
   for (const phase of ["TAKEOFF", "LANDING"] as const) {
     it(`blocks misleading scene transforms for ${phase}`, async () => {
       const ids = await mount(phase);
-      expect(screen.getByTestId("visual-authoring-show-only").textContent).toBe(
-        "Transform is available on SHOW visuals. Select or create a SHOW scene.",
+      expect(screen.getByTestId("clip-phase-explanation").textContent).toBe(
+        "This is a flight phase. Select a SHOW clip to edit visuals.",
       );
       expect(screen.queryByTestId("transform-section")).toBeNull();
 

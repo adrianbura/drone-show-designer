@@ -26,6 +26,7 @@ import {
 import { useMemo, useState } from "react";
 
 import AddVisualWizard from "@/components/studio/AddVisualWizard";
+import ClipPhaseNotice from "@/components/studio/ClipPhaseNotice";
 import TransformInspector from "@/components/studio/TransformInspector";
 import VisualGroupRow, { type VisualGroupView } from "@/components/studio/VisualGroupRow";
 import VisualLayerRow, { type VisualLayerView } from "@/components/studio/VisualLayerRow";
@@ -322,12 +323,16 @@ export default function SceneComposerPanel({ view = "ALL" }: { view?: SceneCompo
         <h2 className="panel-title flex items-center gap-1.5">
           <Layers className="size-3" /> {view === "TRANSFORM" ? "Transform" : "Visuals"}
         </h2>
-        <p
-          className="font-mono text-[10px] leading-relaxed text-muted-foreground"
-          data-testid="visual-authoring-show-only"
-        >
-          Transform is available on SHOW visuals. Select or create a SHOW scene.
-        </p>
+        {selectedClip ? (
+          <ClipPhaseNotice clip={selectedClip} />
+        ) : (
+          <p
+            className="font-mono text-[10px] leading-relaxed text-muted-foreground"
+            data-testid="visual-authoring-show-only"
+          >
+            Transform is available on SHOW visuals. Select or create a SHOW scene.
+          </p>
+        )}
       </section>
     );
   }
