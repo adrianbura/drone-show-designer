@@ -642,6 +642,7 @@ export default function Inspector({
                 {section.id === "TRANSFORM" ? <SceneComposerPanel view="TRANSFORM" /> : null}
                 {section.id === "COLOUR" ? <EffectStackPanel view="COLOR" /> : null}
                 {section.id === "MOTION" ? <EffectStackPanel view="MOTION" /> : null}
+                {section.id === "CATALOG" ? <EffectStackPanel view="CATALOG" /> : null}
                 {section.id === "STATES" ? <SceneComposerPanel view="STATES" /> : null}
               </WorkspaceSection>
             ))}
