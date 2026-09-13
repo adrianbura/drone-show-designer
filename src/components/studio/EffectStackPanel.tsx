@@ -164,6 +164,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
             targetName="No target selected"
             time={time}
             initialFilter="ALL"
+            autoFocusSearch
             onApplyColor={() => undefined}
             onApplyMotion={() => undefined}
           />
@@ -194,6 +195,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
             targetName="SHOW visual required"
             time={time}
             initialFilter="ALL"
+            autoFocusSearch
             onApplyColor={() => undefined}
             onApplyMotion={() => undefined}
           />
@@ -372,6 +374,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
           targetName={context.name}
           time={time}
           initialFilter="ALL"
+          autoFocusSearch
           onApplyColor={applyLighting}
           onApplyMotion={applyMotion}
         />
