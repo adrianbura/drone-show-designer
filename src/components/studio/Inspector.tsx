@@ -11,6 +11,7 @@ import {
 
 import FullShowPanel from "./FullShowPanel";
 import ShowReadinessPanel from "./ShowReadinessPanel";
+import ShowSetupPanel from "./ShowSetupPanel";
 import TransitionDesignPanel from "./TransitionDesignPanel";
 import LaunchPanel from "./LaunchPanel";
 import SitePanel from "./SitePanel";
@@ -621,6 +622,11 @@ export default function Inspector({
           hidden={group !== "AUTHORING"}
           className={`flex flex-col gap-5 ${group === "AUTHORING" ? "" : "hidden"}`}
         >
+          {/* GUIDED ORDER FIRST — one checklist that says what to do next. */}
+          <div id="setup-panel" data-panel-id="setup-panel">
+            <ShowSetupPanel />
+          </div>
+
           {/* Compact collapsible everyday sections. One open at a time keeps the
           vertical scroll short and removes duplicate surfaces. */}
           <div

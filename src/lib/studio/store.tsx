@@ -133,6 +133,13 @@ import {
 } from "../show/markers";
 import { timelineContentRange } from "./timelineLayout";
 import { insertClipBeforeLanding } from "./clipInsertion";
+import {
+  defaultLandingParams,
+  defaultTakeoffParams,
+  hasPhaseClip,
+  withLandingClip,
+  withTakeoffClip,
+} from "../show/preshow/phaseClips";
 import { canConvertClipToScene, convertClipToScene, duplicateShowClip } from "./clipDesign";
 import {
   applyPointSelection,
@@ -865,6 +872,13 @@ interface StudioContextValue {
   /** Renames the formation a clip shows (one undoable authored revision). */
   renameFormation: (id: string, name: string) => void;
   addClip: (formationId: string, timing?: { transition?: number; hold?: number }) => void;
+  /**
+   * Adds the technical climb-out segment at t = 0 (one undo entry). No-op when a
+   * TAKEOFF clip already exists or the project has no formation to reference.
+   */
+  addTakeoffPhase: () => void;
+  /** Adds the return-to-home descent after the whole body (one undo entry). */
+  addLandingPhase: () => void;
   /** Imported SVG assets, keyed by asset id (reproducibility + regeneration). */
   svgAssets: Record<string, SvgAsset>;
   svgDraft: SvgDraft | null;
@@ -2120,6 +2134,42 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     timelineHistory.current.future = [];
     setTimelineHistoryDepth({ past: timelineHistory.current.past.length, future: 0 });
   }, []);
+
+  /**
+   * AUTOMATIC FLIGHT PHASES.
+   *
+   * The climb-out and the return-to-home descent are technical segments owned by
+   * the dedicated TAKEOFF/LANDING planners, so authoring them is a single
+   * canonical timeline mutation with a single undo entry. Durations come from
+   * the project's own altitudes and flight envelope (see phaseClips).
+   */
+  const addTakeoffPhase = useCallback(() => {
+    const id = nextId("c");
+    setProject((p) => {
+      if (hasPhaseClip(p.timeline, "TAKEOFF")) return p;
+      const formationId = p.timeline[0]?.formationId ?? p.formations[0]?.id;
+      if (!formationId) return p;
+      pushSnapshot(p);
+      return {
+        ...p,
+        timeline: withTakeoffClip(p.timeline, { id, formationId }, defaultTakeoffParams(p)),
+      };
+    });
+  }, [pushSnapshot]);
+
+  const addLandingPhase = useCallback(() => {
+    const id = nextId("c");
+    setProject((p) => {
+      if (hasPhaseClip(p.timeline, "LANDING")) return p;
+      const formationId = p.timeline[p.timeline.length - 1]?.formationId ?? p.formations[0]?.id;
+      if (!formationId) return p;
+      pushSnapshot(p);
+      return {
+        ...p,
+        timeline: withLandingClip(p.timeline, { id, formationId }, defaultLandingParams(p)),
+      };
+    });
+  }, [pushSnapshot]);
 
   /**
    * GESTURE COMMIT (Sprint 7.2, ripple since Sprint 8D).
@@ -6723,6 +6773,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       updateFormation,
       renameFormation,
       addClip,
+      addTakeoffPhase,
+      addLandingPhase,
       patchClip,
       removeClip,
       svgAssets,
@@ -7110,6 +7162,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       updateFormation,
       renameFormation,
       addClip,
+      addTakeoffPhase,
+      addLandingPhase,
       patchClip,
       removeClip,
       svgAssets,
