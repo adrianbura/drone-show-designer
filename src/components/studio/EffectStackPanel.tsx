@@ -371,7 +371,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
         disabled={!canApply}
         targetName={context.name}
         time={time}
-        initialFilter={view === "COLOR" ? "COLOR" : view === "MOTION" ? "MOTION" : "ALL"}
+        initialFilter={catalogFilter(view)}
         onApplyColor={applyLighting}
         onApplyMotion={applyMotion}
       />
