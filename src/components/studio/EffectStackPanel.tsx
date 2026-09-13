@@ -370,15 +370,19 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
       {/* ---------------------------------------------- ONE live preview surface */}
       {livePreview}
 
-      {/* --------------------------------------------- unified effect catalog */}
-      <EffectCatalog
-        disabled={!canApply}
-        targetName={context.name}
-        time={time}
-        initialFilter={catalogFilter(view)}
-        onApplyColor={applyLighting}
-        onApplyMotion={applyMotion}
-      />
+      {/* ---- unified effect catalog: ONE home, the dedicated Catalog section */}
+      {view === "CATALOG" ? (
+        <EffectCatalog
+          disabled={!canApply}
+          targetName={context.name}
+          time={time}
+          initialFilter="ALL"
+          onApplyColor={applyLighting}
+          onApplyMotion={applyMotion}
+        />
+      ) : null}
+
+
 
 
 
