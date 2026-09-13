@@ -11,6 +11,7 @@ import {
 
 import FullShowPanel from "./FullShowPanel";
 import ShowReadinessPanel from "./ShowReadinessPanel";
+import ShowSetupPanel from "./ShowSetupPanel";
 import TransitionDesignPanel from "./TransitionDesignPanel";
 import LaunchPanel from "./LaunchPanel";
 import SitePanel from "./SitePanel";
