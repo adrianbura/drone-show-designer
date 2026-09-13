@@ -145,9 +145,18 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
     return (
       <section className="panel-card" data-testid="effect-stacks">
         <h2 className="panel-title flex items-center gap-1.5">
-          <Sparkles className="size-3" /> Selection effects
+          <Sparkles className="size-3" />
+          {view === "MOTION" ? "Motion" : view === "COLOR" ? "Color" : "Selection effects"}
         </h2>
         <p className="font-mono text-[10px] text-muted-foreground">Select a clip to add effects.</p>
+        <EffectCatalog
+          disabled
+          targetName="No target selected"
+          time={time}
+          initialFilter={view === "COLOR" ? "COLOR" : view === "MOTION" ? "MOTION" : "ALL"}
+          onApplyColor={() => undefined}
+          onApplyMotion={() => undefined}
+        />
       </section>
     );
   }
@@ -158,7 +167,8 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
     return (
       <section className="panel-card" data-testid="effect-stacks-phase-locked">
         <h2 className="panel-title flex items-center gap-1.5">
-          <Sparkles className="size-3" /> Selection effects
+          <Sparkles className="size-3" />
+          {view === "MOTION" ? "Motion" : view === "COLOR" ? "Color" : "Selection effects"}
         </h2>
         {selectedClip ? (
           <ClipPhaseNotice clip={selectedClip} />
@@ -167,6 +177,14 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
             Colour and Motion are available on SHOW visuals. Select or create a SHOW scene.
           </p>
         )}
+        <EffectCatalog
+          disabled
+          targetName="SHOW visual required"
+          time={time}
+          initialFilter={view === "COLOR" ? "COLOR" : view === "MOTION" ? "MOTION" : "ALL"}
+          onApplyColor={() => undefined}
+          onApplyMotion={() => undefined}
+        />
       </section>
     );
   }
