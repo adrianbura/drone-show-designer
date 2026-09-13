@@ -195,7 +195,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
           disabled
           targetName="SHOW visual required"
           time={time}
-          initialFilter={view === "COLOR" ? "COLOR" : view === "MOTION" ? "MOTION" : "ALL"}
+          initialFilter={catalogFilter(view)}
           onApplyColor={() => undefined}
           onApplyMotion={() => undefined}
         />
