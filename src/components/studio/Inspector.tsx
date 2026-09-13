@@ -471,6 +471,7 @@ export default function Inspector({
     TRANSFORM: selectedSceneObjectIds.length > 0 ? `${selectedSceneObjectIds.length} sel` : null,
     COLOUR: sceneLightingCount > 0 ? `${sceneLightingCount} effects` : null,
     MOTION: animatedObjects > 0 ? `${animatedObjects} animated` : "No motion",
+    CATALOG: "All effects",
     STATES: savedStateCount > 0 ? `${savedStateCount} saved` : null,
   };
 
