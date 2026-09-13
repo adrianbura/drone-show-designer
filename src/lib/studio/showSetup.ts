@@ -80,8 +80,7 @@ export function buildShowSetup(input: ShowSetupInput): ShowSetupModel {
   const lightingEffects = project.lighting?.effects.length ?? 0;
   const launchEnabled = project.preShow?.enabled === true;
 
-  const item = (id: Parameters<typeof readiness.items.find>[0] extends never ? never : string) =>
-    readiness.items.find((i) => i.id === id) ?? null;
+  const item = (id: string) => readiness.items.find((i) => i.id === id) ?? null;
   const analysis = item("ANALYSIS");
   const trajectory = item("TRAJECTORY");
   const geofence = item("GEOFENCE");
