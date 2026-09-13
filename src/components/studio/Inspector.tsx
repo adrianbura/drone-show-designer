@@ -63,6 +63,7 @@ const AUTHORING_SECTIONS: readonly {
   label: string;
   tool: string;
 }[] = [
+  { id: "PHASE", label: "Phase editor", tool: "phase" },
   { id: "VISUALS", label: "Visuals", tool: "visual" },
   { id: "TRANSFORM", label: "Transform", tool: "transform" },
   { id: "COLOUR", label: "Colour", tool: "color" },
