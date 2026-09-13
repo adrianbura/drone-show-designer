@@ -93,6 +93,7 @@ export default function EffectCatalog({
         <Search className="size-3 text-muted-foreground" />
         <span className="sr-only">Search effects</span>
         <input
+          ref={searchRef}
           type="search"
           value={query}
           data-testid="effect-catalog-search"
