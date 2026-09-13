@@ -119,7 +119,7 @@ export default function LaunchPanel() {
   const issues = useMemo(() => preShowReport?.issues.slice(0, 40) ?? [], [preShowReport]);
 
   return (
-    <section className="panel-card">
+    <section className="panel-card" data-testid="launch-panel">
       <div className="flex items-center justify-between gap-2">
         <h2 className="panel-title flex items-center gap-2">
           <Rocket className="size-3.5" /> Pre-show &amp; launch
