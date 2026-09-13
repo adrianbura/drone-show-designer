@@ -290,6 +290,18 @@ export default function Timeline({
   const runCommand = useCallback(
     (id: StudioCommandId, ctx: TimelineCommandContext) => {
       if (ctx.kind === "CLIP") {
+        /**
+         * PHASE-SCOPED PRIMARY COMMAND. When the operator invoked the menu on a
+         * FORMATION or DISPLAY part of a SHOW clip, its primary editor opens
+         * through the compact Phase Editor shell instead of jumping straight
+         * into a deep panel. This is navigation only — nothing is mutated, and
+         * every other command still executes exactly as before.
+         */
+        if (ctx.authoringPhase && id === primaryCommandFor(ctx)) {
+          selectClip(ctx.clipId);
+          requestPhaseEditor(ctx.clipId, ctx.authoringPhase);
+          return;
+        }
         execute(id, { clipId: ctx.clipId });
         return;
       }
