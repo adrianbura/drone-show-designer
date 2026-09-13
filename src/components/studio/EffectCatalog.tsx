@@ -27,17 +27,20 @@ export default function EffectCatalog({
   disabled,
   targetName,
   time,
+  initialFilter = "ALL",
   onApplyColor,
   onApplyMotion,
 }: {
   disabled: boolean;
   targetName: string;
   time: number;
+  initialFilter?: EffectCatalogFilter;
   onApplyColor: (id: LightingSelectionPresetId) => void;
   onApplyMotion: (id: MotionSelectionPresetId) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<EffectCatalogFilter>("ALL");
+  const [filter, setFilter] = useState<EffectCatalogFilter>(initialFilter);
+
 
   const groups = useMemo(
     () => groupEffectCatalog(filterEffectCatalog(query, filter)),
