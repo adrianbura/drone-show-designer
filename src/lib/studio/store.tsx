@@ -865,6 +865,13 @@ interface StudioContextValue {
   /** Renames the formation a clip shows (one undoable authored revision). */
   renameFormation: (id: string, name: string) => void;
   addClip: (formationId: string, timing?: { transition?: number; hold?: number }) => void;
+  /**
+   * Adds the technical climb-out segment at t = 0 (one undo entry). No-op when a
+   * TAKEOFF clip already exists or the project has no formation to reference.
+   */
+  addTakeoffPhase: () => void;
+  /** Adds the return-to-home descent after the whole body (one undo entry). */
+  addLandingPhase: () => void;
   /** Imported SVG assets, keyed by asset id (reproducibility + regeneration). */
   svgAssets: Record<string, SvgAsset>;
   svgDraft: SvgDraft | null;
