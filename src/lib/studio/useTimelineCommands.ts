@@ -17,6 +17,7 @@ import { useStudio } from "@/lib/studio/store";
 import type { ClipCommandContext, ClipOwnership, StudioCommandId } from "./commands";
 import { focusStudioSurface, type StudioSurfaceId } from "./inspectorFocus";
 import { clipLabel, clipRepresentation } from "./selectionSummary";
+import { requestWorkspaceSection } from "./workspaceSections";
 import { resolveTextRebuildEligibility } from "./textRebuild";
 
 export interface RenameRequest {
@@ -123,6 +124,11 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
           return;
         case "EDIT_LIGHTING":
           focusSurface("LIGHTING", clipId);
+          return;
+        case "OPEN_EFFECT_CATALOG":
+          // Navigation only: selects the clip, then reveals the catalog section.
+          if (clipId) selectClip(clipId);
+          requestWorkspaceSection("effect-catalog-search");
           return;
         case "VIEW_IMPORTED_RGB":
           focusSurface("REFERENCE", clipId);
