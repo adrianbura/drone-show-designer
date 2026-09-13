@@ -182,7 +182,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
       <section className="panel-card" data-testid="effect-stacks-phase-locked">
         <h2 className="panel-title flex items-center gap-1.5">
           <Sparkles className="size-3" />
-          {view === "MOTION" ? "Motion" : view === "COLOR" ? "Color" : "Selection effects"}
+          {panelTitle(view)}
         </h2>
         {selectedClip ? (
           <ClipPhaseNotice clip={selectedClip} />
