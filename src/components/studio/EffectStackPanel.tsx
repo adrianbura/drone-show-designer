@@ -193,14 +193,16 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
             Colour and Motion are available on SHOW visuals. Select or create a SHOW scene.
           </p>
         )}
-        <EffectCatalog
-          disabled
-          targetName="SHOW visual required"
-          time={time}
-          initialFilter={catalogFilter(view)}
-          onApplyColor={() => undefined}
-          onApplyMotion={() => undefined}
-        />
+        {view === "CATALOG" ? (
+          <EffectCatalog
+            disabled
+            targetName="SHOW visual required"
+            time={time}
+            initialFilter="ALL"
+            onApplyColor={() => undefined}
+            onApplyMotion={() => undefined}
+          />
+        ) : null}
       </section>
     );
   }
