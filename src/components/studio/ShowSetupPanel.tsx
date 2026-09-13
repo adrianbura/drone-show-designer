@@ -109,7 +109,10 @@ export default function ShowSetupPanel() {
         <ListChecks className="size-3.5" /> Show setup
       </h2>
       <div className="flex items-center justify-between gap-2 pb-1">
-        <p className="text-[11px] leading-relaxed text-muted-foreground" data-testid="show-setup-headline">
+        <p
+          className="text-[11px] leading-relaxed text-muted-foreground"
+          data-testid="show-setup-headline"
+        >
           {model.doneCount}/{model.totalCount} done · {model.headline}
         </p>
         <button

@@ -116,7 +116,10 @@ export function buildShowSetup(input: ShowSetupInput): ShowSetupModel {
       detail: launchEnabled
         ? "Ground positions, spacing and launch groups are configured."
         : "No launch grid yet: the drones have no authored ground positions.",
-      action: { id: "CONFIGURE_LAUNCH", label: launchEnabled ? "Review launch grid" : "Set up launch grid" },
+      action: {
+        id: "CONFIGURE_LAUNCH",
+        label: launchEnabled ? "Review launch grid" : "Set up launch grid",
+      },
     },
     {
       id: "TAKEOFF",
@@ -166,7 +169,10 @@ export function buildShowSetup(input: ShowSetupInput): ShowSetupModel {
       action:
         showClips === 0
           ? null
-          : { id: "EDIT_TRANSITION", label: withoutTransition > 0 ? "Fix transitions" : "Review transitions" },
+          : {
+              id: "EDIT_TRANSITION",
+              label: withoutTransition > 0 ? "Fix transitions" : "Review transitions",
+            },
     },
     {
       id: "LANDING",
@@ -186,12 +192,12 @@ export function buildShowSetup(input: ShowSetupInput): ShowSetupModel {
       state: safetyState,
       detail:
         safetyState === "BLOCKED"
-          ? (trajectory?.state === "BLOCKED" ? trajectory.detail : geofence?.detail) ??
-            "Blocking findings remain."
+          ? ((trajectory?.state === "BLOCKED" ? trajectory.detail : geofence?.detail) ??
+            "Blocking findings remain.")
           : safetyState === "TODO"
-            ? analysis?.detail ?? "Run the full-show analysis."
+            ? (analysis?.detail ?? "Run the full-show analysis.")
             : safetyState === "WARNING"
-              ? geofence?.detail ?? "Warnings recorded."
+              ? (geofence?.detail ?? "Warnings recorded.")
               : "Full-show analysis is fresh with no blocking finding. This does not authorise a flight.",
       action:
         safetyState === "BLOCKED"

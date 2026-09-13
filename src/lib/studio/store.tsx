@@ -2161,8 +2161,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     const id = nextId("c");
     setProject((p) => {
       if (hasPhaseClip(p.timeline, "LANDING")) return p;
-      const formationId =
-        p.timeline[p.timeline.length - 1]?.formationId ?? p.formations[0]?.id;
+      const formationId = p.timeline[p.timeline.length - 1]?.formationId ?? p.formations[0]?.id;
       if (!formationId) return p;
       pushSnapshot(p);
       return {
@@ -2171,8 +2170,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       };
     });
   }, [pushSnapshot]);
-
-
 
   /**
    * GESTURE COMMIT (Sprint 7.2, ripple since Sprint 8D).

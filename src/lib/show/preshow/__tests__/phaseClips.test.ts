@@ -45,10 +45,14 @@ describe("suggestVerticalDuration", () => {
 describe("withTakeoffClip", () => {
   it("puts the take-off first and shifts the body forward by its length", () => {
     const body = [clip({ id: "a", start: 0 }), clip({ id: "b", start: 14 })];
-    const next = withTakeoffClip(body, { id: "t", formationId: "f1" }, {
-      transition: 10,
-      hold: 4,
-    });
+    const next = withTakeoffClip(
+      body,
+      { id: "t", formationId: "f1" },
+      {
+        transition: 10,
+        hold: 4,
+      },
+    );
     expect(next[0]!.id).toBe("t");
     expect(next[0]!.phase).toBe("TAKEOFF");
     expect(next[0]!.start).toBe(0);
@@ -66,10 +70,14 @@ describe("withTakeoffClip", () => {
 describe("withLandingClip", () => {
   it("appends the landing after the whole authored body", () => {
     const body = [clip({ id: "a", start: 0, transition: 8, hold: 6 })];
-    const next = withLandingClip(body, { id: "l", formationId: "f1" }, {
-      transition: 12,
-      hold: 2,
-    });
+    const next = withLandingClip(
+      body,
+      { id: "l", formationId: "f1" },
+      {
+        transition: 12,
+        hold: 2,
+      },
+    );
     expect(next).toHaveLength(2);
     expect(next[1]!.phase).toBe("LANDING");
     expect(next[1]!.start).toBe(14);
