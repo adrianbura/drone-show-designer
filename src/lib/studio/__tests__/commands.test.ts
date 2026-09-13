@@ -30,7 +30,8 @@ function clip(patch: Partial<ClipCommandContext> = {}): ClipCommandContext {
   };
 }
 
-const ids = (ctx: ClipCommandContext) => flattenCommands(resolveTimelineCommands(ctx)).map((c) => c.id);
+const ids = (ctx: ClipCommandContext) =>
+  flattenCommands(resolveTimelineCommands(ctx)).map((c) => c.id);
 
 describe("command authority", () => {
   it("offers exactly one primary editor per representation", () => {
@@ -44,6 +45,26 @@ describe("command authority", () => {
     expect(scene).not.toContain("EDIT_DYNAMIC");
     // A scene clip is already a scene — no conversion offer.
     expect(scene).not.toContain("CONVERT_TO_SCENE");
+  });
+
+  it("routes a SHOW clip formation and display area to different everyday tools", () => {
+    const formation = resolveTimelineCommands(clip({ authoringPhase: "FORMATION" }));
+    expect(primaryCommandFor(clip({ authoringPhase: "FORMATION" }))).toBe("EDIT_TRANSITION");
+    expect(formation.subtitle).toContain("FORMATION");
+    expect(findCommand(formation, "EDIT_TRANSITION")?.label).toBe("Formation Settings…");
+    expect(findCommand(formation, "EDIT_SCENE")).toBeUndefined();
+    expect(findCommand(formation, "OPEN_EFFECT_CATALOG")).toBeUndefined();
+
+    const display = resolveTimelineCommands(
+      clip({ representation: "SCENE", authoringPhase: "DISPLAY" }),
+    );
+    expect(primaryCommandFor(clip({ representation: "SCENE", authoringPhase: "DISPLAY" }))).toBe(
+      "EDIT_SCENE",
+    );
+    expect(display.subtitle).toContain("DISPLAY");
+    expect(findCommand(display, "EDIT_SCENE")?.label).toBe("Edit Visuals…");
+    expect(findCommand(display, "OPEN_EFFECT_CATALOG")?.available).toBe(true);
+    expect(findCommand(display, "EDIT_TRANSITION")).toBeUndefined();
   });
 
   it("omits inapplicable actions instead of disabling them", () => {
@@ -66,7 +87,6 @@ describe("command authority", () => {
     const menu = resolveTimelineCommands(clip({ ownership: "REFERENCE", hasImportedRgb: true }));
     expect(findCommand(menu, "RESTORE_REFERENCE")).toBeUndefined();
     expect(findCommand(menu, "VIEW_IMPORTED_RGB")?.available).toBe(true);
-
 
     const noBeats = resolveTimelineCommands(clip({ canSnapToBeat: false }));
     const snap = findCommand(noBeats, "SNAP_START_TO_BEAT");
@@ -102,7 +122,9 @@ describe("command authority", () => {
       unavailableReason: "dynamic clip",
     });
     const fallback = resolveTimelineCommands(clip({ textRebuild: { available: false } }));
-    expect(findCommand(fallback, "REBUILD_AS_TEXT")?.unavailableReason).toBe(REBUILD_AS_TEXT_REASON);
+    expect(findCommand(fallback, "REBUILD_AS_TEXT")?.unavailableReason).toBe(
+      REBUILD_AS_TEXT_REASON,
+    );
   });
 
   it("keeps delete destructive and last", () => {
@@ -114,16 +136,18 @@ describe("command authority", () => {
 
   it("describes empty timeline space, markers and lighting effects", () => {
     expect(
-      flattenCommands(resolveTimelineCommands({ kind: "EMPTY_TIMELINE", time: 4, canAddClip: false })).map(
-        (c) => [c.id, c.available],
-      ),
+      flattenCommands(
+        resolveTimelineCommands({ kind: "EMPTY_TIMELINE", time: 4, canAddClip: false }),
+      ).map((c) => [c.id, c.available]),
     ).toEqual([
       ["ADD_CLIP_HERE", false],
       ["ADD_MARKER_HERE", true],
       ["MOVE_PLAYHEAD_HERE", true],
     ]);
 
-    expect(primaryCommandFor({ kind: "MARKER", markerId: "m", label: "Drop" })).toBe("RENAME_MARKER");
+    expect(primaryCommandFor({ kind: "MARKER", markerId: "m", label: "Drop" })).toBe(
+      "RENAME_MARKER",
+    );
     expect(primaryCommandFor({ kind: "LIGHTING_EFFECT", effectId: "e", label: "Pulse" })).toBe(
       "EDIT_LIGHTING_EFFECT",
     );

@@ -15,10 +15,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildExportPreflight } from "../exportPreflight";
 import { evaluateExportEligibility } from "../exportEligibility";
-import {
-  buildOriginalEsspDownload,
-  hasEsspSourceBytes,
-} from "../esspSourceRecovery";
+import { buildOriginalEsspDownload, hasEsspSourceBytes } from "../esspSourceRecovery";
 import type { ReferenceTrajectoryLayer } from "@/lib/import/essp/native/types";
 import type { FullShowValidationReport } from "@/lib/show/fullshow/types";
 
@@ -29,7 +26,13 @@ function readyReport(): FullShowValidationReport {
     analysisRevision: "rev-project-a",
     splice: null,
     safety: {
-      worst: { minSeparation: 4, maxVelocity: 6, maxAcceleration: 3, maxYawRate: 0, maxAltitude: 80 },
+      worst: {
+        minSeparation: 4,
+        maxVelocity: 6,
+        maxAcceleration: 3,
+        maxYawRate: 0,
+        maxAltitude: 80,
+      },
       metrics: { maxJerk: 9 },
     },
     exportReadiness: { status: "READY", blockers: [], warnings: [] },
@@ -164,7 +167,9 @@ describe("adoption boundary atomicity", () => {
   });
 
   it("aborts the adoption instead of half-replacing the open project", () => {
-    expect(STORE_SRC).toContain('return {\n          ok: false,');
+    // Assert the control-flow contract without coupling it to Prettier's current
+    // indentation of the object literal.
+    expect(STORE_SRC).toMatch(/return\s*\{\s*ok:\s*false,/);
     expect(STORE_SRC).toContain("if (!outcome.ok) {");
   });
 

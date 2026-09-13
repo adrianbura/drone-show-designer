@@ -57,6 +57,10 @@ import {
 } from "@/lib/studio/clipPresentation";
 import { clipLightingSummary } from "@/lib/studio/lightingTimeline";
 import {
+  clipAuthoringPhaseAtOffset,
+  type ClipAuthoringPhase,
+} from "@/lib/studio/clipAuthoringPhase";
+import {
   primaryCommandFor,
   resolveTimelineCommands,
   type StudioCommandId,
@@ -195,6 +199,10 @@ export default function Timeline({
   const trackRef = useRef<HTMLDivElement>(null);
   const gestureRef = useRef<Gesture | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [contextPhase, setContextPhase] = useState<{
+    readonly clipId: string;
+    readonly phase: ClipAuthoringPhase;
+  } | null>(null);
 
   const viewStart = timelineView.start;
   const viewEndTime = timelineView.end;
@@ -856,12 +864,25 @@ export default function Timeline({
             const designed = phase === "SHOW" ? describeTransitionDesign(transitionDesignFor(clip.id)) : "";
             const needsRecalc = phase === "SHOW" && transitionDesignNeedsRecalculation(clip.id);
             const timing = `T ${formatSeconds(transition, comma)} · H ${formatSeconds(hold, comma)}`;
-            const menuContext = clipContext(clip.id);
+            const baseMenuContext = clipContext(clip.id);
+            const menuContext =
+              baseMenuContext && contextPhase?.clipId === clip.id
+                ? { ...baseMenuContext, authoringPhase: contextPhase.phase }
+                : baseMenuContext;
             const clipBlock = (
               <div
                 key={clip.id}
                 data-testid={`clip-${clip.id}`}
-                onContextMenu={(e) => e.stopPropagation()}
+                onContextMenu={(e) => {
+                  e.stopPropagation();
+                  if (phase !== "SHOW") return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const fraction = rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0;
+                  setContextPhase({
+                    clipId: clip.id,
+                    phase: clipAuthoringPhaseAtOffset(transition, hold, fraction * total),
+                  });
+                }}
                 data-density={density}
                 data-phase={phase}
                 data-shifted={shifted ? "true" : undefined}
@@ -904,6 +925,22 @@ export default function Timeline({
                   aria-hidden
                   className={`pointer-events-none absolute inset-y-0 left-0 w-1 ${style.stripeClass}`}
                 />
+                {phase === "SHOW" && density === "RICH" ? (
+                  <>
+                    <span
+                      className="pointer-events-none absolute bottom-0.5 left-1 z-10 font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground"
+                      data-testid={`clip-formation-label-${clip.id}`}
+                    >
+                      Formation
+                    </span>
+                    <span
+                      className="pointer-events-none absolute bottom-0.5 right-1 z-10 font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground"
+                      data-testid={`clip-display-label-${clip.id}`}
+                    >
+                      Display
+                    </span>
+                  </>
+                ) : null}
 
                 {/* TRANSITION PROPORTION — the morph part of the clip, shaded. */}
                 <span
@@ -928,6 +965,7 @@ export default function Timeline({
                       selectClip(clip.id);
                       return;
                     }
+                    setContextPhase(null);
                     selectClip(clip.id);
                     e.currentTarget.setPointerCapture(e.pointerId);
                     beginGesture("MOVE", clip.id, e.clientX);

@@ -22,6 +22,7 @@
  */
 
 import type { ShowPhase } from "@/lib/show/types";
+import type { ClipAuthoringPhase } from "./clipAuthoringPhase";
 
 export type StudioCommandId =
   // ---- primary editing
@@ -95,6 +96,8 @@ export interface ClipCommandContext {
   readonly clipId: string;
   readonly label: string;
   readonly phase: ShowPhase;
+  /** Pointer-resolved part of a SHOW clip; absent outside direct phase interaction. */
+  readonly authoringPhase?: ClipAuthoringPhase;
   readonly representation: ClipRepresentation;
   readonly canConvertToScene: boolean;
   /** Authored lighting effects exist on this clip (NOT imported RGB). */
@@ -153,57 +156,80 @@ function cmd(
   return { id, label, available: extra.available ?? true, ...extra };
 }
 
-function blocked(id: StudioCommandId, label: string, reason: string, destructive = false): StudioCommand {
+function blocked(
+  id: StudioCommandId,
+  label: string,
+  reason: string,
+  destructive = false,
+): StudioCommand {
   return { id, label, available: false, unavailableReason: reason, destructive };
 }
 
-function section(id: string, items: readonly StudioCommand[], label?: string): StudioCommandSection | null {
+function section(
+  id: string,
+  items: readonly StudioCommand[],
+  label?: string,
+): StudioCommandSection | null {
   if (items.length === 0) return null;
   return label === undefined ? { id, items } : { id, label, items };
 }
 
 function clipMenu(ctx: ClipCommandContext): StudioCommandMenu {
   const isShow = ctx.phase === "SHOW";
+  const formationTarget = isShow && ctx.authoringPhase === "FORMATION";
+  const displayTarget = isShow && ctx.authoringPhase === "DISPLAY";
 
   // EDIT — only the representation(s) that actually exist.
   const edit: StudioCommand[] = [];
-  if (ctx.representation === "SCENE") edit.push(cmd("EDIT_SCENE", "Edit Scene…"));
-  if (ctx.representation === "DYNAMIC") edit.push(cmd("EDIT_DYNAMIC", "Edit Dynamic Formation…"));
-  if (ctx.representation === "STATIC") edit.push(cmd("EDIT_FORMATION", "Edit Formation…"));
-  if (ctx.representation !== "SCENE" && ctx.canConvertToScene) {
+  if (!formationTarget && ctx.representation === "SCENE")
+    edit.push(cmd("EDIT_SCENE", "Edit Visuals…"));
+  if (!formationTarget && ctx.representation === "DYNAMIC")
+    edit.push(cmd("EDIT_DYNAMIC", "Edit Dynamic Formation…"));
+  if (!formationTarget && ctx.representation === "STATIC")
+    edit.push(cmd("EDIT_FORMATION", "Edit Formation…"));
+  if (!formationTarget && ctx.representation !== "SCENE" && ctx.canConvertToScene) {
     edit.push(cmd("CONVERT_TO_SCENE", "Edit as Scene…"));
   }
 
   // LIGHTING — shortcuts into the existing canonical lighting tooling.
-  const lighting: StudioCommand[] = [
-    cmd("EDIT_LIGHTING", "Edit Lighting…"),
-    isShow
-      ? cmd("OPEN_EFFECT_CATALOG", "Effect Catalog…")
-      : blocked(
-          "OPEN_EFFECT_CATALOG",
-          "Effect Catalog…",
-          "Effects are authored on SHOW clips. Select or create a SHOW scene.",
-        ),
-    cmd("SET_COLOR", "Set Colour…"),
-  ];
+  const lighting: StudioCommand[] = formationTarget
+    ? []
+    : [
+        cmd("EDIT_LIGHTING", "Edit Lighting…"),
+        isShow
+          ? cmd("OPEN_EFFECT_CATALOG", "Effect Catalog…")
+          : blocked(
+              "OPEN_EFFECT_CATALOG",
+              "Effect Catalog…",
+              "Effects are authored on SHOW clips. Select or create a SHOW scene.",
+            ),
+        cmd("SET_COLOR", "Set Colour…"),
+      ];
   if (ctx.hasImportedRgb) {
     lighting.push(cmd("VIEW_IMPORTED_RGB", "View Imported RGB · REFERENCE"));
   }
 
-  const motion: StudioCommand[] = [
-    cmd("EDIT_MOTION", "Edit Timing…"),
-    ctx.canSnapToBeat
-      ? cmd("SNAP_START_TO_BEAT", "Snap Start to Beat")
-      : blocked("SNAP_START_TO_BEAT", "Snap Start to Beat", "No tempo grid — set the audio BPM first."),
-  ];
+  const motion: StudioCommand[] = formationTarget
+    ? []
+    : [
+        cmd("EDIT_MOTION", "Edit Timing…"),
+        ctx.canSnapToBeat
+          ? cmd("SNAP_START_TO_BEAT", "Snap Start to Beat")
+          : blocked(
+              "SNAP_START_TO_BEAT",
+              "Snap Start to Beat",
+              "No tempo grid — set the audio BPM first.",
+            ),
+      ];
 
-  const transition: StudioCommand[] = isShow
-    ? [
-        cmd("EDIT_TRANSITION", "Edit Transition…"),
-        cmd("TRANSITION_DESIGN", "Transition Design…"),
-        cmd("REPLAN_ASSIGNMENT", "Replan Assignment…"),
-      ]
-    : [];
+  const transition: StudioCommand[] =
+    isShow && !displayTarget
+      ? [
+          cmd("EDIT_TRANSITION", "Formation Settings…"),
+          cmd("TRANSITION_DESIGN", "Formation Style…"),
+          cmd("REPLAN_ASSIGNMENT", "Replan Assignment…"),
+        ]
+      : [];
 
   const document: StudioCommand[] = [];
   if (isShow) document.push(cmd("DUPLICATE_CLIP", "Duplicate"));
@@ -215,7 +241,11 @@ function clipMenu(ctx: ClipCommandContext): StudioCommandMenu {
       : [
           ctx.canCompareReference
             ? cmd("COMPARE_REFERENCE", "Compare with Original")
-            : blocked("COMPARE_REFERENCE", "Compare with Original", "No comparable reference geometry for this clip."),
+            : blocked(
+                "COMPARE_REFERENCE",
+                "Compare with Original",
+                "No comparable reference geometry for this clip.",
+              ),
           // Only shown when a real restore continuation exists: production
           // menus contain working actions only.
           ...(ctx.canRestoreReference
@@ -248,9 +278,10 @@ function clipMenu(ctx: ClipCommandContext): StudioCommandMenu {
   ].filter((s): s is StudioCommandSection => s !== null);
 
   const owner = ctx.ownership === "NONE" ? "" : ` · ${ctx.ownership}`;
+  const target = ctx.authoringPhase ? ` · ${ctx.authoringPhase}` : "";
   return {
     title: ctx.label,
-    subtitle: `${ctx.phase} · ${ctx.representation}${owner}`,
+    subtitle: `${ctx.phase}${target} · ${ctx.representation}${owner}`,
     sections,
   };
 }
@@ -274,7 +305,10 @@ export function resolveTimelineCommands(ctx: TimelineCommandContext): StudioComm
         title: ctx.label,
         subtitle: "Marker",
         sections: [
-          { id: "MARKER", items: [cmd("RENAME_MARKER", "Rename…"), cmd("MARKER_TO_PLAYHEAD", "Move to Playhead")] },
+          {
+            id: "MARKER",
+            items: [cmd("RENAME_MARKER", "Rename…"), cmd("MARKER_TO_PLAYHEAD", "Move to Playhead")],
+          },
           {
             id: "DESTRUCTIVE",
             items: [cmd("DELETE_MARKER", "Delete", { destructive: true })],
@@ -304,6 +338,9 @@ export function resolveTimelineCommands(ctx: TimelineCommandContext): StudioComm
 export function primaryCommandFor(ctx: TimelineCommandContext): StudioCommandId | null {
   switch (ctx.kind) {
     case "CLIP":
+      if (ctx.phase === "SHOW" && ctx.authoringPhase === "FORMATION") {
+        return "EDIT_TRANSITION";
+      }
       if (ctx.representation === "SCENE") return "EDIT_SCENE";
       if (ctx.representation === "DYNAMIC") return "EDIT_DYNAMIC";
       return "EDIT_FORMATION";
