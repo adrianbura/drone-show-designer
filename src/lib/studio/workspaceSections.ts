@@ -7,6 +7,7 @@
  */
 
 export type WorkspaceSectionId =
+  | "PHASE"
   | "VISUALS"
   | "TRANSFORM"
   | "COLOUR"
@@ -16,6 +17,7 @@ export type WorkspaceSectionId =
 
 /** Which section owns each everyday control test id. */
 const CONTROL_SECTION: Readonly<Record<string, WorkspaceSectionId>> = {
+  "phase-editor-header": "PHASE",
   "transform-section": "TRANSFORM",
   "effect-stack-presets": "COLOUR",
   "motion-stack-presets": "MOTION",
