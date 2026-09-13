@@ -67,6 +67,7 @@ import {
   type TimelineCommandContext,
 } from "@/lib/studio/commands";
 import { useTimelineCommands, type RenameRequest } from "@/lib/studio/useTimelineCommands";
+import { requestPhaseEditor } from "@/lib/studio/phaseEditor";
 import StudioContextMenu from "@/components/studio/StudioContextMenu";
 import { isInsideMenuSurface } from "@/lib/studio/menuSurface";
 
@@ -252,15 +253,16 @@ export default function Timeline({
     onDesiredHeightChange(headerHeight + trackMinHeight + extras);
   }, [onDesiredHeightChange, headerHeight, trackMinHeight, footerHeight]);
 
-
-
   /** Snap context for the current gesture — pixel-aware, Alt bypasses it. */
   const snapContext = useCallback(
     (altKey: boolean) => ({
       mode: snapMode,
       beatGrid,
       markers: snapTargets,
-      pixelsPerSecond: pixelsPerSecond(trackRef.current?.getBoundingClientRect().width ?? 1, timelineView),
+      pixelsPerSecond: pixelsPerSecond(
+        trackRef.current?.getBoundingClientRect().width ?? 1,
+        timelineView,
+      ),
       disabled: altKey,
     }),
     [snapMode, beatGrid, snapTargets, timelineView],
@@ -275,7 +277,10 @@ export default function Timeline({
     [timelineView],
   );
 
-  const scrub = useCallback((clientX: number) => setTime(pointerTime(clientX)), [pointerTime, setTime]);
+  const scrub = useCallback(
+    (clientX: number) => setTime(pointerTime(clientX)),
+    [pointerTime, setTime],
+  );
 
   /**
    * CONTEXT ACTIONS. The menu model comes from the single command authority and
@@ -290,6 +295,18 @@ export default function Timeline({
   const runCommand = useCallback(
     (id: StudioCommandId, ctx: TimelineCommandContext) => {
       if (ctx.kind === "CLIP") {
+        /**
+         * PHASE-SCOPED PRIMARY COMMAND. When the operator invoked the menu on a
+         * FORMATION or DISPLAY part of a SHOW clip, its primary editor opens
+         * through the compact Phase Editor shell instead of jumping straight
+         * into a deep panel. This is navigation only — nothing is mutated, and
+         * every other command still executes exactly as before.
+         */
+        if (ctx.authoringPhase && id === primaryCommandFor(ctx)) {
+          selectClip(ctx.clipId);
+          requestPhaseEditor(ctx.clipId, ctx.authoringPhase);
+          return;
+        }
         execute(id, { clipId: ctx.clipId });
         return;
       }
@@ -303,7 +320,7 @@ export default function Timeline({
       }
       execute(id, { effectId: ctx.effectId });
     },
-    [execute, time],
+    [execute, selectClip, time],
   );
 
   const emptyMenuContext = useMemo<TimelineCommandContext>(
@@ -407,8 +424,10 @@ export default function Timeline({
     (kind: GestureKind, clipId: string, delta: number) => {
       const clip = project.timeline.find((c) => c.id === clipId);
       if (!clip) return;
-      if (kind === "MOVE") commitClipTiming(clipId, { start: Math.max(0, clip.start + delta) }, "FREE");
-      else if (kind === "TRANSITION") commitClipTiming(clipId, { transition: clip.transition + delta });
+      if (kind === "MOVE")
+        commitClipTiming(clipId, { start: Math.max(0, clip.start + delta) }, "FREE");
+      else if (kind === "TRANSITION")
+        commitClipTiming(clipId, { transition: clip.transition + delta });
       else commitClipTiming(clipId, { hold: clip.hold + delta });
     },
     [project.timeline, commitClipTiming],
@@ -473,7 +492,9 @@ export default function Timeline({
       const el = trackRef.current;
       if (!session || !el) return;
       e.preventDefault();
-      setTimelineScroll(middlePanScroll(session, e.clientX, el.getBoundingClientRect().width, timelineZoom));
+      setTimelineScroll(
+        middlePanScroll(session, e.clientX, el.getBoundingClientRect().width, timelineZoom),
+      );
     },
     [setTimelineScroll, timelineZoom],
   );
@@ -484,7 +505,6 @@ export default function Timeline({
     setPanning(false);
     trackRef.current?.releasePointerCapture?.(e.pointerId);
   }, []);
-
 
   const draftedClip = (clipId: string) => (draft?.id === clipId ? draft : null);
 
@@ -504,7 +524,12 @@ export default function Timeline({
    * what the operator sees during the drag is exactly what lands on release.
    */
   const ripple = useMemo(() => {
-    const empty = { starts: {} as Record<string, number>, shifted: new Set<string>(), delta: 0, free: false };
+    const empty = {
+      starts: {} as Record<string, number>,
+      shifted: new Set<string>(),
+      delta: 0,
+      free: false,
+    };
     if (!draft || draft.kind === "MOVE") return empty;
     const gesture = gestureRef.current;
     const free = !!gesture?.free;
@@ -525,7 +550,6 @@ export default function Timeline({
   }, [draft, project.timeline]);
   const rippleShift = ripple.starts;
 
-
   return (
     <section className="flex h-full flex-col bg-panel">
       <header
@@ -539,14 +563,22 @@ export default function Timeline({
         >
           <SkipBack className="size-4" />
         </button>
-        <button onClick={togglePlay} className="control-btn control-btn-accent" aria-label={playing ? "Pause" : "Play"}>
+        <button
+          onClick={togglePlay}
+          className="control-btn control-btn-accent"
+          aria-label={playing ? "Pause" : "Play"}
+        >
           {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
         </button>
         <button onClick={stop} className="control-btn" aria-label="Stop and rewind">
           <Square className="size-3.5" />
         </button>
-        <span className="font-mono text-sm tabular-nums text-accent">{formatShowTime(time, comma)}</span>
-        <span className="font-mono text-xs text-muted-foreground">/ {formatShowTime(duration, comma)}</span>
+        <span className="font-mono text-sm tabular-nums text-accent">
+          {formatShowTime(time, comma)}
+        </span>
+        <span className="font-mono text-xs text-muted-foreground">
+          / {formatShowTime(duration, comma)}
+        </span>
 
         <div className="ml-auto flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
           {/* SNAP — the operator always sees which grid is capturing. */}
@@ -690,7 +722,6 @@ export default function Timeline({
         and the lanes area keeps its own vertical scrolling below.
       */}
       <div className="relative flex min-h-0 flex-1 flex-col gap-1 overflow-hidden px-4 pb-3 pt-2">
-
         <TimelineAnnotations
           markers={markers}
           sections={musicSections}
@@ -708,450 +739,459 @@ export default function Timeline({
           footer (scrollbar + audio + lighting) in short windows.
         */}
         <div className="relative min-h-[68px] flex-1 shrink-0 overflow-y-auto overflow-x-hidden pb-3">
-        <StudioContextMenu
-          menu={resolveTimelineCommands(emptyMenuContext)}
-          onCommand={(id) => runCommand(id, emptyMenuContext)}
-        >
-        <div
-          ref={trackRef}
-          data-testid="timeline-track"
-          onPointerDown={(e) => {
-            /**
-             * PORTAL-BUBBLING GUARD (root cause of dead context-menu actions).
-             *
-             * Radix renders each clip's context menu in a portal, but the portal
-             * content is a REACT child of this track, so synthetic pointer events
-             * inside the menu still bubble here. Without this guard the track took
-             * pointer capture on the pointerdown that landed on a menu item, which
-             * retargeted the following pointerup/click to the track — so Radix
-             * never saw the item release and `onSelect` never fired.
-             */
-            if (isInsideMenuSurface(e.target)) return;
-            if (e.button === 1) {
-              onTrackPointerDown(e);
-              return;
-            }
-            if (e.button !== 0) return;
-            e.currentTarget.setPointerCapture(e.pointerId);
-            scrub(e.clientX);
-          }}
-
-          onPointerMove={(e) => {
-            if (panRef.current) {
-              onTrackPointerMove(e);
-              return;
-            }
-            if (gestureRef.current) return;
-            if (e.currentTarget.hasPointerCapture(e.pointerId)) scrub(e.clientX);
-          }}
-          onPointerUp={endPan}
-          onPointerCancel={endPan}
-          onAuxClick={(e) => {
-            if (e.button === 1) e.preventDefault();
-          }}
-          onContextMenuCapture={(e) => {
-            emptyTimeRef.current = pointerTime(e.clientX);
-            setEmptyTime(emptyTimeRef.current);
-          }}
-          style={{ minHeight: `${Math.max(80, trackMinHeight)}px` }}
-          className={`relative w-full touch-none rounded-md border border-border bg-surface-sunken ${
-            panning ? "cursor-grabbing" : "cursor-ew-resize"
-          }`}
-        >
-
-          {/* PRE-SHOW region: negative show time, launch + staging */}
-          {preShowPlan ? (
-            <>
-              <div
-                className="pointer-events-none absolute top-0 h-full border-r border-dashed border-accent/60 bg-accent/[0.06]"
-                style={{ left: pct(Math.min(0, viewStart)), width: widthPct(Math.max(0, -Math.min(0, viewStart))) }}
-              >
-                <span className="absolute left-1.5 top-1 text-[10px] uppercase tracking-[0.18em] text-accent/80">
-                  Pre-show · launch + staging
-                </span>
-              </div>
-              <div className="pointer-events-none absolute top-0 h-full w-px bg-accent/80" style={{ left: pct(0) }}>
-                <span className="absolute -top-0.5 left-1 text-[10px] font-medium uppercase tracking-[0.18em] text-accent">
-                  Show start
-                </span>
-              </div>
-            </>
-          ) : null}
-
-          {/* Beat grid — bars are always drawn; beats only when they stay readable. */}
-          {beatGrid.beats
-            .filter(() => pixelsPerSecond(1000, timelineView) > 24)
-            .map((b) => (
-              <div
-                key={`beat-${b}`}
-                className="pointer-events-none absolute top-0 h-full w-px bg-border/30"
-                style={{ left: pct(b) }}
-              />
-            ))}
-          {beatGrid.bars.map((b) => (
+          <StudioContextMenu
+            menu={resolveTimelineCommands(emptyMenuContext)}
+            onCommand={(id) => runCommand(id, emptyMenuContext)}
+          >
             <div
-              key={`bar-${b}`}
-              className="pointer-events-none absolute top-0 h-full w-px bg-border/70"
-              style={{ left: pct(b) }}
-            />
-          ))}
-
-          {/* Marker guides mirrored into the clip track for alignment. */}
-          {markers.map((m) => (
-            <div
-              key={`mg-${m.id}`}
-              className="pointer-events-none absolute top-0 h-full w-px bg-accent/25"
-              style={{ left: pct(m.time) }}
-            />
-          ))}
-
-          {/* Full-show validation markers (errors and warnings, in show time) */}
-          {fullShowReport?.issues
-            .filter((i) => typeof i.time === "number" && i.severity !== "info")
-            .slice(0, 400)
-            .map((issue) => (
-              <button
-                key={`iss-${issue.id}`}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  focusIssue(issue);
-                }}
-                title={issue.message}
-                aria-label={issue.message}
-                className={`absolute bottom-0 h-2.5 w-[3px] ${
-                  issue.severity === "error" ? "bg-destructive" : "bg-warning"
-                }`}
-                style={{ left: pct(issue.time ?? 0) }}
-              />
-            ))}
-
-          {/* Reference forensics segments (inferred, read-only overlay) */}
-          {forensicsReport?.segments.map((s) => (
-            <button
-              key={`fx-${s.id}`}
+              ref={trackRef}
+              data-testid="timeline-track"
               onPointerDown={(e) => {
-                e.stopPropagation();
-                selectForensicSegment(s.id);
+                /**
+                 * PORTAL-BUBBLING GUARD (root cause of dead context-menu actions).
+                 *
+                 * Radix renders each clip's context menu in a portal, but the portal
+                 * content is a REACT child of this track, so synthetic pointer events
+                 * inside the menu still bubble here. Without this guard the track took
+                 * pointer capture on the pointerdown that landed on a menu item, which
+                 * retargeted the following pointerup/click to the track — so Radix
+                 * never saw the item release and `onSelect` never fired.
+                 */
+                if (isInsideMenuSurface(e.target)) return;
+                if (e.button === 1) {
+                  onTrackPointerDown(e);
+                  return;
+                }
+                if (e.button !== 0) return;
+                e.currentTarget.setPointerCapture(e.pointerId);
+                scrub(e.clientX);
               }}
-              title={`${s.label} — ${s.classification} (inferred)`}
-              aria-label={`${s.label}, ${s.classification}`}
-              className={`absolute bottom-3 h-1.5 rounded-sm opacity-70 hover:opacity-100 ${
-                FORENSIC_TINT[s.classification]
-              } ${s.id === selectedForensicSegmentId ? "ring-1 ring-accent opacity-100" : ""}`}
-              style={{ left: pct(s.startTime), width: widthPct(Math.max(0.2, s.duration)) }}
-            />
-          ))}
 
-          {/* Clips — body drags, edges resize transition / hold. */}
-          {project.timeline.map((clip) => {
-            const formation = project.formations.find((f) => f.id === clip.formationId);
-            const d = draftedClip(clip.id);
-            const start = d?.start ?? rippleShift[clip.id] ?? clip.start;
-            const transition = d?.transition ?? clip.transition;
-            const hold = d?.hold ?? clip.hold;
-            const total = Math.max(0.01, transition + hold);
-            const selected = clip.id === selectedClipId;
-            const name =
-              project.dynamicFormations?.find((x) => x.id === clip.dynamicFormationId)?.name ??
-              formation?.name ??
-              "Missing formation";
-            const phase = clipPhase(clip);
-            const style = phaseStyle(phase);
-            const widthPx = clipWidthPx(total, timelineView, trackWidth);
-            const density = clipDensity(widthPx);
-            const severity = clipIssueSeverity(fullShowReport?.issues, clip.id);
-            const shifted = ripple.shifted.has(clip.id);
-            const designed = phase === "SHOW" ? describeTransitionDesign(transitionDesignFor(clip.id)) : "";
-            const needsRecalc = phase === "SHOW" && transitionDesignNeedsRecalculation(clip.id);
-            const timing = `T ${formatSeconds(transition, comma)} · H ${formatSeconds(hold, comma)}`;
-            const baseMenuContext = clipContext(clip.id);
-            const menuContext =
-              baseMenuContext && contextPhase?.clipId === clip.id
-                ? { ...baseMenuContext, authoringPhase: contextPhase.phase }
-                : baseMenuContext;
-            const clipBlock = (
-              <div
-                key={clip.id}
-                data-testid={`clip-${clip.id}`}
-                onContextMenu={(e) => {
-                  e.stopPropagation();
-                  if (phase !== "SHOW") return;
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const fraction = rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0;
-                  setContextPhase({
-                    clipId: clip.id,
-                    phase: clipAuthoringPhaseAtOffset(transition, hold, fraction * total),
-                  });
-                }}
-                data-density={density}
-                data-phase={phase}
-                data-shifted={shifted ? "true" : undefined}
-                className={`clip-block ${style.blockClass} ${selected ? "clip-block-selected" : ""} ${
-                  d ? "z-20 ring-1 ring-accent" : ""
-                } ${shifted ? "z-10 ring-1 ring-dashed ring-accent/70 opacity-90" : ""} ${
-                  severity === "error"
-                    ? "outline outline-1 outline-destructive"
-                    : severity === "warning"
-                      ? "outline outline-1 outline-warning"
-                      : ""
-                }`}
-                style={{
-                  left: pct(start),
-                  width: widthPct(total),
-                  top: `${8 + (laneLayout.laneByClipId[clip.id] ?? 0) * LANE_PITCH}px`,
-                  borderColor: rgbToHex(clip.color),
-                  background: `linear-gradient(90deg, ${rgbToHex(clip.color)}33, ${rgbToHex(clip.color)}12)`,
-                }}
-              >
-                {/* AUTHORED LIGHTING INDICATOR — reference LEDs are not effects. */}
-                {(() => {
-                  const lit = clipLightingSummary(lightingEffects, clip.id);
-                  if (!lit.hasLighting) return null;
-                  return (
+              onPointerMove={(e) => {
+                if (panRef.current) {
+                  onTrackPointerMove(e);
+                  return;
+                }
+                if (gestureRef.current) return;
+                if (e.currentTarget.hasPointerCapture(e.pointerId)) scrub(e.clientX);
+              }}
+              onPointerUp={endPan}
+              onPointerCancel={endPan}
+              onAuxClick={(e) => {
+                if (e.button === 1) e.preventDefault();
+              }}
+              onContextMenuCapture={(e) => {
+                emptyTimeRef.current = pointerTime(e.clientX);
+                setEmptyTime(emptyTimeRef.current);
+              }}
+              style={{ minHeight: `${Math.max(80, trackMinHeight)}px` }}
+              className={`relative w-full touch-none rounded-md border border-border bg-surface-sunken ${
+                panning ? "cursor-grabbing" : "cursor-ew-resize"
+              }`}
+            >
+              {/* PRE-SHOW region: negative show time, launch + staging */}
+              {preShowPlan ? (
+                <>
+                  <div
+                    className="pointer-events-none absolute top-0 h-full border-r border-dashed border-accent/60 bg-accent/[0.06]"
+                    style={{
+                      left: pct(Math.min(0, viewStart)),
+                      width: widthPct(Math.max(0, -Math.min(0, viewStart))),
+                    }}
+                  >
+                    <span className="absolute left-1.5 top-1 text-[10px] uppercase tracking-[0.18em] text-accent/80">
+                      Pre-show · launch + staging
+                    </span>
+                  </div>
+                  <div
+                    className="pointer-events-none absolute top-0 h-full w-px bg-accent/80"
+                    style={{ left: pct(0) }}
+                  >
+                    <span className="absolute -top-0.5 left-1 text-[10px] font-medium uppercase tracking-[0.18em] text-accent">
+                      Show start
+                    </span>
+                  </div>
+                </>
+              ) : null}
+
+              {/* Beat grid — bars are always drawn; beats only when they stay readable. */}
+              {beatGrid.beats
+                .filter(() => pixelsPerSecond(1000, timelineView) > 24)
+                .map((b) => (
+                  <div
+                    key={`beat-${b}`}
+                    className="pointer-events-none absolute top-0 h-full w-px bg-border/30"
+                    style={{ left: pct(b) }}
+                  />
+                ))}
+              {beatGrid.bars.map((b) => (
+                <div
+                  key={`bar-${b}`}
+                  className="pointer-events-none absolute top-0 h-full w-px bg-border/70"
+                  style={{ left: pct(b) }}
+                />
+              ))}
+
+              {/* Marker guides mirrored into the clip track for alignment. */}
+              {markers.map((m) => (
+                <div
+                  key={`mg-${m.id}`}
+                  className="pointer-events-none absolute top-0 h-full w-px bg-accent/25"
+                  style={{ left: pct(m.time) }}
+                />
+              ))}
+
+              {/* Full-show validation markers (errors and warnings, in show time) */}
+              {fullShowReport?.issues
+                .filter((i) => typeof i.time === "number" && i.severity !== "info")
+                .slice(0, 400)
+                .map((issue) => (
+                  <button
+                    key={`iss-${issue.id}`}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      focusIssue(issue);
+                    }}
+                    title={issue.message}
+                    aria-label={issue.message}
+                    className={`absolute bottom-0 h-2.5 w-[3px] ${
+                      issue.severity === "error" ? "bg-destructive" : "bg-warning"
+                    }`}
+                    style={{ left: pct(issue.time ?? 0) }}
+                  />
+                ))}
+
+              {/* Reference forensics segments (inferred, read-only overlay) */}
+              {forensicsReport?.segments.map((s) => (
+                <button
+                  key={`fx-${s.id}`}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    selectForensicSegment(s.id);
+                  }}
+                  title={`${s.label} — ${s.classification} (inferred)`}
+                  aria-label={`${s.label}, ${s.classification}`}
+                  className={`absolute bottom-3 h-1.5 rounded-sm opacity-70 hover:opacity-100 ${
+                    FORENSIC_TINT[s.classification]
+                  } ${s.id === selectedForensicSegmentId ? "ring-1 ring-accent opacity-100" : ""}`}
+                  style={{ left: pct(s.startTime), width: widthPct(Math.max(0.2, s.duration)) }}
+                />
+              ))}
+
+              {/* Clips — body drags, edges resize transition / hold. */}
+              {project.timeline.map((clip) => {
+                const formation = project.formations.find((f) => f.id === clip.formationId);
+                const d = draftedClip(clip.id);
+                const start = d?.start ?? rippleShift[clip.id] ?? clip.start;
+                const transition = d?.transition ?? clip.transition;
+                const hold = d?.hold ?? clip.hold;
+                const total = Math.max(0.01, transition + hold);
+                const selected = clip.id === selectedClipId;
+                const name =
+                  project.dynamicFormations?.find((x) => x.id === clip.dynamicFormationId)?.name ??
+                  formation?.name ??
+                  "Missing formation";
+                const phase = clipPhase(clip);
+                const style = phaseStyle(phase);
+                const widthPx = clipWidthPx(total, timelineView, trackWidth);
+                const density = clipDensity(widthPx);
+                const severity = clipIssueSeverity(fullShowReport?.issues, clip.id);
+                const shifted = ripple.shifted.has(clip.id);
+                const designed =
+                  phase === "SHOW" ? describeTransitionDesign(transitionDesignFor(clip.id)) : "";
+                const needsRecalc = phase === "SHOW" && transitionDesignNeedsRecalculation(clip.id);
+                const timing = `T ${formatSeconds(transition, comma)} · H ${formatSeconds(hold, comma)}`;
+                const baseMenuContext = clipContext(clip.id);
+                const menuContext =
+                  baseMenuContext && contextPhase?.clipId === clip.id
+                    ? { ...baseMenuContext, authoringPhase: contextPhase.phase }
+                    : baseMenuContext;
+                const clipBlock = (
+                  <div
+                    key={clip.id}
+                    data-testid={`clip-${clip.id}`}
+                    onContextMenu={(e) => {
+                      e.stopPropagation();
+                      if (phase !== "SHOW") return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const fraction = rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0;
+                      setContextPhase({
+                        clipId: clip.id,
+                        phase: clipAuthoringPhaseAtOffset(transition, hold, fraction * total),
+                      });
+                    }}
+                    data-density={density}
+                    data-phase={phase}
+                    data-shifted={shifted ? "true" : undefined}
+                    className={`clip-block ${style.blockClass} ${selected ? "clip-block-selected" : ""} ${
+                      d ? "z-20 ring-1 ring-accent" : ""
+                    } ${shifted ? "z-10 ring-1 ring-dashed ring-accent/70 opacity-90" : ""} ${
+                      severity === "error"
+                        ? "outline outline-1 outline-destructive"
+                        : severity === "warning"
+                          ? "outline outline-1 outline-warning"
+                          : ""
+                    }`}
+                    style={{
+                      left: pct(start),
+                      width: widthPct(total),
+                      top: `${8 + (laneLayout.laneByClipId[clip.id] ?? 0) * LANE_PITCH}px`,
+                      borderColor: rgbToHex(clip.color),
+                      background: `linear-gradient(90deg, ${rgbToHex(clip.color)}33, ${rgbToHex(clip.color)}12)`,
+                    }}
+                  >
+                    {/* AUTHORED LIGHTING INDICATOR — reference LEDs are not effects. */}
+                    {(() => {
+                      const lit = clipLightingSummary(lightingEffects, clip.id);
+                      if (!lit.hasLighting) return null;
+                      return (
+                        <span
+                          aria-hidden
+                          data-testid={`clip-lighting-badge-${clip.id}`}
+                          title={`${t("lighting.track")} · ${lit.count}`}
+                          className="pointer-events-none absolute right-1 top-1 z-20 flex items-center gap-0.5 rounded bg-panel/80 px-1 font-mono text-[9px] text-accent"
+                        >
+                          <Lightbulb className="size-2.5" />
+                          {density !== "COMPACT" ? lit.count : ""}
+                        </span>
+                      );
+                    })()}
+
+                    {/* PHASE STRIPE — phase readable without any text. */}
                     <span
                       aria-hidden
-                      data-testid={`clip-lighting-badge-${clip.id}`}
-                      title={`${t("lighting.track")} · ${lit.count}`}
-                      className="pointer-events-none absolute right-1 top-1 z-20 flex items-center gap-0.5 rounded bg-panel/80 px-1 font-mono text-[9px] text-accent"
-                    >
-                      <Lightbulb className="size-2.5" />
-                      {density !== "COMPACT" ? lit.count : ""}
-                    </span>
-                  );
-                })()}
+                      className={`pointer-events-none absolute inset-y-0 left-0 w-1 ${style.stripeClass}`}
+                    />
+                    {phase === "SHOW" && density === "RICH" ? (
+                      <>
+                        <span
+                          className="pointer-events-none absolute bottom-0.5 left-1 z-10 font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground"
+                          data-testid={`clip-formation-label-${clip.id}`}
+                        >
+                          Formation
+                        </span>
+                        <span
+                          className="pointer-events-none absolute bottom-0.5 right-1 z-10 font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground"
+                          data-testid={`clip-display-label-${clip.id}`}
+                        >
+                          Display
+                        </span>
+                      </>
+                    ) : null}
 
-                {/* PHASE STRIPE — phase readable without any text. */}
-                <span
-                  aria-hidden
-                  className={`pointer-events-none absolute inset-y-0 left-0 w-1 ${style.stripeClass}`}
-                />
-                {phase === "SHOW" && density === "RICH" ? (
-                  <>
+                    {/* TRANSITION PROPORTION — the morph part of the clip, shaded. */}
                     <span
-                      className="pointer-events-none absolute bottom-0.5 left-1 z-10 font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground"
-                      data-testid={`clip-formation-label-${clip.id}`}
-                    >
-                      Formation
-                    </span>
+                      aria-hidden
+                      className="pointer-events-none absolute inset-y-0 left-0 bg-foreground/10"
+                      style={{ width: `${(transition / total) * 100}%` }}
+                    />
+                    {/* Transition / hold boundary = formation-ready moment */}
                     <span
-                      className="pointer-events-none absolute bottom-0.5 right-1 z-10 font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground"
-                      data-testid={`clip-display-label-${clip.id}`}
+                      aria-hidden
+                      className="pointer-events-none absolute inset-y-0 left-0 border-r border-dashed opacity-70"
+                      style={{
+                        width: `${(transition / total) * 100}%`,
+                        borderColor: rgbToHex(clip.color),
+                      }}
+                    />
+
+                    {/* BODY — move gesture */}
+                    <button
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        // RIGHT / MIDDLE / secondary contact: select the target so the
+                        // context menu describes THIS clip, then let the trigger own it.
+                        if (!shouldBeginTimelineGesture(e)) {
+                          selectClip(clip.id);
+                          return;
+                        }
+                        setContextPhase(null);
+                        selectClip(clip.id);
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                        beginGesture("MOVE", clip.id, e.clientX);
+                      }}
+
+                      onPointerMove={(e) => {
+                        if (!gestureRef.current) return;
+                        e.stopPropagation();
+                        updateGesture(e.clientX, e.altKey, e.ctrlKey || e.metaKey);
+                      }}
+                      onPointerUp={(e) => {
+                        e.stopPropagation();
+                        endGesture();
+                      }}
+                      onPointerCancel={cancelGesture}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        if (!menuContext) return;
+                        const primary = primaryCommandFor(menuContext);
+                        if (primary) runCommand(primary, menuContext);
+                      }}
+                      onKeyDown={handleKey("MOVE", clip.id)}
+                      title={`${style.glyph} ${phase} · ${name} · ${timing}${
+                        designed ? ` · ${designed}` : ""
+                      } — ${t("timeline.dragHint")}`}
+                      aria-label={`${phase} · ${name} · ${timing}`}
+                      className="absolute inset-0 cursor-grab touch-none pl-2.5 pr-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent active:cursor-grabbing"
                     >
-                      Display
-                    </span>
-                  </>
-                ) : null}
+                      <span className="block truncate font-medium">
+                        <span aria-hidden className="mr-1 opacity-80">
+                          {style.glyph}
+                        </span>
+                        {clip.dynamicFormationId ? "◈ " : ""}
+                        {density === "COMPACT" ? name.slice(0, 10) : name}
+                      </span>
+                      {density !== "COMPACT" && (
+                        <span className="block truncate font-mono text-[9px] text-muted-foreground">
+                          {timing}
+                          {density === "RICH"
+                            ? ` · ${t("timeline.ready")} ${formatShowTime(start + transition, comma)}`
+                            : ""}
+                        </span>
+                      )}
+                      {/* TRANSITION DESIGN — badge only where it stays readable. */}
+                      {designed && density !== "COMPACT" && (
+                        <span
+                          data-testid={`clip-transition-summary-${clip.id}`}
+                          className={`block truncate font-mono text-[9px] ${
+                            needsRecalc ? "text-warning" : "text-muted-foreground/80"
+                          }`}
+                        >
+                          {density === "RICH" ? designed : designed.split(" ")[0]}
+                          {needsRecalc ? " · recalc" : ""}
+                        </span>
+                      )}
+                    </button>
 
-                {/* TRANSITION PROPORTION — the morph part of the clip, shaded. */}
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute inset-y-0 left-0 bg-foreground/10"
-                  style={{ width: `${(transition / total) * 100}%` }}
-                />
-                {/* Transition / hold boundary = formation-ready moment */}
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute inset-y-0 left-0 border-r border-dashed opacity-70"
-                  style={{ width: `${(transition / total) * 100}%`, borderColor: rgbToHex(clip.color) }}
-                />
+                    {/* THUMBNAIL — front-elevation identification glyph, inert. */}
+                    {showsThumbnail(widthPx) && (
+                      <ClipThumbnail
+                        points={clipThumbnails[clip.id] ?? []}
+                        color={rgbToHex(clip.color)}
+                      />
+                    )}
 
-                {/* BODY — move gesture */}
-                <button
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    // RIGHT / MIDDLE / secondary contact: select the target so the
-                    // context menu describes THIS clip, then let the trigger own it.
-                    if (!shouldBeginTimelineGesture(e)) {
-                      selectClip(clip.id);
-                      return;
-                    }
-                    setContextPhase(null);
-                    selectClip(clip.id);
-                    e.currentTarget.setPointerCapture(e.pointerId);
-                    beginGesture("MOVE", clip.id, e.clientX);
-                  }}
+                    {/* RIPPLE FEEDBACK — signed shift on every follower that moves. */}
+                    {shifted && ripple.delta !== 0 && (
+                      <span className="pointer-events-none absolute -top-3 left-0 rounded bg-accent px-1 font-mono text-[9px] text-accent-foreground">
+                        {formatRippleDelta(ripple.delta, comma)}
+                      </span>
+                    )}
 
-                  onPointerMove={(e) => {
-                    if (!gestureRef.current) return;
-                    e.stopPropagation();
-                    updateGesture(e.clientX, e.altKey, e.ctrlKey || e.metaKey);
-                  }}
-                  onPointerUp={(e) => {
-                    e.stopPropagation();
-                    endGesture();
-                  }}
-                  onPointerCancel={cancelGesture}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    if (!menuContext) return;
-                    const primary = primaryCommandFor(menuContext);
-                    if (primary) runCommand(primary, menuContext);
-                  }}
-                  onKeyDown={handleKey("MOVE", clip.id)}
-                  title={`${style.glyph} ${phase} · ${name} · ${timing}${
-                    designed ? ` · ${designed}` : ""
-                  } — ${t("timeline.dragHint")}`}
-                  aria-label={`${phase} · ${name} · ${timing}`}
-                  className="absolute inset-0 cursor-grab touch-none pl-2.5 pr-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent active:cursor-grabbing"
-                >
-                  <span className="block truncate font-medium">
-                    <span aria-hidden className="mr-1 opacity-80">
-                      {style.glyph}
-                    </span>
-                    {clip.dynamicFormationId ? "◈ " : ""}
-                    {density === "COMPACT" ? name.slice(0, 10) : name}
-                  </span>
-                  {density !== "COMPACT" && (
-                    <span className="block truncate font-mono text-[9px] text-muted-foreground">
-                      {timing}
-                      {density === "RICH" ? ` · ${t("timeline.ready")} ${formatShowTime(start + transition, comma)}` : ""}
-                    </span>
-                  )}
-                  {/* TRANSITION DESIGN — badge only where it stays readable. */}
-                  {designed && density !== "COMPACT" && (
-                    <span
-                      data-testid={`clip-transition-summary-${clip.id}`}
-                      className={`block truncate font-mono text-[9px] ${
-                        needsRecalc ? "text-warning" : "text-muted-foreground/80"
-                      }`}
-                    >
-                      {density === "RICH" ? designed : designed.split(" ")[0]}
-                      {needsRecalc ? " · recalc" : ""}
-                    </span>
-                  )}
-                </button>
+                    {/* TRANSITION handle — drags the formation-ready boundary */}
+                    <button
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        if (!shouldBeginTimelineGesture(e)) {
+                          selectClip(clip.id);
+                          return;
+                        }
+                        selectClip(clip.id);
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                        beginGesture("TRANSITION", clip.id, e.clientX);
+                      }}
+                      onPointerMove={(e) => {
+                        if (!gestureRef.current) return;
+                        e.stopPropagation();
+                        updateGesture(e.clientX, e.altKey, e.ctrlKey || e.metaKey);
+                      }}
+                      onPointerUp={(e) => {
+                        e.stopPropagation();
+                        endGesture();
+                      }}
+                      onPointerCancel={cancelGesture}
+                      onKeyDown={handleKey("TRANSITION", clip.id)}
+                      title={`${t("timeline.transitionHandle")} — ${t("timeline.rippleHint")}`}
+                      aria-label={t("timeline.transitionHandle")}
+                      className="absolute inset-y-0 w-3 -translate-x-1.5 cursor-col-resize touch-none bg-accent/0 hover:bg-accent/50 focus-visible:bg-accent/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                      style={{ left: `${(transition / total) * 100}%` }}
+                    />
 
-                {/* THUMBNAIL — front-elevation identification glyph, inert. */}
-                {showsThumbnail(widthPx) && (
-                  <ClipThumbnail points={clipThumbnails[clip.id] ?? []} color={rgbToHex(clip.color)} />
-                )}
-
-                {/* RIPPLE FEEDBACK — signed shift on every follower that moves. */}
-                {shifted && ripple.delta !== 0 && (
-                  <span className="pointer-events-none absolute -top-3 left-0 rounded bg-accent px-1 font-mono text-[9px] text-accent-foreground">
-                    {formatRippleDelta(ripple.delta, comma)}
-                  </span>
-                )}
-
-
-
-
-                {/* TRANSITION handle — drags the formation-ready boundary */}
-                <button
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    if (!shouldBeginTimelineGesture(e)) {
-                      selectClip(clip.id);
-                      return;
-                    }
-                    selectClip(clip.id);
-                    e.currentTarget.setPointerCapture(e.pointerId);
-                    beginGesture("TRANSITION", clip.id, e.clientX);
-                  }}
-                  onPointerMove={(e) => {
-                    if (!gestureRef.current) return;
-                    e.stopPropagation();
-                    updateGesture(e.clientX, e.altKey, e.ctrlKey || e.metaKey);
-                  }}
-                  onPointerUp={(e) => {
-                    e.stopPropagation();
-                    endGesture();
-                  }}
-                  onPointerCancel={cancelGesture}
-                  onKeyDown={handleKey("TRANSITION", clip.id)}
-                  title={`${t("timeline.transitionHandle")} — ${t("timeline.rippleHint")}`}
-                  aria-label={t("timeline.transitionHandle")}
-                  className="absolute inset-y-0 w-3 -translate-x-1.5 cursor-col-resize touch-none bg-accent/0 hover:bg-accent/50 focus-visible:bg-accent/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-                  style={{ left: `${(transition / total) * 100}%` }}
-                />
-
-                {/* HOLD handle — drags the clip end */}
-                <button
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    if (!shouldBeginTimelineGesture(e)) {
-                      selectClip(clip.id);
-                      return;
-                    }
-                    selectClip(clip.id);
-                    e.currentTarget.setPointerCapture(e.pointerId);
-                    beginGesture("HOLD", clip.id, e.clientX);
-                  }}
-                  onPointerMove={(e) => {
-                    if (!gestureRef.current) return;
-                    e.stopPropagation();
-                    updateGesture(e.clientX, e.altKey, e.ctrlKey || e.metaKey);
-                  }}
-                  onPointerUp={(e) => {
-                    e.stopPropagation();
-                    endGesture();
-                  }}
-                  onPointerCancel={cancelGesture}
-                  onKeyDown={handleKey("HOLD", clip.id)}
-                  title={`${t("timeline.holdHandle")} — ${t("timeline.rippleHint")}`}
-                  aria-label={t("timeline.holdHandle")}
-                  className="absolute inset-y-0 right-0 w-3 cursor-col-resize touch-none bg-accent/0 hover:bg-accent/50 focus-visible:bg-accent/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
-                />
-              </div>
-            );
-            // RIGHT-CLICK = context, and only context: the menu is generated from
-            // the clip's real capabilities, never from a fixed list.
-            return menuContext ? (
-              <StudioContextMenu
-                key={clip.id}
-                menu={resolveTimelineCommands(menuContext)}
-                onCommand={(id) => runCommand(id, menuContext)}
-              >
-                {clipBlock}
-              </StudioContextMenu>
-            ) : (
-              clipBlock
-            );
-          })}
-
-          {/* Live gesture read-out: exact timings + what captured the snap. */}
-          {draft && (
-            <div className="pointer-events-none absolute right-2 top-1 z-30 rounded border border-border bg-panel px-2 py-1 font-mono text-[10px] text-foreground">
-              {formatShowTime(draft.start, comma)} · T {formatSeconds(draft.transition, comma)} · H{" "}
-              {formatSeconds(draft.hold, comma)} · {t("timeline.ready")} {formatShowTime(
-                draft.start + draft.transition,
-                comma,
-              )}
-              {draft.snap.snapped && draft.snap.kind ? (
-                <span className="ml-1 text-accent">
-                  ⟶ {t(`timeline.snapKind.${draft.snap.kind}` as "timeline.snapKind.GRID")}
-                </span>
-              ) : null}
-              {draft.kind !== "MOVE" ? (
-                ripple.free ? (
-                  <span data-testid="ripple-mode" className="ml-1 text-warning">
-                    {t("timeline.freeMode")}
-                  </span>
+                    {/* HOLD handle — drags the clip end */}
+                    <button
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        if (!shouldBeginTimelineGesture(e)) {
+                          selectClip(clip.id);
+                          return;
+                        }
+                        selectClip(clip.id);
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                        beginGesture("HOLD", clip.id, e.clientX);
+                      }}
+                      onPointerMove={(e) => {
+                        if (!gestureRef.current) return;
+                        e.stopPropagation();
+                        updateGesture(e.clientX, e.altKey, e.ctrlKey || e.metaKey);
+                      }}
+                      onPointerUp={(e) => {
+                        e.stopPropagation();
+                        endGesture();
+                      }}
+                      onPointerCancel={cancelGesture}
+                      onKeyDown={handleKey("HOLD", clip.id)}
+                      title={`${t("timeline.holdHandle")} — ${t("timeline.rippleHint")}`}
+                      aria-label={t("timeline.holdHandle")}
+                      className="absolute inset-y-0 right-0 w-3 cursor-col-resize touch-none bg-accent/0 hover:bg-accent/50 focus-visible:bg-accent/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                    />
+                  </div>
+                );
+                // RIGHT-CLICK = context, and only context: the menu is generated from
+                // the clip's real capabilities, never from a fixed list.
+                return menuContext ? (
+                  <StudioContextMenu
+                    key={clip.id}
+                    menu={resolveTimelineCommands(menuContext)}
+                    onCommand={(id) => runCommand(id, menuContext)}
+                  >
+                    {clipBlock}
+                  </StudioContextMenu>
                 ) : (
-                  <span data-testid="ripple-mode" className="ml-1 text-accent">
-                    {t("timeline.rippleMode")} {formatRippleDelta(ripple.delta, comma)}
-                  </span>
-                )
-              ) : null}
+                  clipBlock
+                );
+              })}
+
+              {/* Live gesture read-out: exact timings + what captured the snap. */}
+              {draft && (
+                <div className="pointer-events-none absolute right-2 top-1 z-30 rounded border border-border bg-panel px-2 py-1 font-mono text-[10px] text-foreground">
+                  {formatShowTime(draft.start, comma)} · T {formatSeconds(draft.transition, comma)}{" "}
+                  · H {formatSeconds(draft.hold, comma)} · {t("timeline.ready")}{" "}
+                  {formatShowTime(draft.start + draft.transition, comma)}
+                  {draft.snap.snapped && draft.snap.kind ? (
+                    <span className="ml-1 text-accent">
+                      ⟶ {t(`timeline.snapKind.${draft.snap.kind}` as "timeline.snapKind.GRID")}
+                    </span>
+                  ) : null}
+                  {draft.kind !== "MOVE" ? (
+                    ripple.free ? (
+                      <span data-testid="ripple-mode" className="ml-1 text-warning">
+                        {t("timeline.freeMode")}
+                      </span>
+                    ) : (
+                      <span data-testid="ripple-mode" className="ml-1 text-accent">
+                        {t("timeline.rippleMode")} {formatRippleDelta(ripple.delta, comma)}
+                      </span>
+                    )
+                  ) : null}
+                </div>
+              )}
+
+              {/* Clean startup: an empty timeline says what to do next. */}
+              {project.timeline.length === 0 && (
+                <p className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[11px] text-muted-foreground">
+                  {t("timeline.empty")}
+                </p>
+              )}
+
+              {/* Playhead */}
+              <div
+                className="pointer-events-none absolute top-0 h-full w-[2px] bg-accent shadow-[0_0_12px_var(--accent)]"
+                style={{ left: pct(Math.max(viewStart, Math.min(time, viewEndTime))) }}
+              >
+                <div className="absolute -left-[5px] top-0 size-3 rotate-45 bg-accent" />
+              </div>
             </div>
-          )}
-
-          {/* Clean startup: an empty timeline says what to do next. */}
-          {project.timeline.length === 0 && (
-            <p className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[11px] text-muted-foreground">
-              {t("timeline.empty")}
-            </p>
-          )}
-
-          {/* Playhead */}
-          <div
-            className="pointer-events-none absolute top-0 h-full w-[2px] bg-accent shadow-[0_0_12px_var(--accent)]"
-            style={{ left: pct(Math.max(viewStart, Math.min(time, viewEndTime))) }}
-          >
-            <div className="absolute -left-[5px] top-0 size-3 rotate-45 bg-accent" />
-          </div>
-        </div>
-        </StudioContextMenu>
+          </StudioContextMenu>
         </div>
 
         {/*
@@ -1165,7 +1205,6 @@ export default function Timeline({
           data-testid="timeline-track-footer"
           className="sticky bottom-0 z-20 shrink-0 space-y-1 bg-panel pt-1"
         >
-
           {/* VIEWPORT SCROLLBAR — track = full authored range, thumb = visible window. */}
           <TimelineScrollbar
             geometry={timelineScrollGeometry}
@@ -1221,7 +1260,13 @@ export default function Timeline({
  * geometry the clip resolves to. Pointer-inert, so every timeline gesture keeps
  * reaching the clip body underneath it.
  */
-function ClipThumbnail({ points, color }: { points: readonly (readonly [number, number])[]; color: string }) {
+function ClipThumbnail({
+  points,
+  color,
+}: {
+  points: readonly (readonly [number, number])[];
+  color: string;
+}) {
   if (points.length === 0) return null;
   return (
     <svg
