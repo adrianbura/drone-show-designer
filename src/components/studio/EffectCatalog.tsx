@@ -8,14 +8,17 @@
  * actions. Nothing is computed or mutated here.
  */
 import { Search, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   filterEffectCatalog,
   groupEffectCatalog,
   type EffectCatalogFilter,
 } from "@/lib/studio/effectCatalog";
-import type { LightingSelectionPresetId, MotionSelectionPresetId } from "@/lib/studio/selectionEffects";
+import type {
+  LightingSelectionPresetId,
+  MotionSelectionPresetId,
+} from "@/lib/studio/selectionEffects";
 
 const FILTERS: readonly { readonly id: EffectCatalogFilter; readonly label: string }[] = [
   { id: "ALL", label: "All" },
@@ -28,6 +31,7 @@ export default function EffectCatalog({
   targetName,
   time,
   initialFilter = "ALL",
+  autoFocusSearch = false,
   onApplyColor,
   onApplyMotion,
 }: {
@@ -35,12 +39,18 @@ export default function EffectCatalog({
   targetName: string;
   time: number;
   initialFilter?: EffectCatalogFilter;
+  /** Everyday navigation lands on the search field; mutates nothing. */
+  autoFocusSearch?: boolean;
   onApplyColor: (id: LightingSelectionPresetId) => void;
   onApplyMotion: (id: MotionSelectionPresetId) => void;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<EffectCatalogFilter>(initialFilter);
+  const searchRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    if (autoFocusSearch) searchRef.current?.focus({ preventScroll: true });
+  }, [autoFocusSearch]);
 
   const groups = useMemo(
     () => groupEffectCatalog(filterEffectCatalog(query, filter)),
@@ -83,6 +93,7 @@ export default function EffectCatalog({
         <Search className="size-3 text-muted-foreground" />
         <span className="sr-only">Search effects</span>
         <input
+          ref={searchRef}
           type="search"
           value={query}
           data-testid="effect-catalog-search"

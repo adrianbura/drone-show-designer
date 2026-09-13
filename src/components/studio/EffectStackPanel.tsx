@@ -69,12 +69,6 @@ function panelTitle(view: EffectStackView): string {
   return "Selection effects";
 }
 
-function catalogFilter(view: EffectStackView): "ALL" | "COLOR" | "MOTION" {
-  if (view === "COLOR") return "COLOR";
-  if (view === "MOTION") return "MOTION";
-  return "ALL";
-}
-
 /** Local marking of which canonical preview the operator started. */
 interface ActivePreview {
   readonly kind: "LIGHTING" | "MOTION";
@@ -163,14 +157,17 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
           {panelTitle(view)}
         </h2>
         <p className="font-mono text-[10px] text-muted-foreground">Select a clip to add effects.</p>
-        <EffectCatalog
-          disabled
-          targetName="No target selected"
-          time={time}
-          initialFilter={catalogFilter(view)}
-          onApplyColor={() => undefined}
-          onApplyMotion={() => undefined}
-        />
+        {view === "CATALOG" ? (
+          <EffectCatalog
+            disabled
+            targetName="No target selected"
+            time={time}
+            initialFilter="ALL"
+            autoFocusSearch
+            onApplyColor={() => undefined}
+            onApplyMotion={() => undefined}
+          />
+        ) : null}
       </section>
     );
   }
@@ -191,14 +188,17 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
             Colour and Motion are available on SHOW visuals. Select or create a SHOW scene.
           </p>
         )}
-        <EffectCatalog
-          disabled
-          targetName="SHOW visual required"
-          time={time}
-          initialFilter={catalogFilter(view)}
-          onApplyColor={() => undefined}
-          onApplyMotion={() => undefined}
-        />
+        {view === "CATALOG" ? (
+          <EffectCatalog
+            disabled
+            targetName="SHOW visual required"
+            time={time}
+            initialFilter="ALL"
+            autoFocusSearch
+            onApplyColor={() => undefined}
+            onApplyMotion={() => undefined}
+          />
+        ) : null}
       </section>
     );
   }
@@ -316,8 +316,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
   return (
     <section className="panel-card" data-testid="effect-stacks">
       <h2 className="panel-title flex items-center gap-1.5">
-        <Sparkles className="size-3" />{" "}
-        {panelTitle(view)}
+        <Sparkles className="size-3" /> {panelTitle(view)}
       </h2>
 
       {/* ---------------------------------------------------- selection context */}
@@ -366,17 +365,18 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
       {/* ---------------------------------------------- ONE live preview surface */}
       {livePreview}
 
-      {/* --------------------------------------------- unified effect catalog */}
-      <EffectCatalog
-        disabled={!canApply}
-        targetName={context.name}
-        time={time}
-        initialFilter={catalogFilter(view)}
-        onApplyColor={applyLighting}
-        onApplyMotion={applyMotion}
-      />
-
-
+      {/* ---- unified effect catalog: ONE home, the dedicated Catalog section */}
+      {view === "CATALOG" ? (
+        <EffectCatalog
+          disabled={!canApply}
+          targetName={context.name}
+          time={time}
+          initialFilter="ALL"
+          autoFocusSearch
+          onApplyColor={applyLighting}
+          onApplyMotion={applyMotion}
+        />
+      ) : null}
 
       {/* ------------------------------------------------------------ lighting */}
       {view !== "MOTION" && view !== "CATALOG" ? (
