@@ -45,6 +45,8 @@ export default function ShowSetupPanel() {
     projectSavedAt,
     analyzeFullShow,
     focusIssue,
+    addTakeoffPhase,
+    addLandingPhase,
   } = useStudio();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -70,6 +72,12 @@ export default function ShowSetupPanel() {
         case "ADD_VISUAL":
           requestWorkspaceSection("visuals");
           return;
+        case "ADD_TAKEOFF":
+          addTakeoffPhase();
+          return;
+        case "ADD_LANDING":
+          addLandingPhase();
+          return;
         case "EDIT_CLIP":
           focusStudioSurface({ surface: "CLIP" });
           return;
@@ -92,7 +100,7 @@ export default function ShowSetupPanel() {
           return;
       }
     },
-    [analyzeFullShow, focusIssue, fullShowBusy, readiness],
+    [addLandingPhase, addTakeoffPhase, analyzeFullShow, focusIssue, fullShowBusy, readiness],
   );
 
   return (
