@@ -69,11 +69,6 @@ function panelTitle(view: EffectStackView): string {
   return "Selection effects";
 }
 
-function catalogFilter(view: EffectStackView): "ALL" | "COLOR" | "MOTION" {
-  if (view === "COLOR") return "COLOR";
-  if (view === "MOTION") return "MOTION";
-  return "ALL";
-}
 
 /** Local marking of which canonical preview the operator started. */
 interface ActivePreview {
