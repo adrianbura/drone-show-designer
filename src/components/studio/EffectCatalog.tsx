@@ -8,7 +8,7 @@
  * actions. Nothing is computed or mutated here.
  */
 import { Search, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   filterEffectCatalog,
