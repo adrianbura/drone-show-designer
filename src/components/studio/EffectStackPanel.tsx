@@ -697,7 +697,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
       ) : null}
 
       {/* -------------------------------------------------------------- motion */}
-      {view !== "COLOR" ? (
+      {view !== "COLOR" && view !== "CATALOG" ? (
         <div className="mt-2 space-y-1.5 border-t border-border pt-2">
           <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
             Motion
