@@ -34,6 +34,8 @@ export type SetupActionId =
   | "CONFIGURE_LAUNCH"
   | "ADD_VISUAL"
   | "EDIT_CLIP"
+  | "ADD_TAKEOFF"
+  | "ADD_LANDING"
   | "EDIT_TRANSITION"
   | "EDIT_LIGHTING"
   | "ANALYZE_FULL_SHOW"
@@ -125,7 +127,7 @@ export function buildShowSetup(input: ShowSetupInput): ShowSetupModel {
         takeoffClips > 0
           ? `${takeoffClips} take-off segment(s) on the timeline.`
           : "The show has no take-off segment yet.",
-      action: takeoffClips > 0 ? null : { id: "EDIT_CLIP", label: "Add take-off" },
+      action: takeoffClips > 0 ? null : { id: "ADD_TAKEOFF", label: "Add take-off" },
     },
     {
       id: "FORMATIONS",
@@ -175,7 +177,7 @@ export function buildShowSetup(input: ShowSetupInput): ShowSetupModel {
         landingClips > 0
           ? `${landingClips} landing segment(s) on the timeline.`
           : "The show does not bring the drones back down yet.",
-      action: landingClips > 0 ? null : { id: "EDIT_CLIP", label: "Add landing" },
+      action: landingClips > 0 ? null : { id: "ADD_LANDING", label: "Add landing" },
     },
     {
       id: "SAFETY",
