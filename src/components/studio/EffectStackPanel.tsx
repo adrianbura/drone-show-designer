@@ -379,7 +379,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
 
 
       {/* ------------------------------------------------------------ lighting */}
-      {view !== "MOTION" ? (
+      {view !== "MOTION" && view !== "CATALOG" ? (
         <div className="mt-2 space-y-1.5">
           <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
             Lighting
