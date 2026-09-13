@@ -19,6 +19,7 @@ import ParticipationPanel from "./ParticipationPanel";
 import SceneObjectsPanel from "./SceneObjectsPanel";
 import SceneComposerPanel from "./SceneComposerPanel";
 import EffectStackPanel from "./EffectStackPanel";
+import PhaseEditorPanel from "./PhaseEditorPanel";
 import LightingEffectsPanel from "./LightingEffectsPanel";
 import SimulationPanel from "./SimulationPanel";
 import DynamicPanel from "./DynamicPanel";
@@ -467,6 +468,7 @@ export default function Inspector({
   ).length;
   const savedStateCount = (selectedScene?.visualStates ?? []).length;
   const sectionBadges: Record<WorkspaceSectionId, string | null> = {
+    PHASE: null,
     VISUALS: selectedScene
       ? `${selectedScene.objects.length} obj · ${selectedSceneBudget?.active ?? 0} drones`
       : null,
@@ -639,6 +641,7 @@ export default function Inspector({
                 testId={`workspace-section-${section.id.toLowerCase()}`}
                 headerTestId={`authoring-tool-${section.tool}`}
               >
+                {section.id === "PHASE" ? <PhaseEditorPanel /> : null}
                 {section.id === "VISUALS" ? <SceneComposerPanel view="VISUAL" /> : null}
                 {section.id === "TRANSFORM" ? <SceneComposerPanel view="TRANSFORM" /> : null}
                 {section.id === "COLOUR" ? <EffectStackPanel view="COLOR" /> : null}
