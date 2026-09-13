@@ -334,6 +334,18 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
       {/* ---------------------------------------------- ONE live preview surface */}
       {livePreview}
 
+      {/* --------------------------------------------- unified effect catalog */}
+      {view === "ALL" && (
+        <EffectCatalog
+          disabled={!canApply}
+          targetName={context.name}
+          time={time}
+          onApplyColor={applyLighting}
+          onApplyMotion={applyMotion}
+        />
+      )}
+
+
       {/* ------------------------------------------------------------ lighting */}
       {view !== "MOTION" ? (
         <div className="mt-2 space-y-1.5">
