@@ -28,6 +28,7 @@ export default function EffectCatalog({
   targetName,
   time,
   initialFilter = "ALL",
+  autoFocusSearch = false,
   onApplyColor,
   onApplyMotion,
 }: {
@@ -35,11 +36,20 @@ export default function EffectCatalog({
   targetName: string;
   time: number;
   initialFilter?: EffectCatalogFilter;
+  /** Everyday navigation lands on the search field; mutates nothing. */
+  autoFocusSearch?: boolean;
   onApplyColor: (id: LightingSelectionPresetId) => void;
   onApplyMotion: (id: MotionSelectionPresetId) => void;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<EffectCatalogFilter>(initialFilter);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (autoFocusSearch) searchRef.current?.focus({ preventScroll: true });
+  }, [autoFocusSearch]);
+
+
 
 
   const groups = useMemo(
