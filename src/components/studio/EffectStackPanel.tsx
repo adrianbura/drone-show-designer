@@ -18,6 +18,7 @@ import { ArrowDown, ArrowUp, Copy, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import ClipPhaseNotice from "@/components/studio/ClipPhaseNotice";
+import EffectCatalog from "@/components/studio/EffectCatalog";
 import LivePreviewBar from "@/components/studio/LivePreviewBar";
 import MotionInspector from "@/components/studio/MotionInspector";
 import { Button } from "@/components/ui/button";
