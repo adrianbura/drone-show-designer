@@ -67,6 +67,7 @@ const AUTHORING_SECTIONS: readonly {
   { id: "TRANSFORM", label: "Transform", tool: "transform" },
   { id: "COLOUR", label: "Colour", tool: "color" },
   { id: "MOTION", label: "Motion", tool: "motion" },
+  { id: "CATALOG", label: "Effect catalog", tool: "catalog" },
   { id: "STATES", label: "Saved states", tool: "states" },
 ];
 
