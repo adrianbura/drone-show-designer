@@ -67,6 +67,7 @@ const AUTHORING_SECTIONS: readonly {
   { id: "TRANSFORM", label: "Transform", tool: "transform" },
   { id: "COLOUR", label: "Colour", tool: "color" },
   { id: "MOTION", label: "Motion", tool: "motion" },
+  { id: "CATALOG", label: "Effect catalog", tool: "catalog" },
   { id: "STATES", label: "Saved states", tool: "states" },
 ];
 
@@ -471,6 +472,7 @@ export default function Inspector({
     TRANSFORM: selectedSceneObjectIds.length > 0 ? `${selectedSceneObjectIds.length} sel` : null,
     COLOUR: sceneLightingCount > 0 ? `${sceneLightingCount} effects` : null,
     MOTION: animatedObjects > 0 ? `${animatedObjects} animated` : "No motion",
+    CATALOG: "All effects",
     STATES: savedStateCount > 0 ? `${savedStateCount} saved` : null,
   };
 
@@ -640,6 +642,7 @@ export default function Inspector({
                 {section.id === "TRANSFORM" ? <SceneComposerPanel view="TRANSFORM" /> : null}
                 {section.id === "COLOUR" ? <EffectStackPanel view="COLOR" /> : null}
                 {section.id === "MOTION" ? <EffectStackPanel view="MOTION" /> : null}
+                {section.id === "CATALOG" ? <EffectStackPanel view="CATALOG" /> : null}
                 {section.id === "STATES" ? <SceneComposerPanel view="STATES" /> : null}
               </WorkspaceSection>
             ))}

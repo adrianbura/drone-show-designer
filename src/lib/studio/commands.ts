@@ -31,6 +31,7 @@ export type StudioCommandId =
   | "CONVERT_TO_SCENE"
   // ---- lighting & effects
   | "EDIT_LIGHTING"
+  | "OPEN_EFFECT_CATALOG"
   | "SET_COLOR"
   | "VIEW_IMPORTED_RGB"
   // ---- motion & timing
@@ -176,6 +177,13 @@ function clipMenu(ctx: ClipCommandContext): StudioCommandMenu {
   // LIGHTING — shortcuts into the existing canonical lighting tooling.
   const lighting: StudioCommand[] = [
     cmd("EDIT_LIGHTING", "Edit Lighting…"),
+    isShow
+      ? cmd("OPEN_EFFECT_CATALOG", "Effect Catalog…")
+      : blocked(
+          "OPEN_EFFECT_CATALOG",
+          "Effect Catalog…",
+          "Effects are authored on SHOW clips. Select or create a SHOW scene.",
+        ),
     cmd("SET_COLOR", "Set Colour…"),
   ];
   if (ctx.hasImportedRgb) {

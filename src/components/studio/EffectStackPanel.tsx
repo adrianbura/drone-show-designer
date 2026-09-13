@@ -59,7 +59,21 @@ const fromHex = (hex: string): RGB => [
   parseInt(hex.slice(5, 7), 16) || 0,
 ];
 
-export type EffectStackView = "ALL" | "COLOR" | "MOTION";
+export type EffectStackView = "ALL" | "COLOR" | "MOTION" | "CATALOG";
+
+/** Everyday panel heading for each presentation of this one authority. */
+function panelTitle(view: EffectStackView): string {
+  if (view === "MOTION") return "Motion";
+  if (view === "COLOR") return "Color";
+  if (view === "CATALOG") return "Effect catalog";
+  return "Selection effects";
+}
+
+function catalogFilter(view: EffectStackView): "ALL" | "COLOR" | "MOTION" {
+  if (view === "COLOR") return "COLOR";
+  if (view === "MOTION") return "MOTION";
+  return "ALL";
+}
 
 /** Local marking of which canonical preview the operator started. */
 interface ActivePreview {
@@ -146,14 +160,14 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
       <section className="panel-card" data-testid="effect-stacks">
         <h2 className="panel-title flex items-center gap-1.5">
           <Sparkles className="size-3" />
-          {view === "MOTION" ? "Motion" : view === "COLOR" ? "Color" : "Selection effects"}
+          {panelTitle(view)}
         </h2>
         <p className="font-mono text-[10px] text-muted-foreground">Select a clip to add effects.</p>
         <EffectCatalog
           disabled
           targetName="No target selected"
           time={time}
-          initialFilter={view === "COLOR" ? "COLOR" : view === "MOTION" ? "MOTION" : "ALL"}
+          initialFilter={catalogFilter(view)}
           onApplyColor={() => undefined}
           onApplyMotion={() => undefined}
         />
@@ -168,7 +182,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
       <section className="panel-card" data-testid="effect-stacks-phase-locked">
         <h2 className="panel-title flex items-center gap-1.5">
           <Sparkles className="size-3" />
-          {view === "MOTION" ? "Motion" : view === "COLOR" ? "Color" : "Selection effects"}
+          {panelTitle(view)}
         </h2>
         {selectedClip ? (
           <ClipPhaseNotice clip={selectedClip} />
@@ -181,7 +195,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
           disabled
           targetName="SHOW visual required"
           time={time}
-          initialFilter={view === "COLOR" ? "COLOR" : view === "MOTION" ? "MOTION" : "ALL"}
+          initialFilter={catalogFilter(view)}
           onApplyColor={() => undefined}
           onApplyMotion={() => undefined}
         />
@@ -303,7 +317,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
     <section className="panel-card" data-testid="effect-stacks">
       <h2 className="panel-title flex items-center gap-1.5">
         <Sparkles className="size-3" />{" "}
-        {view === "MOTION" ? "Motion" : view === "COLOR" ? "Color" : "Selection effects"}
+        {panelTitle(view)}
       </h2>
 
       {/* ---------------------------------------------------- selection context */}
@@ -357,7 +371,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
         disabled={!canApply}
         targetName={context.name}
         time={time}
-        initialFilter={view === "COLOR" ? "COLOR" : view === "MOTION" ? "MOTION" : "ALL"}
+        initialFilter={catalogFilter(view)}
         onApplyColor={applyLighting}
         onApplyMotion={applyMotion}
       />
@@ -365,7 +379,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
 
 
       {/* ------------------------------------------------------------ lighting */}
-      {view !== "MOTION" ? (
+      {view !== "MOTION" && view !== "CATALOG" ? (
         <div className="mt-2 space-y-1.5">
           <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
             Lighting
@@ -697,7 +711,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
       ) : null}
 
       {/* -------------------------------------------------------------- motion */}
-      {view !== "COLOR" ? (
+      {view !== "COLOR" && view !== "CATALOG" ? (
         <div className="mt-2 space-y-1.5 border-t border-border pt-2">
           <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
             Motion
