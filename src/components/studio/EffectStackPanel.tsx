@@ -163,14 +163,16 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
           {panelTitle(view)}
         </h2>
         <p className="font-mono text-[10px] text-muted-foreground">Select a clip to add effects.</p>
-        <EffectCatalog
-          disabled
-          targetName="No target selected"
-          time={time}
-          initialFilter={catalogFilter(view)}
-          onApplyColor={() => undefined}
-          onApplyMotion={() => undefined}
-        />
+        {view === "CATALOG" ? (
+          <EffectCatalog
+            disabled
+            targetName="No target selected"
+            time={time}
+            initialFilter="ALL"
+            onApplyColor={() => undefined}
+            onApplyMotion={() => undefined}
+          />
+        ) : null}
       </section>
     );
   }
