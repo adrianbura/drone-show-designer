@@ -67,6 +67,7 @@ import {
   type TimelineCommandContext,
 } from "@/lib/studio/commands";
 import { useTimelineCommands, type RenameRequest } from "@/lib/studio/useTimelineCommands";
+import { requestPhaseEditor } from "@/lib/studio/phaseEditor";
 import StudioContextMenu from "@/components/studio/StudioContextMenu";
 import { isInsideMenuSurface } from "@/lib/studio/menuSurface";
 
@@ -315,7 +316,7 @@ export default function Timeline({
       }
       execute(id, { effectId: ctx.effectId });
     },
-    [execute, time],
+    [execute, selectClip, time],
   );
 
   const emptyMenuContext = useMemo<TimelineCommandContext>(
