@@ -59,7 +59,21 @@ const fromHex = (hex: string): RGB => [
   parseInt(hex.slice(5, 7), 16) || 0,
 ];
 
-export type EffectStackView = "ALL" | "COLOR" | "MOTION";
+export type EffectStackView = "ALL" | "COLOR" | "MOTION" | "CATALOG";
+
+/** Everyday panel heading for each presentation of this one authority. */
+function panelTitle(view: EffectStackView): string {
+  if (view === "MOTION") return "Motion";
+  if (view === "COLOR") return "Color";
+  if (view === "CATALOG") return "Effect catalog";
+  return "Selection effects";
+}
+
+function catalogFilter(view: EffectStackView): "ALL" | "COLOR" | "MOTION" {
+  if (view === "COLOR") return "COLOR";
+  if (view === "MOTION") return "MOTION";
+  return "ALL";
+}
 
 /** Local marking of which canonical preview the operator started. */
 interface ActivePreview {
