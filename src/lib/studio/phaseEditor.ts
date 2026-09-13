@@ -53,8 +53,18 @@ export function phaseIntervalMeaning(phase: ClipAuthoringPhase): string {
 
 /** One shortcut into an editor that already exists. */
 export type PhaseShortcut =
-  | { readonly id: string; readonly label: string; readonly kind: "SURFACE"; readonly surface: StudioSurfaceId }
-  | { readonly id: string; readonly label: string; readonly kind: "SECTION"; readonly control: string };
+  | {
+      readonly id: string;
+      readonly label: string;
+      readonly kind: "SURFACE";
+      readonly surface: StudioSurfaceId;
+    }
+  | {
+      readonly id: string;
+      readonly label: string;
+      readonly kind: "SECTION";
+      readonly control: string;
+    };
 
 /**
  * FORMATION offers transition authoring only: no regular scene Motion effects
@@ -99,10 +109,7 @@ let counter = 0;
  * Asks the workspace to reveal the Phase Editor for one clip part. Opening
  * mutates nothing: it selects nothing, plans nothing and creates no history.
  */
-export function requestPhaseEditor(
-  clipId: string,
-  phase: ClipAuthoringPhase,
-): PhaseEditorRequest {
+export function requestPhaseEditor(clipId: string, phase: ClipAuthoringPhase): PhaseEditorRequest {
   const request: PhaseEditorRequest = { clipId, phase, requestId: ++counter };
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent<PhaseEditorRequest>(EVENT, { detail: request }));
@@ -111,9 +118,7 @@ export function requestPhaseEditor(
   return request;
 }
 
-export function onPhaseEditorRequest(
-  handler: (request: PhaseEditorRequest) => void,
-): () => void {
+export function onPhaseEditorRequest(handler: (request: PhaseEditorRequest) => void): () => void {
   if (typeof window === "undefined") return () => {};
   const listener = (e: Event) => handler((e as CustomEvent<PhaseEditorRequest>).detail);
   window.addEventListener(EVENT, listener);

@@ -47,7 +47,10 @@ export default function PhaseEditorPanel() {
   const [target, setTarget] = useState<{ clipId: string; phase: ClipAuthoringPhase } | null>(null);
 
   useEffect(
-    () => onPhaseEditorRequest((request) => setTarget({ clipId: request.clipId, phase: request.phase })),
+    () =>
+      onPhaseEditorRequest((request) =>
+        setTarget({ clipId: request.clipId, phase: request.phase }),
+      ),
     [],
   );
 
@@ -70,7 +73,8 @@ export default function PhaseEditorPanel() {
   const displayTarget =
     selectedScenePointIds.length > 0
       ? `${selectedScenePointIds.length} drones selected`
-      : (objectName ?? (selectedSceneObjectIds.length > 1
+      : (objectName ??
+        (selectedSceneObjectIds.length > 1
           ? `${selectedSceneObjectIds.length} visuals selected`
           : "No visual selected"));
 

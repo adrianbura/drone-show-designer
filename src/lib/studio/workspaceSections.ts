@@ -7,13 +7,7 @@
  */
 
 export type WorkspaceSectionId =
-  | "PHASE"
-  | "VISUALS"
-  | "TRANSFORM"
-  | "COLOUR"
-  | "MOTION"
-  | "CATALOG"
-  | "STATES";
+  "PHASE" | "VISUALS" | "TRANSFORM" | "COLOUR" | "MOTION" | "CATALOG" | "STATES";
 
 /** Which section owns each everyday control test id. */
 const CONTROL_SECTION: Readonly<Record<string, WorkspaceSectionId>> = {
