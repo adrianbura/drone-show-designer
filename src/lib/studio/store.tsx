@@ -133,6 +133,13 @@ import {
 } from "../show/markers";
 import { timelineContentRange } from "./timelineLayout";
 import { insertClipBeforeLanding } from "./clipInsertion";
+import {
+  defaultLandingParams,
+  defaultTakeoffParams,
+  hasPhaseClip,
+  withLandingClip,
+  withTakeoffClip,
+} from "../show/preshow/phaseClips";
 import { canConvertClipToScene, convertClipToScene, duplicateShowClip } from "./clipDesign";
 import {
   applyPointSelection,
@@ -6769,6 +6776,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       updateFormation,
       renameFormation,
       addClip,
+      addTakeoffPhase,
+      addLandingPhase,
       patchClip,
       removeClip,
       svgAssets,
@@ -7156,6 +7165,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       updateFormation,
       renameFormation,
       addClip,
+      addTakeoffPhase,
+      addLandingPhase,
       patchClip,
       removeClip,
       svgAssets,
