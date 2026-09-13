@@ -335,15 +335,15 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
       {livePreview}
 
       {/* --------------------------------------------- unified effect catalog */}
-      {view === "ALL" && (
-        <EffectCatalog
-          disabled={!canApply}
-          targetName={context.name}
-          time={time}
-          onApplyColor={applyLighting}
-          onApplyMotion={applyMotion}
-        />
-      )}
+      <EffectCatalog
+        disabled={!canApply}
+        targetName={context.name}
+        time={time}
+        initialFilter={view === "COLOR" ? "COLOR" : view === "MOTION" ? "MOTION" : "ALL"}
+        onApplyColor={applyLighting}
+        onApplyMotion={applyMotion}
+      />
+
 
 
       {/* ------------------------------------------------------------ lighting */}
