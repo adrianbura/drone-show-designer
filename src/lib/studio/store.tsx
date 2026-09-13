@@ -2129,6 +2129,45 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
+   * AUTOMATIC FLIGHT PHASES.
+   *
+   * The climb-out and the return-to-home descent are technical segments owned by
+   * the dedicated TAKEOFF/LANDING planners, so authoring them is a single
+   * canonical timeline mutation with a single undo entry. Durations come from
+   * the project's own altitudes and flight envelope (see phaseClips).
+   */
+  const addTakeoffPhase = useCallback(() => {
+    const id = nextId("c");
+    setProject((p) => {
+      if (hasPhaseClip(p.timeline, "TAKEOFF")) return p;
+      const formationId = p.timeline[0]?.formationId ?? p.formations[0]?.id;
+      if (!formationId) return p;
+      pushSnapshot(p);
+      return {
+        ...p,
+        timeline: withTakeoffClip(p.timeline, { id, formationId }, defaultTakeoffParams(p)),
+      };
+    });
+  }, [pushSnapshot]);
+
+  const addLandingPhase = useCallback(() => {
+    const id = nextId("c");
+    setProject((p) => {
+      if (hasPhaseClip(p.timeline, "LANDING")) return p;
+      const formationId =
+        p.timeline[p.timeline.length - 1]?.formationId ?? p.formations[0]?.id;
+      if (!formationId) return p;
+      pushSnapshot(p);
+      return {
+        ...p,
+        timeline: withLandingClip(p.timeline, { id, formationId }, defaultLandingParams(p)),
+      };
+    });
+  }, [pushSnapshot]);
+
+
+
+  /**
    * GESTURE COMMIT (Sprint 7.2, ripple since Sprint 8D).
    *
    * pointermove may draft freely in the component; exactly one call here lands
