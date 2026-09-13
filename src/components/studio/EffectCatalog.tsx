@@ -15,7 +15,10 @@ import {
   groupEffectCatalog,
   type EffectCatalogFilter,
 } from "@/lib/studio/effectCatalog";
-import type { LightingSelectionPresetId, MotionSelectionPresetId } from "@/lib/studio/selectionEffects";
+import type {
+  LightingSelectionPresetId,
+  MotionSelectionPresetId,
+} from "@/lib/studio/selectionEffects";
 
 const FILTERS: readonly { readonly id: EffectCatalogFilter; readonly label: string }[] = [
   { id: "ALL", label: "All" },
@@ -48,9 +51,6 @@ export default function EffectCatalog({
   useEffect(() => {
     if (autoFocusSearch) searchRef.current?.focus({ preventScroll: true });
   }, [autoFocusSearch]);
-
-
-
 
   const groups = useMemo(
     () => groupEffectCatalog(filterEffectCatalog(query, filter)),

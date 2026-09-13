@@ -69,7 +69,6 @@ function panelTitle(view: EffectStackView): string {
   return "Selection effects";
 }
 
-
 /** Local marking of which canonical preview the operator started. */
 interface ActivePreview {
   readonly kind: "LIGHTING" | "MOTION";
@@ -317,8 +316,7 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
   return (
     <section className="panel-card" data-testid="effect-stacks">
       <h2 className="panel-title flex items-center gap-1.5">
-        <Sparkles className="size-3" />{" "}
-        {panelTitle(view)}
+        <Sparkles className="size-3" /> {panelTitle(view)}
       </h2>
 
       {/* ---------------------------------------------------- selection context */}
@@ -379,10 +377,6 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
           onApplyMotion={applyMotion}
         />
       ) : null}
-
-
-
-
 
       {/* ------------------------------------------------------------ lighting */}
       {view !== "MOTION" && view !== "CATALOG" ? (
