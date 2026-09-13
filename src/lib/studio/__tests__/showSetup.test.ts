@@ -86,7 +86,7 @@ describe("buildShowSetup", () => {
   it("marks site, launch, take-off, formations, storyboard and landing from canonical project state", () => {
     const model = buildShowSetup({
       project: project({
-        preShow: { enabled: true } as ShowProject["preShow"],
+        preShow: { enabled: true } as unknown as NonNullable<ShowProject["preShow"]>,
         formations: [{ id: "f1" } as ShowProject["formations"][number]],
         timeline: [
           clip({ id: "t", phase: "TAKEOFF" }),
@@ -156,9 +156,11 @@ describe("buildShowSetup", () => {
     } as unknown as FullShowValidationReport;
     const model = buildShowSetup({
       project: project({
-        preShow: { enabled: true } as ShowProject["preShow"],
+        preShow: { enabled: true } as unknown as NonNullable<ShowProject["preShow"]>,
         formations: [{ id: "f1" } as ShowProject["formations"][number]],
-        lighting: { schemaVersion: 1, effects: [{ id: "e1" }] } as ShowProject["lighting"],
+        lighting: { schemaVersion: 1, effects: [{ id: "e1" }] } as unknown as NonNullable<
+          ShowProject["lighting"]
+        >,
         timeline: [
           clip({ id: "t", phase: "TAKEOFF" }),
           clip({ id: "s", phase: "SHOW" }),
