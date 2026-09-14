@@ -40,7 +40,10 @@ export function assertAcceptableFile(file: File): void {
   }
 }
 
-function createCanvas(width: number, height: number): {
+function createCanvas(
+  width: number,
+  height: number,
+): {
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 } {
   if (typeof OffscreenCanvas !== "undefined") {
@@ -100,7 +103,8 @@ export async function decodeImageFile(file: File): Promise<DecodedImage> {
     ctx.clearRect(0, 0, w, h);
     ctx.drawImage(bitmap, 0, 0, w, h);
     const imageData = ctx.getImageData(0, 0, w, h);
-    const decodeMs = (typeof performance !== "undefined" ? performance.now() : Date.now()) - started;
+    const decodeMs =
+      (typeof performance !== "undefined" ? performance.now() : Date.now()) - started;
     return {
       image: { width: w, height: h, data: imageData.data },
       sourceWidth,

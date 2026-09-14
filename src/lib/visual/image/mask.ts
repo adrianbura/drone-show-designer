@@ -62,10 +62,7 @@ export interface MaskResult {
   readonly foregroundRatio: number;
 }
 
-export function buildMask(
-  field: LuminanceField,
-  background: ImageBackgroundMode,
-): MaskResult {
+export function buildMask(field: LuminanceField, background: ImageBackgroundMode): MaskResult {
   const threshold = otsuThreshold(field);
   const polarity = resolvePolarity(field, background, threshold);
   const n = field.width * field.height;

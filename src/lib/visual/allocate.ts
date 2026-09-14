@@ -19,10 +19,38 @@ import type {
 
 /** Per-style weight multipliers by primitive type. */
 const STYLE_WEIGHTS: Record<VisualStyle, Record<string, number>> = {
-  OUTLINE: { CLOSED_CONTOUR: 1, POLYLINE: 0.3, REGION: 0.05, POINT_FEATURE: 1, PARAMETRIC_CURVE: 1, PARAMETRIC_SURFACE: 0.1 },
-  STRUCTURAL: { CLOSED_CONTOUR: 1, POLYLINE: 1, REGION: 0.25, POINT_FEATURE: 1.4, PARAMETRIC_CURVE: 1, PARAMETRIC_SURFACE: 0.3 },
-  BALANCED: { CLOSED_CONTOUR: 1, POLYLINE: 0.8, REGION: 0.85, POINT_FEATURE: 1.1, PARAMETRIC_CURVE: 1, PARAMETRIC_SURFACE: 0.9 },
-  FILLED: { CLOSED_CONTOUR: 0.7, POLYLINE: 0.5, REGION: 2.2, POINT_FEATURE: 0.9, PARAMETRIC_CURVE: 0.7, PARAMETRIC_SURFACE: 2.2 },
+  OUTLINE: {
+    CLOSED_CONTOUR: 1,
+    POLYLINE: 0.3,
+    REGION: 0.05,
+    POINT_FEATURE: 1,
+    PARAMETRIC_CURVE: 1,
+    PARAMETRIC_SURFACE: 0.1,
+  },
+  STRUCTURAL: {
+    CLOSED_CONTOUR: 1,
+    POLYLINE: 1,
+    REGION: 0.25,
+    POINT_FEATURE: 1.4,
+    PARAMETRIC_CURVE: 1,
+    PARAMETRIC_SURFACE: 0.3,
+  },
+  BALANCED: {
+    CLOSED_CONTOUR: 1,
+    POLYLINE: 0.8,
+    REGION: 0.85,
+    POINT_FEATURE: 1.1,
+    PARAMETRIC_CURVE: 1,
+    PARAMETRIC_SURFACE: 0.9,
+  },
+  FILLED: {
+    CLOSED_CONTOUR: 0.7,
+    POLYLINE: 0.5,
+    REGION: 2.2,
+    POINT_FEATURE: 0.9,
+    PARAMETRIC_CURVE: 0.7,
+    PARAMETRIC_SURFACE: 2.2,
+  },
 };
 
 const FILL_BIAS: Record<FillBias, { contour: number; fill: number }> = {
@@ -169,9 +197,7 @@ export function allocateBudget(
   }
   // Extremely small budgets: keep only the single most important primitive.
   if (kept.length > 1 && minSum(kept) > total) {
-    const best = [...kept].sort(
-      (a, b) => b.priority - a.priority || a.id.localeCompare(b.id),
-    )[0]!;
+    const best = [...kept].sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))[0]!;
     for (const p of kept) if (p.id !== best.id) dropped.push(p.id);
     kept = [best];
   }

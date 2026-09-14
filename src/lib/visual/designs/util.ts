@@ -42,11 +42,7 @@ export function mirrorPair(
   return [leftWithPeer, { ...right, mirrorOf: left.id } as VisualPrimitive];
 }
 
-function mirrorPrimitive(
-  primitive: VisualPrimitive,
-  id: string,
-  part?: string,
-): VisualPrimitive {
+function mirrorPrimitive(primitive: VisualPrimitive, id: string, part?: string): VisualPrimitive {
   const base = { ...primitive, id, ...(part ? { part } : {}) };
   switch (primitive.type) {
     case "POLYLINE":

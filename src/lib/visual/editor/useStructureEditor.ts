@@ -79,22 +79,19 @@ export function useStructureEditor(
    * One user gesture = one undo entry. The mutation is applied to the CURRENT
    * draft inside the updater, so rapid gestures can never drop an edit.
    */
-  const apply = useCallback(
-    (mutate: (design: VisualFormationDesign) => VisualFormationDesign) => {
-      setDraft((current) => {
-        if (!current) return current;
-        const next = mutate(current);
-        // A design the compiler cannot use is never committed.
-        if (next === current || enabledPrimitiveCount(next) === 0) return current;
-        setPast((p) => [...p, current].slice(-HISTORY_LIMIT));
-        setFuture([]);
-        opsRef.current += 1;
-        setEditOps(opsRef.current);
-        return next;
-      });
-    },
-    [],
-  );
+  const apply = useCallback((mutate: (design: VisualFormationDesign) => VisualFormationDesign) => {
+    setDraft((current) => {
+      if (!current) return current;
+      const next = mutate(current);
+      // A design the compiler cannot use is never committed.
+      if (next === current || enabledPrimitiveCount(next) === 0) return current;
+      setPast((p) => [...p, current].slice(-HISTORY_LIMIT));
+      setFuture([]);
+      opsRef.current += 1;
+      setEditOps(opsRef.current);
+      return next;
+    });
+  }, []);
 
   const setEnabled = useCallback(
     (id: string, enabled: boolean) => {
