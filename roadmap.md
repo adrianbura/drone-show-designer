@@ -5,3 +5,10 @@
 - [x] Audience coordinates on the site, with derived viewing direction and facing yaw
 - [x] Block export on GPS perimeter breach via full-show validation (regression-tested)
 - [x] Restrict Visuals, Transform, Colour, and Motion authoring to SHOW clips
+- [x] Real-typeface text: glyph pack registry + Archivo wide outline pack + typeface picker
+- [ ] Shape and figure library
+- [ ] Copy / paste and show templates
+- [ ] Advanced lighting effects
+- [ ] PDF validation report
+- [ ] Beat-synced music
+- [ ] .skyc export
