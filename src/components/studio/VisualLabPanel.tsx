@@ -179,17 +179,33 @@ export default function VisualLabPanel() {
         <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
           {t("visualLab.design")}
         </span>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("visualLab.designSearch")}
+          data-testid="design-search"
+          className="studio-input w-full text-[11px]"
+        />
         <select
           value={designId}
           onChange={(e) => setDesignId(e.target.value)}
+          data-testid="design-picker"
           className="studio-input w-full"
         >
-          {BUILT_IN_DESIGNS.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
+          {groups.map((group) => (
+            <optgroup key={group.category} label={t(`visualLab.category.${group.category}`)}>
+              {group.designs.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
+        {groups.length === 0 ? (
+          <span className="text-[10px] text-muted-foreground">{t("visualLab.noDesignMatch")}</span>
+        ) : null}
       </label>
 
       <div className="grid grid-cols-2 gap-1.5">
