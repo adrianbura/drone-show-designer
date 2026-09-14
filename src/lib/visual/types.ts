@@ -149,12 +149,13 @@ export interface SemanticPart {
   /**
    * Default motion intent for the part, applied by the dynamic bridge.
    * SPIN_Z: continuous rotation about the part centre (wheels, rotors).
+   * SWAY_Z: ping-pong rotation about the part's attachment point (tail, fin).
    */
   readonly motion?: SemanticPartMotion | undefined;
 }
 
 /** Language-neutral default motion intents a design may declare on a part. */
-export type SemanticPartMotion = "NONE" | "SPIN_Z";
+export type SemanticPartMotion = "NONE" | "SPIN_Z" | "SWAY_Z";
 
 export interface VisualDesignBounds {
   /** Design-space extents. Width is the reference for metre scaling. */
