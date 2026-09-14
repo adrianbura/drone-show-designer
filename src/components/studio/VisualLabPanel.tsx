@@ -22,6 +22,8 @@ import {
   compileVisualFormation,
   dynamicFromCompiled,
   formationFromCompiled,
+  groupDesignsByCategory,
+  matchesDesignSearch,
   type VisualStyle,
 } from "@/lib/visual";
 
