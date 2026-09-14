@@ -32,6 +32,7 @@ const CATEGORY_BY_DESIGN: Readonly<Record<string, FigureCategoryId>> = {
   "figure-arrow": "SYMBOL",
   "figure-spiral": "ABSTRACT",
   "figure-ring": "ABSTRACT",
+  "figure-mermaid": "PEOPLE",
 };
 
 export function categoryOfDesign(design: VisualFormationDesign): FigureCategoryId {
