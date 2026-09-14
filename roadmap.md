@@ -6,7 +6,7 @@
 - [x] Block export on GPS perimeter breach via full-show validation (regression-tested)
 - [x] Restrict Visuals, Transform, Colour, and Motion authoring to SHOW clips
 - [x] Real-typeface text: glyph pack registry + Archivo wide outline pack + typeface picker
-- [ ] Shape and figure library
+- [x] Shape and figure library (10 parametric figures + searchable, categorised picker)
 - [ ] Copy / paste and show templates
 - [ ] Advanced lighting effects
 - [ ] PDF validation report
