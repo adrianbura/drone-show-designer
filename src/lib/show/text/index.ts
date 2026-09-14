@@ -6,6 +6,7 @@
  * preview-only legacy and must never feed a planner-owned formation.
  */
 export * from "./glyphPack";
+export * from "./typefaces";
 export * from "./types";
 export * from "./generate";
 export * from "./formation";

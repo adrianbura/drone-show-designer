@@ -11,7 +11,14 @@ import {
 } from "..";
 import { TextGeometryError } from "../types";
 
-function recipe(overrides: Partial<Omit<TextGeometryRecipe, "schemaVersion" | "algorithmVersion" | "glyphPackId" | "glyphPackVersion">> = {}) {
+function recipe(
+  overrides: Partial<
+    Omit<
+      TextGeometryRecipe,
+      "schemaVersion" | "algorithmVersion" | "glyphPackId" | "glyphPackVersion"
+    >
+  > = {},
+) {
   return makeTextRecipe({
     text: "SUPER RALLY",
     weight: "REGULAR",
@@ -57,7 +64,9 @@ describe("deterministic text geometry", () => {
     ]) {
       const next = generateTextGeometry(recipe(change));
       expect(next.recipeHash, JSON.stringify(change)).not.toBe(base.recipeHash);
-      expect(JSON.stringify(next.points), JSON.stringify(change)).not.toBe(JSON.stringify(base.points));
+      expect(JSON.stringify(next.points), JSON.stringify(change)).not.toBe(
+        JSON.stringify(base.points),
+      );
     }
   });
 
@@ -104,9 +113,9 @@ describe("deterministic text geometry", () => {
     expect(() => generateTextGeometry(recipe({ participation: 0 }))).toThrow(TextGeometryError);
     expect(() => generateTextGeometry(recipe({ widthMeters: 0 }))).toThrow(TextGeometryError);
     expect(() => generateTextGeometry(recipe({ outlineRatio: 0 }))).toThrow(TextGeometryError);
-    expect(() =>
-      generateTextGeometry({ ...recipe(), glyphPackId: "system-font" }),
-    ).toThrow(/unknown glyph pack/i);
+    expect(() => generateTextGeometry({ ...recipe(), glyphPackId: "system-font" })).toThrow(
+      /unknown glyph pack/i,
+    );
   });
 
   it("carries a reproducible recipe on the formation asset", () => {
@@ -122,7 +131,9 @@ describe("deterministic text geometry", () => {
     const { formation } = makeTextFormation({ id: "f-text-2", name: "Text", recipe: recipe() });
     const tampered = {
       ...formation,
-      points: formation.points.map((p, i) => (i === 3 ? ([p[0] + 1, p[1], p[2]] as [number, number, number]) : p)),
+      points: formation.points.map((p, i) =>
+        i === 3 ? ([p[0] + 1, p[1], p[2]] as [number, number, number]) : p,
+      ),
     };
     expect(verifyTextFormation(tampered).reproducible).toBe(false);
   });

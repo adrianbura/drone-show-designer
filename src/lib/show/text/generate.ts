@@ -18,7 +18,8 @@
  * Pure module: no React, no Three.js, no I/O.
  */
 import type { Vec3 } from "../types";
-import { CAP_HEIGHT, GLYPH_PACK, GLYPH_PACK_ID, GLYPH_PACK_VERSION, isSupportedGlyph, type GlyphStroke } from "./glyphPack";
+import { type GlyphPackDefinition, type GlyphStroke } from "./glyphPack";
+import { DEFAULT_GLYPH_PACK_ID, glyphPackById, packSupportsGlyph } from "./typefaces";
 import {
   TEXT_GEOMETRY_ALGORITHM_VERSION,
   TEXT_RECIPE_SCHEMA_VERSION,
@@ -46,19 +47,31 @@ const BAND_COUNT: Record<TextGeometryRecipe["weight"], number> = {
   BOLD: 3,
 };
 
-/** Canonical recipe with the bundled pack identity and versions enforced. */
+/**
+ * Canonical recipe with the pack identity and versions enforced. `glyphPackId`
+ * is OPTIONAL and defaults to the legacy stroke pack, so every existing caller
+ * keeps producing byte-identical geometry.
+ */
 export function makeTextRecipe(
   input: Omit<
     TextGeometryRecipe,
     "schemaVersion" | "algorithmVersion" | "glyphPackId" | "glyphPackVersion"
-  >,
+  > & { readonly glyphPackId?: string },
 ): TextGeometryRecipe {
+  const { glyphPackId, ...rest } = input;
+  const packId = glyphPackId ?? DEFAULT_GLYPH_PACK_ID;
+  const pack = glyphPackById(packId);
+  if (!pack) {
+    throw new TextGeometryError("GLYPH_PACK_MISMATCH", "Unknown glyph pack requested.", {
+      glyphPackId: packId,
+    });
+  }
   return {
     schemaVersion: TEXT_RECIPE_SCHEMA_VERSION,
     algorithmVersion: TEXT_GEOMETRY_ALGORITHM_VERSION,
-    glyphPackId: GLYPH_PACK_ID,
-    glyphPackVersion: GLYPH_PACK_VERSION,
-    ...input,
+    glyphPackId: pack.id,
+    glyphPackVersion: pack.version,
+    ...rest,
   };
 }
 
@@ -98,7 +111,7 @@ export function normalizeText(text: string): string {
   return text.toUpperCase().replace(/\s+/g, " ").trim();
 }
 
-function assertRecipe(recipe: TextGeometryRecipe): string {
+function assertRecipe(recipe: TextGeometryRecipe): { text: string; pack: GlyphPackDefinition } {
   // VERSION GATE FIRST. A recipe persisted by an older algorithm/schema is NOT
   // interpretable by this generator: schema 1 carried no altitude intent, so
   // running it here would invent one. Callers must upgrade it explicitly.
@@ -117,24 +130,37 @@ function assertRecipe(recipe: TextGeometryRecipe): string {
       },
     );
   }
-  if (recipe.glyphPackId !== GLYPH_PACK_ID || recipe.glyphPackVersion !== GLYPH_PACK_VERSION) {
-    throw new TextGeometryError("GLYPH_PACK_MISMATCH", "The recipe references an unknown glyph pack.", {
-      glyphPackId: recipe.glyphPackId,
-      glyphPackVersion: recipe.glyphPackVersion,
-    });
+  const pack = glyphPackById(recipe.glyphPackId);
+  if (!pack || pack.version !== recipe.glyphPackVersion) {
+    throw new TextGeometryError(
+      "GLYPH_PACK_MISMATCH",
+      "The recipe references an unknown glyph pack.",
+      {
+        glyphPackId: recipe.glyphPackId,
+        glyphPackVersion: recipe.glyphPackVersion,
+      },
+    );
   }
   const text = normalizeText(recipe.text);
   if (!text) throw new TextGeometryError("EMPTY_TEXT", "The replacement text is empty.");
-  const unsupported = [...text].filter((c) => !isSupportedGlyph(c));
+  const unsupported = [...text].filter((c) => !packSupportsGlyph(pack, c));
   if (unsupported.length > 0) {
-    throw new TextGeometryError("UNSUPPORTED_GLYPH", "The glyph pack does not contain every character.", {
-      unsupported: [...new Set(unsupported)],
-    });
+    throw new TextGeometryError(
+      "UNSUPPORTED_GLYPH",
+      "The glyph pack does not contain every character.",
+      {
+        unsupported: [...new Set(unsupported)],
+      },
+    );
   }
   if (!Number.isInteger(recipe.participation) || recipe.participation < 1) {
-    throw new TextGeometryError("INVALID_PARTICIPATION", "Participation must be a positive integer.", {
-      participation: recipe.participation,
-    });
+    throw new TextGeometryError(
+      "INVALID_PARTICIPATION",
+      "Participation must be a positive integer.",
+      {
+        participation: recipe.participation,
+      },
+    );
   }
   if (
     !(recipe.widthMeters > 0) ||
@@ -155,15 +181,21 @@ function assertRecipe(recipe: TextGeometryRecipe): string {
     });
   }
   if (!(recipe.bandOffsetEm >= 0) || !Number.isFinite(recipe.bandOffsetEm)) {
-    throw new TextGeometryError("INVALID_DISTRIBUTION", "bandOffsetEm must be a finite, non-negative number.", {
-      bandOffsetEm: recipe.bandOffsetEm,
-    });
+    throw new TextGeometryError(
+      "INVALID_DISTRIBUTION",
+      "bandOffsetEm must be a finite, non-negative number.",
+      {
+        bandOffsetEm: recipe.bandOffsetEm,
+      },
+    );
   }
-  return text;
+  return { text, pack };
 }
 
-function shear(vertex: P2, italic: boolean): P2 {
-  return italic ? [vertex[0] + (vertex[1] / CAP_HEIGHT) * ITALIC_SHEAR * CAP_HEIGHT * 0.5, vertex[1]] : vertex;
+function shear(vertex: P2, italic: boolean, capHeight: number): P2 {
+  return italic
+    ? [vertex[0] + (vertex[1] / capHeight) * ITALIC_SHEAR * capHeight * 0.5, vertex[1]]
+    : vertex;
 }
 
 /** Per-vertex unit normal from the averaged adjacent segment directions. */
@@ -215,18 +247,26 @@ function bandOffsets(count: number, offset: number): number[] {
   return out;
 }
 
-function buildPolylines(recipe: TextGeometryRecipe, text: string): Polyline[] {
+function buildPolylines(
+  recipe: TextGeometryRecipe,
+  text: string,
+  pack: GlyphPackDefinition,
+): Polyline[] {
   const italic = recipe.style === "ITALIC";
   const bands = bandOffsets(BAND_COUNT[recipe.weight], recipe.bandOffsetEm);
   const laid: { glyphIndex: number; strokeIndex: number; vertices: P2[] }[] = [];
   let cursor = 0;
   [...text].forEach((character, glyphIndex) => {
-    const glyph = GLYPH_PACK[character]!;
-    glyph.strokes.forEach((stroke: GlyphStroke, strokeIndex) => {
+    const glyph = pack.glyphs[character]!;
+    glyph.strokes.forEach((stroke: GlyphStroke, strokeIndex: number) => {
+      // A real-typeface contour is CLOSED: repeat the first vertex so its final
+      // segment is sampled like any other and the ring has no gap.
+      const source: readonly (readonly [number, number])[] =
+        pack.closedContours && stroke.length > 2 ? [...stroke, stroke[0]!] : stroke;
       laid.push({
         glyphIndex,
         strokeIndex,
-        vertices: stroke.map((v) => shear([v[0] + cursor, v[1]], italic)),
+        vertices: source.map((v) => shear([v[0] + cursor, v[1]], italic, pack.capHeight)),
       });
     });
     cursor += glyph.advance + recipe.letterSpacingEm;
@@ -240,7 +280,10 @@ function buildPolylines(recipe: TextGeometryRecipe, text: string): Polyline[] {
           ? stroke.vertices
           : normals(stroke.vertices).map(
               (n, i) =>
-                [stroke.vertices[i]![0] + n[0] * offset, stroke.vertices[i]![1] + n[1] * offset] as P2,
+                [
+                  stroke.vertices[i]![0] + n[0] * offset,
+                  stroke.vertices[i]![1] + n[1] * offset,
+                ] as P2,
             );
       const line = polyline(band, stroke.glyphIndex, stroke.strokeIndex, vertices);
       if (line) out.push(line);
@@ -300,8 +343,8 @@ function sampleAt(line: Polyline, distance: number): P2 {
  * must obtain text flight geometry from here and nowhere else.
  */
 export function generateTextGeometry(recipe: TextGeometryRecipe): TextGeometryResult {
-  const text = assertRecipe(recipe);
-  const lines = buildPolylines(recipe, text);
+  const { text, pack } = assertRecipe(recipe);
+  const lines = buildPolylines(recipe, text, pack);
   if (lines.length === 0) {
     throw new TextGeometryError("NO_GEOMETRY", "The text produced no stroke geometry.", { text });
   }
@@ -318,12 +361,16 @@ export function generateTextGeometry(recipe: TextGeometryRecipe): TextGeometryRe
   const fillCount = recipe.participation - outlineCount;
 
   const perLine = new Map<Polyline, number>();
-  allocate(primary.map((l) => l.length), outlineCount, recipe.seed).forEach((n, i) =>
-    perLine.set(primary[i]!, n),
-  );
-  allocate(fill.map((l) => l.length), fillCount, recipe.seed + 1).forEach((n, i) =>
-    perLine.set(fill[i]!, n),
-  );
+  allocate(
+    primary.map((l) => l.length),
+    outlineCount,
+    recipe.seed,
+  ).forEach((n, i) => perLine.set(primary[i]!, n));
+  allocate(
+    fill.map((l) => l.length),
+    fillCount,
+    recipe.seed + 1,
+  ).forEach((n, i) => perLine.set(fill[i]!, n));
 
   // Em-space samples first, so the fit uses the REAL emitted extent.
   const samples: { line: Polyline; index: number; point: P2 }[] = [];
@@ -333,16 +380,22 @@ export function generateTextGeometry(recipe: TextGeometryRecipe): TextGeometryRe
     // (e.g. the two diagonals of "X") can both land their mid-interval sample
     // exactly on the intersection. The phase stays inside the interval, so no
     // endpoint is ever emitted.
-    const phase = 0.5 + (fract(line.strokeIndex * 0.191 + line.band * 0.083 + line.glyphIndex * 0.037) - 0.5) * 0.5;
+    const phase =
+      0.5 +
+      (fract(line.strokeIndex * 0.191 + line.band * 0.083 + line.glyphIndex * 0.037) - 0.5) * 0.5;
     for (let k = 0; k < n; k += 1) {
       samples.push({ line, index: k, point: sampleAt(line, ((k + phase) / n) * line.length) });
     }
   }
   if (samples.length !== recipe.participation) {
-    throw new TextGeometryError("POINT_COUNT_MISMATCH", "Allocation did not fill participation exactly.", {
-      expected: recipe.participation,
-      actual: samples.length,
-    });
+    throw new TextGeometryError(
+      "POINT_COUNT_MISMATCH",
+      "Allocation did not fill participation exactly.",
+      {
+        expected: recipe.participation,
+        actual: samples.length,
+      },
+    );
   }
 
   let minX = Infinity;
@@ -378,11 +431,15 @@ export function generateTextGeometry(recipe: TextGeometryRecipe): TextGeometryRe
     const y = (point[1] - (minY + maxY) / 2) * scale + recipe.centerAltitudeMeters;
     const key = `${x.toFixed(6)}|${y.toFixed(6)}`;
     if (seen.has(key)) {
-      throw new TextGeometryError("DUPLICATE_POSITION", "Two text points resolved to the same position.", {
-        key,
-        glyphIndex: line.glyphIndex,
-        strokeIndex: line.strokeIndex,
-      });
+      throw new TextGeometryError(
+        "DUPLICATE_POSITION",
+        "Two text points resolved to the same position.",
+        {
+          key,
+          glyphIndex: line.glyphIndex,
+          strokeIndex: line.strokeIndex,
+        },
+      );
     }
     seen.add(key);
     points.push([x, y, 0]);
