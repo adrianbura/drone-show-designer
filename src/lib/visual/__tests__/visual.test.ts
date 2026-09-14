@@ -47,7 +47,7 @@ describe("visual formation designs", () => {
   });
 
   it("rejects an invalid design document", () => {
-    expect(() => parseDesign("{\"schemaVersion\":1}")).toThrow(VisualDesignError);
+    expect(() => parseDesign('{"schemaVersion":1}')).toThrow(VisualDesignError);
   });
 });
 
@@ -106,7 +106,13 @@ describe("drone art compiler — priority and degradation", () => {
     const low = compileVisualFormation(PORTRAIT_DESIGN, 50, { style: "STRUCTURAL" });
     const dropped = new Set(low.report.droppedPrimitiveIds);
     expect(dropped.size).toBeGreaterThan(0);
-    for (const essential of ["face-outline", "eye-left-outline", "eye-right-outline", "mouth", "nose"]) {
+    for (const essential of [
+      "face-outline",
+      "eye-left-outline",
+      "eye-right-outline",
+      "mouth",
+      "nose",
+    ]) {
       expect(dropped.has(essential)).toBe(false);
     }
     expect(low.report.highPriorityPreserved).toBe(1);
@@ -133,7 +139,7 @@ describe("drone art compiler — priority and degradation", () => {
         expect(parts[part] ?? 0).toBeGreaterThan(0);
       }
       expect((parts["LEFT_WING"] ?? 0) + (parts["RIGHT_WING"] ?? 0)).toBeGreaterThan(
-        (parts["BODY"] ?? 0),
+        parts["BODY"] ?? 0,
       );
     }
   });
@@ -201,7 +207,9 @@ describe("curve sampling", () => {
     expect(samples.length).toBe(21);
     const gaps: number[] = [];
     for (let i = 1; i < samples.length; i++) {
-      gaps.push(Math.hypot(samples[i]![0] - samples[i - 1]![0], samples[i]![1] - samples[i - 1]![1]));
+      gaps.push(
+        Math.hypot(samples[i]![0] - samples[i - 1]![0], samples[i]![1] - samples[i - 1]![1]),
+      );
     }
     const mean = gaps.reduce((s, g) => s + g, 0) / gaps.length;
     for (const g of gaps) expect(Math.abs(g - mean)).toBeLessThan(mean * 0.35);

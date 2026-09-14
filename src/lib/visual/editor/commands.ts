@@ -9,7 +9,12 @@
  * These commands never touch drone positions, trajectories, participation,
  * lighting, export or the timeline: they edit design STRUCTURE only.
  */
-import type { DesignPoint, PolylinePrimitive, VisualFormationDesign, VisualPrimitive } from "../types";
+import type {
+  DesignPoint,
+  PolylinePrimitive,
+  VisualFormationDesign,
+  VisualPrimitive,
+} from "../types";
 import { importanceValue, type StructureImportance } from "./importance";
 
 const EDIT_NOTE = "Manually edited structure.";

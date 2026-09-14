@@ -8,7 +8,12 @@ interface Painter {
   (x: number, y: number): readonly [number, number, number, number] | null;
 }
 
-function raster(width: number, height: number, bg: readonly [number, number, number, number], paint: Painter): RgbaImage {
+function raster(
+  width: number,
+  height: number,
+  bg: readonly [number, number, number, number],
+  paint: Painter,
+): RgbaImage {
   const data = new Uint8ClampedArray(width * height * 4);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {

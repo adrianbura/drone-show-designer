@@ -6,13 +6,7 @@
  */
 import { firstPixel, ringArea, targetFromLabels, traceContour } from "./contours";
 import { downscale, toLuminance } from "./luminance";
-import {
-  buildMask,
-  cleanMask,
-  consolidateStipple,
-  findHoleLabels,
-  labelComponents,
-} from "./mask";
+import { buildMask, cleanMask, consolidateStipple, findHoleLabels, labelComponents } from "./mask";
 import { simplifyRingBounded } from "./simplify2d";
 import {
   DETAIL_PROFILES,
@@ -86,17 +80,20 @@ export function analyzeImage(
   for (const holeLabel of holeLabels) {
     const area = bgComponents.areas[holeLabel - 1] ?? 0;
     holesFound++;
-    const owner = ownerOfHole(mask.width, mask.height, bgComponents.labels, fgComponents.labels, holeLabel);
+    const owner = ownerOfHole(
+      mask.width,
+      mask.height,
+      bgComponents.labels,
+      fgComponents.labels,
+      holeLabel,
+    );
     if (owner == null || !keptLabels.has(owner)) continue;
     const list = holesByComponent.get(owner) ?? [];
     list.push({ label: holeLabel, area });
     holesByComponent.set(owner, list);
   }
 
-  const epsilon = Math.max(
-    0.5,
-    profile.analysisEdge * profile.epsilonFrac * resolved.simplify,
-  );
+  const epsilon = Math.max(0.5, profile.analysisEdge * profile.epsilonFrac * resolved.simplify);
 
   let rawPoints = 0;
   let simplifiedPoints = 0;

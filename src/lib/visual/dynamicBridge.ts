@@ -74,7 +74,11 @@ export function dynamicFromCompiled(
         loopDuration: duration,
         keyframes: [
           { ...neutralGroupKeyframe(0), rotation: [0, 0, 0], interpolation: "linear" },
-          { ...neutralGroupKeyframe(duration / 2), rotation: [0, 0, -180], interpolation: "linear" },
+          {
+            ...neutralGroupKeyframe(duration / 2),
+            rotation: [0, 0, -180],
+            interpolation: "linear",
+          },
           { ...neutralGroupKeyframe(duration), rotation: [0, 0, -360], interpolation: "linear" },
         ],
       });

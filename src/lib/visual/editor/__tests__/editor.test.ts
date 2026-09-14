@@ -125,7 +125,11 @@ describe("structure editor commands", () => {
   it("serializes an edited design without editor-only state", () => {
     const design = extractedDesign();
     const edited = addPolyline(
-      setPrimitiveImportance(setPrimitiveEnabled(design, design.primitives[0]!.id, false), design.primitives[1]!.id, "ESSENTIAL"),
+      setPrimitiveImportance(
+        setPrimitiveEnabled(design, design.primitives[0]!.id, false),
+        design.primitives[1]!.id,
+        "ESSENTIAL",
+      ),
       [
         [-0.1, 0],
         [0.1, 0.15],
@@ -174,9 +178,17 @@ describe("structure editor coordinates", () => {
 
 describe("structure editor hit-testing", () => {
   it("selects the nearest structure and rejects empty space", () => {
-    const analysis = analyzeImage(simpleSilhouette(200), { detail: "MEDIUM", structure: "OUTLINE" });
+    const analysis = analyzeImage(simpleSilhouette(200), {
+      detail: "MEDIUM",
+      structure: "OUTLINE",
+    });
     const design = designFromAnalysis(analysis);
-    const t = letterbox(268, 200, analysis.diagnostics.analysisWidth, analysis.diagnostics.analysisHeight);
+    const t = letterbox(
+      268,
+      200,
+      analysis.diagnostics.analysisWidth,
+      analysis.diagnostics.analysisHeight,
+    );
     const tolerance = toleranceInDesignUnits(t, 6);
     const primitive = design.primitives[0]!;
     const onPath = (primitive as { path: readonly DesignPoint[] }).path[0]!;
@@ -190,7 +202,11 @@ describe("structure editor hit-testing", () => {
 describe("exact-N after structure edits", () => {
   it("compiles the requested count after disable, delete, polyline and priority edits", () => {
     const design = extractedDesign();
-    const disabled = setPrimitiveEnabled(design, design.primitives[design.primitives.length - 1]!.id, false);
+    const disabled = setPrimitiveEnabled(
+      design,
+      design.primitives[design.primitives.length - 1]!.id,
+      false,
+    );
     const deleted = deletePrimitive(disabled, disabled.primitives[1]!.id);
     const prioritised = setPrimitiveImportance(deleted, deleted.primitives[0]!.id, "ESSENTIAL");
     const edited = addPolyline(prioritised, [

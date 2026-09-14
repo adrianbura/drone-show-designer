@@ -30,10 +30,7 @@ function path(points: readonly DesignPoint[]): DesignPoint[] {
   return points.map(([x, y]) => [round(x), round(y)] as DesignPoint);
 }
 
-function samplePolar(
-  segments: number,
-  fn: (t: number) => DesignPoint,
-): DesignPoint[] {
+function samplePolar(segments: number, fn: (t: number) => DesignPoint): DesignPoint[] {
   return path(Array.from({ length: segments }, (_, i) => fn(i / segments)));
 }
 
@@ -150,7 +147,7 @@ function starPath(points: number, outer: number, inner: number, rotationDeg = -9
   const out: DesignPoint[] = [];
   for (let i = 0; i < points * 2; i++) {
     const r = i % 2 === 0 ? outer : inner;
-    const a = ((rotationDeg * Math.PI) / 180) + (i / (points * 2)) * TAU;
+    const a = (rotationDeg * Math.PI) / 180 + (i / (points * 2)) * TAU;
     out.push([Math.cos(a) * r, Math.sin(a) * r]);
   }
   return path(out);

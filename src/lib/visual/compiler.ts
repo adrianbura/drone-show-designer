@@ -57,10 +57,7 @@ interface LocalPoint {
   readonly color: RGB;
 }
 
-function primitiveColor(
-  primitive: VisualPrimitive,
-  design: VisualFormationDesign,
-): RGB {
+function primitiveColor(primitive: VisualPrimitive, design: VisualFormationDesign): RGB {
   if (primitive.color) return primitive.color;
   const part = design.semanticParts.find((p) => p.id === primitive.part);
   return part?.color ?? DEFAULT_COLOR;
