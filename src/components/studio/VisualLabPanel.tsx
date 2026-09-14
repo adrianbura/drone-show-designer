@@ -101,6 +101,12 @@ export default function VisualLabPanel() {
   const library = useLibrary();
 
   const [designId, setDesignId] = useState(BUILT_IN_DESIGNS[0]!.id);
+  const [search, setSearch] = useState("");
+  // Browsing only: filtering the catalogue never touches the compiled design.
+  const groups = useMemo(
+    () => groupDesignsByCategory(BUILT_IN_DESIGNS.filter((d) => matchesDesignSearch(d, search))),
+    [search],
+  );
   // Default to the project fleet: a bigger asset than the fleet cannot be used
   // in the show at all, which made "Use in show" silently unavailable.
   const [count, setCount] = useState(project.droneCount);
