@@ -107,12 +107,7 @@ export function quatSlerp(a: Quat, b: Quat, u: number): Quat {
     dot = -dot;
   }
   if (dot > 0.9995) {
-    const q: Quat = [
-      lerp(a[0], bx, u),
-      lerp(a[1], by, u),
-      lerp(a[2], bz, u),
-      lerp(a[3], bw, u),
-    ];
+    const q: Quat = [lerp(a[0], bx, u), lerp(a[1], by, u), lerp(a[2], bz, u), lerp(a[3], bw, u)];
     return quatNormalize(q);
   }
   const theta0 = Math.acos(Math.min(1, Math.max(-1, dot)));

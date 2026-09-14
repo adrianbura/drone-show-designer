@@ -692,4 +692,3 @@ export const FIGURE_DESIGNS: readonly VisualFormationDesign[] = [
   RING_FIGURE,
   MERMAID_FIGURE,
 ];
-
