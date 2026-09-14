@@ -100,3 +100,25 @@ export function dynamicFromCompiled(
   }
   return next;
 }
+
+/** The group point closest to the formation pivot — a natural hinge. */
+function attachmentPoint(
+  formation: DynamicFormation,
+  indices: readonly number[],
+): [number, number, number] | null {
+  const ids = new Set(indices.map((i) => pointId(i)));
+  let best: [number, number, number] | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const point of formation.points) {
+    if (!ids.has(point.id)) continue;
+    const dx = point.base[0] - formation.pivot[0];
+    const dy = point.base[1] - formation.pivot[1];
+    const dz = point.base[2] - formation.pivot[2];
+    const distance = dx * dx + dy * dy + dz * dz;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = [point.base[0], point.base[1], point.base[2]];
+    }
+  }
+  return best;
+}
