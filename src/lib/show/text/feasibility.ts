@@ -48,7 +48,10 @@ export interface TextFeasibilityReport {
   readonly note: string;
 }
 
-function minPairSeparation(points: readonly Vec3[], limit: number): {
+function minPairSeparation(
+  points: readonly Vec3[],
+  limit: number,
+): {
   min: number;
   pairs: number;
   offenders: number;

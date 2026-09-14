@@ -25,6 +25,8 @@ import {
   type GeometryTrajectoryConsequenceReport,
 } from "@/lib/show/diagnostics";
 import {
+  DEFAULT_GLYPH_PACK_ID,
+  GLYPH_PACKS,
   makeTextRecipe,
   type TextAlignment,
   type TextStyle,
@@ -230,6 +232,8 @@ export default function TextFormationPanel() {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("TEXT");
   const [weight, setWeight] = useState<TextWeight>("REGULAR");
+  /** Geometry source: bundled studio strokes or a real-typeface outline pack. */
+  const [glyphPackId, setGlyphPackId] = useState<string>(DEFAULT_GLYPH_PACK_ID);
   const [style, setStyle] = useState<TextStyle>("UPRIGHT");
   const [widthMeters, setWidthMeters] = useState(90);
   const [heightMeters, setHeightMeters] = useState(24);
@@ -279,11 +283,13 @@ export default function TextFormationPanel() {
         outlineRatio,
         bandOffsetEm,
         seed,
+        glyphPackId,
       }),
     [
       alignment,
       bandOffsetEm,
       centerAltitudeMeters,
+      glyphPackId,
       heightMeters,
       letterSpacingEm,
       outlineRatio,
@@ -535,6 +541,22 @@ export default function TextFormationPanel() {
               className="studio-input font-mono"
               data-testid="text-input"
             />
+          </label>
+
+          <label className="flex flex-col gap-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+            typeface (letter shapes)
+            <select
+              value={glyphPackId}
+              onChange={(e) => setGlyphPackId(e.target.value)}
+              className="studio-input"
+              data-testid="text-typeface"
+            >
+              {GLYPH_PACKS.map((pack) => (
+                <option key={pack.id} value={pack.id}>
+                  {pack.label}
+                </option>
+              ))}
+            </select>
           </label>
 
           <p className="font-mono text-[10px] text-muted-foreground" data-testid="text-glyph-pack">
