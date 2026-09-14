@@ -30,7 +30,13 @@ export function pointId(index: number): string {
 }
 
 export function neutralTransformKeyframe(t: number): TransformKeyframe {
-  return { t, translation: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1], interpolation: "smooth" };
+  return {
+    t,
+    translation: [0, 0, 0],
+    rotation: [0, 0, 0],
+    scale: [1, 1, 1],
+    interpolation: "smooth",
+  };
 }
 
 export function neutralGroupKeyframe(t: number): GroupDeformationKeyframe {
@@ -137,7 +143,10 @@ export function upsertTransformKeyframe(
 
 export function removeTransformKeyframe(formation: DynamicFormation, t: number): DynamicFormation {
   const remaining = formation.transform.filter((k) => !near(k.t, t));
-  return { ...formation, transform: remaining.length > 0 ? remaining : [neutralTransformKeyframe(0)] };
+  return {
+    ...formation,
+    transform: remaining.length > 0 ? remaining : [neutralTransformKeyframe(0)],
+  };
 }
 
 export function upsertGroupKeyframe(
@@ -194,8 +203,7 @@ export function splitLeftRight(formation: DynamicFormation): {
   const right: string[] = [];
   const centre: string[] = [];
   const x0 = formation.pivot[0];
-  const spanX =
-    Math.max(...formation.points.map((p) => Math.abs(p.base[0] - x0)), 1) * 0.12;
+  const spanX = Math.max(...formation.points.map((p) => Math.abs(p.base[0] - x0)), 1) * 0.12;
   for (const p of formation.points) {
     const d = p.base[0] - x0;
     if (d < -spanX) left.push(p.id);

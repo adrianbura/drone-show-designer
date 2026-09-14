@@ -550,6 +550,135 @@ export const RING_FIGURE = figure({
   ],
 });
 
+/* -------------------------------------------------------------- mermaid */
+
+const MERMAID_TORSO = path([
+  [-0.2, 0.44],
+  [-0.27, 0.28],
+  [-0.25, 0.1],
+  [-0.14, -0.03],
+  [0.03, -0.07],
+  [0.11, 0.06],
+  [0.09, 0.23],
+  [0.02, 0.39],
+  [-0.07, 0.45],
+]);
+
+const MERMAID_ARM = path([
+  [-0.24, 0.32],
+  [-0.4, 0.17],
+  [-0.53, 0.03],
+  [-0.44, -0.05],
+]);
+
+const MERMAID_TAIL_UPPER = path([
+  [0.03, -0.01],
+  [0.18, -0.1],
+  [0.34, -0.22],
+  [0.46, -0.38],
+  [0.56, -0.52],
+]);
+
+const MERMAID_TAIL_LOWER = path([
+  [0.0, -0.11],
+  [0.14, -0.22],
+  [0.28, -0.34],
+  [0.4, -0.48],
+  [0.5, -0.62],
+]);
+
+const MERMAID_FIN = path([
+  [0.56, -0.52],
+  [0.74, -0.36],
+  [0.66, -0.56],
+  [0.8, -0.66],
+  [0.58, -0.66],
+  [0.5, -0.62],
+]);
+
+/**
+ * Free-hand mermaid silhouette authored from scratch in design space: head,
+ * torso, one resting arm and a long tail whose fin sits at the far end. The
+ * TAIL part is declared animatable with SWAY_Z, so the dynamic bridge turns it
+ * into a tail-wag motion group while the body stays still.
+ */
+export const MERMAID_FIGURE = figure({
+  id: "figure-mermaid",
+  name: "Mermaid",
+  tags: ["mermaid", "sea", "figure", "tail", "fantasy"],
+  notes: "Original mermaid silhouette. The tail is a motion group (tail wag).",
+  symmetry: "NONE",
+  defaultPointCount: 180,
+  parts: [
+    { id: "HEAD", priority: 1, color: [190, 220, 255] },
+    { id: "BODY", priority: 1, color: [225, 235, 255] },
+    { id: "ARM", priority: 0.85, color: [210, 225, 255] },
+    {
+      id: "TAIL",
+      priority: 0.95,
+      color: [120, 180, 255],
+      animatable: true,
+      motion: "SWAY_Z",
+    },
+  ],
+  primitives: [
+    {
+      id: "mermaid-head",
+      type: "CLOSED_CONTOUR",
+      part: "HEAD",
+      priority: 1,
+      essential: true,
+      minPoints: 10,
+      path: circlePath([-0.08, 0.58], 0.13, 24),
+    },
+    {
+      id: "mermaid-torso",
+      type: "CLOSED_CONTOUR",
+      part: "BODY",
+      priority: 1,
+      essential: true,
+      minPoints: 18,
+      path: MERMAID_TORSO,
+    },
+    {
+      id: "mermaid-arm",
+      type: "POLYLINE",
+      part: "ARM",
+      priority: 0.85,
+      essential: true,
+      minPoints: 8,
+      path: MERMAID_ARM,
+    },
+    {
+      id: "mermaid-tail-upper",
+      type: "POLYLINE",
+      part: "TAIL",
+      priority: 0.95,
+      essential: true,
+      minPoints: 10,
+      path: MERMAID_TAIL_UPPER,
+    },
+    {
+      id: "mermaid-tail-lower",
+      type: "POLYLINE",
+      part: "TAIL",
+      priority: 0.9,
+      essential: true,
+      minPoints: 10,
+      path: MERMAID_TAIL_LOWER,
+    },
+    {
+      id: "mermaid-fin",
+      type: "CLOSED_CONTOUR",
+      part: "TAIL",
+      priority: 0.9,
+      essential: true,
+      minPoints: 10,
+      path: MERMAID_FIN,
+    },
+  ],
+});
+
 export const FIGURE_DESIGNS: readonly VisualFormationDesign[] = [
   HEART_FIGURE,
   STAR_FIGURE,
@@ -561,4 +690,5 @@ export const FIGURE_DESIGNS: readonly VisualFormationDesign[] = [
   ARROW_FIGURE,
   SPIRAL_FIGURE,
   RING_FIGURE,
+  MERMAID_FIGURE,
 ];

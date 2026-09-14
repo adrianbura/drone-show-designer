@@ -156,10 +156,7 @@ export interface DynamicFormationReport {
 }
 
 export type DynamicErrorCode =
-  | "INVALID_DYNAMIC_FORMATION"
-  | "INVALID_LOCAL_TIME"
-  | "UNKNOWN_GROUP"
-  | "UNKNOWN_POINT";
+  "INVALID_DYNAMIC_FORMATION" | "INVALID_LOCAL_TIME" | "UNKNOWN_GROUP" | "UNKNOWN_POINT";
 
 /** Structured failure — dynamic sampling never silently returns wrong counts. */
 export class DynamicFormationError extends Error {

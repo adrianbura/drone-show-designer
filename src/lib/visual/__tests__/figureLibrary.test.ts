@@ -13,7 +13,10 @@ import {
   groupDesignsByCategory,
   matchesDesignSearch,
   validateDesign,
+  animatableParts,
+  dynamicFromCompiled,
 } from "@/lib/visual";
+import { sampleDynamicFormation } from "@/lib/show/dynamic";
 
 describe("figure library", () => {
   it("ships a browsable set of valid figures with unique ids", () => {
@@ -58,5 +61,40 @@ describe("figure library", () => {
     expect(flat.length).toBe(BUILT_IN_DESIGNS.length);
     expect(new Set(flat.map((d) => d.id)).size).toBe(BUILT_IN_DESIGNS.length);
     expect(groupDesignsByCategory([])).toEqual([]);
+  });
+});
+
+describe("mermaid figure", () => {
+  it("declares an animatable tail that becomes a swaying motion group", () => {
+    const design = findBuiltInDesign("figure-mermaid")!;
+    expect(validateDesign(design)).toEqual([]);
+    const compiled = compileVisualFormation(design, 180, { width: 100, altitude: 60 });
+    expect(compiled.points.length).toBe(180);
+    expect(animatableParts(design, compiled).map((p) => p.id)).toEqual(["TAIL"]);
+
+    const formation = {
+      id: "f-mermaid",
+      name: "Mermaid",
+      kind: "custom" as const,
+      points: compiled.points.map((p) => [...p] as [number, number, number]),
+      params: {},
+    };
+    const dynamic = dynamicFromCompiled(formation, design, compiled, { id: "dyn-mermaid" });
+    const tail = dynamic.groups.find((g) => g.id === "mg-tail")!;
+    expect(tail.pointIds.length).toBe(compiled.partIndices["TAIL"]!.length);
+    expect(tail.loop).toBe("PING_PONG");
+    expect(tail.keyframes[0]!.rotation[2]).toBeCloseTo(-16, 5);
+    expect(tail.keyframes[1]!.rotation[2]).toBeCloseTo(16, 5);
+    expect(tail.pivot).toBeDefined();
+
+    // The body never moves: only tail points differ between two phases.
+    const a = sampleDynamicFormation(dynamic, 0);
+    const b = sampleDynamicFormation(dynamic, dynamic.duration / 2);
+    const tailIndices = new Set(compiled.partIndices["TAIL"]!);
+    for (let i = 0; i < a.length; i++) {
+      if (tailIndices.has(i)) continue;
+      expect(a[i]).toEqual(b[i]);
+    }
+    expect(a).not.toEqual(b);
   });
 });
