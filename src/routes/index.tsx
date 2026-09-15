@@ -143,6 +143,8 @@ function StudioPage() {
  */
 function StudioWorkspace() {
   const { documentOpen } = useStudio();
+  const inspectorStacked = useInspectorStacked();
+  const leftPanelStacked = useLeftPanelStacked();
   if (!documentOpen) return <NoShowOpen />;
   return (
     <>
