@@ -8,7 +8,11 @@ import LeftPanel from "@/components/studio/LeftPanel";
 import Timeline from "@/components/studio/Timeline";
 import TopBar from "@/components/studio/TopBar";
 import NoShowOpen from "@/components/studio/NoShowOpen";
-import { useInspectorStacked, useLeftPanelStacked } from "@/hooks/useNarrowWorkspace";
+import {
+  useInspectorStacked,
+  useLeftPanelStacked,
+  workspaceMountPlan,
+} from "@/hooks/useNarrowWorkspace";
 import { I18nProvider } from "@/i18n";
 import { LibraryProvider } from "@/lib/library/provider";
 import { StudioProvider, useStudio } from "@/lib/studio/store";
@@ -142,13 +146,16 @@ function StudioWorkspace() {
   const { documentOpen } = useStudio();
   const inspectorStacked = useInspectorStacked();
   const leftPanelStacked = useLeftPanelStacked();
+  const mounts = workspaceMountPlan(inspectorStacked, leftPanelStacked);
   if (!documentOpen) return <NoShowOpen />;
   return (
     <>
       <div className="flex min-h-[200px] flex-1">
-        <aside className="hidden w-[300px] shrink-0 overflow-y-auto border-r border-border bg-panel lg:block">
-          <LeftPanel />
-        </aside>
+        {mounts.dockedLeftPanel && (
+          <aside className="w-[300px] shrink-0 overflow-y-auto border-r border-border bg-panel">
+            <LeftPanel />
+          </aside>
+        )}
         <div className="relative min-h-[200px] min-w-0 flex-1 bg-surface-sunken">
           <ClientOnly fallback={<ViewportFallback />}>
             <Suspense fallback={<ViewportFallback />}>
@@ -159,10 +166,12 @@ function StudioWorkspace() {
             show frame · metres · +Y up
           </div>
         </div>
-        <aside className="hidden w-[320px] shrink-0 overflow-y-auto border-l border-border bg-panel xl:block">
-          {/* Highest-priority focus host: whenever this aside is visible it wins. */}
-          <Inspector focusHost focusHostPriority={20} />
-        </aside>
+        {mounts.dockedInspector && (
+          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-border bg-panel">
+            {/* Highest-priority focus host: whenever this aside is visible it wins. */}
+            <Inspector focusHost focusHostPriority={20} />
+          </aside>
+        )}
       </div>
       <TimelineDock />
       {/*
@@ -177,9 +186,9 @@ function StudioWorkspace() {
           wide-window session does not pay for a second hidden copy of every
           panel while 150+ drones are playing.
         */}
-      {inspectorStacked && (
+      {mounts.stackedInspector && (
         <div className="min-h-0 flex-1 overflow-y-auto border-t border-border">
-          {leftPanelStacked && <LeftPanel />}
+          {mounts.stackedLeftPanel && <LeftPanel />}
           <Inspector />
         </div>
       )}

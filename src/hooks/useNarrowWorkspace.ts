@@ -28,3 +28,17 @@ export function useInspectorStacked(): boolean {
 export function useLeftPanelStacked(): boolean {
   return useUnder(LG_BREAKPOINT);
 }
+
+/**
+ * A workspace surface must have exactly one mounted presentation. CSS-only
+ * hiding is insufficient because hidden React trees still run effects and
+ * still create duplicate DOM ids.
+ */
+export function workspaceMountPlan(inspectorStacked: boolean, leftPanelStacked: boolean) {
+  return {
+    dockedInspector: !inspectorStacked,
+    stackedInspector: inspectorStacked,
+    dockedLeftPanel: !leftPanelStacked,
+    stackedLeftPanel: leftPanelStacked,
+  } as const;
+}

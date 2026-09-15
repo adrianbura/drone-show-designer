@@ -129,6 +129,8 @@ export default function LeftPanel() {
     audioAttached,
     audioBusy,
     audioError,
+    referenceShow,
+    referencePlayback,
   } = useStudio();
   const [text, setText] = useState("SHOW");
   // ONE ZONE AT A TIME. The left column used to stack every authoring panel in
@@ -166,25 +168,45 @@ export default function LeftPanel() {
               className="studio-input"
               aria-label="Show name"
             />
-            <Field
-              label="Fleet size"
-              value={project.droneCount}
-              onChange={setDroneCount}
-              min={3}
-              max={500}
-            />
-            <div className="flex flex-wrap gap-1.5">
-              {FLEET_PRESETS.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setDroneCount(n)}
-                  className={project.droneCount === n ? "chip-btn chip-btn-active" : "chip-btn"}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
+            {referencePlayback && referenceShow ? (
+              <div
+                className="space-y-1.5 rounded border border-warning/40 bg-warning/5 p-2"
+                data-testid="left-panel-imported-fleet"
+              >
+                <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                  Imported ESSP fleet
+                </p>
+                <p className="font-mono text-sm text-foreground">
+                  {referenceShow.drones.length} drones
+                </p>
+                <p className="text-[10px] leading-relaxed text-muted-foreground">
+                  Reference playback owns the visible fleet. The authored project remains at{" "}
+                  {project.droneCount} drones until the reference is extracted.
+                </p>
+              </div>
+            ) : (
+              <>
+                <Field
+                  label="Fleet size"
+                  value={project.droneCount}
+                  onChange={setDroneCount}
+                  min={3}
+                  max={500}
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {FLEET_PRESETS.map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setDroneCount(n)}
+                      className={project.droneCount === n ? "chip-btn chip-btn-active" : "chip-btn"}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
             <div className="grid grid-cols-1 gap-3">
               <Field
                 label="Width"

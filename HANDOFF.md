@@ -77,20 +77,29 @@ Verificări: **~1332 teste trecute, 1 skipped**; typecheck, lint și production 
 GATA între timp (nu se mai reface): traseu ghidat „Show setup”, decolare/aterizare automate,
 blocarea exportului la breșă de perimetru GPS (cu test de regresie), text cu font real
 (pack Archivo), bibliotecă de 10 figuri + sirena cu coadă animată, raport de validare PDF
-descărcabil din panoul Show readiness.
+descărcabil din panoul Show readiness. Refactorul de prezentare pentru importul ESSP real este
+închis: TopBar, Timeline și panoul Show afișează aceeași flotă de referință, iar suprafețele
+responsive Inspector/LeftPanel au exact o singură instanță montată. Există regresie DOM cu
+150 de drone și teste pure pentru exclusivitatea montării.
+
+Ultima verificare locală (15 sep 2026): **157 fișiere Vitest trecute, 1380 teste trecute,
+1 skipped**; typecheck, lint pe fișierele atinse și production build curate. Lint-ul global
+rămâne datorie separată, dominată de abateri Prettier istorice.
 
 Rămas, în ordinea de lucru:
 
-1. **Muzică sincronizată real** — `detectBeats` în `src/lib/show/audio.ts` (energie
+1. **Previzualizare de prezentare + probă de scară** — cer negru, glow, cameră din public;
+   măsurători explicite cu show-uri de 150 și 500 de drone.
+2. **Muzică sincronizată real** — `detectBeats` în `src/lib/show/audio.ts` (energie
    spectrală, client-side), grilă de bătăi în `Timeline.tsx`, snapping opțional.
-2. **Copy/paste + șabloane de show** — comenzi noi în `store.tsx` (o intrare de history
+3. **Copy/paste + șabloane de show** — comenzi noi în `store.tsx` (o intrare de history
    per operație) + `src/lib/studio/showTemplates.ts`.
-3. **Export `.skyc`** — `src/lib/adapters/skyc.ts` după specificația publică Skybrush;
+4. **Export `.skyc`** — `src/lib/adapters/skyc.ts` după specificația publică Skybrush;
    adaptorul rămâne `planned` în registru până trec testele de conformitate.
-4. **Efecte de lumină avansate** peste preseturile existente.
-5. **Imagine → figură mai puternic** (contur vs. umplere, diagnostic de separare).
-6. **Previzualizare de prezentare** (cer negru, glow, cameră lentă) pentru aprobarea clientului.
-7. **Curățenie**: împărțirea `store.tsx` pe felii, teste Playwright pe timeline/gizmo/viewport.
+5. **Efecte de lumină avansate** peste preseturile existente.
+6. **Imagine → figură mai puternic** (contur vs. umplere, diagnostic de separare).
+7. **Curățenie**: împărțirea `store.tsx` pe felii, lint global, CI și teste Playwright pe
+   timeline/gizmo/viewport.
 
 ## 6. Limitări cunoscute, de comunicat onest
 
