@@ -172,13 +172,18 @@ function StudioWorkspace() {
           manual scrolling (and the left panel below lg). It is deliberately NOT
           a focus host: command-driven reveals below xl open `InspectorDock`, so
           one command produces exactly one visible continuation.
+
+          MOUNTED, NOT JUST HIDDEN: gating on a media query instead of `xl:hidden`
+          keeps a single Inspector (and a single set of DOM ids) in the tree, so a
+          wide-window session does not pay for a second hidden copy of every
+          panel while 150+ drones are playing.
         */}
-        <div className="min-h-0 flex-1 overflow-y-auto border-t border-border xl:hidden">
-          <div className="lg:hidden">
-            <LeftPanel />
+        {inspectorStacked && (
+          <div className="min-h-0 flex-1 overflow-y-auto border-t border-border">
+            {leftPanelStacked && <LeftPanel />}
+            <Inspector />
           </div>
-          <Inspector />
-        </div>
+        )}
         <InspectorDock />
 
     </>
