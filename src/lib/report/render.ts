@@ -227,7 +227,7 @@ export function renderValidationReportPdf(doc: ValidationReportDocument): Uint8A
   layout.advance(8);
 
   for (const section of doc.sections) {
-    layout.need(LINE * 3);
+    layout.need(LINE * 6);
     layout.text(clampText(section.title, 11, CONTENT_WIDTH, true), MARGIN, 11, true);
     layout.advance(6);
     layout.op({

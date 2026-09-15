@@ -46,9 +46,44 @@ export const PAGE_HEIGHT = 841.89;
 const num = (v: number) => (Number.isFinite(v) ? Math.round(v * 100) / 100 : 0).toString();
 
 /** Latin-1 (WinAnsi) escaping. Characters outside the range degrade to "?". */
+/** WinAnsi code points for typographic characters outside Latin-1. */
+const WIN_ANSI_EXTRA: Record<string, number> = {
+  "\u2013": 150,
+  "\u2014": 151,
+  "\u2018": 145,
+  "\u2019": 146,
+  "\u201c": 147,
+  "\u201d": 148,
+  "\u2022": 149,
+  "\u2026": 133,
+  "\u2020": 134,
+  "\u2039": 139,
+  "\u203a": 155,
+  "\u20ac": 128,
+};
+
+/** Plain replacements for glyphs Helvetica/WinAnsi cannot show at all. */
+const ASCII_FALLBACK: Record<string, string> = {
+  "\u2192": "->",
+  "\u2190": "<-",
+  "\u2264": "<=",
+  "\u2265": ">=",
+  "\u2248": "~",
+};
+
 export function escapePdfText(text: string): string {
   let out = "";
   for (const ch of text) {
+    const fallback = ASCII_FALLBACK[ch];
+    if (fallback !== undefined) {
+      out += fallback;
+      continue;
+    }
+    const extra = WIN_ANSI_EXTRA[ch];
+    if (extra !== undefined) {
+      out += `\\${extra.toString(8).padStart(3, "0")}`;
+      continue;
+    }
     const code = ch.codePointAt(0) ?? 63;
     if (ch === "(" || ch === ")" || ch === "\\") out += `\\${ch}`;
     else if (code >= 32 && code <= 126) out += ch;
