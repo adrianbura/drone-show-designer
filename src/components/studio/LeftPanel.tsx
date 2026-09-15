@@ -125,9 +125,31 @@ export default function LeftPanel() {
     audioError,
   } = useStudio();
   const [text, setText] = useState("SHOW");
+  // ONE ZONE AT A TIME. The left column used to stack every authoring panel in
+  // a single scroll, so the screen showed 25 cards at once and nothing led the
+  // eye. "Show" holds the fixed facts of the event, "Create" holds the tools
+  // that make pictures. Verify & deliver lives in the Inspector.
+  const [zone, setZone] = useState<LeftZone>("SHOW");
 
   return (
     <div className="flex h-full flex-col gap-5 overflow-y-auto p-4">
+      <nav className="flex gap-1" aria-label="Left panel zones" data-testid="left-zone-tabs">
+        {ZONES.map((z) => (
+          <button
+            key={z.id}
+            type="button"
+            onClick={() => setZone(z.id)}
+            aria-pressed={zone === z.id}
+            data-testid={`left-zone-${z.id}`}
+            className={`chip-btn flex-1 justify-center ${zone === z.id ? "chip-btn-active" : ""}`}
+          >
+            {z.label}
+          </button>
+        ))}
+      </nav>
+
+      {zone === "SHOW" && (
+        <>
       <section className="panel-card">
         <h2 className="panel-title">
           <Boxes className="size-3.5" /> Project
@@ -189,6 +211,16 @@ export default function LeftPanel() {
         </div>
       </section>
 
+      <section className="panel-card">
+        <LibraryPanel />
+      </section>
+
+      <MusicSection />
+        </>
+      )}
+
+      {zone === "CREATE" && (
+        <>
       <section className="panel-card">
         <h2 className="panel-title">
           <Layers className="size-3.5" /> Formation library
