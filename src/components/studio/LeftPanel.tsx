@@ -108,6 +108,12 @@ function Field({
 
 const FLEET_PRESETS = [24, 48, 100, 200, 300, 500];
 
+type LeftZone = "SHOW" | "CREATE";
+
+const ZONES: { id: LeftZone; label: string }[] = [
+  { id: "SHOW", label: "Show" },
+  { id: "CREATE", label: "Create" },
+];
 
 export default function LeftPanel() {
   const {
@@ -125,189 +131,227 @@ export default function LeftPanel() {
     audioError,
   } = useStudio();
   const [text, setText] = useState("SHOW");
+  // ONE ZONE AT A TIME. The left column used to stack every authoring panel in
+  // a single scroll, so the screen showed 25 cards at once and nothing led the
+  // eye. "Show" holds the fixed facts of the event, "Create" holds the tools
+  // that make pictures. Verify & deliver lives in the Inspector.
+  const [zone, setZone] = useState<LeftZone>("SHOW");
 
   return (
     <div className="flex h-full flex-col gap-5 overflow-y-auto p-4">
-      <section className="panel-card">
-        <h2 className="panel-title">
-          <Boxes className="size-3.5" /> Project
-        </h2>
-        <input
-          value={project.name}
-          onChange={(e) => patchProject({ name: e.target.value })}
-          className="studio-input"
-          aria-label="Show name"
-        />
-        <Field
-          label="Fleet size"
-          value={project.droneCount}
-          onChange={setDroneCount}
-          min={3}
-          max={500}
-        />
-        <div className="flex flex-wrap gap-1.5">
-          {FLEET_PRESETS.map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => setDroneCount(n)}
-              className={project.droneCount === n ? "chip-btn chip-btn-active" : "chip-btn"}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-        <div className="grid grid-cols-1 gap-3">
-
-          <Field
-            label="Width"
-            value={project.area.width}
-            onChange={(v) => patchProject({ area: { ...project.area, width: v } })}
-            min={20}
-            max={400}
-            step={10}
-            unit="m"
-          />
-          <Field
-            label="Depth"
-            value={project.area.depth}
-            onChange={(v) => patchProject({ area: { ...project.area, depth: v } })}
-            min={20}
-            max={400}
-            step={10}
-            unit="m"
-          />
-          <Field
-            label="Ceiling"
-            value={project.area.height}
-            onChange={(v) => patchProject({ area: { ...project.area, height: v } })}
-            min={20}
-            max={200}
-            step={5}
-            unit="m"
-          />
-        </div>
-      </section>
-
-      <section className="panel-card">
-        <h2 className="panel-title">
-          <Layers className="size-3.5" /> Formation library
-        </h2>
-        <div className="grid grid-cols-2 gap-2">
-          {KINDS.map(({ kind, label }) => (
-            <button key={kind} onClick={() => addFormation(kind)} className="chip-btn">
-              <Plus className="size-3" />
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2 pt-1">
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value.slice(0, 12))}
-            className="studio-input flex-1"
-            aria-label="Formation text"
-          />
-          <button onClick={() => addFormation("text", { text })} className="chip-btn shrink-0">
-            <Type className="size-3" /> Text
+      <nav className="flex gap-1" aria-label="Left panel zones" data-testid="left-zone-tabs">
+        {ZONES.map((z) => (
+          <button
+            key={z.id}
+            type="button"
+            onClick={() => setZone(z.id)}
+            aria-pressed={zone === z.id}
+            data-testid={`left-zone-${z.id}`}
+            className={`chip-btn flex-1 justify-center ${zone === z.id ? "chip-btn-active" : ""}`}
+          >
+            {z.label}
           </button>
-        </div>
-      </section>
+        ))}
+      </nav>
 
-      <SvgImportPanel />
-
-      <VisualLabPanel />
-
-      <ImageDesignPanel />
-
-      <AiPanel />
-
-      <section className="panel-card flex-1">
-        <h2 className="panel-title">
-          <Layers className="size-3.5" /> Formations ({project.formations.length})
-        </h2>
-        <ul className="space-y-1.5">
-          {project.formations.map((f) => (
-            <li key={f.id} className="formation-row">
-              <div className="min-w-0">
-                <p className="truncate text-xs text-foreground">{f.name}</p>
-                <p className="font-mono text-[10px] text-muted-foreground">
-                  {f.kind} · {f.points.length} pts
-                </p>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => updateFormation(f.id, { altitude: Math.min(project.area.height, Number(f.params["altitude"] ?? 30) + 5) })}
-                  className="mini-btn"
-                  aria-label={`Raise ${f.name}`}
-                >
-                  +5m
-                </button>
-                <button onClick={() => addClip(f.id)} className="mini-btn mini-btn-accent">
-                  Add clip
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="panel-card">
-        <LibraryPanel />
-      </section>
-
-      <section className="panel-card">
-        <h2 className="panel-title">
-          <Music4 className="size-3.5" /> Music
-        </h2>
-        <p className="truncate font-mono text-[11px] text-muted-foreground">
-          {audioAttached ? project.audio.name : "No track attached"}
-        </p>
-        {/* The file is decoded locally; audio bytes are never uploaded or saved
-            into the project file, only its name, duration and tempo. */}
-        <label className="chip-btn cursor-pointer justify-center">
-          {audioBusy ? "Reading…" : audioAttached ? "Replace audio" : "Attach audio"}
-          <input
-            type="file"
-            accept="audio/*"
-            className="hidden"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              if (!file) return;
-              await attachAudioFile(file);
-            }}
-          />
-        </label>
-        {audioError && <p className="text-[11px] text-destructive">{audioError}</p>}
-        {audioAttached && (
-          <>
-            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-              {project.audio.duration.toFixed(2)} s
-            </p>
-            <Field
-              label="Audio offset"
-              value={project.audio.offset}
-              onChange={setAudioOffset}
-              min={-60}
-              max={600}
-              step={0.1}
-              unit=" s"
+      {zone === "SHOW" && (
+        <>
+          <section className="panel-card">
+            <h2 className="panel-title">
+              <Boxes className="size-3.5" /> Project
+            </h2>
+            <input
+              value={project.name}
+              onChange={(e) => patchProject({ name: e.target.value })}
+              className="studio-input"
+              aria-label="Show name"
             />
-            <button type="button" className="chip-btn w-full justify-center" onClick={detachAudioFile}>
-              Detach audio
-            </button>
-          </>
-        )}
-        <Field
-          label="Tempo"
-          value={project.audio.bpm}
-          onChange={(v) => patchProject({ audio: { ...project.audio, bpm: v } })}
-          min={60}
-          max={200}
-          unit=" bpm"
-        />
-      </section>
+            <Field
+              label="Fleet size"
+              value={project.droneCount}
+              onChange={setDroneCount}
+              min={3}
+              max={500}
+            />
+            <div className="flex flex-wrap gap-1.5">
+              {FLEET_PRESETS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setDroneCount(n)}
+                  className={project.droneCount === n ? "chip-btn chip-btn-active" : "chip-btn"}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              <Field
+                label="Width"
+                value={project.area.width}
+                onChange={(v) => patchProject({ area: { ...project.area, width: v } })}
+                min={20}
+                max={400}
+                step={10}
+                unit="m"
+              />
+              <Field
+                label="Depth"
+                value={project.area.depth}
+                onChange={(v) => patchProject({ area: { ...project.area, depth: v } })}
+                min={20}
+                max={400}
+                step={10}
+                unit="m"
+              />
+              <Field
+                label="Ceiling"
+                value={project.area.height}
+                onChange={(v) => patchProject({ area: { ...project.area, height: v } })}
+                min={20}
+                max={200}
+                step={5}
+                unit="m"
+              />
+            </div>
+          </section>
+
+          <section className="panel-card">
+            <LibraryPanel />
+          </section>
+
+          <section className="panel-card">
+            <h2 className="panel-title">
+              <Music4 className="size-3.5" /> Music
+            </h2>
+            <p className="truncate font-mono text-[11px] text-muted-foreground">
+              {audioAttached ? project.audio.name : "No track attached"}
+            </p>
+            {/* The file is decoded locally; audio bytes are never uploaded or saved
+            into the project file, only its name, duration and tempo. */}
+            <label className="chip-btn cursor-pointer justify-center">
+              {audioBusy ? "Reading…" : audioAttached ? "Replace audio" : "Attach audio"}
+              <input
+                type="file"
+                accept="audio/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  await attachAudioFile(file);
+                }}
+              />
+            </label>
+            {audioError && <p className="text-[11px] text-destructive">{audioError}</p>}
+            {audioAttached && (
+              <>
+                <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  {project.audio.duration.toFixed(2)} s
+                </p>
+                <Field
+                  label="Audio offset"
+                  value={project.audio.offset}
+                  onChange={setAudioOffset}
+                  min={-60}
+                  max={600}
+                  step={0.1}
+                  unit=" s"
+                />
+                <button
+                  type="button"
+                  className="chip-btn w-full justify-center"
+                  onClick={detachAudioFile}
+                >
+                  Detach audio
+                </button>
+              </>
+            )}
+            <Field
+              label="Tempo"
+              value={project.audio.bpm}
+              onChange={(v) => patchProject({ audio: { ...project.audio, bpm: v } })}
+              min={60}
+              max={200}
+              unit=" bpm"
+            />
+          </section>
+        </>
+      )}
+
+      {zone === "CREATE" && (
+        <>
+          <section className="panel-card">
+            <h2 className="panel-title">
+              <Layers className="size-3.5" /> Formation library
+            </h2>
+            <div className="grid grid-cols-2 gap-2">
+              {KINDS.map(({ kind, label }) => (
+                <button key={kind} onClick={() => addFormation(kind)} className="chip-btn">
+                  <Plus className="size-3" />
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 pt-1">
+              <input
+                value={text}
+                onChange={(e) => setText(e.target.value.slice(0, 12))}
+                className="studio-input flex-1"
+                aria-label="Formation text"
+              />
+              <button onClick={() => addFormation("text", { text })} className="chip-btn shrink-0">
+                <Type className="size-3" /> Text
+              </button>
+            </div>
+          </section>
+
+          <SvgImportPanel />
+
+          <VisualLabPanel />
+
+          <ImageDesignPanel />
+
+          <AiPanel />
+
+          <section className="panel-card flex-1">
+            <h2 className="panel-title">
+              <Layers className="size-3.5" /> Formations ({project.formations.length})
+            </h2>
+            <ul className="space-y-1.5">
+              {project.formations.map((f) => (
+                <li key={f.id} className="formation-row">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs text-foreground">{f.name}</p>
+                    <p className="font-mono text-[10px] text-muted-foreground">
+                      {f.kind} · {f.points.length} pts
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() =>
+                        updateFormation(f.id, {
+                          altitude: Math.min(
+                            project.area.height,
+                            Number(f.params["altitude"] ?? 30) + 5,
+                          ),
+                        })
+                      }
+                      className="mini-btn"
+                      aria-label={`Raise ${f.name}`}
+                    >
+                      +5m
+                    </button>
+                    <button onClick={() => addClip(f.id)} className="mini-btn mini-btn-accent">
+                      Add clip
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </>
+      )}
     </div>
   );
 }

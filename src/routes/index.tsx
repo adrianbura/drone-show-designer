@@ -8,6 +8,7 @@ import LeftPanel from "@/components/studio/LeftPanel";
 import Timeline from "@/components/studio/Timeline";
 import TopBar from "@/components/studio/TopBar";
 import NoShowOpen from "@/components/studio/NoShowOpen";
+import { useInspectorStacked, useLeftPanelStacked } from "@/hooks/useNarrowWorkspace";
 import { I18nProvider } from "@/i18n";
 import { LibraryProvider } from "@/lib/library/provider";
 import { StudioProvider, useStudio } from "@/lib/studio/store";
@@ -40,7 +41,6 @@ export const Route = createFileRoute("/")({
 const DOCK_MIN = 176;
 const VIEWPORT_MIN = 200;
 
-
 function TimelineDock() {
   const [desired, setDesired] = useState(DOCK_MIN);
   const [manual, setManual] = useState<number | null>(null);
@@ -59,9 +59,7 @@ function TimelineDock() {
     return Math.max(DOCK_MIN, Math.min(Math.round(h * 0.6), h - reserve));
   };
 
-
   const height = Math.min(Math.max(manual ?? desired, DOCK_MIN), maxHeight());
-
 
   // Re-clamp when the window (or preview pane) is resized.
   const [, bumpResize] = useState(0);
@@ -72,7 +70,6 @@ function TimelineDock() {
   }, []);
 
   useEffect(() => {
-
     const onMove = (e: PointerEvent) => {
       const drag = dragRef.current;
       if (!drag) return;
@@ -123,15 +120,15 @@ function ViewportFallback() {
 function StudioPage() {
   return (
     <I18nProvider>
-    <LibraryProvider>
-    <StudioProvider>
-      <main className="flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">
-        <h1 className="sr-only">Drone Show Studio — drone light show design and simulation</h1>
-        <TopBar />
-        <StudioWorkspace />
-      </main>
-    </StudioProvider>
-    </LibraryProvider>
+      <LibraryProvider>
+        <StudioProvider>
+          <main className="flex h-screen w-full flex-col overflow-hidden bg-background text-foreground">
+            <h1 className="sr-only">Drone Show Studio — drone light show design and simulation</h1>
+            <TopBar />
+            <StudioWorkspace />
+          </main>
+        </StudioProvider>
+      </LibraryProvider>
     </I18nProvider>
   );
 }
@@ -143,45 +140,50 @@ function StudioPage() {
  */
 function StudioWorkspace() {
   const { documentOpen } = useStudio();
+  const inspectorStacked = useInspectorStacked();
+  const leftPanelStacked = useLeftPanelStacked();
   if (!documentOpen) return <NoShowOpen />;
   return (
     <>
-        <div className="flex min-h-[200px] flex-1">
-          <aside className="hidden w-[300px] shrink-0 overflow-y-auto border-r border-border bg-panel lg:block">
-            <LeftPanel />
-          </aside>
-          <div className="relative min-h-[200px] min-w-0 flex-1 bg-surface-sunken">
-            <ClientOnly fallback={<ViewportFallback />}>
-              <Suspense fallback={<ViewportFallback />}>
-                <Viewport3D />
-              </Suspense>
-            </ClientOnly>
-            <div className="pointer-events-none absolute left-4 top-4 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              show frame · metres · +Y up
-            </div>
+      <div className="flex min-h-[200px] flex-1">
+        <aside className="hidden w-[300px] shrink-0 overflow-y-auto border-r border-border bg-panel lg:block">
+          <LeftPanel />
+        </aside>
+        <div className="relative min-h-[200px] min-w-0 flex-1 bg-surface-sunken">
+          <ClientOnly fallback={<ViewportFallback />}>
+            <Suspense fallback={<ViewportFallback />}>
+              <Viewport3D />
+            </Suspense>
+          </ClientOnly>
+          <div className="pointer-events-none absolute left-4 top-4 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            show frame · metres · +Y up
           </div>
-          <aside className="hidden w-[320px] shrink-0 overflow-y-auto border-l border-border bg-panel xl:block">
-            {/* Highest-priority focus host: whenever this aside is visible it wins. */}
-            <Inspector focusHost focusHostPriority={20} />
-          </aside>
         </div>
-        <TimelineDock />
-        {/*
+        <aside className="hidden w-[320px] shrink-0 overflow-y-auto border-l border-border bg-panel xl:block">
+          {/* Highest-priority focus host: whenever this aside is visible it wins. */}
+          <Inspector focusHost focusHostPriority={20} />
+        </aside>
+      </div>
+      <TimelineDock />
+      {/*
           NARROW-WINDOW MANUAL FALLBACK. Below xl the docked Inspector is not
           rendered visibly, so this stacked copy keeps every panel reachable by
           manual scrolling (and the left panel below lg). It is deliberately NOT
           a focus host: command-driven reveals below xl open `InspectorDock`, so
           one command produces exactly one visible continuation.
+
+          MOUNTED, NOT JUST HIDDEN: gating on a media query instead of `xl:hidden`
+          keeps a single Inspector (and a single set of DOM ids) in the tree, so a
+          wide-window session does not pay for a second hidden copy of every
+          panel while 150+ drones are playing.
         */}
-        <div className="min-h-0 flex-1 overflow-y-auto border-t border-border xl:hidden">
-          <div className="lg:hidden">
-            <LeftPanel />
-          </div>
+      {inspectorStacked && (
+        <div className="min-h-0 flex-1 overflow-y-auto border-t border-border">
+          {leftPanelStacked && <LeftPanel />}
           <Inspector />
         </div>
-        <InspectorDock />
-
+      )}
+      <InspectorDock />
     </>
-
   );
 }

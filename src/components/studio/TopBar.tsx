@@ -55,6 +55,8 @@ export default function TopBar() {
     restoreAutosave,
     dismissAutosave,
     referenceOwnership,
+    referenceShow,
+    referencePlayback,
   } = useStudio();
   const { t, language, setLanguage } = useI18n();
   const [wizard, setWizard] = useState<"CREATE" | "EDIT" | null>(null);
@@ -192,56 +194,74 @@ export default function TopBar() {
           {documentOpen ? project.name : t("project.noShowTitle")}
         </span>
         {documentOpen ? (
-        <>
-        <span
-          data-testid="project-file-state"
-          data-dirty={projectDirty ? "true" : "false"}
-          className={`metric-pill ${projectDirty || !projectSavedAt ? "status-review" : ""}`}
+          <>
+            <span
+              data-testid="project-file-state"
+              data-dirty={projectDirty ? "true" : "false"}
+              className={`metric-pill ${projectDirty || !projectSavedAt ? "status-review" : ""}`}
 
-          title={
-            projectAutosavedAt
-              ? t("project.autosaved", { time: shortTime(projectAutosavedAt) })
-              : undefined
-          }
-        >
-          {/* A project that was never written to a file is NOT "saved": a new show
+              title={
+                projectAutosavedAt
+                  ? t("project.autosaved", { time: shortTime(projectAutosavedAt) })
+                  : undefined
+              }
+            >
+              {/* A project that was never written to a file is NOT "saved": a new show
               or a loaded sample must never inherit the previous file's badge. */}
-          {projectDirty || !projectSavedAt
-            ? t("project.unsaved")
-            : `${t("project.saved")} ${shortTime(projectSavedAt)}`}
-        </span>
-        <span className="metric-pill">
-          <Radio className="size-3" /> {t("topBar.drones", { count: project.droneCount })}
-        </span>
-        <span className="metric-pill">{duration.toFixed(0)}s</span>
-        {/* SECONDARY: live authoring feedback. Deliberately quieter than the
+              {projectDirty || !projectSavedAt
+                ? t("project.unsaved")
+                : `${t("project.saved")} ${shortTime(projectSavedAt)}`}
+            </span>
+            {/* ONE TRUTH ABOUT THE FLEET. While an imported reference show owns
+            playback, the fleet count on screen is the imported one — the project
+            setting would contradict what the viewport is actually flying. */}
+            {referencePlayback && referenceShow ? (
+              <span
+                className="metric-pill status-review"
+                data-testid="topbar-drones-imported"
+                title={t("topBar.dronesImportedTitle", { project: project.droneCount })}
+              >
+                <Radio className="size-3" />{" "}
+                {t("topBar.dronesImported", { count: referenceShow.drones.length })}
+              </span>
+            ) : (
+              <span className="metric-pill" data-testid="topbar-drones">
+                <Radio className="size-3" /> {t("topBar.drones", { count: project.droneCount })}
+              </span>
+            )}
+            <span className="metric-pill">{duration.toFixed(0)}s</span>
+            {/* SECONDARY: live authoring feedback. Deliberately quieter than the
             dominant readiness pill so it can never read as export approval. */}
-        <span
-          className="hidden items-center gap-1 border-l border-border pl-2 text-muted-foreground lg:inline-flex"
-          title="Live authoring feedback while you edit — it does not authorize export."
-          data-testid="topbar-authoring-feedback"
-        >
-          <Activity className="size-3" /> {statusLabel}
-        </span>
-        {authority && (
-          <span className="metric-pill" title={authority.detail} data-testid="topbar-authority">
-            {authority.label}
-          </span>
-        )}
-        {fullShowBusy ? (
-          <span className="metric-pill">{t("topBar.validating")}</span>
-        ) : (
-          <span
-            className={`metric-pill status-${readiness.tone === "neutral" ? "review" : readiness.tone}`}
-            title={readiness.detail}
-            data-testid="topbar-readiness"
-          >
-            {readiness.readiness.replace(/_/g, " ")}
-          </span>
-        )}
-        </>
+            <span
+              className="hidden items-center gap-1 border-l border-border pl-2 text-muted-foreground lg:inline-flex"
+              title="Live authoring feedback while you edit — it does not authorize export."
+              data-testid="topbar-authoring-feedback"
+            >
+              <Activity className="size-3" /> {statusLabel}
+            </span>
+            {authority && (
+              <span className="metric-pill" title={authority.detail} data-testid="topbar-authority">
+                {authority.label}
+              </span>
+            )}
+            {fullShowBusy ? (
+              <span className="metric-pill">{t("topBar.validating")}</span>
+            ) : (
+              <span
+                className={`metric-pill status-${readiness.tone === "neutral" ? "review" : readiness.tone}`}
+                title={readiness.detail}
+                data-testid="topbar-readiness"
+              >
+                {readiness.readiness.replace(/_/g, " ")}
+              </span>
+            )}
+          </>
         ) : null}
-        <div className="flex overflow-hidden rounded border border-border" role="group" aria-label={t("common.language")}>
+        <div
+          className="flex overflow-hidden rounded border border-border"
+          role="group"
+          aria-label={t("common.language")}
+        >
           {LANGUAGES.map((lng: Language) => (
             <button
               key={lng}

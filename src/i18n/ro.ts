@@ -35,6 +35,9 @@ export const ro: Dictionary = {
 
   "topBar.build": "versiune internă · flotă virtuală",
   "topBar.drones": "{count} drone",
+  "topBar.dronesImported": "{count} drone · show importat",
+  "topBar.dronesImportedTitle":
+    "Numărul de drone vine din show-ul importat, nu din setarea proiectului ({project}).",
   "topBar.newShow": "Show nou",
   "topBar.showSetup": "Configurare show",
   "topBar.validating": "se validează…",
@@ -335,6 +338,8 @@ export const ro: Dictionary = {
   "visualLab.issue.EMPTY_DESIGN": "Designul nu are elemente active.",
   "visualLab.issue.SYMMETRY_ADJUSTED": "Alocarea a fost echilibrată pe {pairs} structuri oglindite.",
   "timeline.empty": "Cronologie goală — adaugă o formație sau aplică o propunere AI pentru a începe show-ul.",
+  "timeline.emptyReference":
+    "Se redă show-ul importat — {count} drone, {duration}. Folosește „Make editable” ca să-l transformi în clipuri editabile.",
   "timeline.snap": "Aliniere",
   "timeline.snapHint": "Ține Alt în timpul tragerii pentru a dezactiva alinierea.",
   "timeline.snap.OFF": "Fără aliniere",
