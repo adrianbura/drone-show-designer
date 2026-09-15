@@ -55,6 +55,8 @@ export default function TopBar() {
     restoreAutosave,
     dismissAutosave,
     referenceOwnership,
+    referenceShow,
+    referencePlayback,
   } = useStudio();
   const { t, language, setLanguage } = useI18n();
   const [wizard, setWizard] = useState<"CREATE" | "EDIT" | null>(null);
