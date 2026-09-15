@@ -33,6 +33,10 @@ export const en = {
 
   "topBar.build": "internal build · virtual fleet",
   "topBar.drones": "{count} drones",
+  "viewport.showMode": "Show view",
+  "viewport.technicalMode": "Technical view",
+  "viewport.showModeTitle":
+    "Audience view: black sky, LED glow, camera where the crowd stands. View only — the plan, safety checks and export are unchanged.",
   "topBar.dronesImported": "{count} drones · imported show",
   "topBar.dronesImportedTitle":
     "Fleet size shown by the imported reference show, not by the project setting ({project}).",

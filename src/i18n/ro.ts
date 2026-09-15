@@ -35,6 +35,10 @@ export const ro: Dictionary = {
 
   "topBar.build": "versiune internă · flotă virtuală",
   "topBar.drones": "{count} drone",
+  "viewport.showMode": "Vedere spectacol",
+  "viewport.technicalMode": "Vedere tehnică",
+  "viewport.showModeTitle":
+    "Vedere din public: cer negru, lumini strălucitoare, camera de unde stă publicul. Doar vedere — planul, verificările și exportul rămân neschimbate.",
   "topBar.dronesImported": "{count} drone · show importat",
   "topBar.dronesImportedTitle":
     "Numărul de drone vine din show-ul importat, nu din setarea proiectului ({project}).",
