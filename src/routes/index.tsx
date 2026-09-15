@@ -8,6 +8,7 @@ import LeftPanel from "@/components/studio/LeftPanel";
 import Timeline from "@/components/studio/Timeline";
 import TopBar from "@/components/studio/TopBar";
 import NoShowOpen from "@/components/studio/NoShowOpen";
+import { useInspectorStacked, useLeftPanelStacked } from "@/hooks/useNarrowWorkspace";
 import { I18nProvider } from "@/i18n";
 import { LibraryProvider } from "@/lib/library/provider";
 import { StudioProvider, useStudio } from "@/lib/studio/store";
