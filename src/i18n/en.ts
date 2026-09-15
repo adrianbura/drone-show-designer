@@ -33,6 +33,9 @@ export const en = {
 
   "topBar.build": "internal build · virtual fleet",
   "topBar.drones": "{count} drones",
+  "topBar.dronesImported": "{count} drones · imported show",
+  "topBar.dronesImportedTitle":
+    "Fleet size shown by the imported reference show, not by the project setting ({project}).",
   "topBar.newShow": "New show",
   "topBar.showSetup": "Show setup",
   "topBar.validating": "validating…",
@@ -328,6 +331,8 @@ export const en = {
   "visualLab.issue.EMPTY_DESIGN": "The design has no enabled elements.",
   "visualLab.issue.SYMMETRY_ADJUSTED": "Allocation was balanced across {pairs} mirrored structures.",
   "timeline.empty": "Empty timeline — add a formation or apply an AI proposal to start the show.",
+  "timeline.emptyReference":
+    "Playing the imported show — {count} drones, {duration}. Use “Make editable” to turn it into clips you can edit.",
   "timeline.snap": "Snap",
   "timeline.snapHint": "Hold Alt while dragging to bypass snapping.",
   "timeline.snap.OFF": "Snap off",
