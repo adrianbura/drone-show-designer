@@ -35,10 +35,6 @@ export const ro: Dictionary = {
 
   "topBar.build": "versiune internă · flotă virtuală",
   "topBar.drones": "{count} drone",
-  "viewport.showMode": "Vedere spectacol",
-  "viewport.technicalMode": "Vedere tehnică",
-  "viewport.showModeTitle":
-    "Vedere din public: cer negru, lumini strălucitoare, camera de unde stă publicul. Doar vedere — planul, verificările și exportul rămân neschimbate.",
   "topBar.dronesImported": "{count} drone · show importat",
   "topBar.dronesImportedTitle":
     "Numărul de drone vine din show-ul importat, nu din setarea proiectului ({project}).",
@@ -51,6 +47,12 @@ export const ro: Dictionary = {
   "topBar.statusNominal": "nominal",
   "topBar.statusReview": "de verificat",
   "topBar.statusUnsafe": "nesigur",
+
+  "viewport.presentationMode": "Prezentare",
+  "viewport.technicalMode": "Vedere tehnică",
+  "viewport.audienceCamera": "Camera publicului",
+  "viewport.estimatedCamera":
+    "Cameră demonstrativă estimată · setează publicul pentru vederea reală",
 
   "project.title": "Proiect",
   "project.showName": "Numele show-ului",
@@ -132,7 +134,8 @@ export const ro: Dictionary = {
     "Flota depășește intervalul recomandat de {recommended} de drone; performanța poate scădea.",
   "setup.issue.SPACING_TIGHT":
     "O distanță mai mică de 1,5 m între poziții este foarte strânsă pentru manipulare la sol.",
-  "setup.issue.UNUSED_PADS": "{unusedPads} celule din grilă rămân neutilizate (ultimul rând parțial).",
+  "setup.issue.UNUSED_PADS":
+    "{unusedPads} celule din grilă rămân neutilizate (ultimul rând parțial).",
   "setup.issue.STAGING_ALTITUDE": "Altitudinea de staging nu este deasupra altitudinii solului.",
 
   "formationLibrary.title": "Bibliotecă formații",
@@ -178,9 +181,9 @@ export const ro: Dictionary = {
   "formationLibrary.saveScene": "Salvează întreaga scenă a clipului selectat în bibliotecă",
   "formationLibrary.sceneMeta": "{objects} obiecte · {formations} formații · {dynamics} dinamice",
   "formationLibrary.sceneNoScene": "Selectează un clip cu o scenă creată pentru a o salva.",
-  "formationLibrary.sceneAddBlocked": "O scenă se inserează ca un clip întreg, nu ca un singur obiect.",
+  "formationLibrary.sceneAddBlocked":
+    "O scenă se inserează ca un clip întreg, nu ca un singur obiect.",
   "formationLibrary.esspDerived": "Extrasă dintr-un show importat",
-
 
   // ---- Scene simultane cu mai multe formatii (Sprint 7.3.5) ---------------
   "scene.title": "Obiecte in scena",
@@ -254,7 +257,8 @@ export const ro: Dictionary = {
   "project.close": "Închide",
   "project.saveAsPrompt": "Salvează show-ul sub un nume nou",
   "project.noShowTitle": "Niciun show deschis",
-  "project.noShowBody": "Creează un show nou, deschide un proiect salvat sau importă o arhivă ESSP.",
+  "project.noShowBody":
+    "Creează un show nou, deschide un proiect salvat sau importă o arhivă ESSP.",
   "project.saved": "salvat",
   "project.unsaved": "modificări nesalvate",
   "project.autosaved": "salvare automată {time}",
@@ -301,10 +305,12 @@ export const ro: Dictionary = {
   "ai.hold": "Menținere (s)",
   "ai.cycles": "Cicluri",
   "ai.cycleDuration": "Ciclu (s)",
-  "ai.assetOnly": "AI creează active vizuale. Tu le plasezi pe timeline și le sincronizezi cu muzica.",
+  "ai.assetOnly":
+    "AI creează active vizuale. Tu le plasezi pe timeline și le sincronizezi cu muzica.",
 
   "visualLab.title": "Laborator formații vizuale",
-  "visualLab.intro": "Compilează un design vizual în exact numărul de drone cerut, apoi salvează-l în biblioteca de formații.",
+  "visualLab.intro":
+    "Compilează un design vizual în exact numărul de drone cerut, apoi salvează-l în biblioteca de formații.",
   "visualLab.design": "Design",
   "visualLab.designSearch": "Caută forme și figuri",
   "visualLab.noDesignMatch": "Nicio figură nu corespunde căutării.",
@@ -333,15 +339,22 @@ export const ro: Dictionary = {
   "visualLab.primitives": "Primitive {used}/{total}",
   "visualLab.dropped": "detalii omise {count}",
   "visualLab.spacing": "distanță minimă {value} m",
-  "visualLab.savedHint": "Salvat în biblioteca de formații. Nu a fost adăugat pe timeline — îl plasezi tu.",
-  "visualLab.notSafety": "Doar diagnostice de design vizual. Validarea completă a show-ului rămâne autoritară.",
-  "visualLab.issue.DETAILS_OMITTED": "Au fost cerute doar {requested} drone; {count} detalii de prioritate joasă au fost omise.",
+  "visualLab.savedHint":
+    "Salvat în biblioteca de formații. Nu a fost adăugat pe timeline — îl plasezi tu.",
+  "visualLab.notSafety":
+    "Doar diagnostice de design vizual. Validarea completă a show-ului rămâne autoritară.",
+  "visualLab.issue.DETAILS_OMITTED":
+    "Au fost cerute doar {requested} drone; {count} detalii de prioritate joasă au fost omise.",
   "visualLab.issue.UNDER_RESOLVED": "Detaliul {primitiveId} este sub-rezolvat la {points} puncte.",
-  "visualLab.issue.SPACING_TIGHT": "Distanța dintre puncte {minSpacing} m este mai mică decât ținta designului {spacingTarget} m.",
-  "visualLab.issue.BUDGET_EXCEEDS_DESIGN": "Numărul de drone cerut depășește ce poate exprima acest design.",
+  "visualLab.issue.SPACING_TIGHT":
+    "Distanța dintre puncte {minSpacing} m este mai mică decât ținta designului {spacingTarget} m.",
+  "visualLab.issue.BUDGET_EXCEEDS_DESIGN":
+    "Numărul de drone cerut depășește ce poate exprima acest design.",
   "visualLab.issue.EMPTY_DESIGN": "Designul nu are elemente active.",
-  "visualLab.issue.SYMMETRY_ADJUSTED": "Alocarea a fost echilibrată pe {pairs} structuri oglindite.",
-  "timeline.empty": "Cronologie goală — adaugă o formație sau aplică o propunere AI pentru a începe show-ul.",
+  "visualLab.issue.SYMMETRY_ADJUSTED":
+    "Alocarea a fost echilibrată pe {pairs} structuri oglindite.",
+  "timeline.empty":
+    "Cronologie goală — adaugă o formație sau aplică o propunere AI pentru a începe show-ul.",
   "timeline.emptyReference":
     "Se redă show-ul importat — {count} drone, {duration}. Folosește „Make editable” ca să-l transformi în clipuri editabile.",
   "timeline.snap": "Aliniere",
@@ -382,9 +395,11 @@ export const ro: Dictionary = {
   "timeline.fitShort": "Încadr.",
   "timeline.scroll": "Derulează cronologia",
   "timeline.follow": "Urmărește cursorul",
-  "timeline.dragHint": "trage pentru mutare, marginile redimensionează tranziția și menținerea (Alt = fără aliniere, Esc = anulare)",
+  "timeline.dragHint":
+    "trage pentru mutare, marginile redimensionează tranziția și menținerea (Alt = fără aliniere, Esc = anulare)",
   "timeline.transitionHandle": "Redimensionează tranziția (momentul formației complete)",
-  "timeline.rippleHint": "Ripple: scenele următoare se deplasează — ține Ctrl/Cmd pentru redimensionare liberă",
+  "timeline.rippleHint":
+    "Ripple: scenele următoare se deplasează — ține Ctrl/Cmd pentru redimensionare liberă",
   "timeline.holdHandle": "Redimensionează menținerea (finalul clipului)",
   "timeline.rippleMode": "Ripple",
   "timeline.freeMode": "Redimensionare liberă · fără ripple",
@@ -394,8 +409,7 @@ export const ro: Dictionary = {
   "audio.volume": "Volum audio",
 
   "diagnostic.LOOP_DISCONTINUITY": "Animația are o discontinuitate la reluarea buclei.",
-  "diagnostic.SPACING":
-    "Punctele se apropie mai mult decât separarea minimă configurată.",
+  "diagnostic.SPACING": "Punctele se apropie mai mult decât separarea minimă configurată.",
   "diagnostic.SPEED": "Animația implică o viteză peste limita configurată.",
   "diagnostic.ALTITUDE": "Animația iese din banda de altitudine configurată.",
   "diagnostic.AREA": "Animația iese din zona show-ului.",
@@ -515,7 +529,8 @@ export const ro: Dictionary = {
   "ai.visual.refinePlaceholder": "aripi mai late, cap mai mare…",
   "ai.visual.meta": "model {model} · {context}",
   "image.title": "Imagine de referință",
-  "image.intro": "Analizează local o imagine într-un design vizual, apoi compilează-l în exact numărul de drone cerut. Nimic nu este încărcat pe internet.",
+  "image.intro":
+    "Analizează local o imagine într-un design vizual, apoi compilează-l în exact numărul de drone cerut. Nimic nu este încărcat pe internet.",
   "image.pick": "Alege imagine",
   "image.replace": "Înlocuiește imaginea",
   "image.clear": "Șterge",
@@ -537,8 +552,10 @@ export const ro: Dictionary = {
   "image.simplify": "Simplificare",
   "image.droneCount": "Număr drone",
   "image.saveToLibrary": "Salvează în biblioteca de formații",
-  "image.savedHint": "Salvat în biblioteca de formații ca activ importat. Nu a fost adăugat pe timeline.",
-  "image.noSemantics": "Doar structură: siluetă, componente și găuri. Fără recunoaștere semantică în această versiune.",
+  "image.savedHint":
+    "Salvat în biblioteca de formații ca activ importat. Nu a fost adăugat pe timeline.",
+  "image.noSemantics":
+    "Doar structură: siluetă, componente și găuri. Fără recunoaștere semantică în această versiune.",
   "image.diagnostics": "Diagnostice",
   "image.diag.components": "componente păstrate {kept}/{found}, eliminate {dropped}",
   "image.diag.holes": "găuri {kept}/{found}",
@@ -551,12 +568,15 @@ export const ro: Dictionary = {
   "image.error.DIMENSIONS_TOO_LARGE": "Imaginea depășește 8192 × 8192 pixeli.",
   "image.error.PIXELS_TOO_LARGE": "Imaginea are peste 40 de megapixeli.",
   "image.error.EMPTY_IMAGE": "Imaginea nu conține pixeli.",
-  "image.error.NO_STRUCTURE": "Nu s-a găsit structură utilizabilă. Încearcă alt mod de fundal sau o imagine cu contrast mai mare.",
+  "image.error.NO_STRUCTURE":
+    "Nu s-a găsit structură utilizabilă. Încearcă alt mod de fundal sau o imagine cu contrast mai mare.",
   "image.editor.title": "Editor de structură",
-  "image.editor.intro": "Corectează structura extrasă, iar previzualizarea dronelor se recompilează din designul editat.",
+  "image.editor.intro":
+    "Corectează structura extrasă, iar previzualizarea dronelor se recompilează din designul editat.",
   "image.editor.select": "Selectare",
   "image.editor.addLine": "Adaugă linie",
-  "image.editor.drawHint": "Clic pentru puncte, Enter sau dublu-clic pentru finalizare, Esc pentru anulare.",
+  "image.editor.drawHint":
+    "Clic pentru puncte, Enter sau dublu-clic pentru finalizare, Esc pentru anulare.",
   "image.editor.undo": "Anulează",
   "image.editor.redo": "Refă",
   "image.editor.reset": "Resetează structura",
@@ -576,5 +596,6 @@ export const ro: Dictionary = {
   "image.editor.statusDisabled": "Inactiv — ignorat de compilator, reversibil.",
   "image.editor.list": "Structuri",
   "image.editor.editedBadge": "editat ({ops} operații)",
-  "image.editor.resetOnControls": "Schimbarea detaliului, structurii, fundalului sau simplificării re-extrage structura și șterge editările manuale.",
+  "image.editor.resetOnControls":
+    "Schimbarea detaliului, structurii, fundalului sau simplificării re-extrage structura și șterge editările manuale.",
 };

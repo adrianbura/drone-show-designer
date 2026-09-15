@@ -14,6 +14,7 @@ export default function ReferenceSwarm({
   showPaths,
   selectedDroneId,
   activeDroneIds = [],
+  presentation = false,
 }: {
   show: ReferenceShow;
   time: number;
@@ -21,8 +22,10 @@ export default function ReferenceSwarm({
   selectedDroneId: string | null;
   /** Forensics: drones moving relative to the rigid formation body. */
   activeDroneIds?: string[];
+  presentation?: boolean;
 }) {
   const mesh = useRef<THREE.InstancedMesh>(null);
+  const glow = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
   const count = show.drones.length;
@@ -47,7 +50,8 @@ export default function ReferenceSwarm({
 
   useFrame(() => {
     const inst = mesh.current;
-    if (!inst) return;
+    const glowMesh = glow.current;
+    if (!inst || !glowMesh) return;
     const samples = sampleReferenceShow(show, time);
     samples.forEach((sample, i) => {
       dummy.position.set(sample.position[0], sample.position[1], sample.position[2]);
@@ -57,20 +61,46 @@ export default function ReferenceSwarm({
       dummy.scale.setScalar(selected ? 2.2 : active ? 1.8 : 1);
       dummy.updateMatrix();
       inst.setMatrixAt(i, dummy.matrix);
+      dummy.scale.multiplyScalar(presentation ? 4.8 : 2.4);
+      dummy.updateMatrix();
+      glowMesh.setMatrixAt(i, dummy.matrix);
       // Highlighting only changes the RENDERED colour; RGB data is untouched.
       if (active) color.setRGB(1, 0.75, 0.2);
       else color.setRGB(sample.color[0] / 255, sample.color[1] / 255, sample.color[2] / 255);
       inst.setColorAt(i, color);
+      glowMesh.setColorAt(i, color);
     });
     inst.instanceMatrix.needsUpdate = true;
+    glowMesh.instanceMatrix.needsUpdate = true;
     if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+    if (glowMesh.instanceColor) glowMesh.instanceColor.needsUpdate = true;
   });
 
   return (
     <group>
-      <instancedMesh key={`ref-${count}`} ref={mesh} args={[undefined, undefined, count]} frustumCulled={false}>
-        <sphereGeometry args={[0.55, 12, 12]} />
+      <instancedMesh
+        key={`ref-${count}`}
+        ref={mesh}
+        args={[undefined, undefined, count]}
+        frustumCulled={false}
+      >
+        <sphereGeometry args={[presentation ? 0.7 : 0.55, 12, 12]} />
         <meshBasicMaterial toneMapped={false} />
+      </instancedMesh>
+      <instancedMesh
+        key={`ref-glow-${count}`}
+        ref={glow}
+        args={[undefined, undefined, count]}
+        frustumCulled={false}
+      >
+        <sphereGeometry args={[0.55, 8, 8]} />
+        <meshBasicMaterial
+          transparent
+          opacity={presentation ? 0.24 : 0.1}
+          depthWrite={false}
+          toneMapped={false}
+          blending={presentation ? THREE.AdditiveBlending : THREE.NormalBlending}
+        />
       </instancedMesh>
       {pathGeometry ? (
         <lineSegments geometry={pathGeometry}>

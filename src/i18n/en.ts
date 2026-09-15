@@ -33,10 +33,6 @@ export const en = {
 
   "topBar.build": "internal build · virtual fleet",
   "topBar.drones": "{count} drones",
-  "viewport.showMode": "Show view",
-  "viewport.technicalMode": "Technical view",
-  "viewport.showModeTitle":
-    "Audience view: black sky, LED glow, camera where the crowd stands. View only — the plan, safety checks and export are unchanged.",
   "topBar.dronesImported": "{count} drones · imported show",
   "topBar.dronesImportedTitle":
     "Fleet size shown by the imported reference show, not by the project setting ({project}).",
@@ -49,6 +45,11 @@ export const en = {
   "topBar.statusNominal": "nominal",
   "topBar.statusReview": "review",
   "topBar.statusUnsafe": "unsafe",
+
+  "viewport.presentationMode": "Presentation",
+  "viewport.technicalMode": "Technical view",
+  "viewport.audienceCamera": "Audience camera",
+  "viewport.estimatedCamera": "Estimated showcase camera · set audience for true view",
 
   "project.title": "Project",
   "project.showName": "Show name",
@@ -172,7 +173,8 @@ export const en = {
   "formationLibrary.saveScene": "Save the whole scene of the selected clip to the library",
   "formationLibrary.sceneMeta": "{objects} objects · {formations} formations · {dynamics} dynamic",
   "formationLibrary.sceneNoScene": "Select a clip with an authored scene to save it.",
-  "formationLibrary.sceneAddBlocked": "A scene asset is inserted as a whole clip, not as one object.",
+  "formationLibrary.sceneAddBlocked":
+    "A scene asset is inserted as a whole clip, not as one object.",
   "formationLibrary.esspDerived": "Extracted from an imported show",
 
   // ---- Simultaneous multi-formation scenes (Sprint 7.3.5) -----------------
@@ -221,7 +223,6 @@ export const en = {
   "scene.reference.note":
     "Comparison is a design aid only. It never changes trajectory ownership, planning or export.",
 
-
   "formations.title": "Formations",
   "formations.addClip": "Add clip",
   "dynamic.title": "Dynamic formation",
@@ -247,7 +248,8 @@ export const en = {
   "project.close": "Close",
   "project.saveAsPrompt": "Save the show under a new file name",
   "project.noShowTitle": "No show open",
-  "project.noShowBody": "Create a new show, open a saved Studio project, or import an ESSP archive to begin.",
+  "project.noShowBody":
+    "Create a new show, open a saved Studio project, or import an ESSP archive to begin.",
   "project.saved": "saved",
   "project.unsaved": "unsaved changes",
   "project.autosaved": "autosaved {time}",
@@ -294,10 +296,12 @@ export const en = {
   "ai.hold": "Hold (s)",
   "ai.cycles": "Cycles",
   "ai.cycleDuration": "Cycle (s)",
-  "ai.assetOnly": "AI creates visual assets. You place them on the timeline and sync them with the music.",
+  "ai.assetOnly":
+    "AI creates visual assets. You place them on the timeline and sync them with the music.",
 
   "visualLab.title": "Visual formation lab",
-  "visualLab.intro": "Compile a visual design into exactly the drone count you ask for, then save it to the formation library.",
+  "visualLab.intro":
+    "Compile a visual design into exactly the drone count you ask for, then save it to the formation library.",
   "visualLab.design": "Design",
   "visualLab.designSearch": "Search shapes and figures",
   "visualLab.noDesignMatch": "No figure matches this search.",
@@ -326,14 +330,20 @@ export const en = {
   "visualLab.primitives": "Primitives {used}/{total}",
   "visualLab.dropped": "dropped details {count}",
   "visualLab.spacing": "min spacing {value} m",
-  "visualLab.savedHint": "Saved to the formation library. It was not added to the timeline — place it yourself.",
-  "visualLab.notSafety": "Visual-design diagnostics only. Full-show validation stays authoritative.",
-  "visualLab.issue.DETAILS_OMITTED": "Only {requested} drones were requested; {count} low-priority details were omitted.",
+  "visualLab.savedHint":
+    "Saved to the formation library. It was not added to the timeline — place it yourself.",
+  "visualLab.notSafety":
+    "Visual-design diagnostics only. Full-show validation stays authoritative.",
+  "visualLab.issue.DETAILS_OMITTED":
+    "Only {requested} drones were requested; {count} low-priority details were omitted.",
   "visualLab.issue.UNDER_RESOLVED": "Detail {primitiveId} is under-resolved at {points} points.",
-  "visualLab.issue.SPACING_TIGHT": "Point spacing {minSpacing} m is tighter than the design target {spacingTarget} m.",
-  "visualLab.issue.BUDGET_EXCEEDS_DESIGN": "The requested drone count exceeds what this design can express.",
+  "visualLab.issue.SPACING_TIGHT":
+    "Point spacing {minSpacing} m is tighter than the design target {spacingTarget} m.",
+  "visualLab.issue.BUDGET_EXCEEDS_DESIGN":
+    "The requested drone count exceeds what this design can express.",
   "visualLab.issue.EMPTY_DESIGN": "The design has no enabled elements.",
-  "visualLab.issue.SYMMETRY_ADJUSTED": "Allocation was balanced across {pairs} mirrored structures.",
+  "visualLab.issue.SYMMETRY_ADJUSTED":
+    "Allocation was balanced across {pairs} mirrored structures.",
   "timeline.empty": "Empty timeline — add a formation or apply an AI proposal to start the show.",
   "timeline.emptyReference":
     "Playing the imported show — {count} drones, {duration}. Use “Make editable” to turn it into clips you can edit.",
@@ -375,7 +385,8 @@ export const en = {
   "timeline.fitShort": "Fit",
   "timeline.scroll": "Scroll timeline",
   "timeline.follow": "Follow playhead",
-  "timeline.dragHint": "drag to move, edges resize transition and hold (Alt = no snap, Esc = cancel)",
+  "timeline.dragHint":
+    "drag to move, edges resize transition and hold (Alt = no snap, Esc = cancel)",
   "timeline.transitionHandle": "Resize transition (formation-ready moment)",
   "timeline.rippleHint": "Ripple: following scenes shift — hold Ctrl/Cmd for a free resize",
   "timeline.holdHandle": "Resize hold (clip end)",
@@ -507,7 +518,8 @@ export const en = {
   "ai.visual.refinePlaceholder": "make wings wider, enlarge head…",
   "ai.visual.meta": "model {model} · {context}",
   "image.title": "Reference image",
-  "image.intro": "Analyse an image locally into a visual design, then compile it to exactly the drone count you ask for. Nothing is uploaded.",
+  "image.intro":
+    "Analyse an image locally into a visual design, then compile it to exactly the drone count you ask for. Nothing is uploaded.",
   "image.pick": "Choose image",
   "image.replace": "Replace image",
   "image.clear": "Clear",
@@ -529,8 +541,10 @@ export const en = {
   "image.simplify": "Simplify",
   "image.droneCount": "Drone count",
   "image.saveToLibrary": "Save to formation library",
-  "image.savedHint": "Saved to the formation library as an imported asset. It was not added to the timeline.",
-  "image.noSemantics": "Structure only: silhouette, components and holes. No semantic part recognition in this version.",
+  "image.savedHint":
+    "Saved to the formation library as an imported asset. It was not added to the timeline.",
+  "image.noSemantics":
+    "Structure only: silhouette, components and holes. No semantic part recognition in this version.",
   "image.diagnostics": "Diagnostics",
   "image.diag.components": "components {kept}/{found} kept, {dropped} dropped",
   "image.diag.holes": "holes {kept}/{found}",
@@ -543,9 +557,11 @@ export const en = {
   "image.error.DIMENSIONS_TOO_LARGE": "The image is larger than 8192 × 8192 pixels.",
   "image.error.PIXELS_TOO_LARGE": "The image has more than 40 megapixels.",
   "image.error.EMPTY_IMAGE": "The image contains no pixels.",
-  "image.error.NO_STRUCTURE": "No usable structure was found. Try another background mode or a higher-contrast image.",
+  "image.error.NO_STRUCTURE":
+    "No usable structure was found. Try another background mode or a higher-contrast image.",
   "image.editor.title": "Structure editor",
-  "image.editor.intro": "Correct the extracted structure, then the drone preview recompiles from the edited design.",
+  "image.editor.intro":
+    "Correct the extracted structure, then the drone preview recompiles from the edited design.",
   "image.editor.select": "Select",
   "image.editor.addLine": "Add line",
   "image.editor.drawHint": "Click to add points, Enter or double-click to finish, Esc to cancel.",
@@ -568,7 +584,8 @@ export const en = {
   "image.editor.statusDisabled": "Disabled — ignored by the compiler, reversible.",
   "image.editor.list": "Structures",
   "image.editor.editedBadge": "edited ({ops} operations)",
-  "image.editor.resetOnControls": "Changing detail, structure, background or simplify re-extracts the structure and clears manual edits.",
+  "image.editor.resetOnControls":
+    "Changing detail, structure, background or simplify re-extracts the structure and clears manual edits.",
 } as const;
 
 export type TranslationKey = keyof typeof en;

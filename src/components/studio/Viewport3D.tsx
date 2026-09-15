@@ -1,9 +1,11 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Grid, OrbitControls } from "@react-three/drei";
+import { Eye, Wrench } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { useI18n } from "@/i18n";
+import { buildPresentationCameraPlan } from "@/lib/studio/presentationViewport";
 import { useStudio } from "@/lib/studio/store";
 import { useGeometryProposalPreview } from "@/lib/studio/geometryProposalPreview";
 import { lightColorAt } from "@/lib/show/lights";
@@ -68,7 +70,7 @@ function Swarm({
   lightingStatesAt,
   onSelectDrone,
   gizmoPreviewByDrone,
-  cinematic = false,
+  presentation,
 }: {
   project: ShowProject;
   time: number;
@@ -90,8 +92,7 @@ function Swarm({
   onSelectDrone: (index: number, additive: boolean) => void;
   /** Drafted target positions while the viewport gizmo is being dragged. */
   gizmoPreviewByDrone: readonly (readonly [number, number, number] | null)[];
-  /** Audience ("show") look: bigger glow halos, no diagnostic tints. */
-  cinematic?: boolean;
+  presentation: boolean;
 }) {
   const bodies = useRef<THREE.InstancedMesh>(null);
   const halos = useRef<THREE.InstancedMesh>(null);
@@ -119,11 +120,11 @@ function Swarm({
       const p = gizmoPreviewByDrone[i] ?? sample.position;
       dummy.position.set(p[0], p[1], p[2]);
       dummy.rotation.set(0, (-sample.yaw * Math.PI) / 180, 0);
-      dummy.scale.setScalar(1);
+      dummy.scale.setScalar(presentation ? 1.25 : 1);
       dummy.updateMatrix();
       bodyMesh.setMatrixAt(i, dummy.matrix);
       dummy.scale.setScalar(
-        cinematic ? 7.5 : highlightSet.has(i) || selectedSet.has(i) ? 4.2 : 2.4,
+        presentation ? 5.2 : highlightSet.has(i) || selectedSet.has(i) ? 4.2 : 2.4,
       );
       dummy.updateMatrix();
       haloMesh.setMatrixAt(i, dummy.matrix);
@@ -138,7 +139,7 @@ function Swarm({
       // owns the LED at this instant the body keeps its real LED colour and the
       // selection is communicated by the halo ring only.
       // AUDIENCE VIEW: only the real LED colour, never a diagnostic tint.
-      if (cinematic) color.setRGB(c[0] / 255, c[1] / 255, c[2] / 255);
+      if (presentation) color.setRGB(c[0] / 255, c[1] / 255, c[2] / 255);
       else if (highlightSet.has(i)) color.setRGB(1, 0.25, 0.25);
       else if (selected && !light) color.setRGB(1, 0.95, 0.55);
       else if (dimmed) color.setRGB(0.16, 0.21, 0.28);
@@ -150,7 +151,7 @@ function Swarm({
         color.setRGB(s[0], s[1], s[2]);
       } else color.setRGB(c[0] / 255, c[1] / 255, c[2] / 255);
       bodyMesh.setColorAt(i, color);
-      if (!cinematic && selected && !highlightSet.has(i)) color.setRGB(1, 0.95, 0.55);
+      if (!presentation && selected && !highlightSet.has(i)) color.setRGB(1, 0.95, 0.55);
 
       haloMesh.setColorAt(i, color);
     });
@@ -175,7 +176,7 @@ function Swarm({
           onSelectDrone(e.instanceId, e.shiftKey);
         }}
       >
-        <sphereGeometry args={[0.55, 12, 12]} />
+        <sphereGeometry args={[presentation ? 0.7 : 0.55, 12, 12]} />
         <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
 
@@ -188,14 +189,58 @@ function Swarm({
         <sphereGeometry args={[0.55, 8, 8]} />
         <meshBasicMaterial
           transparent
-          opacity={cinematic ? 0.075 : 0.12}
-          blending={cinematic ? THREE.AdditiveBlending : THREE.NormalBlending}
+          opacity={presentation ? 0.24 : 0.12}
           depthWrite={false}
           toneMapped={false}
+          blending={presentation ? THREE.AdditiveBlending : THREE.NormalBlending}
         />
       </instancedMesh>
     </group>
   );
+}
+
+function PresentationCamera({
+  enabled,
+  position,
+  target,
+}: {
+  enabled: boolean;
+  position: readonly [number, number, number];
+  target: readonly [number, number, number];
+}) {
+  const { camera } = useThree();
+  const saved = useRef<{ position: THREE.Vector3; quaternion: THREE.Quaternion } | null>(null);
+  const base = useMemo(() => new THREE.Vector3(...position), [position]);
+  const lookAt = useMemo(() => new THREE.Vector3(...target), [target]);
+  const side = useMemo(() => {
+    const direction = new THREE.Vector3().subVectors(lookAt, base);
+    return new THREE.Vector3(-direction.z, 0, direction.x).normalize();
+  }, [base, lookAt]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    saved.current = { position: camera.position.clone(), quaternion: camera.quaternion.clone() };
+    camera.position.copy(base);
+    camera.lookAt(lookAt);
+    camera.updateProjectionMatrix();
+    return () => {
+      if (!saved.current) return;
+      camera.position.copy(saved.current.position);
+      camera.quaternion.copy(saved.current.quaternion);
+      camera.updateProjectionMatrix();
+      saved.current = null;
+    };
+  }, [base, camera, enabled, lookAt]);
+
+  useFrame(({ clock }) => {
+    if (!enabled) return;
+    const distance = Math.max(20, base.distanceTo(lookAt));
+    camera.position
+      .copy(base)
+      .addScaledVector(side, Math.sin(clock.elapsedTime * 0.12) * distance * 0.025);
+    camera.lookAt(lookAt);
+  });
+  return null;
 }
 
 function ShowVolume({ width, depth, height }: { width: number; depth: number; height: number }) {
@@ -207,38 +252,6 @@ function ShowVolume({ width, depth, height }: { width: number; depth: number; he
       </mesh>
     </group>
   );
-}
-
-/**
- * AUDIENCE CAMERA: places the camera where the crowd stands (in front of the
- * site, at eye height) the moment show mode is entered. Purely a view change —
- * it never touches the plan.
- */
-function AudienceCamera({
-  enabled,
-  depth,
-  height,
-}: {
-  enabled: boolean;
-  depth: number;
-  height: number;
-}) {
-  const { camera } = useThree();
-  const restore = useRef<THREE.Vector3 | null>(null);
-  useEffect(() => {
-    if (enabled) {
-      restore.current = camera.position.clone();
-      const dist = Math.max(120, depth * 2.2);
-      camera.position.set(0, 1.7, dist);
-      camera.lookAt(0, height * 0.45, 0);
-      return;
-    }
-    if (restore.current) {
-      camera.position.copy(restore.current);
-      restore.current = null;
-    }
-  }, [camera, depth, enabled, height]);
-  return null;
 }
 
 function SelectionGesture({
@@ -391,6 +404,8 @@ export default function Viewport3D() {
     updateSceneGizmo,
     commitSceneGizmo,
   } = useStudio();
+  const { t } = useI18n();
+  const [presentation, setPresentation] = useState(false);
   const [selectionPath, setSelectionPath] = useState<ScreenPoint[]>([]);
   const commitGestureSelection = useCallback(
     (indices: number[], operation: ScenePointSelectionOperation) =>
@@ -398,6 +413,10 @@ export default function Viewport3D() {
     [selectScenePointsForDrones],
   );
   const proposalPreview = useGeometryProposalPreview();
+  const presentationCamera = useMemo(
+    () => buildPresentationCameraPlan(project.area, project.site),
+    [project.area, project.site],
+  );
   const handleSelectDrone = useCallback(
     (index: number, additive: boolean) => {
       if (sceneSelectionMode === "POINT" && sceneObjectIdForDrone(index)) {
@@ -485,9 +504,6 @@ export default function Viewport3D() {
   }, [preShowOverlay]);
 
   const gestureActive = sceneSelectionMode === "POINT" && scenePointSelectionTool !== "CLICK";
-  // SHOW MODE is a pure view state: no plan, safety or export behaviour changes.
-  const [showMode, setShowMode] = useState(false);
-  const { t } = useI18n();
   return (
     <div className="relative h-full w-full" data-testid="viewport-3d">
       <Canvas
@@ -495,15 +511,10 @@ export default function Viewport3D() {
         dpr={[1, 1.75]}
         gl={{ antialias: true }}
       >
-        <color attach="background" args={[showMode ? "#000000" : "#05070d"]} />
-        <fog attach="fog" args={[showMode ? "#000000" : "#05070d", 220, 700]} />
-        <ambientLight intensity={showMode ? 0.05 : 0.4} />
-        <AudienceCamera
-          enabled={showMode}
-          depth={project.area.depth}
-          height={project.area.height}
-        />
-        {showMode ? null : (
+        <color attach="background" args={[presentation ? "#000106" : "#05070d"]} />
+        <fog attach="fog" args={[presentation ? "#000106" : "#05070d", 220, 700]} />
+        <ambientLight intensity={presentation ? 0.08 : 0.4} />
+        {!presentation ? (
           <Grid
             args={[project.area.width * 2, project.area.depth * 2]}
             cellSize={5}
@@ -515,22 +526,22 @@ export default function Viewport3D() {
             fadeStrength={1.4}
             position={[0, 0, 0]}
           />
-        )}
-        {!showMode && showSafetyVolume ? (
+        ) : null}
+        {!presentation && showSafetyVolume ? (
           <SafetyVolumeOverlay area={project.area} limits={project.limits} />
         ) : null}
-        {!showMode && showSafetyVolume && project.site ? (
+        {!presentation && showSafetyVolume && project.site ? (
           <SiteGeofenceOverlay site={project.site} />
         ) : null}
 
-        {!showMode && conversionComparisonFrame ? (
+        {!presentation && conversionComparisonFrame ? (
           <ConversionOverlay
             frame={conversionComparisonFrame}
             mode={comparisonMode}
             vectorScale={errorVectorScale}
           />
         ) : null}
-        {!showMode && sceneGhostFrame && !reference ? (
+        {!presentation && sceneGhostFrame && !reference ? (
           <ReferenceGhostSwarm
             frame={sceneGhostFrame}
             selectedObjectId={selectedSceneObjectId}
@@ -538,14 +549,15 @@ export default function Viewport3D() {
           />
         ) : null}
 
-        {reference || showMode ? null : <ShowVolume {...project.area} />}
+        {reference || presentation ? null : <ShowVolume {...project.area} />}
         {reference ? (
           <ReferenceSwarm
             show={reference}
             time={time}
-            showPaths={showReferencePaths}
-            selectedDroneId={selectedReferenceDroneId}
-            activeDroneIds={forensicActiveDroneIds}
+            showPaths={!presentation && showReferencePaths}
+            selectedDroneId={presentation ? null : selectedReferenceDroneId}
+            activeDroneIds={presentation ? [] : forensicActiveDroneIds}
+            presentation={presentation}
           />
         ) : null}
         {reference ? null : (
@@ -553,12 +565,12 @@ export default function Viewport3D() {
             project={project}
             time={time}
             samplesAtTime={samplesAtTime}
-            highlighted={highlighted}
+            highlighted={presentation ? [] : highlighted}
             preShowPlan={plan.preShow}
-            showGroups={showLaunchGroups}
+            showGroups={!presentation && showLaunchGroups}
             groupIdByDrone={preShowOverlay?.groupIdByDrone ?? []}
             groupRgbByDrone={groupRgbByDrone}
-            selectedGroupId={selectedLaunchGroupId}
+            selectedGroupId={presentation ? null : selectedLaunchGroupId}
             dynamicSelected={
               sceneSelectionMode === "POINT"
                 ? selectedScenePointDroneIndices
@@ -567,15 +579,15 @@ export default function Viewport3D() {
                   : selectedDroneIndices
             }
             dynamicGroupRgbByDrone={dynamicGroupRgbByDrone}
-            reserveDrones={reserveDrones}
+            reserveDrones={presentation ? [] : reserveDrones}
             lightingStatesAt={lightingStatesAt}
             onSelectDrone={handleSelectDrone}
             gizmoPreviewByDrone={sceneGizmoPreviewByDrone}
-            cinematic={showMode}
+            presentation={presentation}
           />
         )}
-        {!reference &&
-        !showMode &&
+        {!presentation &&
+        !reference &&
         preShowOverlay &&
         plan.preShow &&
         (showLaunchPads || showStaging) ? (
@@ -589,21 +601,21 @@ export default function Viewport3D() {
             selectedGroupId={selectedLaunchGroupId}
           />
         ) : null}
-        {!reference && !showMode && proposalPreview.enabled ? (
+        {!presentation && !reference && proposalPreview.enabled ? (
           <GeometryProposalGhost
             original={proposalPreview.original}
             proposed={proposalPreview.proposed}
           />
         ) : null}
-        {!reference && !showMode && svgDraft ? <SvgDraftPreview draft={svgDraft} /> : null}
-        {!reference && !showMode && overlayAnalysis && (showPaths || showConflicts) ? (
+        {!presentation && !reference && svgDraft ? <SvgDraftPreview draft={svgDraft} /> : null}
+        {!presentation && !reference && overlayAnalysis && (showPaths || showConflicts) ? (
           <TransitionOverlay
             analysis={overlayAnalysis}
             paths={showPaths}
             conflicts={showConflicts}
           />
         ) : null}
-        {!reference && !showMode && canTransformSelectedClip && sceneGizmoPivot ? (
+        {!presentation && !reference && canTransformSelectedClip && sceneGizmoPivot ? (
           <>
             <SceneGizmoPreview points={sceneGizmoPreviewPoints} />
             <SceneGizmo
@@ -617,20 +629,25 @@ export default function Viewport3D() {
             />
           </>
         ) : null}
-        <OrbitControls
-          makeDefault
-          enableDamping
-          dampingFactor={0.08}
-          autoRotate={showMode}
-          autoRotateSpeed={0.12}
-          maxPolarAngle={Math.PI / 2.05}
-          target={[0, project.area.height * 0.35, 0]}
-          minDistance={20}
-          maxDistance={600}
-          enabled={!gestureActive}
+        {!presentation ? (
+          <OrbitControls
+            makeDefault
+            enableDamping
+            dampingFactor={0.08}
+            maxPolarAngle={Math.PI / 2.05}
+            target={[0, project.area.height * 0.35, 0]}
+            minDistance={20}
+            maxDistance={600}
+            enabled={!gestureActive}
+          />
+        ) : null}
+        <PresentationCamera
+          enabled={presentation}
+          position={presentationCamera.position}
+          target={presentationCamera.target}
         />
         <SelectionGesture
-          active={gestureActive}
+          active={!presentation && gestureActive}
           tool={scenePointSelectionTool}
           time={time}
           samplesAtTime={samplesAtTime}
@@ -638,6 +655,28 @@ export default function Viewport3D() {
           onCommit={commitGestureSelection}
         />
       </Canvas>
+      <div className="absolute right-3 top-3 z-10 flex flex-col items-end gap-1.5">
+        <button
+          type="button"
+          className={`chip-btn bg-background/90 shadow ${presentation ? "chip-btn-active" : ""}`}
+          aria-pressed={presentation}
+          data-testid="presentation-mode-toggle"
+          onClick={() => setPresentation((current) => !current)}
+        >
+          {presentation ? <Wrench className="size-3" /> : <Eye className="size-3" />}
+          {presentation ? t("viewport.technicalMode") : t("viewport.presentationMode")}
+        </button>
+        {presentation ? (
+          <p
+            className="rounded border border-border/70 bg-background/80 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground"
+            data-testid="presentation-camera-source"
+          >
+            {presentationCamera.source === "AUDIENCE"
+              ? t("viewport.audienceCamera")
+              : t("viewport.estimatedCamera")}
+          </p>
+        ) : null}
+      </div>
       {selectionPath.length > 0 ? (
         <svg
           className="pointer-events-none absolute inset-0 h-full w-full"
@@ -666,20 +705,6 @@ export default function Viewport3D() {
           )}
         </svg>
       ) : null}
-      <button
-        type="button"
-        onClick={() => setShowMode((on) => !on)}
-        title={t("viewport.showModeTitle")}
-        data-testid="viewport-show-mode-toggle"
-        aria-pressed={showMode}
-        className={`absolute right-3 top-3 rounded border px-2 py-1 font-mono text-[10px] uppercase tracking-wide shadow transition ${
-          showMode
-            ? "border-primary bg-primary/20 text-primary"
-            : "border-border bg-background/90 text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        {showMode ? t("viewport.technicalMode") : t("viewport.showMode")}
-      </button>
       {!referencePlayback && referenceOwnedNow && selectedSceneObjectIds.length > 0 ? (
         <div
           className="pointer-events-none absolute left-3 top-3 rounded border border-warning/50 bg-background/90 px-2 py-1 font-mono text-[10px] text-warning shadow"

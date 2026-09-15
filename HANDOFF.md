@@ -80,16 +80,19 @@ blocarea exportului la breșă de perimetru GPS (cu test de regresie), text cu f
 descărcabil din panoul Show readiness. Refactorul de prezentare pentru importul ESSP real este
 închis: TopBar, Timeline și panoul Show afișează aceeași flotă de referință, iar suprafețele
 responsive Inspector/LeftPanel au exact o singură instanță montată. Există regresie DOM cu
-150 de drone și teste pure pentru exclusivitatea montării.
+150 de drone și teste pure pentru exclusivitatea montării. Modul Presentation este implementat
+separat de editorul tehnic: cer negru, glow instanțiat, cameră lentă, cameră din poziția
+publicului când aceasta există și fallback etichetat explicit ca estimare. Randarea păstrează
+exact două suprafețe instanțiate la 150 și 500 de drone.
 
-Ultima verificare locală (15 sep 2026): **157 fișiere Vitest trecute, 1380 teste trecute,
+Ultima verificare locală (15 sep 2026): **158 fișiere Vitest trecute, 1384 teste trecute,
 1 skipped**; typecheck, lint pe fișierele atinse și production build curate. Lint-ul global
 rămâne datorie separată, dominată de abateri Prettier istorice.
 
 Rămas, în ordinea de lucru:
 
-1. **Previzualizare de prezentare + probă de scară** — cer negru, glow, cameră din public;
-   măsurători explicite cu show-uri de 150 și 500 de drone.
+1. **Probă de scară în browser** — măsurători FPS/frame-time explicite cu show-uri de 150 și
+   500 de drone; contractul structural de două suprafețe instanțiate este deja testat.
 2. **Muzică sincronizată real** — `detectBeats` în `src/lib/show/audio.ts` (energie
    spectrală, client-side), grilă de bătăi în `Timeline.tsx`, snapping opțional.
 3. **Copy/paste + șabloane de show** — comenzi noi în `store.tsx` (o intrare de history
