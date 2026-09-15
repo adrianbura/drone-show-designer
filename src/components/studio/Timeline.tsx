@@ -194,6 +194,8 @@ export default function Timeline({
     clipThumbnails,
     transitionDesignFor,
     transitionDesignNeedsRecalculation,
+    referenceShow,
+    referencePlayback,
   } = useStudio();
   const { t, language } = useI18n();
   const comma = language === "ro";
