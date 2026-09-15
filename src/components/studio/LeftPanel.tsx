@@ -108,6 +108,13 @@ function Field({
 
 const FLEET_PRESETS = [24, 48, 100, 200, 300, 500];
 
+type LeftZone = "SHOW" | "CREATE";
+
+const ZONES: { id: LeftZone; label: string }[] = [
+  { id: "SHOW", label: "Show" },
+  { id: "CREATE", label: "Create" },
+];
+
 
 export default function LeftPanel() {
   const {
