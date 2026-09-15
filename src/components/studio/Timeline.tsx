@@ -1178,10 +1178,25 @@ export default function Timeline({
                 </div>
               )}
 
-              {/* Clean startup: an empty timeline says what to do next. */}
+              {/* Clean startup: an empty timeline says what to do next. An
+              imported reference show is NOT "empty" — the lane has no clips but
+              the show being played is real, so the message names it. */}
               {project.timeline.length === 0 && (
-                <p className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[11px] text-muted-foreground">
-                  {t("timeline.empty")}
+                <p
+                  data-testid="timeline-empty-message"
+                  className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[11px] text-muted-foreground"
+                >
+                  {referencePlayback && referenceShow
+                    ? t("timeline.emptyReference", {
+                        count: referenceShow.drones.length,
+                        duration: (() => {
+                          const total = Math.round(
+                            referenceShow.timing.playbackDurationSeconds,
+                          );
+                          return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+                        })(),
+                      })
+                    : t("timeline.empty")}
                 </p>
               )}
 
