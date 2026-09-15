@@ -1190,9 +1190,7 @@ export default function Timeline({
                     ? t("timeline.emptyReference", {
                         count: referenceShow.drones.length,
                         duration: (() => {
-                          const total = Math.round(
-                            referenceShow.timing.playbackDurationSeconds,
-                          );
+                          const total = Math.round(referenceShow.timing.playbackDurationSeconds);
                           return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
                         })(),
                       })
