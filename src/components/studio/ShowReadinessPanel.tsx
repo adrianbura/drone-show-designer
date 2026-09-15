@@ -5,6 +5,7 @@
  * `buildShowReadiness` and routes every action to the authority that owns it.
  * No safety, geofence or trajectory computation happens here.
  */
+import { FileText } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import ShowReadinessView from "./ShowReadinessView";
@@ -12,6 +13,11 @@ import { buildSimulationHandoff } from "@/lib/adapters/simulationHandoff";
 import { downloadBytes } from "@/lib/adapters/export";
 import { projectFileToJson } from "@/lib/project/serialize";
 import { buildShowReadiness, type ReadinessActionId } from "@/lib/adapters/showReadiness";
+import {
+  buildValidationReport,
+  renderValidationReportPdf,
+  validationReportFileName,
+} from "@/lib/report";
 import { isSiteUsable } from "@/lib/show/geo";
 import { useStudio } from "@/lib/studio/store";
 
@@ -104,6 +110,24 @@ export default function ShowReadinessPanel() {
     [analyzeFullShow, exportSimulatorPackage, focusIssue, fullShowBusy, model, saveProjectFile],
   );
 
+  const downloadValidationReport = useCallback(() => {
+    if (!fullShowReport) return;
+    setExportError(null);
+    try {
+      const generatedAt = new Date().toISOString();
+      const doc = buildValidationReport({ project, report: fullShowReport, generatedAt });
+      downloadBytes(
+        validationReportFileName(project, generatedAt),
+        renderValidationReportPdf(doc),
+        "application/pdf",
+      );
+    } catch (error) {
+      setExportError(
+        error instanceof Error ? error.message : "Could not build the validation report.",
+      );
+    }
+  }, [fullShowReport, project]);
+
   return (
     <div className="min-w-0 space-y-1">
       <ShowReadinessView
@@ -116,6 +140,22 @@ export default function ShowReadinessPanel() {
         }
         onAction={onAction}
       />
+      <button
+        type="button"
+        className="flex w-full items-center justify-center gap-1.5 rounded border border-border bg-secondary/40 px-2 py-1.5 text-[10px] font-medium text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+        onClick={downloadValidationReport}
+        disabled={!fullShowReport || fullShowBusy}
+        title={
+          fullShowReport
+            ? "Download a printable PDF of the current analysis. It does not authorise the flight."
+            : "Run the full-show analysis first."
+        }
+        data-testid="readiness-download-validation-report"
+      >
+        <FileText className="h-3 w-3" aria-hidden />
+        Download validation report (PDF)
+        {fullShowStale && fullShowReport ? " · stale" : ""}
+      </button>
       {exportError && (
         <p
           className="rounded border border-destructive/60 bg-destructive/10 p-2 text-[10px] text-destructive"
