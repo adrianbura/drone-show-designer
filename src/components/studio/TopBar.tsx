@@ -212,9 +212,23 @@ export default function TopBar() {
             ? t("project.unsaved")
             : `${t("project.saved")} ${shortTime(projectSavedAt)}`}
         </span>
-        <span className="metric-pill">
-          <Radio className="size-3" /> {t("topBar.drones", { count: project.droneCount })}
-        </span>
+        {/* ONE TRUTH ABOUT THE FLEET. While an imported reference show owns
+            playback, the fleet count on screen is the imported one — the project
+            setting would contradict what the viewport is actually flying. */}
+        {referencePlayback && referenceShow ? (
+          <span
+            className="metric-pill status-review"
+            data-testid="topbar-drones-imported"
+            title={t("topBar.dronesImportedTitle", { project: project.droneCount })}
+          >
+            <Radio className="size-3" />{" "}
+            {t("topBar.dronesImported", { count: referenceShow.drones.length })}
+          </span>
+        ) : (
+          <span className="metric-pill" data-testid="topbar-drones">
+            <Radio className="size-3" /> {t("topBar.drones", { count: project.droneCount })}
+          </span>
+        )}
         <span className="metric-pill">{duration.toFixed(0)}s</span>
         {/* SECONDARY: live authoring feedback. Deliberately quieter than the
             dominant readiness pill so it can never read as export approval. */}
