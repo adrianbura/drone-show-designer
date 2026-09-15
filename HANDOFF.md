@@ -72,24 +72,25 @@ Verificări: **~1332 teste trecute, 1 skipped**; typecheck, lint și production 
   `bunx tsgo --noEmit`, lint pe fișierele atinse, `bun run build`.
 - Nu se face commit/push în afara sincronizării Git a platformei.
 
-## 5. Ce mai trebuie făcut (prioritizat)
+## 5. Ce mai trebuie făcut (stare reală, 15 sep 2026)
 
-1. **SVG Text ca sursă de formație de primă clasă** — import SVG cu litere convertite în
-   contururi, grupuri per literă/cuvânt, distribuție uniformă pe lungime de arc, preview +
-   validare separare, Apply. Deblochează fonturi reale (Illustrator/Inkscape).
-   Bază existentă: `src/lib/show/svg/**`, `src/lib/show/text/**`, `SvgImportPanel.tsx`.
-2. **Blocarea exportului la breșă de perimetru GPS** — singurul punct deschis din
-   `roadmap.md`: integrează `scanGeofence` în validarea full-show și în
-   `exportEligibility` / `exportPreflight`.
-3. **Stagger pe Z ca politică globală de siguranță** (propunerea B din plan) — parametru
-   global aplicat după generarea geometriei, cu override per formație `forceFlat`.
-4. **Efecte de lumină avansate** peste preseturile existente (fără tipuri noi de efect
-   dacă nu e cerut explicit).
-5. **Bibliotecă de asseturi + templates profesionale**, copy/paste de scene și efecte.
-6. **Audio-driven design** (cue-uri legate de beat grid; există deja `audio.ts` cu BPM).
-7. **Integrare simulator/hardware reală** prin `simulation_bridge/` (PX4-SITL, MDS) și
-   formate suplimentare de producători.
-8. **Cloud + teamwork** (persistență, jobs, colaborare) — necesită activarea unui backend.
+GATA între timp (nu se mai reface): traseu ghidat „Show setup”, decolare/aterizare automate,
+blocarea exportului la breșă de perimetru GPS (cu test de regresie), text cu font real
+(pack Archivo), bibliotecă de 10 figuri + sirena cu coadă animată, raport de validare PDF
+descărcabil din panoul Show readiness.
+
+Rămas, în ordinea de lucru:
+
+1. **Muzică sincronizată real** — `detectBeats` în `src/lib/show/audio.ts` (energie
+   spectrală, client-side), grilă de bătăi în `Timeline.tsx`, snapping opțional.
+2. **Copy/paste + șabloane de show** — comenzi noi în `store.tsx` (o intrare de history
+   per operație) + `src/lib/studio/showTemplates.ts`.
+3. **Export `.skyc`** — `src/lib/adapters/skyc.ts` după specificația publică Skybrush;
+   adaptorul rămâne `planned` în registru până trec testele de conformitate.
+4. **Efecte de lumină avansate** peste preseturile existente.
+5. **Imagine → figură mai puternic** (contur vs. umplere, diagnostic de separare).
+6. **Previzualizare de prezentare** (cer negru, glow, cameră lentă) pentru aprobarea clientului.
+7. **Curățenie**: împărțirea `store.tsx` pe felii, teste Playwright pe timeline/gizmo/viewport.
 
 ## 6. Limitări cunoscute, de comunicat onest
 
