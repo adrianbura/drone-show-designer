@@ -10,6 +10,6 @@
 - [x] Mermaid figure with an animatable tail (SWAY_Z part motion -> tail-wag motion group)
 - [ ] Copy / paste and show templates
 - [ ] Advanced lighting effects
-- [ ] PDF validation report
+- [x] PDF validation report (downloadable document projected from the existing full-show analysis)
 - [ ] Beat-synced music
 - [ ] .skyc export
