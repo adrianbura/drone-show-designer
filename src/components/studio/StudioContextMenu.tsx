@@ -14,7 +14,7 @@
  * fixed at the track (see `src/lib/studio/menuSurface.ts`). Redundant gesture
  * logic and timers were therefore deleted rather than maintained.
  */
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import {
   ContextMenu,
@@ -65,6 +65,11 @@ export default function StudioContextMenu({
   asChild?: boolean;
 }) {
   // TEMP DEBUG
+  useEffect(() => {
+    (globalThis as any).__scmLog ??= [];
+    (globalThis as any).__scmLog.push(["mount", menu.title, Date.now()]);
+    return () => (globalThis as any).__scmLog.push(["unmount", menu.title, Date.now()]);
+  }, []);
   // eslint-disable-next-line react-hooks/rules-of-hooks
   (globalThis as any).__scmLog ??= [];
   return (
