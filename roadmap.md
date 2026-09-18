@@ -48,6 +48,9 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
    - Rămâne deschis doar pentru un test lent (`sceneComposerPanel.dom.test.tsx`) care depășește
      limita de 5 s când rulează toată suita; trece izolat în 4,5 s. Nu ține de imagini.
 10. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
+    - Re-măsurare 18 sep 2026 NECONCLUDENTĂ: commitul cerut `b91f3df` nu există în acest sandbox
+      (`git fetch` nu are credențiale), deci măsurarea s-a făcut pe `4e8f8b7`, fără calea de
+      eșantionare dublă eliminată. Vezi tabelul din secțiunea de mai jos.
 11. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
 12. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
 
@@ -92,6 +95,39 @@ immediately, and Presentation keeps animating its camera with no input.
 
 Limitation: software rendering, so these numbers are only valid as a before/after comparison,
 never as an fps promise on real GPUs.
+
+## Re-measurement attempt (18 Sep 2026) — INCONCLUSIVE
+
+Requested target `b91f3df17f2104cb52d34711d6a0ced442b5aad7` is **not present** in this sandbox
+(`git cat-file` fails; `git fetch` has no credentials), so the removed duplicate lighting-sampling
+path could not be exercised. Measured HEAD instead: `4e8f8b7` ("Added actionable image warnings").
+
+Method (identical to the probe above): Playwright headless Chromium,
+`--use-gl=swiftshader --enable-unsafe-swiftshader`, 1280×1800, a fresh **Classic arc** show
+(launch grid + take-off + three SHOW moments + landing) with the template's authored lighting
+(`pulse`, `rainbow`, `twinkle`) active, fleet set in the wizard Fleet step, 5 s rAF sample with the
+first 5 frames discarded, once paused and once playing.
+
+| Fleet | Paused                  | Playing (avg / median / max) | Sampled frames | Playing baseline |
+| ----- | ----------------------- | ---------------------------- | -------------- | ---------------- |
+| 150   | 16.67 ms/frame (60 fps) | 218.2 / 233.3 / 300.0 ms     | 21             | 128 ms/frame     |
+| 500   | 16.67 ms/frame (60 fps) | 454.1 / 533.3 / 683.3 ms     | 8              | 281 ms/frame     |
+
+Paused behaviour is unchanged and ideal (one canvas, 60 fps idle, canvas byte-identical over 1.5 s).
+Playing is **slower** than the recorded baselines, but the comparison is not valid as a regression
+signal: the baseline ran a different authored show, this run adds three authored lighting effects,
+and the target commit is absent. No conclusion about the optimisation can be drawn; the 500-drone
+playback item stays open.
+
+Interaction re-checks at 150 (canvas screenshot hashes): paused identical over 1.5 s; playback,
+OrbitControls drag and seek each redraw; Presentation keeps animating its camera. Viewport selection
+was not re-exercised (the centre click hit empty sky, so no redraw is the correct outcome there).
+`toDataURL` comparison is unreliable on this WebGL canvas — use element screenshots.
+
+Checks: lighting tests 13/13, typecheck clean, build clean. `bunx eslint` on
+`src/lib/show/lighting` + `Viewport3D.tsx` reports 14 pre-existing Prettier-only errors in
+`engine.ts`, `evaluate.ts`, `validate.ts` and `lighting.test.ts`; left untouched because this turn
+was verification-only.
 
 ## Verificare browser 2026-09-18 (main @ 77c1105)
 
