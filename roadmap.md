@@ -108,10 +108,10 @@ Method (identical to the probe above): Playwright headless Chromium,
 (`pulse`, `rainbow`, `twinkle`) active, fleet set in the wizard Fleet step, 5 s rAF sample with the
 first 5 frames discarded, once paused and once playing.
 
-| Fleet | Paused                    | Playing (avg / median / max)   | Sampled frames | Playing baseline |
-| ----- | ------------------------- | ------------------------------ | -------------- | ---------------- |
-| 150   | 16.67 ms/frame (60 fps)   | 218.2 / 233.3 / 300.0 ms       | 21             | 128 ms/frame     |
-| 500   | 16.67 ms/frame (60 fps)   | 454.1 / 533.3 / 683.3 ms       | 8              | 281 ms/frame     |
+| Fleet | Paused                  | Playing (avg / median / max) | Sampled frames | Playing baseline |
+| ----- | ----------------------- | ---------------------------- | -------------- | ---------------- |
+| 150   | 16.67 ms/frame (60 fps) | 218.2 / 233.3 / 300.0 ms     | 21             | 128 ms/frame     |
+| 500   | 16.67 ms/frame (60 fps) | 454.1 / 533.3 / 683.3 ms     | 8              | 281 ms/frame     |
 
 Paused behaviour is unchanged and ideal (one canvas, 60 fps idle, canvas byte-identical over 1.5 s).
 Playing is **slower** than the recorded baselines, but the comparison is not valid as a regression

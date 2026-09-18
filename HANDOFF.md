@@ -423,3 +423,37 @@ compilator / i18n 84/84, typecheck curat, ESLint + Prettier curate pe fișierele
 Suita completă: 161 fișiere / 1403 teste trecute / 1 skipped, cu un singur fișier instabil,
 `sceneComposerPanel.dom.test.tsx`, care depășește limita implicită de 5 s sub încărcare (trece
 izolat în 4,46 s); nu atinge fluxul imaginii.
+
+## RE-MĂSURARE PERFORMANȚĂ REDARE (18 sep 2026) — NECONCLUDENTĂ
+
+Commitul cerut `b91f3df17f2104cb52d34711d6a0ced442b5aad7` nu există în acest sandbox: `git cat-file`
+îl respinge, iar `git fetch` nu are credențiale. Prin urmare calea de eșantionare dublă a luminilor,
+eliminată în acel commit, NU a fost exersată; măsurarea s-a făcut pe HEAD `4e8f8b7`.
+
+Metoda este cea consemnată în `roadmap.md`: Playwright Chromium headless cu
+`--use-gl=swiftshader --enable-unsafe-swiftshader`, 1280×1800, show nou din șablonul **Classic arc**
+(grilă de decolare + take-off + trei momente SHOW + landing) cu luminile autorate ale șablonului
+active (`pulse`, `rainbow`, `twinkle`), flota setată în pasul Fleet, eșantion rAF de 5 s cu primele 5
+cadre eliminate, o dată în pauză și o dată în redare.
+
+| Flotă | Pauză                   | Redare (medie / median / max) | Cadre | Baseline redare |
+| ----- | ----------------------- | ----------------------------- | ----- | --------------- |
+| 150   | 16,67 ms/cadru (60 fps) | 218,2 / 233,3 / 300,0 ms      | 21    | 128 ms/cadru    |
+| 500   | 16,67 ms/cadru (60 fps) | 454,1 / 533,3 / 683,3 ms      | 8     | 281 ms/cadru    |
+
+O singură suprafață canvas în ambele cazuri. Pauza rămâne exact la comportamentul dorit (60 fps,
+imagine identică pe 1,5 s). Redarea este mai lentă decât baseline-ul, dar diferența NU poate fi
+interpretată ca regresie: show-ul autorat diferă de cel din baseline, această rulare adaugă trei
+efecte de lumină autorate, iar commitul țintă lipsește. Punctul „cost de redare la 500 de drone"
+rămâne deschis.
+
+Re-verificări de interacțiune la 150 (hash pe screenshot-ul canvasului): pauza identică pe 1,5 s;
+redarea, rotirea cu OrbitControls și mutarea playhead-ului redesenează imediat; Presentation continuă
+să animeze camera fără input. Selecția în viewport nu a fost re-exersată (clicul din centru a nimerit
+cer liber, deci lipsa redesenării este comportamentul corect). `toDataURL` nu este o metodă validă de
+comparație pe acest canvas WebGL — se folosesc screenshot-uri de element.
+
+Verificări: teste lumini 13/13, typecheck curat, build curat. `bunx eslint` pe
+`src/lib/show/lighting` și `Viewport3D.tsx` raportează 14 erori strict de formatare Prettier,
+preexistente, în `engine.ts`, `evaluate.ts`, `validate.ts` și `lighting.test.ts`; nu au fost atinse
+pentru că acest tur a fost numai de verificare.
