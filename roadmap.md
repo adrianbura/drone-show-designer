@@ -11,5 +11,18 @@
 - [ ] Copy / paste and show templates
 - [ ] Advanced lighting effects
 - [x] PDF validation report (downloadable document projected from the existing full-show analysis)
-- [ ] Beat-synced music
-- [ ] .skyc export
+- [x] Browser frame-time probe at 150 and 500 drones (software-GL sandbox numbers recorded below)
+- [ ] Viewport render cost: idle frames are as expensive as playing frames; make the preview redraw only on change
+- [ ] ~~Automatic beat detection~~ — dropped by the owner: show moments are authored manually, the manual BPM grid stays
+- [ ] ~~.skyc export~~ — dropped: the target hardware loads ESSP, which the app already reads and writes byte-identically
+
+## Browser frame-time probe (18 Sep 2026, headless software GL — not GPU-representative)
+
+| Fleet | Paused | Playing |
+| --- | --- | --- |
+| 150 | 62 ms/frame (16 fps) | 107 ms/frame (9 fps) |
+| 500 | 158 ms/frame (6 fps) | 220 ms/frame (5 fps) |
+
+One canvas surface in both cases (the two-instanced-surface contract holds). The idle
+cost proves the viewport redraws continuously even when nothing moves — the first real
+optimisation target, independent of the software renderer.

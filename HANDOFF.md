@@ -89,20 +89,31 @@ Ultima verificare locală (15 sep 2026): **158 fișiere Vitest trecute, 1384 tes
 1 skipped**; typecheck, lint pe fișierele atinse și production build curate. Lint-ul global
 rămâne datorie separată, dominată de abateri Prettier istorice.
 
+GATA (18 sep 2026): **proba de frame-time în browser** la 150 și 500 de drone, cu Playwright
+pe randare software (headless, SwiftShader — deci NU reprezentativ pentru GPU real):
+
+| Flotă | Pauză | Redare |
+| --- | --- | --- |
+| 150 | 62 ms/cadru (16 fps) | 107 ms/cadru (9 fps) |
+| 500 | 158 ms/cadru (6 fps) | 220 ms/cadru (5 fps) |
+
+O singură suprafață canvas în ambele cazuri. Costul în pauză este constatarea reală:
+viewportul se redesenează continuu chiar când nimic nu se mișcă.
+
+SCOASE din plan, decizie a proprietarului: detecția automată de bătăi (momentele se
+compun manual, grila BPM manuală rămâne) și exportul `.skyc` (hardware-ul țintă
+încarcă ESSP, format pe care aplicația îl citește și îl scrie deja bit cu bit).
+
 Rămas, în ordinea de lucru:
 
-1. **Probă de scară în browser** — măsurători FPS/frame-time explicite cu show-uri de 150 și
-   500 de drone; contractul structural de două suprafețe instanțiate este deja testat.
-2. **Muzică sincronizată real** — `detectBeats` în `src/lib/show/audio.ts` (energie
-   spectrală, client-side), grilă de bătăi în `Timeline.tsx`, snapping opțional.
-3. **Copy/paste + șabloane de show** — comenzi noi în `store.tsx` (o intrare de history
+1. **Costul de randare al viewportului** — redesenare doar la schimbare (invalidate on demand),
+   apoi re-măsurare la 150/500; ținta e un cadru stabil la 500 de drone.
+2. **Copy/paste + șabloane de show** — comenzi noi în `store.tsx` (o intrare de history
    per operație) + `src/lib/studio/showTemplates.ts`.
-4. **Export `.skyc`** — `src/lib/adapters/skyc.ts` după specificația publică Skybrush;
-   adaptorul rămâne `planned` în registru până trec testele de conformitate.
-5. **Efecte de lumină avansate** peste preseturile existente.
-6. **Imagine → figură mai puternic** (contur vs. umplere, diagnostic de separare).
-7. **Curățenie**: împărțirea `store.tsx` pe felii, lint global, CI și teste Playwright pe
-   timeline/gizmo/viewport.
+3. **Efecte de lumină avansate** peste preseturile existente.
+4. **Imagine → figură mai puternic** (contur vs. umplere, diagnostic de separare).
+5. **Curățenie**: împărțirea `store.tsx` pe felii, lint global, CI și teste Playwright pe
+   timeline/gizmo/viewport; `.gitignore` pentru `__pycache__`/`.pyc`.
 
 ## 6. Limitări cunoscute, de comunicat onest
 
