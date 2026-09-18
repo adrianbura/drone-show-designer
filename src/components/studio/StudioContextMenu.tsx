@@ -64,8 +64,16 @@ export default function StudioContextMenu({
   children: ReactNode;
   asChild?: boolean;
 }) {
+  // TEMP DEBUG
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  (globalThis as any).__scmLog ??= [];
   return (
-    <ContextMenu {...(onOpenChange ? { onOpenChange } : {})}>
+    <ContextMenu
+      onOpenChange={(o) => {
+        (globalThis as any).__scmLog.push([menu.title, o, Date.now()]);
+        onOpenChange?.(o);
+      }}
+    >
       <ContextMenuTrigger asChild={asChild}>{children}</ContextMenuTrigger>
       <ContextMenuContent
         data-testid="studio-context-menu"
