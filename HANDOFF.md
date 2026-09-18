@@ -94,15 +94,15 @@ Există și un serviciu Python separat, `simulation_bridge/` (FastAPI), pentru s
 
 ## 2. Harta codului
 
-| Zonă | Locație | Rol |
-| --- | --- | --- |
-| Domeniu pur (fără React) | `src/lib/show/**` | formații, assignment, trajectory, transition, safety, fullshow, lighting, dynamic, geo, svg, text, scene, preshow |
-| Stat + autorități UI | `src/lib/studio/**` | `store.tsx` (canonic), history/undo, autorități pure (`effectCatalog`, `phaseEditor`, `clipPhaseNotice`, `siteGeofence`, `workspaceSections`, …) |
-| Export/import | `src/lib/adapters/**`, `src/lib/import/essp/**` | JSON documentat, CSV, ESSP, simulation handoff, preflight |
-| UI | `src/components/studio/**` | Timeline, Viewport3D, Inspector + panouri |
-| Rute | `src/routes/index.tsx`, `src/routes/__root.tsx`, `src/routes/api/generate-reference.ts` | o singură pagină de studio + un endpoint AI |
-| Docs | `ARCHITECTURE.md`, `docs/*.md` | contracte de format, forensics ESSP, design vizual |
-| Plan/istoric | `.lovable/plan/*.md` | planuri aprobate (inclusiv propunerile A–D) |
+| Zonă                     | Locație                                                                                 | Rol                                                                                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Domeniu pur (fără React) | `src/lib/show/**`                                                                       | formații, assignment, trajectory, transition, safety, fullshow, lighting, dynamic, geo, svg, text, scene, preshow                                |
+| Stat + autorități UI     | `src/lib/studio/**`                                                                     | `store.tsx` (canonic), history/undo, autorități pure (`effectCatalog`, `phaseEditor`, `clipPhaseNotice`, `siteGeofence`, `workspaceSections`, …) |
+| Export/import            | `src/lib/adapters/**`, `src/lib/import/essp/**`                                         | JSON documentat, CSV, ESSP, simulation handoff, preflight                                                                                        |
+| UI                       | `src/components/studio/**`                                                              | Timeline, Viewport3D, Inspector + panouri                                                                                                        |
+| Rute                     | `src/routes/index.tsx`, `src/routes/__root.tsx`, `src/routes/api/generate-reference.ts` | o singură pagină de studio + un endpoint AI                                                                                                      |
+| Docs                     | `ARCHITECTURE.md`, `docs/*.md`                                                          | contracte de format, forensics ESSP, design vizual                                                                                               |
+| Plan/istoric             | `.lovable/plan/*.md`                                                                    | planuri aprobate (inclusiv propunerile A–D)                                                                                                      |
 
 ## 3. Ce funcționează acum (implementat și testat)
 
@@ -171,10 +171,10 @@ rămâne datorie separată, dominată de abateri Prettier istorice.
 GATA (18 sep 2026): **proba de frame-time în browser** la 150 și 500 de drone, cu Playwright
 pe randare software (headless, SwiftShader — deci NU reprezentativ pentru GPU real):
 
-| Flotă | Pauză | Redare |
-| --- | --- | --- |
-| 150 | 62 ms/cadru (16 fps) | 107 ms/cadru (9 fps) |
-| 500 | 158 ms/cadru (6 fps) | 220 ms/cadru (5 fps) |
+| Flotă | Pauză                | Redare               |
+| ----- | -------------------- | -------------------- |
+| 150   | 62 ms/cadru (16 fps) | 107 ms/cadru (9 fps) |
+| 500   | 158 ms/cadru (6 fps) | 220 ms/cadru (5 fps) |
 
 O singură suprafață canvas în ambele cazuri. Costul în pauză este constatarea reală:
 viewportul se redesenează continuu chiar când nimic nu se mișcă.
@@ -204,10 +204,10 @@ Metodă identică baseline-ului: Playwright headless Chromium cu `--use-gl=swift
 „Set up launch grid" → „Add take-off" → „Add a show segment" → „Add landing", flotă setată din
 câmpul „Fleet size", probă rAF de 5 s (primele 5 cadre aruncate), în pauză și în redare.
 
-| Flotă | Pauză înainte | Pauză după | Redare înainte | Redare după |
-| --- | --- | --- | --- | --- |
-| 150 | 62 ms/cadru (16 fps) | **16,7 ms/cadru (60 fps)** | 107 ms/cadru (9 fps) | 128 ms/cadru (7,8 fps) |
-| 500 | 158 ms/cadru (6 fps) | **16,7 ms/cadru (60 fps)** | 220 ms/cadru (5 fps) | 281 ms/cadru (3,6 fps) |
+| Flotă | Pauză înainte        | Pauză după                 | Redare înainte       | Redare după            |
+| ----- | -------------------- | -------------------------- | -------------------- | ---------------------- |
+| 150   | 62 ms/cadru (16 fps) | **16,7 ms/cadru (60 fps)** | 107 ms/cadru (9 fps) | 128 ms/cadru (7,8 fps) |
+| 500   | 158 ms/cadru (6 fps) | **16,7 ms/cadru (60 fps)** | 220 ms/cadru (5 fps) | 281 ms/cadru (3,6 fps) |
 
 O singură suprafață canvas în ambele cazuri (contractul se păstrează). Câștigul urmărit este
 obținut integral: editorul oprit nu mai produce cadre, la orice flotă. Costul în redare rămâne
@@ -354,6 +354,19 @@ Verificat în browser (gest real de mouse, fără pauză): marginea de jos a cli
 Copy — meniul rămâne deschis, nicio comandă și niciun Paste executat; click stânga execută o dată;
 submeniuri funcționale; Enter pe `Paste` execută exact un Paste; un Paste = un Undo; meniul pe zona
 liberă a cronologiei se deschide. 399 teste țintite, typecheck, lint și build curate.
+
+## ILUMINARE AVANSATĂ — EDITOR GRADIENT MULTI-STOP (în lucru, 2026-09-18)
+
+Primul increment al priorității „Efecte de lumină avansate” extinde inspectorul unificat pentru
+efectele canonice `COLOR_SWEEP`: operatorul poate adăuga stopuri, schimba poziția 0–100%, culoarea
+și elimina stopuri până la minimul canonic de două. Nu există model sau evaluator nou;
+`LightingEffectParameters.stops` rămâne unica autoritate, iar store-ul existent aplică fiecare
+editare în istoricul proiectului.
+
+Logica pură din `src/lib/studio/effectStack.ts` normalizează pozițiile în 0–1, păstrează ordinea,
+inserează în cel mai mare interval și interpolează culoarea nouă. Testele pure și testul DOM al
+Scene Composer acoperă adăugare, repoziționare, eliminare și limita de două stopuri. Typecheck,
+lint relevant și build sunt curate; verificarea UX în browser cu Lovable rămâne pasul următor.
 
 Verificat și pe fereastră scurtă (1280×820): marginea de jos a clipului înainte și după Copy —
 meniul rămâne deschis, 0 clipuri inserate; click stânga execută o dată; 3 submeniuri (13 rânduri);

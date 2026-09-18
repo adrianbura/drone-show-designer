@@ -32,11 +32,12 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 2. [x] Re-măsurare browser 150/500 și verificare seek/playback/controls/selecție/Presentation.
 3. [x] Copy/paste intern pentru clipuri SHOW și obiectele scenei (ID-uri noi, un singur Undo).
 4. [x] Verificare UX/browser copy/paste; cauza meniului aparent blocat a fost izolată la
-   eliberarea butonului dreapta peste un rând repoziționat sub cursor.
+       eliberarea butonului dreapta peste un rând repoziționat sub cursor.
 5. [x] Șabloane de show: Blank, Short opener și Classic arc în New Show.
 6. [x] Verificare UX/browser pentru șabloane.
-7. [ ] Gard UI pentru eliberarea butonului dreapta în meniul contextual; verificare browser.
+7. [x] Gard UI pentru eliberarea butonului dreapta în meniul contextual; verificat în browser.
 8. [ ] Efecte de lumină avansate.
+   - [ ] Editor multi-stop pentru gradientele `COLOR_SWEEP` în inspectorul unificat.
 9. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
 10. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
 11. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
@@ -68,10 +69,10 @@ Method: Playwright headless Chromium with `--use-gl=swiftshader --enable-unsafe-
 1280×1800 viewport, launch grid + take-off + show segment + landing, fleet size set in the
 Fleet size field, 5 s rAF sample (first 5 frames dropped), paused and playing.
 
-| Fleet | Paused before | Paused after | Playing before | Playing after |
-| --- | --- | --- | --- | --- |
-| 150 | 62 ms/frame (16 fps) | **16.7 ms/frame (60 fps)** | 107 ms/frame (9 fps) | 128 ms/frame (7.8 fps) |
-| 500 | 158 ms/frame (6 fps) | **16.7 ms/frame (60 fps)** | 220 ms/frame (5 fps) | 281 ms/frame (3.6 fps) |
+| Fleet | Paused before        | Paused after               | Playing before       | Playing after          |
+| ----- | -------------------- | -------------------------- | -------------------- | ---------------------- |
+| 150   | 62 ms/frame (16 fps) | **16.7 ms/frame (60 fps)** | 107 ms/frame (9 fps) | 128 ms/frame (7.8 fps) |
+| 500   | 158 ms/frame (6 fps) | **16.7 ms/frame (60 fps)** | 220 ms/frame (5 fps) | 281 ms/frame (3.6 fps) |
 
 One canvas surface in every case. `frameloop="demand"` removed the idle redraw loop entirely at
 both fleet sizes; the playing cost is unchanged in nature (every frame is still drawn) and the
@@ -85,6 +86,7 @@ Limitation: software rendering, so these numbers are only valid as a before/afte
 never as an fps promise on real GPUs.
 
 ## Verificare browser 2026-09-18 (main @ 77c1105)
+
 - ✅ New Show: 3 șabloane (Blank/Short opener/Classic arc) — structuri corecte, Review cu rezumat, EDIT fără alegere de șablon, texte EN/RO fără promisiuni de siguranță
 - ✅ Copy/paste clipuri: meniu + Ctrl+C/V, identități noi, un Undo = un Paste, Copy fără history/dirty, TAKEOFF/LANDING fără Copy, Paste dezactivat explicat, inputuri neatinse
 - ✅ Cauza meniului aparent blocat izolată: meniul se deschide, dar la anumite ancore eliberarea

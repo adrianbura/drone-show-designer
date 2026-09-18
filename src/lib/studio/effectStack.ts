@@ -12,10 +12,73 @@
  */
 import type { RGB } from "../show/types";
 import {
+  type GradientStop,
   type LightingEffectInstance,
   type LightingEffectParameters,
   type LightingTarget,
 } from "../show/lighting";
+
+const clampStopPosition = (position: number): number => Math.max(0, Math.min(1, position));
+
+/** Stable, bounded stop order consumed directly by the canonical COLOR_SWEEP evaluator. */
+export function normalizeGradientStops(stops: readonly GradientStop[]): GradientStop[] {
+  return stops
+    .map((stop) => ({ ...stop, position: clampStopPosition(stop.position) }))
+    .sort((a, b) => a.position - b.position);
+}
+
+/** Inserts a stop in the largest visual gap, interpolating its colour. */
+export function addGradientStop(stops: readonly GradientStop[]): GradientStop[] {
+  const ordered = normalizeGradientStops(stops);
+  if (ordered.length === 0) {
+    return [
+      { position: 0, color: [255, 255, 255] },
+      { position: 1, color: [255, 255, 255] },
+    ];
+  }
+  if (ordered.length === 1) {
+    return normalizeGradientStops([
+      ordered[0]!,
+      { position: ordered[0]!.position < 0.5 ? 1 : 0, color: ordered[0]!.color },
+    ]);
+  }
+  let gapIndex = 0;
+  for (let index = 1; index < ordered.length - 1; index += 1) {
+    if (
+      ordered[index + 1]!.position - ordered[index]!.position >
+      ordered[gapIndex + 1]!.position - ordered[gapIndex]!.position
+    ) {
+      gapIndex = index;
+    }
+  }
+  const from = ordered[gapIndex]!;
+  const to = ordered[gapIndex + 1]!;
+  const color: RGB = [
+    Math.round((from.color[0] + to.color[0]) / 2),
+    Math.round((from.color[1] + to.color[1]) / 2),
+    Math.round((from.color[2] + to.color[2]) / 2),
+  ];
+  return normalizeGradientStops([
+    ...ordered,
+    { position: (from.position + to.position) / 2, color },
+  ]);
+}
+
+export function updateGradientStop(
+  stops: readonly GradientStop[],
+  index: number,
+  patch: Partial<GradientStop>,
+): GradientStop[] {
+  return normalizeGradientStops(
+    stops.map((stop, candidate) => (candidate === index ? { ...stop, ...patch } : stop)),
+  );
+}
+
+/** Canonical gradients require at least two stops. */
+export function removeGradientStop(stops: readonly GradientStop[], index: number): GradientStop[] {
+  if (stops.length <= 2) return normalizeGradientStops(stops);
+  return normalizeGradientStops(stops.filter((_, candidate) => candidate !== index));
+}
 
 /** The six everyday stack entries offered to a normal operator. */
 export type EffectStackPresetId =

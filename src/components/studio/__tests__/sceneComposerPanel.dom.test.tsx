@@ -515,6 +515,22 @@ describe("drone group lighting authoring UX", () => {
     fireEvent.click(screen.getByTestId(`effect-stack-select-${gradient.id}`));
     await waitFor(() => expect(api.selectedLightingEffectId).toBe(gradient.id));
 
+    // Advanced gradient authoring stays on the canonical COLOR_SWEEP stops.
+    expect(screen.getByTestId("effect-inspector-gradient-stops")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("effect-inspector-gradient-add"));
+    await waitFor(() => expect(api.project.lighting!.effects[2]!.parameters.stops).toHaveLength(3));
+    fireEvent.change(screen.getByLabelText("Gradient stop 2 position"), {
+      target: { value: "65" },
+    });
+    await waitFor(() =>
+      expect(api.project.lighting!.effects[2]!.parameters.stops?.[1]?.position).toBe(0.65),
+    );
+    fireEvent.click(screen.getByLabelText("Remove gradient stop 2"));
+    await waitFor(() => expect(api.project.lighting!.effects[2]!.parameters.stops).toHaveLength(2));
+    act(() => api.undoTimeline());
+    act(() => api.undoTimeline());
+    act(() => api.undoTimeline());
+
     act(() => api.undoTimeline());
     expect(api.project.lighting?.effects).toHaveLength(2);
     act(() => api.redoTimeline());

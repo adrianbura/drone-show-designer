@@ -22,7 +22,13 @@ import EffectCatalog from "@/components/studio/EffectCatalog";
 import LivePreviewBar from "@/components/studio/LivePreviewBar";
 import MotionInspector from "@/components/studio/MotionInspector";
 import { Button } from "@/components/ui/button";
-import { reorderEffect, stackOrder } from "@/lib/studio/effectStack";
+import {
+  addGradientStop,
+  removeGradientStop,
+  reorderEffect,
+  stackOrder,
+  updateGradientStop,
+} from "@/lib/studio/effectStack";
 import {
   LIGHTING_SELECTION_PRESETS,
   MOTION_SELECTION_PRESETS,
@@ -705,6 +711,82 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
                   </label>
                 )}
               </div>
+              {selected.type === "COLOR_SWEEP" && (
+                <div className="space-y-1" data-testid="effect-inspector-gradient-stops">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
+                      Gradient stops
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      data-testid="effect-inspector-gradient-add"
+                      className="h-6 px-1.5 font-mono text-[9px] uppercase"
+                      onClick={() =>
+                        patchLightingParameters(selected.id, {
+                          stops: addGradientStop(selected.parameters.stops ?? []),
+                        })
+                      }
+                    >
+                      Add stop
+                    </Button>
+                  </div>
+                  {(selected.parameters.stops ?? []).map((stop, index, stops) => (
+                    <div
+                      key={`${index}-${stop.position}`}
+                      data-testid={`effect-inspector-gradient-stop-${index}`}
+                      className="grid grid-cols-[1fr_4rem_1.5rem] items-center gap-1"
+                    >
+                      <input
+                        type="color"
+                        aria-label={`Gradient stop ${index + 1} colour`}
+                        value={toHex(stop.color)}
+                        onChange={(event) =>
+                          patchLightingParameters(selected.id, {
+                            stops: updateGradientStop(stops, index, {
+                              color: fromHex(event.target.value),
+                            }),
+                          })
+                        }
+                        className="h-6 w-full cursor-pointer rounded border border-border bg-transparent"
+                      />
+                      <label className="flex items-center gap-0.5 font-mono text-[9px] text-muted-foreground">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={1}
+                          aria-label={`Gradient stop ${index + 1} position`}
+                          value={Math.round(stop.position * 100)}
+                          onChange={(event) =>
+                            patchLightingParameters(selected.id, {
+                              stops: updateGradientStop(stops, index, {
+                                position: Number(event.target.value) / 100,
+                              }),
+                            })
+                          }
+                          className="studio-input w-12 text-right"
+                        />
+                        %
+                      </label>
+                      <button
+                        type="button"
+                        aria-label={`Remove gradient stop ${index + 1}`}
+                        disabled={stops.length <= 2}
+                        onClick={() =>
+                          patchLightingParameters(selected.id, {
+                            stops: removeGradientStop(stops, index),
+                          })
+                        }
+                        className="text-muted-foreground hover:text-destructive disabled:opacity-30"
+                      >
+                        <Trash2 className="size-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
