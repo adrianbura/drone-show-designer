@@ -572,6 +572,24 @@ export const ro: Dictionary = {
   "image.diag.contour": "puncte de contur {raw} → {simplified}",
   "image.diag.analysis": "analiză {width}×{height} px, polaritate {polarity}",
   "image.diag.timing": "decodare {decode} ms · analiză {analysis} ms · compilare {compile} ms",
+  "image.compile.status": "Diagnostice de design",
+  "image.compile.statusClear": "În regulă — nicio avertizare de design",
+  "image.compile.statusAttention": "Atenție — {warnings} avertizare/avertizări de design",
+  "image.compile.notes": "{count} observație/observații",
+  "image.compile.severity.warning": "Avertizare",
+  "image.compile.severity.info": "Observație",
+  "image.compile.guidanceTitle": "Ce poți ajusta",
+  "image.compile.guide.DETAILS_OMITTED":
+    "Crește numărul de drone, scade nivelul de detaliu sau simplifică structura, ca detaliile fine să primească suficiente puncte.",
+  "image.compile.guide.UNDER_RESOLVED":
+    "Crește numărul de drone, scade nivelul de detaliu sau simplifică structura, ca detaliile fine să primească suficiente puncte.",
+  "image.compile.guide.SPACING_TIGHT":
+    "Scade numărul de drone cerut sau simplifică structura, ca punctele să stea mai depărtate.",
+  "image.compile.guide.BUDGET_EXCEEDS_DESIGN":
+    "Scade numărul de drone cerut sau adaugă structură, ca designul să poată folosi tot bugetul.",
+  "image.compile.guide.EMPTY_DESIGN": "Activează cel puțin un element de structură, apoi recompilează.",
+  "image.compile.guide.SYMMETRY_ADJUSTED":
+    "Nu e nevoie de nicio acțiune: numărul de puncte a fost echilibrat între elementele oglindite.",
   "image.error.UNSUPPORTED_TYPE": "Sunt acceptate doar imagini PNG, JPEG și WebP.",
   "image.error.FILE_TOO_LARGE": "Imaginea depășește 8 MB.",
   "image.error.DECODE_FAILED": "Imaginea nu a putut fi decodată.",
