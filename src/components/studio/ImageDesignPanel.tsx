@@ -646,9 +646,28 @@ export default function ImageDesignPanel() {
                       value: compiled.result.report.minSpacing.toFixed(2),
                     })}
                   </div>
+                  <div
+                    className="flex flex-wrap items-center gap-1 normal-case tracking-normal"
+                    data-testid="image-compile-status"
+                    data-status={summary.status}
+                  >
+                    {summary.status === "ATTENTION" ? (
+                      <AlertTriangle className="size-3 shrink-0 text-amber-700 dark:text-amber-300" />
+                    ) : (
+                      <CheckCircle2 className="size-3 shrink-0" />
+                    )}
+                    <span className={summary.status === "ATTENTION" ? "font-semibold" : undefined}>
+                      {summary.status === "ATTENTION"
+                        ? t("image.compile.statusAttention", { warnings: summary.warningCount })
+                        : t("image.compile.statusClear")}
+                    </span>
+                    {summary.infoCount > 0 && (
+                      <span>· {t("image.compile.notes", { count: summary.infoCount })}</span>
+                    )}
+                  </div>
                   {compiled.result.report.issues.length > 0 && (
                     <ul
-                      className="list-disc space-y-0.5 pl-4 normal-case tracking-normal"
+                      className="space-y-0.5 normal-case tracking-normal"
                       data-testid="image-compile-issues"
                     >
                       {compiled.result.report.issues.map((issue) => (
@@ -657,16 +676,47 @@ export default function ImageDesignPanel() {
                           data-severity={issue.severity}
                           className={
                             issue.severity === "warning"
-                              ? "text-amber-700 dark:text-amber-300"
-                              : undefined
+                              ? "flex gap-1 text-amber-700 dark:text-amber-300"
+                              : "flex gap-1"
                           }
                         >
-                          {t(`visualLab.issue.${issue.code}` as "visualLab.issue.DETAILS_OMITTED", {
-                            ...issue.detail,
-                          })}
+                          {issue.severity === "warning" ? (
+                            <AlertTriangle className="mt-[1px] size-3 shrink-0" aria-hidden />
+                          ) : (
+                            <Info className="mt-[1px] size-3 shrink-0" aria-hidden />
+                          )}
+                          <span>
+                            <span className="font-semibold">
+                              {t(
+                                `image.compile.severity.${issue.severity}` as "image.compile.severity.warning",
+                              )}
+                              {": "}
+                            </span>
+                            {t(
+                              `visualLab.issue.${issue.code}` as "visualLab.issue.DETAILS_OMITTED",
+                              { ...issue.detail },
+                            )}
+                          </span>
                         </li>
                       ))}
                     </ul>
+                  )}
+                  {summary.guidance.length > 0 && (
+                    <div
+                      className="space-y-0.5 normal-case tracking-normal"
+                      data-testid="image-compile-guidance"
+                    >
+                      <div className="font-semibold">{t("image.compile.guidanceTitle")}</div>
+                      <ul className="list-disc space-y-0.5 pl-4">
+                        {summary.guidance.map((code) => (
+                          <li key={code}>
+                            {t(
+                              `image.compile.guide.${code}` as "image.compile.guide.DETAILS_OMITTED",
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                   <div className="normal-case tracking-normal">{t("visualLab.notSafety")}</div>
                 </>
