@@ -37,7 +37,8 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 6. [x] Verificare UX/browser pentru șabloane.
 7. [x] Gard UI pentru eliberarea butonului dreapta în meniul contextual; verificat în browser.
 8. [ ] Efecte de lumină avansate.
-   - [ ] Editor multi-stop pentru gradientele `COLOR_SWEEP` în inspectorul unificat.
+   - [x] Editor multi-stop pentru gradientele `COLOR_SWEEP` în inspectorul unificat — verificat în
+         browser (vezi „Verificare browser 2026-09-18 — editor gradient multi-stop”).
 9. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
 10. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
 11. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
@@ -115,3 +116,25 @@ meniul rămâne deschis, 0 clipuri inserate; click stânga execută o dată; 3 s
 Enter pe `Paste` inserează exact 1 clip, un Undo îl elimină; meniul pe zona liberă a cronologiei se
 deschide. Suita completă: 159 fișiere / 1396 teste / 1 skipped, fără instabilitate Radix/JSDOM la
 această rulare.
+
+## Verificare browser 2026-09-18 — editor gradient multi-stop (main @ 563b546)
+
+Probă Playwright reală (Chromium headless, 1600×1800 și 1280×820; show „Depth Stagger Demo”, clip
+SHOW `c-ds-approach`, obiect de scenă selectat, `Gradient sweep` adăugat și aplicat din previzualizare):
+
+- ✅ inspectorul arată toate stopurile canonice, cu culoare și poziție 0–100%
+- ✅ „Add stop” inserează în cel mai mare interval (50%) cu culoare interpolată (#ffc878 + #5078ff → #a8a0bc)
+- ✅ eticheta de culoare din cronologie se schimbă după adăugare
+- ✅ editarea culorii se aplică; pozițiile se limitează la 0% și 100% și rămân ordonate, inclusiv la
+  o mutare în interval (0 / 20 / 50%) care reordonează stopurile
+- ✅ eliminarea funcționează și se oprește la minimul canonic de două (butoanele devin inactive)
+- ✅ Undo/Redo exact pentru adăugare, culoare, mutare și eliminare (9/9 verificări țintite)
+- ✅ persistență: gradientul cu trei stopuri se salvează în fișierul de proiect și se regăsește
+  identic după reîncărcare și redeschidere
+- ✅ fără regresii: Colour A/B, direcția gradientului, axa din inspector, selecția cu click stânga,
+  duplicarea efectului și redarea previzualizării
+- ✅ accesibil și pe fereastră scurtă (1280×820): editorul e vizibil după derulare (132×229 px)
+- ✅ 1399 teste / 1 skipped, typecheck, lint pe fișierele atinse, build — curate
+
+Observație de metodă (nu defect): scurtăturile de tastatură sunt ignorate corect cât timp focalizarea
+e într-un câmp de introducere, deci Undo se verifică numai după ce câmpul de culoare pierde focusul.
