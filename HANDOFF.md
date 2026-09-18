@@ -320,6 +320,21 @@ Metodă: Playwright headless Chromium/SwiftShader, viewport 1280×1800, scriptur
 
 **Copy/paste clipuri (PASS):** TAKEOFF/LANDING fără Copy; Paste dezactivat cu explicație „Copy a SHOW clip first."; Copy nu creează history/dirty; Ctrl+C/Ctrl+V pe clip lipește exact o dată per apăsare, identități noi, un singur Undo elimină întregul Paste; shortcuturile nu interceptează Ctrl+C/V în inputuri (valoare „abcabc" corectă).
 
-**BUG DOCUMENTAT (UI-only, necorectat — necesită decizie):** după executarea oricărei comandă din meniul contextual al unui clip (ex. Copy), meniul contextual nu se mai redeschide pe NICIUN clip prin click-dreapta real. Evenimentul contextmenu ajunge la element (verificat cu listeneri), nodul DOM nu e înlocuit, iar un contextmenu sintetic dispatchează și DESCHIDE meniului corect — deci handlerul Radix e intact; blocajul e la nivelul gestului real (pointerdown buton 2 + contextmenu), probabil o stare internă Radix rămasă după închiderea prin onSelect. Workaround: Ctrl+C/Ctrl+V funcționează perfect. Remedierea trebuie limitată la stratul UI (Timeline/StudioContextMenu), fără atingerea store/core.
+**DIAGNOSTIC CORECTAT (UI-only):** nu există stare Radix blocată. Trasarea cu mouse real la
+1600×1800 a arătat că `contextmenu` deschide corect meniul și starea modală este curățată. Când
+meniul se repoziționează în sus, un rând poate apărea sub cursor; `pointerup` pentru butonul 2
+ajunge pe acel rând, îl activează și închide imediat meniul. De aceea evenimentul sintetic părea
+să funcționeze: nu are o eliberare ulterioară a butonului. Problema se reproduce și în stare
+curată, în funcție de punctul de ancorare; Copy doar schimbă geometria prin apariția Paste.
+
+Cauze eliminate prin trasare: cleanup modal/dismissable layer, meniurile Radix imbricate,
+pointer capture al timeline-ului, ordinea `stopPropagation` și stare open stale. Remedierea minimă
+este în `StudioContextMenu.tsx`: contentul principal și submeniurile opresc în capture doar
+`pointerup` non-primar, înainte ca itemul să-l transforme într-o selecție. Poziționarea,
+click-stânga, tastatura, submeniurile și autoritatea command/store rămân neschimbate.
+
+Testul DOM țintit pentru gard trece izolat; fișierul Radix/JSDOM rămâne instabil când toate
+cazurile rulează împreună, limitare deja cunoscută. Verificarea decisivă rămâne Playwright cu
+click-dreapta la marginea inferioară a clipului, după publicarea fixului.
 
 **Verificări:** 159 fișiere / 1395 teste trec (1 skipped), tsgo curat, eslint curat pe Timeline/SetupWizard/showTemplates, build OK.

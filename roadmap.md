@@ -31,13 +31,16 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 1. [x] Viewport invalidate-on-demand implementat: editor tehnic `demand`, Presentation `always`.
 2. [x] Re-măsurare browser 150/500 și verificare seek/playback/controls/selecție/Presentation.
 3. [x] Copy/paste intern pentru clipuri SHOW și obiectele scenei (ID-uri noi, un singur Undo).
-4. [ ] Verificare UX/browser copy/paste (Lovable în lucru).
+4. [x] Verificare UX/browser copy/paste; cauza meniului aparent blocat a fost izolată la
+   eliberarea butonului dreapta peste un rând repoziționat sub cursor.
 5. [x] Șabloane de show: Blank, Short opener și Classic arc în New Show.
-6. [ ] Verificare UX/browser pentru șabloane, apoi efecte de lumină avansate.
-7. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
-8. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
-9. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
-10. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
+6. [x] Verificare UX/browser pentru șabloane.
+7. [ ] Gard UI pentru eliberarea butonului dreapta în meniul contextual; verificare browser.
+8. [ ] Efecte de lumină avansate.
+9. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
+10. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
+11. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
+12. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
 
 ## Capabilități livrate
 
@@ -84,5 +87,6 @@ never as an fps promise on real GPUs.
 ## Verificare browser 2026-09-18 (main @ 77c1105)
 - ✅ New Show: 3 șabloane (Blank/Short opener/Classic arc) — structuri corecte, Review cu rezumat, EDIT fără alegere de șablon, texte EN/RO fără promisiuni de siguranță
 - ✅ Copy/paste clipuri: meniu + Ctrl+C/V, identități noi, un Undo = un Paste, Copy fără history/dirty, TAKEOFF/LANDING fără Copy, Paste dezactivat explicat, inputuri neatinse
-- ⚠️ BUG UI documentat: meniul contextual al clipurilor nu se redeschide prin click-dreapta după executarea unei comenzi (Ctrl+C/V rămân funcționale); remediere strict UI, de decis
+- ✅ Cauza meniului aparent blocat izolată: meniul se deschide, dar la anumite ancore eliberarea
+  butonului dreapta cade pe un rând repoziționat sub cursor și îl activează; fix strict UI în lucru
 - ✅ 1395 teste, typecheck, lint, build — toate curate
