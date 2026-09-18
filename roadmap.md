@@ -90,3 +90,20 @@ never as an fps promise on real GPUs.
 - ✅ Cauza meniului aparent blocat izolată: meniul se deschide, dar la anumite ancore eliberarea
   butonului dreapta cade pe un rând repoziționat sub cursor și îl activează; fix strict UI în lucru
 - ✅ 1395 teste, typecheck, lint, build — toate curate
+
+## Verificare browser 2026-09-18 (guard meniu contextual @ 878c992)
+
+Probă Playwright reală (viewport 1600×1800, show: launch grid + take-off + 2 segmente + landing),
+click dreapta cu gest real de mouse (`mouse.down`/`mouse.up`, fără pauză):
+
+- ✅ marginea de jos a unui clip SHOW, înainte de Copy: meniul rămâne deschis, nicio comandă executată
+- ✅ marginea de jos și partea de sus, după Copy: meniul rămâne deschis, zero clipuri inserate
+- ✅ click stânga pe un rând execută comanda o singură dată (Copy)
+- ✅ submeniuri: 2 declanșatoare, se deschid la hover și își arată rândurile
+- ✅ tastatură: ArrowDown până la `Paste`, Enter execută exact un Paste
+- ✅ un Paste = un Undo (numărul de clipuri revine exact)
+- ✅ meniul pe zona liberă a cronologiei se deschide („Timeline · Add Formation Clip…”)
+- ✅ 399 teste țintite (inclusiv noul caz DOM), typecheck, lint pe fișierele atinse, build — curate
+
+Limitare: JSDOM nu poate reproduce geometria (fără layout și fără repoziționare la coliziune);
+acel aspect rămâne verificabil doar în browser.
