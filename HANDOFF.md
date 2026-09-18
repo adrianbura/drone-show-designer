@@ -311,3 +311,15 @@ autoritate de timeline. Aplică doar corecții UI limitate; schimbările în sto
 raportate înainte. Actualizează HANDOFF.md și roadmap.md și rulează testele, typecheck, lint
 relevant și build.
 ```
+
+## VERIFICARE BROWSER — copy/paste + șabloane New Show (main @ 77c1105, 2026-09-18)
+
+Metodă: Playwright headless Chromium/SwiftShader, viewport 1280×1800, scripturi în /tmp/browser/verify/ (newshow.py, kb.py, menubug*.py). Zero modificări de cod.
+
+**New Show (toate PASS):** cele 3 opțiuni (Blank canvas / Short opener / Classic arc) cu stare selectată (aria-pressed) și rezumat în Review; Blank → timeline gol; Short opener → TAKEOFF+2 SHOW+LANDING; Classic arc → TAKEOFF+3 SHOW+LANDING, ordine corectă, fără referințe lipsă; Show Setup pe proiect deschis (mod EDIT) NU afișează alegerea de șablon; textele EN/RO spun explicit „not validated flight plans or safety approvals" / „nu planuri de zbor validate sau aprobări de siguranță".
+
+**Copy/paste clipuri (PASS):** TAKEOFF/LANDING fără Copy; Paste dezactivat cu explicație „Copy a SHOW clip first."; Copy nu creează history/dirty; Ctrl+C/Ctrl+V pe clip lipește exact o dată per apăsare, identități noi, un singur Undo elimină întregul Paste; shortcuturile nu interceptează Ctrl+C/V în inputuri (valoare „abcabc" corectă).
+
+**BUG DOCUMENTAT (UI-only, necorectat — necesită decizie):** după executarea oricărei comandă din meniul contextual al unui clip (ex. Copy), meniul contextual nu se mai redeschide pe NICIUN clip prin click-dreapta real. Evenimentul contextmenu ajunge la element (verificat cu listeneri), nodul DOM nu e înlocuit, iar un contextmenu sintetic dispatchează și DESCHIDE meniului corect — deci handlerul Radix e intact; blocajul e la nivelul gestului real (pointerdown buton 2 + contextmenu), probabil o stare internă Radix rămasă după închiderea prin onSelect. Workaround: Ctrl+C/Ctrl+V funcționează perfect. Remedierea trebuie limitată la stratul UI (Timeline/StudioContextMenu), fără atingerea store/core.
+
+**Verificări:** 159 fișiere / 1395 teste trec (1 skipped), tsgo curat, eslint curat pe Timeline/SetupWizard/showTemplates, build OK.
