@@ -40,6 +40,9 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
    - [ ] Editor multi-stop pentru gradientele `COLOR_SWEEP` în inspectorul unificat.
    - [ ] Ancoră temporală și mod de blend în inspectorul unificat.
 9. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
+   - [x] Import local, Contur/Structural/Umplut și compilare deterministă exact-N există.
+   - [x] Afișarea distanței minime și a avertismentelor compilatorului în panoul imaginii.
+   - [ ] Verificare browser pentru contur/umplere, diagnostic și salvare în bibliotecă.
 10. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
 11. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
 12. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.

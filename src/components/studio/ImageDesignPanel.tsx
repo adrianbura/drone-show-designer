@@ -184,9 +184,7 @@ function StructureCanvas({
           editor.addDrawPoint(point);
           return;
         }
-        editor.select(
-          hitTestDesign(design, point, toleranceInDesignUnits(transform, HIT_PIXELS)),
-        );
+        editor.select(hitTestDesign(design, point, toleranceInDesignUnits(transform, HIT_PIXELS)));
       }}
       onDoubleClick={() => {
         if (editor.tool === "DRAW") editor.commitDrawing();
@@ -205,11 +203,7 @@ function StructureCanvas({
   );
 }
 
-function PointsCanvas({
-  points,
-}: {
-  points: readonly (readonly [number, number, number])[];
-}) {
+function PointsCanvas({ points }: { points: readonly (readonly [number, number, number])[] }) {
   const draw = (canvas: HTMLCanvasElement | null) => {
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
@@ -343,7 +337,6 @@ export default function ImageDesignPanel() {
     }
   }, [count, design]);
 
-
   const pick = async (file: File | undefined) => {
     if (!file) return;
     setSaved(null);
@@ -468,7 +461,6 @@ export default function ImageDesignPanel() {
           </button>
         )}
       </div>
-
 
       {(error ?? analysisError) && (
         <p className="text-[11px] text-destructive">{error ?? analysisError}</p>
@@ -643,11 +635,41 @@ export default function ImageDesignPanel() {
                 })}
               </div>
               {compiled && (
-                <div>
-                  points {compiled.result.points.length} · primitives{" "}
-                  {compiled.result.report.primitivesUsed}/{compiled.result.report.primitivesTotal} ·
-                  fleet {project.droneCount}
-                </div>
+                <>
+                  <div>
+                    points {compiled.result.points.length} · primitives{" "}
+                    {compiled.result.report.primitivesUsed}/{compiled.result.report.primitivesTotal}{" "}
+                    · fleet {project.droneCount}
+                  </div>
+                  <div>
+                    {t("visualLab.spacing", {
+                      value: compiled.result.report.minSpacing.toFixed(2),
+                    })}
+                  </div>
+                  {compiled.result.report.issues.length > 0 && (
+                    <ul
+                      className="list-disc space-y-0.5 pl-4 normal-case tracking-normal"
+                      data-testid="image-compile-issues"
+                    >
+                      {compiled.result.report.issues.map((issue) => (
+                        <li
+                          key={`${issue.code}-${JSON.stringify(issue.detail)}`}
+                          data-severity={issue.severity}
+                          className={
+                            issue.severity === "warning"
+                              ? "text-amber-700 dark:text-amber-300"
+                              : undefined
+                          }
+                        >
+                          {t(`visualLab.issue.${issue.code}` as "visualLab.issue.DETAILS_OMITTED", {
+                            ...issue.detail,
+                          })}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="normal-case tracking-normal">{t("visualLab.notSafety")}</div>
+                </>
               )}
             </div>
           )}
