@@ -133,6 +133,7 @@ import {
 } from "../show/markers";
 import { timelineContentRange } from "./timelineLayout";
 import { insertClipBeforeLanding } from "./clipInsertion";
+import { applyShowTemplate, type ShowTemplateId } from "./showTemplates";
 import {
   defaultLandingParams,
   defaultTakeoffParams,
@@ -852,7 +853,7 @@ interface StudioContextValue {
 
   // ---- Project setup wizard + asset library (Sprint 6B.6) -----------------
   /** Replaces the whole project with a new one built from the wizard draft. */
-  createProjectFromDraft: (draft: ProjectSetupDraft) => void;
+  createProjectFromDraft: (draft: ProjectSetupDraft, templateId?: ShowTemplateId) => void;
   /** Loads a registered opt-in sample/demo show by id (never automatic). */
   loadSampleShow: (sampleId: string) => boolean;
   /** Applies wizard edits (name / fleet / launch geometry) to the open project. */
@@ -1947,8 +1948,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createProjectFromDraft = useCallback(
-    (draft: ProjectSetupDraft) => {
-      loadShowProject(createProjectFromSetup(draft));
+    (draft: ProjectSetupDraft, templateId: ShowTemplateId = "BLANK") => {
+      loadShowProject(applyShowTemplate(createProjectFromSetup(draft), templateId));
     },
     [loadShowProject],
   );

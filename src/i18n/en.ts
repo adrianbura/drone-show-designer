@@ -80,6 +80,15 @@ export const en = {
   "setup.preset.wide": "Wide",
   "setup.preset.custom": "Custom",
   "setup.presetNote": "Presets are design conveniences only — they make no safety claim.",
+  "setup.template.title": "Starting structure",
+  "setup.template.blank": "Blank canvas",
+  "setup.template.blankDescription": "Empty timeline for a fully custom show.",
+  "setup.template.shortOpener": "Short opener",
+  "setup.template.shortOpenerDescription": "Take-off, two visual moments and landing.",
+  "setup.template.classicArc": "Classic arc",
+  "setup.template.classicArcDescription": "Take-off, three contrasting moments and landing.",
+  "setup.template.note":
+    "Templates are editable starting points, not validated flight plans or safety approvals.",
   "setup.reviewNote": "Creating the show writes this geometry into the launch grid engine.",
   "setup.editNote":
     "Changing launch geometry marks the pre-show plan, full-show validation, simulation package and exports as stale.",

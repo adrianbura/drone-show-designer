@@ -73,10 +73,11 @@ repository-ul GitHub folosit și de Lovable.
   folosit prin prompturi delimitate și verificat ulterior.
 - **Obiectiv principal:** aplicație profesională și ușor de folosit.
 - **Ramură canonică:** `main`; nu se rescrie istoricul publicat.
-- **Ultima stare analizată:** `main` la `a62bcaa` (verificarea Lovable pentru viewport).
-- **Lucru curent:** copy/paste intern este implementat pentru clipuri SHOW și obiectele scenei,
-  cu snapshot la Copy, identități noi la Paste și o singură revizie Undo.
-- **Prioritate activă:** verificare UX/browser pentru copy/paste, apoi șabloane de show.
+- **Ultima stare analizată:** `main` la `e33dfcf` („Add design copy and paste workflow").
+- **Lucru curent:** copy/paste este în verificare browser la Lovable; trei șabloane de show sunt
+  implementate în wizardul New Show și verificate static/local.
+- **Prioritate activă:** închiderea verificării Lovable pentru copy/paste și șabloane, apoi efecte
+  de lumină avansate.
 - **Validare încă necesară:** toate cifrele de performanță provin din Playwright headless cu
   SwiftShader; o măsurătoare pe GPU real rămâne de făcut înainte de orice promisiune de fps.
 - **Comandă de reluare:** când utilizatorul spune „continuă”, se pornește prioritatea activă din
@@ -236,7 +237,8 @@ Rămas, în ordinea de lucru:
 
 1. **Verificare copy/paste în browser** — clip SHOW din timeline și selecție de obiecte din
    scenă; confirmă selecția rezultatului și un singur pas Undo pentru fiecare Paste.
-2. **Șabloane de show** — `src/lib/studio/showTemplates.ts`, fără a dubla autoritatea motoarelor.
+2. **Verificare șabloane în browser** — selecție în New Show, rezumat în Review și timeline
+   rezultat pentru Blank / Short opener / Classic arc.
 3. **Efecte de lumină avansate** peste preseturile existente.
 4. **Imagine → figură mai puternic** (contur vs. umplere, diagnostic de separare).
 5. **Cost de redare la 500 de drone** — singura țintă de performanță rămasă după închiderea
@@ -266,6 +268,27 @@ Validare locală:
   `studioContextMenu.dom.test.tsx`, care nu reușesc să deschidă meniul nici înaintea acestei
   schimbări; testele pure ale autorității meniului și copy/paste trec.
 
+### ȘABLOANE DE SHOW — IMPLEMENTAT, ÎN AȘTEPTAREA VERIFICĂRII BROWSER (18 sep 2026)
+
+- `src/lib/studio/showTemplates.ts` este registrul pur pentru `BLANK`, `SHORT_OPENER` și
+  `CLASSIC_ARC`;
+- Blank păstrează timeline-ul gol; celelalte șabloane compun TAKEOFF, două/trei momente SHOW și
+  LANDING folosind exclusiv autoritățile canonice existente;
+- alegerea este integrată în pasul Project al New Show și apare din nou în Review; editarea unui
+  proiect existent nu oferă șabloane, ca să nu înlocuiască accidental munca utilizatorului;
+- textele EN/RO spun explicit că șabloanele sunt puncte de pornire editabile, nu validări sau
+  aprobări de siguranță.
+
+Validare locală:
+
+- TypeScript `tsc --noEmit`: **trecut**;
+- teste țintite setup + templates: **16/16 trecute**;
+- build producție: **trecut**, cu avertismentele istorice de chunk/directive;
+- ESLint pe fișierele atinse: **0 erori**, aceleași 11 avertismente istorice în `store.tsx`;
+- suită completă: **158 fișiere trecute, 1 eșuat; 1393 teste trecute, 2 eșuate,
+  1 skipped**. Cele două eșecuri rămân exclusiv testele Radix/JSDOM cunoscute din
+  `studioContextMenu.dom.test.tsx`.
+
 ## 6. Limitări cunoscute, de comunicat onest
 
 - Aplicația **nu** autorizează zborul; validările sunt de design, nu certificare.
@@ -277,14 +300,14 @@ Validare locală:
 ## 7. Prompt de verificare pentru Lovable
 
 ```text
-Sincronizează ultimul main și nu rescrie istoricul. Verifică în browser copy/paste: (1) un clip
-SHOW din timeline prin meniul contextual Copy/Paste și Ctrl+C/Ctrl+V; (2) unul și mai multe
-obiecte selectate în Scene editor prin Ctrl+C/Ctrl+V. Confirmă că Paste selectează rezultatul,
-generează identități noi, păstrează aspectul și că un singur Undo elimină întregul Paste.
+Sincronizează ultimul main și nu rescrie istoricul. În New Show verifică cele trei opțiuni de
+structură inițială: Blank canvas, Short opener și Classic arc, inclusiv starea selectată și
+rezumatul din Review. Creează pe rând fiecare variantă și confirmă timeline gol pentru Blank,
+respectiv TAKEOFF + 2/3 SHOW + LANDING pentru celelalte, în ordinea corectă și fără referințe lipsă.
 
-Confirmă că shortcuturile nu interceptează Ctrl+C/Ctrl+V în input/textarea/contenteditable și că
-TAKEOFF/LANDING nu oferă copiere de clip. Nu modifica motoarele show/trajectory/safety, importul
-sau exportul și nu reimplementa clipboardul. Dacă găsești o problemă, documenteaz-o și aplică
-doar o corecție UI limitată; orice schimbare în store/core trebuie raportată înainte. Actualizează
-HANDOFF.md și roadmap.md și rulează testele, typecheck, lint relevant și build.
+Confirmă că Show Setup pentru un proiect existent NU afișează șabloanele și că textele EN/RO nu
+fac promisiuni de siguranță. Nu modifica motoarele show/trajectory/safety și nu crea o a doua
+autoritate de timeline. Aplică doar corecții UI limitate; schimbările în store/core trebuie
+raportate înainte. Actualizează HANDOFF.md și roadmap.md și rulează testele, typecheck, lint
+relevant și build.
 ```

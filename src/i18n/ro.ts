@@ -84,6 +84,15 @@ export const ro: Dictionary = {
   "setup.preset.custom": "Personalizat",
   "setup.presetNote":
     "Presetările sunt doar comodități de proiectare — nu reprezintă o afirmație de siguranță.",
+  "setup.template.title": "Structură inițială",
+  "setup.template.blank": "Pânză goală",
+  "setup.template.blankDescription": "Timeline gol pentru un show complet personalizat.",
+  "setup.template.shortOpener": "Deschidere scurtă",
+  "setup.template.shortOpenerDescription": "Decolare, două momente vizuale și aterizare.",
+  "setup.template.classicArc": "Arc clasic",
+  "setup.template.classicArcDescription": "Decolare, trei momente contrastante și aterizare.",
+  "setup.template.note":
+    "Șabloanele sunt puncte de pornire editabile, nu planuri de zbor validate sau aprobări de siguranță.",
   "setup.reviewNote":
     "Crearea show-ului scrie această geometrie direct în motorul grilei de lansare.",
   "setup.editNote":

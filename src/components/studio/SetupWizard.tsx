@@ -34,6 +34,7 @@ import {
   type SetupStep,
 } from "@/lib/show/setup";
 import { useStudio } from "@/lib/studio/store";
+import { findShowTemplate, SHOW_TEMPLATES, type ShowTemplateId } from "@/lib/studio/showTemplates";
 import LaunchGridPreview from "./LaunchGridPreview";
 
 const FLEET_PRESETS = [24, 48, 100, 150, 200];
@@ -105,6 +106,7 @@ export default function SetupWizard({
   const { currentSetupDraft, createProjectFromDraft, applySetupDraft } = useStudio();
   const [draft, setDraft] = useState<ProjectSetupDraft>(DEFAULT_SETUP_DRAFT);
   const [step, setStep] = useState<SetupStep>("PROJECT");
+  const [templateId, setTemplateId] = useState<ShowTemplateId>("BLANK");
   /** Once the grid shape is edited by hand, fleet changes stop reshaping it. */
   const [gridTouched, setGridTouched] = useState(false);
 
@@ -114,6 +116,7 @@ export default function SetupWizard({
     if (!open) return;
     setDraft(mode === "EDIT" ? currentSetupDraft : DEFAULT_SETUP_DRAFT);
     setStep("PROJECT");
+    setTemplateId("BLANK");
     setGridTouched(mode === "EDIT");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mode]);
@@ -123,6 +126,7 @@ export default function SetupWizard({
   const stepIndex = SETUP_STEPS.indexOf(step);
   const errors = evaluation.issues.filter((i) => i.severity === "error");
   const warnings = evaluation.issues.filter((i) => i.severity === "warning");
+  const selectedTemplate = findShowTemplate(templateId);
 
   const patch = (p: Partial<ProjectSetupDraft>) => setDraft((d) => ({ ...d, ...p }));
 
@@ -154,7 +158,7 @@ export default function SetupWizard({
 
   const submit = () => {
     if (!evaluation.canCreate) return;
-    if (mode === "CREATE") createProjectFromDraft(draft);
+    if (mode === "CREATE") createProjectFromDraft(draft, templateId);
     else applySetupDraft(draft);
     onOpenChange(false);
   };
@@ -216,6 +220,39 @@ export default function SetupWizard({
                 onChange={(e) => patch({ description: e.target.value })}
               />
             </label>
+            {mode === "CREATE" ? (
+              <fieldset className="space-y-1.5">
+                <legend className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+                  {t("setup.template.title")}
+                </legend>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {SHOW_TEMPLATES.map((template) => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      data-testid={`show-template-${template.id.toLowerCase()}`}
+                      aria-pressed={templateId === template.id}
+                      onClick={() => setTemplateId(template.id)}
+                      className={`rounded-md border px-3 py-2 text-left transition-colors ${
+                        templateId === template.id
+                          ? "border-accent bg-accent/10"
+                          : "border-border hover:border-muted-foreground/50"
+                      }`}
+                    >
+                      <span className="block text-xs font-medium text-foreground">
+                        {t(template.nameKey as "setup.template.blank")}
+                      </span>
+                      <span className="mt-1 block text-[10px] leading-relaxed text-muted-foreground">
+                        {t(template.descriptionKey as "setup.template.blankDescription")}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <p className="font-mono text-[9px] leading-relaxed text-muted-foreground">
+                  {t("setup.template.note")}
+                </p>
+              </fieldset>
+            ) : null}
           </div>
         ) : null}
 
@@ -437,6 +474,12 @@ export default function SetupWizard({
                 label={t("launchGrid.title")}
                 value={`${draft.launch.rows} × ${draft.launch.columns}`}
               />
+              {mode === "CREATE" ? (
+                <Metric
+                  label={t("setup.template.title")}
+                  value={t(selectedTemplate.nameKey as "setup.template.blank")}
+                />
+              ) : null}
             </div>
             <p className="font-mono text-[9px] leading-relaxed text-muted-foreground">
               {mode === "CREATE" ? t("setup.reviewNote") : t("setup.editNote")}
