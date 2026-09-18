@@ -77,6 +77,11 @@ export default function StudioContextMenu({
       <ContextMenuTrigger asChild={asChild}>{children}</ContextMenuTrigger>
       <ContextMenuContent
         data-testid="studio-context-menu"
+        onPointerDownOutside={(e) => (globalThis as any).__scmLog.push(["pointerDownOutside", (e.target as any)?.tagName ?? "?", (e.detail as any)?.originalEvent?.type])}
+        onFocusOutside={(e) => (globalThis as any).__scmLog.push(["focusOutside", (e.target as any)?.tagName ?? "?"])}
+        onInteractOutside={() => (globalThis as any).__scmLog.push(["interactOutside"])}
+        onEscapeKeyDown={() => (globalThis as any).__scmLog.push(["escape"])}
+        onCloseAutoFocus={() => (globalThis as any).__scmLog.push(["closeAutoFocus"])}
         collisionPadding={8}
         className="max-h-[80vh] w-56 overflow-y-auto"
       >
