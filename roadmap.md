@@ -48,6 +48,9 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
    - Rămâne deschis doar pentru un test lent (`sceneComposerPanel.dom.test.tsx`) care depășește
      limita de 5 s când rulează toată suita; trece izolat în 4,5 s. Nu ține de imagini.
 10. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
+    - Re-măsurare 18 sep 2026 NECONCLUDENTĂ: commitul cerut `b91f3df` nu există în acest sandbox
+      (`git fetch` nu are credențiale), deci măsurarea s-a făcut pe `4e8f8b7`, fără calea de
+      eșantionare dublă eliminată. Vezi tabelul din secțiunea de mai jos.
 11. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
 12. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
 
