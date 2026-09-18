@@ -10,7 +10,15 @@
  * generation stays with the deterministic Drone Art Compiler. Saving an asset
  * never touches the show timeline.
  */
-import { Image as ImageIcon, Save, Upload, X } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Image as ImageIcon,
+  Info,
+  Save,
+  Upload,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useI18n } from "@/i18n";
