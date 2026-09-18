@@ -846,7 +846,10 @@ interface StudioContextValue {
   /** One undoable commit of a timeline gesture on a lighting effect. */
   commitLightingTiming: (id: string, timing: { start?: number; duration?: number }) => void;
   /** Deterministic per-drone LED state at show time `t` (empty = no lighting). */
-  lightingStatesAt: (t: number) => DroneLightState[];
+  lightingStatesAt: (
+    t: number,
+    knownPositions?: readonly TrajectorySample["position"][],
+  ) => DroneLightState[];
   /** Viewport LED preview toggle. Off = legacy clip colours. */
   lightingPreview: boolean;
   setLightingPreview: (v: boolean) => void;
@@ -6624,7 +6627,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   const lightingStatesAtTime = useCallback(
-    (t: number): DroneLightState[] => {
+    (
+      t: number,
+      knownPositions?: readonly TrajectorySample["position"][],
+    ): DroneLightState[] => {
       // An imported reference-owned interval owns its LEDs too: the displayed
       // colour is the original RGB byte triplet, not an authored effect.
       if (
