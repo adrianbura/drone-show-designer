@@ -338,3 +338,19 @@ cazurile rulează împreună, limitare deja cunoscută. Verificarea decisivă r�
 click-dreapta la marginea inferioară a clipului, după publicarea fixului.
 
 **Verificări:** 159 fișiere / 1395 teste trec (1 skipped), tsgo curat, eslint curat pe Timeline/SetupWizard/showTemplates, build OK.
+
+## Guard meniu contextual — VERIFICAT (2026-09-18, main @ 878c992)
+
+Cauza reală: meniul se deschidea corect, dar la anumite ancore repoziționarea punea un rând exact sub
+cursor, iar eliberarea butonului dreapta (același gest care deschide meniul) activa acel rând.
+Excluse prin trasare: cleanup dismissable-layer (body pointer-events și aria-hidden se restaurau
+complet), declanșatoare imbricate, pointer capture pe track, ordinea handlerelor pe clip, stare open
+învechită.
+
+Fix (doar prezentare): `StudioContextMenu` ignoră în faza de capture eliberările de pointer care nu
+vin de la butonul principal, pe conținutul meniului și al submeniului.
+
+Verificat în browser (gest real de mouse, fără pauză): marginea de jos a clipului înainte și după
+Copy — meniul rămâne deschis, nicio comandă și niciun Paste executat; click stânga execută o dată;
+submeniuri funcționale; Enter pe `Paste` execută exact un Paste; un Paste = un Undo; meniul pe zona
+liberă a cronologiei se deschide. 399 teste țintite, typecheck, lint și build curate.
