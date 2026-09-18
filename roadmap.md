@@ -31,7 +31,12 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 1. [x] Viewport invalidate-on-demand implementat: editor tehnic `demand`, Presentation `always`.
 2. [x] Re-măsurare browser 150/500 și verificare seek/playback/controls/selecție/Presentation.
 3. [x] Copy/paste intern pentru clipuri SHOW și obiectele scenei (ID-uri noi, un singur Undo).
-4. [ ] Verificare UX/browser copy/paste, apoi șabloane de show.
+4. [x] Verificare UX/browser copy/paste (clip SHOW prin meniu și `Ctrl+C/V`, obiecte de scenă,
+   TAKEOFF/LANDING fără Copy, Paste explicat când e indisponibil, un singur Undo). Defect deschis,
+   raportat și nemodificat: obiectele de scenă lipite nu sunt selectate, pentru că
+   `pasteDesignClipboard` citește ID-urile create înainte ca `editScene` să comite proiectul
+   (`store.tsx:2556`, `:6229`). Necesită aprobare pentru o corecție în store.
+5. [ ] Șabloane de show.
 5. [ ] Efecte de lumină avansate.
 6. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
 7. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
