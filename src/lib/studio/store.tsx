@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 69842)
-Total output lines: 7462
-
 /**
  * Studio store — the controller layer between UI and the pure show core.
  *
