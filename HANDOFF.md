@@ -73,13 +73,12 @@ repository-ul GitHub folosit și de Lovable.
   folosit prin prompturi delimitate și verificat ulterior.
 - **Obiectiv principal:** aplicație profesională și ușor de folosit.
 - **Ramură canonică:** `main`; nu se rescrie istoricul publicat.
-- **Ultima stare analizată:** `main` la `514c24c`, peste proba Lovable `c9d9ac7`.
-- **Lucru curent:** randarea la cerere este implementată local și verificată static; trebuie
-  publicată și re-măsurată în browser la 150/500 înainte de a închide optimizarea.
-- **Prioritate activă:** re-măsurarea viewportului tehnic oprit și în redare, apoi comparația
-  cu baseline-ul SwiftShader din 18 sep 2026.
-- **Validare încă necesară:** cifrele existente provin din Playwright headless cu SwiftShader;
-  după optimizare trebuie completate cu măsurători pe browser și GPU real.
+- **Ultima stare analizată:** `main` la `9c5b0aa` („Render technical viewport on demand").
+- **Lucru curent:** randarea la cerere este verificată în browser și închisă: editorul tehnic
+  oprit nu mai produce cadre (16,7 ms/cadru idle la 150 și 500), Presentation continuă să anime.
+- **Prioritate activă:** copy/paste pentru clipuri și scene, apoi șabloane de show.
+- **Validare încă necesară:** toate cifrele de performanță provin din Playwright headless cu
+  SwiftShader; o măsurătoare pe GPU real rămâne de făcut înainte de orice promisiune de fps.
 - **Comandă de reluare:** când utilizatorul spune „continuă”, se pornește prioritatea activă din
   `roadmap.md`, verificând mai întâi dacă Lovable a publicat între timp un commit nou.
 
