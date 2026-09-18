@@ -57,11 +57,22 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 
 ## Browser frame-time probe (18 Sep 2026, headless software GL — not GPU-representative)
 
-| Fleet | Paused | Playing |
-| --- | --- | --- |
-| 150 | 62 ms/frame (16 fps) | 107 ms/frame (9 fps) |
-| 500 | 158 ms/frame (6 fps) | 220 ms/frame (5 fps) |
+Method: Playwright headless Chromium with `--use-gl=swiftshader --enable-unsafe-swiftshader`,
+1280×1800 viewport, launch grid + take-off + show segment + landing, fleet size set in the
+Fleet size field, 5 s rAF sample (first 5 frames dropped), paused and playing.
 
-One canvas surface in both cases (the two-instanced-surface contract holds). The idle
-cost proves the viewport redraws continuously even when nothing moves — the first real
-optimisation target, independent of the software renderer.
+| Fleet | Paused before | Paused after | Playing before | Playing after |
+| --- | --- | --- | --- | --- |
+| 150 | 62 ms/frame (16 fps) | **16.7 ms/frame (60 fps)** | 107 ms/frame (9 fps) | 128 ms/frame (7.8 fps) |
+| 500 | 158 ms/frame (6 fps) | **16.7 ms/frame (60 fps)** | 220 ms/frame (5 fps) | 281 ms/frame (3.6 fps) |
+
+One canvas surface in every case. `frameloop="demand"` removed the idle redraw loop entirely at
+both fleet sizes; the playing cost is unchanged in nature (every frame is still drawn) and the
+before/after delta there is software-renderer noise, not a code regression.
+
+Interaction verification (canvas pixel-hash comparison): paused scene is byte-identical across
+1.5 s, while seek, playback, OrbitControls, viewport selection (gizmo appearing) each redraw
+immediately, and Presentation keeps animating its camera with no input.
+
+Limitation: software rendering, so these numbers are only valid as a before/after comparison,
+never as an fps promise on real GPUs.
