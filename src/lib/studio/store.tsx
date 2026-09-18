@@ -6657,7 +6657,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         {
           project: previewProject,
           participation: plan.participation,
-          positions: samplesAtTime(t).map((s) => s.position),
+          positions: knownPositions ?? samplesAtTime(t).map((s) => s.position),
         },
         t,
       );
