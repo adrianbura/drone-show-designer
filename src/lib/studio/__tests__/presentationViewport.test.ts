@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { localToGeo, type ShowSite } from "@/lib/show/geo";
-import { buildPresentationCameraPlan, presentationRenderBudget } from "../presentationViewport";
+import {
+  buildPresentationCameraPlan,
+  presentationRenderBudget,
+  viewportFrameLoop,
+} from "../presentationViewport";
 
 const area = { width: 120, depth: 80, height: 100 };
 
@@ -34,5 +38,10 @@ describe("presentation viewport", () => {
       glowInstances: count,
       instancedDrawSurfaces: 2,
     });
+  });
+
+  it("renders the technical editor on demand while preserving the cinematic camera loop", () => {
+    expect(viewportFrameLoop(false)).toBe("demand");
+    expect(viewportFrameLoop(true)).toBe("always");
   });
 });

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { useI18n } from "@/i18n";
-import { buildPresentationCameraPlan } from "@/lib/studio/presentationViewport";
+import { buildPresentationCameraPlan, viewportFrameLoop } from "@/lib/studio/presentationViewport";
 import { useStudio } from "@/lib/studio/store";
 import { useGeometryProposalPreview } from "@/lib/studio/geometryProposalPreview";
 import { lightColorAt } from "@/lib/show/lights";
@@ -507,6 +507,7 @@ export default function Viewport3D() {
   return (
     <div className="relative h-full w-full" data-testid="viewport-3d">
       <Canvas
+        frameloop={viewportFrameLoop(presentation)}
         camera={{ position: [90, 60, 110], fov: 42, near: 0.5, far: 3000 }}
         dpr={[1, 1.75]}
         gl={{ antialias: true }}

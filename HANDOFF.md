@@ -73,9 +73,11 @@ repository-ul GitHub folosit și de Lovable.
   folosit prin prompturi delimitate și verificat ulterior.
 - **Obiectiv principal:** aplicație profesională și ușor de folosit.
 - **Ramură canonică:** `main`; nu se rescrie istoricul publicat.
-- **Ultima stare analizată:** commit Lovable `c9d9ac7` — proba de frame-time 150/500 finalizată.
-- **Prioritate activă:** reducerea costului viewportului prin randare la cerere, urmată de
-  re-măsurarea acelorași scenarii.
+- **Ultima stare analizată:** `main` la `514c24c`, peste proba Lovable `c9d9ac7`.
+- **Lucru curent:** randarea la cerere este implementată local și verificată static; trebuie
+  publicată și re-măsurată în browser la 150/500 înainte de a închide optimizarea.
+- **Prioritate activă:** re-măsurarea viewportului tehnic oprit și în redare, apoi comparația
+  cu baseline-ul SwiftShader din 18 sep 2026.
 - **Validare încă necesară:** cifrele existente provin din Playwright headless cu SwiftShader;
   după optimizare trebuie completate cu măsurători pe browser și GPU real.
 - **Comandă de reluare:** când utilizatorul spune „continuă”, se pornește prioritatea activă din
@@ -177,14 +179,35 @@ pe randare software (headless, SwiftShader — deci NU reprezentativ pentru GPU 
 O singură suprafață canvas în ambele cazuri. Costul în pauză este constatarea reală:
 viewportul se redesenează continuu chiar când nimic nu se mișcă.
 
+IMPLEMENTAT de ChatGPT (18 sep 2026), în așteptarea re-măsurării: Canvas-ul R3F folosește
+`frameloop="demand"` în editorul tehnic și păstrează `frameloop="always"` numai în modul
+Presentation, unde camera cinematică depinde de timpul real. Politica pură
+`viewportFrameLoop()` este testată. Schimbările playhead-ului, ale selecției, geometriei și
+controalelor invalidează cadrul prin React/R3F; o scenă tehnică oprită nu mai are motiv să
+consume o buclă continuă.
+
+Verificări pentru această schimbare:
+
+- test țintit `presentationViewport.test.ts`: **5/5 trecut**;
+- TypeScript `tsc --noEmit`: **trecut**;
+- ESLint pe cele trei fișiere atinse: **trecut**;
+- production build: **trecut**, cu avertismentele istorice de chunk size/directive;
+- suita completă: **157 fișiere trecute, 1 fișier eșuat; 1383 teste trecute, 2 eșuate,
+  1 skipped**. Cele două eșecuri sunt ambele în `studioContextMenu.dom.test.tsx`, unde meniul
+  Radix nu se deschide în JSDOM; testul eșuează și izolat și nu atinge viewportul.
+
+Re-măsurarea nu a putut fi executată în mediul ChatGPT: serverul Vite local se oprește în
+runtime la `uv_interface_addresses`, iar controlul browserului nu este expus. Lovable trebuie
+să ruleze aceeași probă browser din 18 sep pe commitul nou și să scrie cifrele în acest fișier.
+
 SCOASE din plan, decizie a proprietarului: detecția automată de bătăi (momentele se
 compun manual, grila BPM manuală rămâne) și exportul `.skyc` (hardware-ul țintă
 încarcă ESSP, format pe care aplicația îl citește și îl scrie deja bit cu bit).
 
 Rămas, în ordinea de lucru:
 
-1. **Costul de randare al viewportului** — redesenare doar la schimbare (invalidate on demand),
-   apoi re-măsurare la 150/500; ținta e un cadru stabil la 500 de drone.
+1. **Re-măsurare viewport** — rulează din nou proba 150/500 după `frameloop="demand"` și
+   confirmă că pauza nu mai produce cadre continuu; Presentation trebuie să rămână animat.
 2. **Copy/paste + șabloane de show** — comenzi noi în `store.tsx` (o intrare de history
    per operație) + `src/lib/studio/showTemplates.ts`.
 3. **Efecte de lumină avansate** peste preseturile existente.
@@ -199,3 +222,22 @@ Rămas, în ordinea de lucru:
 - Faza Formation nu are încă culoare și mișcare proprii.
 - Proiectele vechi rămân plane (fără stagger pe Z) — compatibilitate păstrată.
 - Testul `exportRecoveryIsolation` este skipped: verifica indentarea exactă din `store.tsx`.
+
+## 7. Prompt de verificare pentru Lovable
+
+```text
+Sincronizează mai întâi ultimul main și nu rescrie istoricul. Verifică schimbarea de performanță
+din Viewport3D: editorul tehnic trebuie să folosească frameloop="demand", iar modul Presentation
+să rămână frameloop="always" deoarece camera cinematică se mișcă permanent.
+
+Nu modifica motoarele show/trajectory/safety, store.tsx, importul sau exportul. Rulează aceeași
+probă browser folosită la baseline-ul din 18 sep 2026, în aceleași condiții headless SwiftShader,
+pentru 150 și 500 de drone, atât în pauză cât și în redare. Confirmă și prin interacțiune că seek,
+playback, OrbitControls, selecția și gizmo-ul redesenează imediat, iar Presentation continuă să
+anime camera.
+
+Scrie în HANDOFF.md și roadmap.md cifrele before/after, metoda exactă și orice regresie. Nu marca
+optimizarea finalizată dacă editorul oprit continuă să producă o buclă de cadre sau dacă oricare
+dintre interacțiunile de mai sus nu actualizează viewportul. Rulează testele, typecheck, lint pe
+fișierele atinse și build-ul înainte de raportare.
+```

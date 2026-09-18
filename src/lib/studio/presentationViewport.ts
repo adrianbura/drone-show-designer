@@ -7,6 +7,20 @@ export interface PresentationCameraPlan {
   readonly source: "AUDIENCE" | "ESTIMATED";
 }
 
+export type ViewportFrameLoop = "always" | "demand";
+
+/**
+ * Render policy for the shared R3F canvas.
+ *
+ * The technical editor is event-driven: React/R3F invalidates on playhead,
+ * selection, geometry and control changes, so a paused scene must not consume
+ * a continuous render loop. Presentation mode deliberately keeps rendering
+ * because its cinematic camera moves with elapsed wall-clock time.
+ */
+export function viewportFrameLoop(presentation: boolean): ViewportFrameLoop {
+  return presentation ? "always" : "demand";
+}
+
 /**
  * Presentation-only camera placement. A configured audience position is used
  * verbatim in the show-local frame; otherwise the fallback is labelled as an

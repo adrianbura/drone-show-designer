@@ -28,12 +28,13 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 
 ## Prioritate curentă
 
-1. [ ] Viewport invalidate-on-demand: eliminarea randării continue în pauză și re-măsurare 150/500.
-2. [ ] Copy/paste pentru clipuri și scene, apoi șabloane de show.
-3. [ ] Efecte de lumină avansate.
-4. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
-5. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
-6. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
+1. [x] Viewport invalidate-on-demand implementat: editor tehnic `demand`, Presentation `always`.
+2. [ ] Re-măsurare browser 150/500 și verificare seek/playback/controls/gizmo/Presentation.
+3. [ ] Copy/paste pentru clipuri și scene, apoi șabloane de show.
+4. [ ] Efecte de lumină avansate.
+5. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
+6. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
+7. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
 
 ## Capabilități livrate
 
