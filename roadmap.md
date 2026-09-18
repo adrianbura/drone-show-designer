@@ -42,7 +42,11 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 9. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
    - [x] Import local, Contur/Structural/Umplut și compilare deterministă exact-N există.
    - [x] Afișarea distanței minime și a avertismentelor compilatorului în panoul imaginii.
-   - [ ] Verificare browser pentru contur/umplere, diagnostic și salvare în bibliotecă.
+   - [x] Verificare browser pentru contur/umplere, diagnostic și salvare în bibliotecă.
+   - [x] Rezumat de stare (în regulă / atenție), etichete de severitate și ghidaj corectiv
+         localizat în panoul imaginii, verificate în browser EN/RO.
+   - Rămâne deschis doar pentru un test lent (`sceneComposerPanel.dom.test.tsx`) care depășește
+     limita de 5 s când rulează toată suita; trece izolat în 4,5 s. Nu ține de imagini.
 10. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
 11. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
 12. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
