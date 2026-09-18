@@ -266,6 +266,45 @@ Validare locală:
   `studioContextMenu.dom.test.tsx`, care nu reușesc să deschidă meniul nici înaintea acestei
   schimbări; testele pure ale autorității meniului și copy/paste trec.
 
+### VERIFICARE BROWSER COPY/PASTE — ÎNCHISĂ (19 sep 2026)
+
+Metodă: Playwright headless Chromium + SwiftShader, viewport 1600×1800, `http://localhost:8080`,
+show construit prin UI („Set up launch grid" → „Add take-off" → „Append clip" → „Add landing"),
+gesturi reale de mouse (`mouse.move` + `down/up` cu buton dreapta) și tastatură.
+Scripturi: `/tmp/browser/cp/verify.py` (clipuri), `/tmp/browser/cp/scene2.py` (obiecte de scenă),
+`diag3–diag8.py` (izolarea cauzei).
+
+Rezultate confirmate:
+
+- TAKEOFF și LANDING nu oferă Copy/Paste de clip (doar EDIT_FORMATION, LIGHTING, MOTION, RENAME,
+  ADVANCED, DELETE);
+- clip SHOW înainte de Copy: `PASTE_CLIP` este dezactivat cu explicația „Copy a SHOW clip first.";
+- Copy (meniu sau `Ctrl+C`) nu creează dirty/history; Undo rămâne în starea anterioară;
+- Paste din meniu și `Ctrl+V` inserează un clip SHOW nou înainte de LANDING, cu id nou
+  (`clip-4-…`), îl selectează (`clip-block-selected`) și un singur Undo îl elimină complet;
+- `Ctrl+C`/`Ctrl+V` tastate într-un câmp de text nu declanșează copy/paste de clip (timeline
+  neschimbat);
+- obiecte de scenă: un obiect → Paste creează `obj-2` cu nume derivat, un Undo revine;
+  două obiecte selectate → Paste creează `obj-3` și `obj-4`, un Undo revine la două.
+
+Fals pozitiv eliminat: „meniul clipului nu se mai redeschide după Copy" era un artefact
+Playwright — `locator.click(button="right")` releva butonul peste meniul nou deschis, iar
+`PASTE_CLIP` (acum activ) era activat, ceea ce insera un clip și demonta meniul. Cu gest real de
+mouse meniul se redeschide corect. Nicio modificare de cod nu a fost aplicată.
+
+Defect raportat, NEcorectat (atinge `store.tsx`, deci necesită aprobare):
+`pasteDesignClipboard` pentru `SCENE_OBJECTS` citește `created` sincron, dar `editScene` scrie prin
+`setProject((p) => …)`, deci callbackul rulează abia la următorul render. Rezultatul: `created`
+este mereu gol la verificare → funcția returnează `null` și nu apelează
+`setSelectedSceneObjectIds`, deci obiectele lipite NU sunt selectate (selecția rămâne pe sursă).
+Lipirea în sine, ID-urile noi și Undo unic funcționează corect. Remedierea minimă: `editScene` să
+returneze ID-urile create (sau paste să calculeze ID-urile înainte de update), apoi selecția să fie
+aplicată după commit. Localizare: `src/lib/studio/store.tsx:2556` și `:6229-6237`.
+
+Validare locală (19 sep 2026): teste țintite copy/paste **trecute**, suită completă,
+`tsgo --noEmit`, ESLint pe fișierele atinse și `bun run build` — vezi secțiunea precedentă;
+această verificare nu a schimbat cod.
+
 ## 6. Limitări cunoscute, de comunicat onest
 
 - Aplicația **nu** autorizează zborul; validările sunt de design, nu certificare.
