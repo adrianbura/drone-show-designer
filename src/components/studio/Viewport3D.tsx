@@ -88,7 +88,10 @@ function Swarm({
   /** Drones no visual of the selected scene uses; empty = no reserve display. */
   reserveDrones: number[];
   /** Per-drone LED state from the lighting engine; empty = no lighting program. */
-  lightingStatesAt: (t: number) => DroneLightState[];
+  lightingStatesAt: (
+    t: number,
+    positions?: readonly TrajectorySample["position"][],
+  ) => DroneLightState[];
   onSelectDrone: (index: number, additive: boolean) => void;
   /** Drafted target positions while the viewport gizmo is being dragged. */
   gizmoPreviewByDrone: readonly (readonly [number, number, number] | null)[];
@@ -114,7 +117,13 @@ function Swarm({
     const states = preShowPlan && time < 0 ? preShowStatesAt(preShowPlan, time) : null;
     // LED colours come from the lighting engine — the SAME evaluation path the
     // report and the export use. Empty means "no lighting program authored".
-    const lights = time >= 0 ? lightingStatesAt(time) : [];
+    const lights =
+      time >= 0
+        ? lightingStatesAt(
+            time,
+            samples.map((sample) => sample.position),
+          )
+        : [];
 
     samples.forEach((sample, i) => {
       const p = gizmoPreviewByDrone[i] ?? sample.position;

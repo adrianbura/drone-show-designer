@@ -44,6 +44,8 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
    - [x] Afișarea distanței minime și a avertismentelor compilatorului în panoul imaginii.
    - [ ] Verificare browser pentru contur/umplere, diagnostic și salvare în bibliotecă.
 10. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
+    - [x] Eliminarea eșantionării duble a traiectoriilor pe cadru când iluminarea este activă.
+    - [ ] Re-măsurare browser la 150/500 drone și profilarea următorului hotspot.
 11. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
 12. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
 

@@ -387,6 +387,18 @@ Cele 60 de teste țintite pentru compilator și analiza imaginii, typecheck, lin
 sunt curate. Verificarea UX în browser pentru cele trei moduri, diagnostic și salvarea în bibliotecă
 rămâne pasul următor.
 
+## PLAYBACK 500 DRONE — REUTILIZAREA EȘANTIONULUI DE CADRU (în lucru, 2026-09-18)
+
+Profilarea statică a traseului live a identificat o duplicare sigură: `Swarm` cerea `samplesAtTime(t)`
+pentru matricele instanțelor, apoi `lightingStatesAtTime(t)` repeta aceeași trecere O(N) doar pentru
+a furniza pozițiile motorului de iluminare. Viewportul transmite acum pozițiile deja calculate către
+evaluatorul LED. Calea publică păstrează parametrul opțional, astfel încât raportarea, exportul și
+ceilalți consumatori rămân pe autoritatea existentă; nu se schimbă geometria sau iluminarea.
+Cele 49 de teste țintite pentru iluminare, authoring, timeline, selecție și invarianta geometrică,
+plus typecheck și build, trec. ESLint nu are erori și păstrează cele 11 avertismente istorice din
+`store.tsx`, deja urmărite la mentenanță. Re-măsurarea în browser la 150/500 drone este următorul
+pas; acest increment nu declară încă un câștig de FPS fără acea măsurătoare.
+
 Verificat și pe fereastră scurtă (1280×820): marginea de jos a clipului înainte și după Copy —
 meniul rămâne deschis, 0 clipuri inserate; click stânga execută o dată; 3 submeniuri (13 rânduri);
 Enter pe `Paste` inserează exact 1 clip, un Undo îl elimină; meniul pe zona liberă a cronologiei se
