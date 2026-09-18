@@ -373,6 +373,20 @@ Inspectorul unificat expune acum și `anchor` (`ABSOLUTE`, `SCENE_START`, `FORMA
 de efect. Nu există conversii sau evaluator alternativ; schimbările merg prin `patchLightingEffect`
 și istoricul existent. Testul DOM confirmă persistența valorilor și pașii Undo separați.
 
+## IMAGINE → FIGURĂ — DIAGNOSTIC COMPILARE (în lucru, 2026-09-18)
+
+Inventarul a confirmat că fluxul local este deja funcțional: PNG/JPEG/WebP sunt analizate fără
+upload, operatorul poate alege `OUTLINE`, `STRUCTURAL` sau `FILLED`, edita structura și compila
+determinist exact numărul cerut de drone. `VisualCompileReport` calculează deja distanța minimă și
+emite `SPACING_TIGHT`, `DETAILS_OMITTED`, `UNDER_RESOLVED` și celelalte diagnostice canonice.
+
+Primul increment rămas expune în `ImageDesignPanel` distanța minimă, lista localizată de diagnostice
+și severitatea avertismentelor. Mesajul păstrează explicit limita de autoritate: acestea sunt
+diagnostice ale designului vizual; validarea full-show rămâne autoritatea pentru siguranța zborului.
+Cele 60 de teste țintite pentru compilator și analiza imaginii, typecheck, lint relevant și build
+sunt curate. Verificarea UX în browser pentru cele trei moduri, diagnostic și salvarea în bibliotecă
+rămâne pasul următor.
+
 Verificat și pe fereastră scurtă (1280×820): marginea de jos a clipului înainte și după Copy —
 meniul rămâne deschis, 0 clipuri inserate; click stânga execută o dată; 3 submeniuri (13 rânduri);
 Enter pe `Paste` inserează exact 1 clip, un Undo îl elimină; meniul pe zona liberă a cronologiei se
