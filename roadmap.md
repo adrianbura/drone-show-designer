@@ -28,13 +28,12 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 
 ## Prioritate curentă
 
-1. [ ] Probă de scară în browser: FPS/frame-time și comportament la 150 și 500 de drone.
-2. [ ] Beat detection real, grilă muzicală și snapping opțional.
-3. [ ] Copy/paste pentru clipuri și scene, apoi șabloane de show.
-4. [ ] Export `.skyc` numai după alegerea unei specificații verificate și teste de conformitate.
-5. [ ] Efecte de lumină avansate.
-6. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
-7. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
+1. [ ] Viewport invalidate-on-demand: eliminarea randării continue în pauză și re-măsurare 150/500.
+2. [ ] Copy/paste pentru clipuri și scene, apoi șabloane de show.
+3. [ ] Efecte de lumină avansate.
+4. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
+5. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
+6. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
 
 ## Capabilități livrate
 
@@ -50,3 +49,17 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 - [x] Imported ESSP presentation reconciles fleet, duration and timeline authority
 - [x] Single responsive mount for Inspector/LeftPanel surfaces
 - [x] Cinematic Presentation viewport with audience camera and explicit estimated fallback
+- [x] Browser frame-time probe at 150 and 500 drones (software-GL sandbox numbers recorded below)
+- [ ] ~~Automatic beat detection~~ — dropped by the owner: show moments are authored manually, the manual BPM grid stays
+- [ ] ~~.skyc export~~ — dropped: the target hardware loads ESSP, which the app already reads and writes byte-identically
+
+## Browser frame-time probe (18 Sep 2026, headless software GL — not GPU-representative)
+
+| Fleet | Paused | Playing |
+| --- | --- | --- |
+| 150 | 62 ms/frame (16 fps) | 107 ms/frame (9 fps) |
+| 500 | 158 ms/frame (6 fps) | 220 ms/frame (5 fps) |
+
+One canvas surface in both cases (the two-instanced-surface contract holds). The idle
+cost proves the viewport redraws continuously even when nothing moves — the first real
+optimisation target, independent of the software renderer.
