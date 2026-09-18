@@ -846,7 +846,7 @@ interface StudioContextValue {
   /** One undoable commit of a timeline gesture on a lighting effect. */
   commitLightingTiming: (id: string, timing: { start?: number; duration?: number }) => void;
   /** Deterministic per-drone LED state at show time `t` (empty = no lighting). */
-  lightingStatesAt: (t: number, positions?: readonly Vector3Tuple[]) => DroneLightState[];
+  lightingStatesAt: (t: number) => DroneLightState[];
   /** Viewport LED preview toggle. Off = legacy clip colours. */
   lightingPreview: boolean;
   setLightingPreview: (v: boolean) => void;
@@ -3001,7 +3001,1117 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   const applySceneVisualGroupState = useCallback(
     (stateId: string) => {
-      const clipId = selectedClipIdRef.current;…9842 tokens truncated…Error(err));
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => applySceneVisualState(scene, stateId));
+    },
+    [editScene],
+  );
+
+  const renameSceneVisualGroupState = useCallback(
+    (stateId: string, name: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => renameSceneVisualState(scene, stateId, name));
+    },
+    [editScene],
+  );
+
+  const removeSceneVisualGroupState = useCallback(
+    (stateId: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => removeSceneVisualState(scene, stateId));
+    },
+    [editScene],
+  );
+
+  const addSceneVisualStateCueAtPlayhead = useCallback(
+    (
+      stateId: string,
+      transitionDuration: number,
+    ): { readonly cueId: string | null; readonly reason: string | null } => {
+      const clipId = selectedClipIdRef.current;
+      const clip = projectRef.current.timeline.find((candidate) => candidate.id === clipId);
+      if (!clipId || !clip) return { cueId: null, reason: "Select a scene first." };
+      const localTime = Math.max(0, Math.min(clip.hold, clock.time - clip.start - clip.transition));
+      let response: { readonly cueId: string | null; readonly reason: string | null } = {
+        cueId: null,
+        reason: "Saved state not found.",
+      };
+      editScene(clipId, (scene) => {
+        const result = addSceneVisualStateCue(scene, stateId, localTime, transitionDuration);
+        response = result.ok
+          ? { cueId: result.cueId, reason: null }
+          : { cueId: null, reason: result.reason };
+        return result.scene;
+      });
+      return response;
+    },
+    [clock.time, editScene],
+  );
+
+  const removeSceneVisualStateCueById = useCallback(
+    (cueId: string) => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return;
+      editScene(clipId, (scene) => removeSceneVisualStateCue(scene, cueId));
+    },
+    [editScene],
+  );
+
+  const patchSceneVisualStateCueById = useCallback(
+    (cueId: string, patch: { readonly time?: number; readonly transitionDuration?: number }) => {
+      const clipId = selectedClipIdRef.current;
+      const clip = projectRef.current.timeline.find((candidate) => candidate.id === clipId);
+      if (!clipId || !clip) return;
+      editScene(clipId, (scene) =>
+        patchSceneVisualStateCue(scene, cueId, {
+          ...(patch.time === undefined ? {} : { time: Math.min(clip.hold, patch.time) }),
+          ...(patch.transitionDuration === undefined
+            ? {}
+            : { transitionDuration: patch.transitionDuration }),
+        }),
+      );
+    },
+    [editScene],
+  );
+
+  const previewMotionPresetToSceneSelection = useCallback(
+    (preset: DynamicPresetId): readonly string[] => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return [];
+      const result = authorSceneMotion(projectRef.current, {
+        clipId,
+        objectIds: sceneSelection.ids,
+        primaryObjectId: sceneSelection.primaryId,
+        selectedPointIds: sceneSelectionMode === "POINT" ? selectedScenePointIds : [],
+        preset,
+        createId: () => nextId("dyn"),
+      });
+      if (result.project === projectRef.current || result.dynamicFormationIds.length === 0)
+        return [];
+      setMotionEffectPreview({
+        baseProject: projectRef.current,
+        selectionKey: `${clipId}|${sceneSelectionMode}|${sceneSelection.ids.join(",")}|${selectedScenePointIds.join(",")}`,
+        project: result.project,
+        dynamicFormationIds: result.dynamicFormationIds,
+      });
+      return result.dynamicFormationIds;
+    },
+    [sceneSelection.ids, sceneSelection.primaryId, sceneSelectionMode, selectedScenePointIds],
+  );
+
+  const cancelMotionEffectPreview = useCallback(() => setMotionEffectPreview(null), []);
+
+  const applyMotionEffectPreview = useCallback((): readonly string[] => {
+    if (!motionEffectPreview) return [];
+    if (projectRef.current !== motionEffectPreview.baseProject) {
+      setMotionEffectPreview(null);
+      return [];
+    }
+    pushTimelineHistory();
+    setProject(motionEffectPreview.project);
+    setExplicitDynamicId(motionEffectPreview.dynamicFormationIds.at(-1) ?? null);
+    setMotionEffectPreview(null);
+    return motionEffectPreview.dynamicFormationIds;
+  }, [motionEffectPreview, pushTimelineHistory]);
+
+  const applyMotionPresetToSceneSelection = useCallback(
+    (preset: DynamicPresetId): readonly string[] => {
+      const clipId = selectedClipIdRef.current;
+      if (!clipId) return [];
+      const result = authorSceneMotion(projectRef.current, {
+        clipId,
+        objectIds: sceneSelection.ids,
+        primaryObjectId: sceneSelection.primaryId,
+        selectedPointIds: sceneSelectionMode === "POINT" ? selectedScenePointIds : [],
+        preset,
+        createId: () => nextId("dyn"),
+      });
+      setMotionEffectPreview(null);
+      if (result.dynamicFormationIds.length === 0) return [];
+      pushTimelineHistory();
+      setProject(result.project);
+      setExplicitDynamicId(result.dynamicFormationIds.at(-1) ?? null);
+      return result.dynamicFormationIds;
+    },
+    [
+      pushTimelineHistory,
+      sceneSelection.ids,
+      sceneSelection.primaryId,
+      sceneSelectionMode,
+      selectedScenePointIds,
+    ],
+  );
+
+  /* ------------------------------------------- everyday motion inspector */
+
+  /** Per-instance playback edit: ONE scene revision == ONE undo entry. */
+  const patchSceneObjectAnimation = useCallback(
+    (clipId: string, objectId: string, patch: SceneObjectAnimation) => {
+      editScene(clipId, (scene) => {
+        const object = scene.objects.find((candidate) => candidate.id === objectId);
+        if (!object) return scene;
+        return patchObject(scene, objectId, {
+          animation: { ...(object.animation ?? {}), ...patch },
+        });
+      });
+    },
+    [editScene],
+  );
+
+  /**
+   * Canonical dynamic-asset edit committed through the TIMELINE history, so an
+   * everyday motion edit is exactly one undo entry alongside the scene edits.
+   */
+  const patchSceneMotion = useCallback(
+    (dynamicFormationId: string, patch: Partial<DynamicFormation>) => {
+      setProject((p) => {
+        const list = p.dynamicFormations ?? [];
+        if (!list.some((candidate) => candidate.id === dynamicFormationId)) return p;
+        pushSnapshot(p);
+        return {
+          ...p,
+          dynamicFormations: list.map((candidate) =>
+            candidate.id === dynamicFormationId ? { ...candidate, ...patch } : candidate,
+          ),
+        };
+      });
+    },
+    [pushSnapshot],
+  );
+
+  const patchSceneMotionGroup = useCallback(
+    (dynamicFormationId: string, groupId: string, patch: Partial<MotionGroup>) => {
+      setProject((p) => {
+        const list = p.dynamicFormations ?? [];
+        const target = list.find((candidate) => candidate.id === dynamicFormationId);
+        if (!target || !target.groups.some((group) => group.id === groupId)) return p;
+        pushSnapshot(p);
+        return {
+          ...p,
+          dynamicFormations: list.map((candidate) =>
+            candidate.id === dynamicFormationId
+              ? patchMotionGroup(candidate, groupId, patch)
+              : candidate,
+          ),
+        };
+      });
+    },
+    [pushSnapshot],
+  );
+
+  const duplicateSceneObjectMotion = useCallback(
+    (clipId: string, objectId: string) => {
+      const newId = nextId("dyn");
+      const next = duplicateObjectMotion(projectRef.current, clipId, objectId, newId);
+      if (next === projectRef.current) return null;
+      pushTimelineHistory();
+      setProject(next);
+      setExplicitDynamicId(newId);
+      return newId;
+    },
+    [pushTimelineHistory],
+  );
+
+  const removeSceneObjectMotion = useCallback(
+    (clipId: string, objectId: string) => {
+      const next = removeObjectMotion(projectRef.current, clipId, objectId);
+      if (next === projectRef.current) return;
+      pushTimelineHistory();
+      setProject(next);
+      setExplicitDynamicId(null);
+    },
+    [pushTimelineHistory],
+  );
+
+  const addSceneObject = useCallback(
+    (
+      clipId: string,
+      input: {
+        source: SceneObjectSource;
+        name: string;
+        assetId?: string;
+        requestedDroneCount?: number | null;
+        position?: Vector3Tuple;
+        rotationDeg?: Vector3Tuple;
+        mirrorX?: boolean;
+        color?: RGB;
+      },
+    ) => {
+      let createdId: string | null = null;
+      editScene(clipId, (scene, p) => {
+        const result = addObject(p, scene, input);
+        createdId = result.objectId;
+        let next = input.mirrorX ? mirrorObjectX(result.scene, result.objectId) : result.scene;
+        if (input.rotationDeg) {
+          next = patchObjectTransform(next, result.objectId, { rotationDeg: input.rotationDeg });
+        }
+        if (input.color) {
+          next = patchObject(next, result.objectId, { lighting: { color: input.color } });
+        }
+        return next;
+      });
+      if (createdId) setSelectedSceneObjectId(createdId);
+      return createdId;
+    },
+    [editScene],
+  );
+
+  /**
+   * ADD VISUAL — creates a native formation ASSET and places ONE instance of it
+   * in the scene of `clipId` in a SINGLE undoable revision.
+   *
+   * Geometry only: the asset feeds the same static-source path as any library
+   * formation, so participation, assignment, trajectory and safety stay the sole
+   * authorities. `requestedDroneCount` is an artistic budget, never an identity.
+   */
+  const addNativeVisual = useCallback(
+    (
+      clipId: string,
+      input: {
+        readonly kind: FormationKind;
+        readonly name: string;
+        readonly droneCount: number;
+        readonly params?: Record<string, number | string>;
+        readonly position?: Vector3Tuple;
+        readonly color?: RGB;
+        readonly mirrorX?: boolean;
+        readonly rotationDeg?: Vector3Tuple;
+      },
+    ): string | null => {
+      const droneCount = Math.max(1, Math.round(input.droneCount));
+      const formationId = nextId("f");
+      let createdId: string | null = null;
+      setProject((p) => {
+        const clip = p.timeline.find((c) => c.id === clipId);
+        if (!clip) return p;
+        const formation = makeSceneLocalFormation(
+          formationId,
+          input.name,
+          input.kind,
+          droneCount,
+          p.area,
+          input.params ?? {},
+        );
+        const withAsset: ShowProject = { ...p, formations: [...p.formations, formation] };
+        const added = addObject(withAsset, sceneForClip(withAsset, clip), {
+          source: { kind: "STATIC", formationId },
+          name: input.name,
+          requestedDroneCount: droneCount,
+          ...(input.position ? { position: input.position } : {}),
+        });
+        createdId = added.objectId;
+        let scene = input.mirrorX ? mirrorObjectX(added.scene, added.objectId) : added.scene;
+        if (input.rotationDeg) {
+          scene = patchObjectTransform(scene, added.objectId, { rotationDeg: input.rotationDeg });
+        }
+        if (input.color) {
+          scene = patchObject(scene, added.objectId, { lighting: { color: input.color } });
+        }
+        pushSnapshot(p);
+        return upsertScene(withAsset, scene);
+      });
+      if (createdId) setSelectedSceneObjectId(createdId);
+      return createdId;
+    },
+    [pushSnapshot],
+  );
+
+  /**
+   * ADD TEXT VISUAL — deterministic stroke text as a NORMAL scene object.
+   *
+   * The recipe comes from the canonical text pipeline; geometry is produced by
+   * `makeTextFormation` and nothing else. Participation (the drone budget) is
+   * used exactly as requested. Failure mutates nothing.
+   */
+  const addTextVisual = useCallback(
+    (
+      clipId: string,
+      input: {
+        readonly recipe: TextGeometryRecipe;
+        readonly name: string;
+        readonly position?: Vector3Tuple;
+        readonly color?: RGB;
+        readonly mirrorX?: boolean;
+        readonly rotationDeg?: Vector3Tuple;
+      },
+    ): string | null => {
+      let built: ReturnType<typeof makeTextFormation>;
+      try {
+        built = makeTextFormation({
+          id: nextId("f"),
+          name: input.name,
+          recipe: input.recipe,
+          authoredForClipId: clipId,
+        });
+      } catch {
+        return null;
+      }
+      let createdId: string | null = null;
+      setProject((p) => {
+        const clip = p.timeline.find((c) => c.id === clipId);
+        if (!clip) return p;
+        const withAsset: ShowProject = { ...p, formations: [...p.formations, built.formation] };
+        const added = addObject(withAsset, sceneForClip(withAsset, clip), {
+          source: { kind: "STATIC", formationId: built.formation.id },
+          name: input.name,
+          requestedDroneCount: input.recipe.participation,
+          ...(input.position ? { position: input.position } : {}),
+        });
+        createdId = added.objectId;
+        let scene = input.mirrorX ? mirrorObjectX(added.scene, added.objectId) : added.scene;
+        if (input.rotationDeg) {
+          scene = patchObjectTransform(scene, added.objectId, { rotationDeg: input.rotationDeg });
+        }
+        if (input.color) {
+          scene = patchObject(scene, added.objectId, { lighting: { color: input.color } });
+        }
+        pushSnapshot(p);
+        return upsertScene(withAsset, scene);
+      });
+      if (createdId) setSelectedSceneObjectId(createdId);
+      return createdId;
+    },
+    [pushSnapshot],
+  );
+
+  /**
+   * COMMIT AN IMPORTED SVG.
+   *
+   * `target` decides where the asset lands:
+   *   "SCENE"     one instance inside the CURRENT clip's scene (default when a
+   *               clip is selected) — no new clip is ever created implicitly.
+   *   "NEW_CLIP"  an explicitly requested new timeline clip.
+   *   "ASSET_ONLY" library asset only.
+   * `droneCount` is the artistic budget of the placed instance.
+   */
+  const commitSvgDraft = useCallback(
+    (
+      options: {
+        name?: string;
+        target?: "SCENE" | "NEW_CLIP" | "ASSET_ONLY";
+        clipId?: string;
+        droneCount?: number | null;
+        /** SCENE target only: initial mirror of the placed instance. */
+        mirrorX?: boolean;
+        /** SCENE target only: base colour of the placed instance. */
+        color?: RGB;
+      } = {},
+    ) => {
+      if (!svgDraft?.result) return null;
+      const formation = makeSvgFormation(
+        nextId("f"),
+        options.name?.trim() || defaultFormationName(svgDraft.asset, svgDraft.params.mode),
+        svgDraft.asset,
+        svgDraft.result,
+      );
+      const sceneClipId = options.clipId ?? selectedClipId;
+      const target = options.target ?? (sceneClipId ? ("SCENE" as const) : ("NEW_CLIP" as const));
+      const newClipId = nextId("c");
+      let createdObjectId: string | null = null;
+      setProject((p) => {
+        const withAsset: ShowProject = { ...p, formations: [...p.formations, formation] };
+        if (target === "ASSET_ONLY") return withAsset;
+        if (target === "SCENE") {
+          const clip = sceneClipId ? p.timeline.find((c) => c.id === sceneClipId) : null;
+          if (!clip) return withAsset;
+          const added = addObject(withAsset, sceneForClip(withAsset, clip), {
+            source: { kind: "STATIC", formationId: formation.id },
+            name: formation.name,
+            ...(formation.svg ? { assetId: formation.svg.assetId } : {}),
+            ...(options.droneCount
+              ? { requestedDroneCount: Math.max(1, Math.round(options.droneCount)) }
+              : {}),
+          });
+          createdObjectId = added.objectId;
+          let scene = added.scene;
+          if (options.mirrorX) scene = mirrorObjectX(scene, added.objectId);
+          if (options.color) {
+            scene = patchObject(scene, added.objectId, { lighting: { color: options.color } });
+          }
+          pushSnapshot(p);
+          return upsertScene(withAsset, scene);
+        }
+        const clip: TimelineClip = {
+          id: newClipId,
+          formationId: formation.id,
+          start: 0,
+          transition: 10,
+          hold: 8,
+          easing: "minJerk",
+          color: [140, 220, 255],
+          effect: "solid",
+          phase: "SHOW",
+        };
+        return { ...withAsset, timeline: insertClipBeforeLanding(p.timeline, clip) };
+      });
+      if (target === "NEW_CLIP") setSelectedClipId(newClipId);
+      if (target === "SCENE" && createdObjectId) setSelectedSceneObjectId(createdObjectId);
+      setSvgDraft(null);
+      return formation;
+    },
+    [svgDraft, selectedClipId, pushSnapshot],
+  );
+
+  const patchSceneObject = useCallback(
+    (clipId: string, objectId: string, patch: Partial<SceneFormationInstance>) => {
+      editScene(clipId, (scene) => patchObject(scene, objectId, patch));
+    },
+    [editScene],
+  );
+
+  const patchSceneObjectTransform = useCallback(
+    (clipId: string, objectId: string, patch: Partial<InstanceTransform>) => {
+      editScene(clipId, (scene) => patchObjectTransform(scene, objectId, patch));
+    },
+    [editScene],
+  );
+
+  const duplicateSceneObject = useCallback(
+    (clipId: string, objectId: string) => {
+      let createdId: string | null = null;
+      editScene(clipId, (scene) => {
+        const result = duplicateObject(scene, objectId);
+        createdId = result.objectId;
+        return result.scene;
+      });
+      if (createdId) setSelectedSceneObjectId(createdId);
+    },
+    [editScene],
+  );
+
+  const removeSceneObject = useCallback(
+    (clipId: string, objectId: string) => {
+      editScene(clipId, (scene) => removeObject(scene, objectId));
+      setSceneSelectionState((current) =>
+        current.ids.includes(objectId)
+          ? {
+              ids: current.ids.filter((id) => id !== objectId),
+              primaryId: current.primaryId === objectId ? null : current.primaryId,
+            }
+          : current,
+      );
+    },
+    [editScene],
+  );
+
+  const mirrorSceneObject = useCallback(
+    (clipId: string, objectId: string) => {
+      editScene(clipId, (scene) => mirrorObjectX(scene, objectId));
+    },
+    [editScene],
+  );
+
+  const alignSceneObjects = useCallback(
+    (clipId: string, alignment: SceneAlignment) => {
+      editScene(clipId, (scene, p) => alignObjects(p, scene, alignment));
+    },
+    [editScene],
+  );
+
+  const patchSceneTransform = useCallback(
+    (clipId: string, patch: Partial<InstanceTransform>) => {
+      editScene(clipId, (scene) => ({
+        ...scene,
+        transform: { ...scene.transform, ...patch },
+      }));
+    },
+    [editScene],
+  );
+
+  /* ---------------- reference-assisted scene editing (design only) --------- */
+  /**
+   * The comparison surface is PURELY a design aid: it reads the imported
+   * reference show and the resolved editable scene, and never influences
+   * ownership, promotion, planning or export.
+   */
+  const selectedClipBinding = useMemo<ReferenceClipBinding | null>(
+    () =>
+      selectedClipId
+        ? (referenceLayer?.bindings.find((b) => b.clipId === selectedClipId) ?? null)
+        : null,
+    [referenceLayer, selectedClipId],
+  );
+
+  const sceneGhostFrame = useMemo<ReferenceGhostFrame | null>(() => {
+    if (!sceneReferenceGhost) return null;
+    if (!referenceLayerShow || !selectedClip || !selectedScene || !selectedClipBinding) return null;
+    return referenceGhostFrame({
+      show: referenceLayerShow,
+      project,
+      scene: selectedScene,
+      clip: selectedClip,
+      binding: selectedClipBinding,
+      frame: sceneComparisonFrame,
+      currentTime: clock.time,
+    });
+  }, [
+    sceneReferenceGhost,
+    sceneComparisonFrame,
+    referenceLayerShow,
+    project,
+    selectedScene,
+    selectedClip,
+    selectedClipBinding,
+    clock.time,
+  ]);
+
+  const sceneDeviation = useMemo<SceneDeviationReport | null>(() => {
+    if (!referenceLayerShow || !selectedClip || !selectedScene || !selectedClipBinding) return null;
+    return sceneDeviationReport({
+      show: referenceLayerShow,
+      project,
+      scene: selectedScene,
+      clip: selectedClip,
+      binding: selectedClipBinding,
+      frame: sceneComparisonFrame,
+      currentTime: clock.time,
+    });
+  }, [
+    sceneComparisonFrame,
+    referenceLayerShow,
+    project,
+    selectedScene,
+    selectedClip,
+    selectedClipBinding,
+    clock.time,
+  ]);
+
+  const sceneCorrespondence = useMemo<CorrespondenceLine[]>(() => {
+    if (!sceneReferenceGhost || !resolvedSceneObjectId) return [];
+    if (!referenceLayerShow || !selectedClip || !selectedScene || !selectedClipBinding) return [];
+    return correspondenceLines({
+      show: referenceLayerShow,
+      project,
+      scene: selectedScene,
+      clip: selectedClip,
+      binding: selectedClipBinding,
+      frame: sceneComparisonFrame,
+      currentTime: clock.time,
+      objectId: resolvedSceneObjectId,
+    });
+  }, [
+    sceneReferenceGhost,
+    sceneComparisonFrame,
+    resolvedSceneObjectId,
+    referenceLayerShow,
+    project,
+    selectedScene,
+    selectedClip,
+    selectedClipBinding,
+    clock.time,
+  ]);
+
+  const canResetSelectedSceneObject = useMemo(
+    () =>
+      !!selectedClipId &&
+      !!resolvedSceneObjectId &&
+      canResetSceneObject(referenceLayer, selectedClipId, resolvedSceneObjectId),
+    [referenceLayer, selectedClipId, resolvedSceneObjectId],
+  );
+
+  /** ONE undo entry; restores geometry + transform of a single object. */
+  const resetSceneObject = useCallback(
+    (clipId: string, objectId: string) => {
+      const layer = referenceLayerRef.current;
+      const next = resetSceneObjectToExtracted(projectRef.current, layer, clipId, objectId);
+      if (!next) return;
+      pushTimelineHistory();
+      setProject(next);
+    },
+    [pushTimelineHistory],
+  );
+
+  /** Planner-owned experiment copy; the reference-owned clip is untouched. */
+  const duplicateSceneAsEditable = useCallback(
+    (clipId: string) => {
+      const newClipId = nextId("clip");
+      const result = duplicateSceneAsEditableCopy(projectRef.current, clipId, {
+        clipId: newClipId,
+        formationId: () => nextId("f"),
+        dynamicFormationId: () => nextId("dyn"),
+      });
+      if (!result) return null;
+      pushTimelineHistory();
+      setProject(result.project);
+      setSelectedClipId(result.clipId);
+      setSelectedSceneObjectId(null);
+      return result.clipId;
+    },
+    [pushTimelineHistory],
+  );
+
+  const addLibraryFormation = useCallback((formation: Formation) => {
+    // A library asset is a template: the project always gets a fresh id so the
+    // stored asset and the project copy can diverge independently.
+    const created: Formation = { ...formation, id: nextId("f") };
+    setProject((p) => ({ ...p, formations: [...p.formations, created] }));
+    return created;
+  }, []);
+
+  const addLibraryDynamicFormation = useCallback(
+    (formation: DynamicFormation) => {
+      const created: DynamicFormation = { ...formation, id: nextId("dyn") };
+      commitDynamic((list) => [...list, created]);
+      return created;
+    },
+    [commitDynamic],
+  );
+
+  /**
+   * REUSE A WHOLE COMPOSITION (scene asset).
+   *
+   * The library asset is an immutable snapshot, so insertion COPIES everything
+   * it needs into the project under fresh ids: the formation dependencies, the
+   * dynamic formation dependencies and the scene itself. The scene is bound to a
+   * brand new timeline clip (`scene.id === clip.id`) inserted with the ordinary
+   * timeline semantics, LANDING-last included. There is no ESSP-only path: an
+   * imported scene is reused exactly like an authored one, as planner-owned
+   * project content.
+   */
+  const addSceneAssetToShow = useCallback(
+    (asset: FormationAsset, timing?: AssetInsertionTiming) => {
+      if (asset.formationData.kind !== "SCENE") return null;
+      return insertLibraryAssetIntoShowRef.current(asset, timing);
+    },
+    [],
+  );
+
+  /** Assigned below, once the selection reconciliation authority exists. */
+  const insertLibraryAssetIntoShowRef = useRef<
+    (asset: FormationAsset, timing?: AssetInsertionTiming) => string | null
+  >(() => null);
+
+  /**
+   * SAVE THE CURRENT SCENE AS A LIBRARY ASSET (payload only — the library owns
+   * persistence). Only a clip with an EXPLICIT authored scene qualifies; the
+   * bundle carries exactly the dependencies that scene references.
+   *
+   * Provenance is inherited, never overwritten: a clip extracted from an
+   * imported ESSP show stays ESSP_DERIVED even when the user saves it manually.
+   * Saving is metadata only, so it never promotes the source clip.
+   */
+  const sceneAssetPayloadForClip = useCallback(
+    (
+      clipId: string,
+    ): {
+      readonly scene: FormationScene;
+      readonly dependencies: SceneAssetDependencies;
+      readonly source: FormationAsset["source"];
+      readonly sourceRef: FormationAsset["sourceRef"];
+    } | null => {
+      const p = projectRef.current;
+      const scene = projectScene(p, clipId);
+      if (!scene || scene.objects.length === 0) return null;
+      const dependencies = collectSceneDependencies(scene, p);
+      const binding = referenceLayerRef.current?.bindings.find((b) => b.clipId === clipId) ?? null;
+      if (!binding) return { scene, dependencies, source: "USER", sourceRef: undefined };
+      return {
+        scene,
+        dependencies,
+        source: "ESSP_DERIVED",
+        sourceRef: {
+          kind: "FILE",
+          name: "imported ESSP show",
+          fingerprint: referenceLayerRef.current?.showHash,
+          params: {
+            clipId,
+            segmentId: binding.sourceSegmentId ?? "",
+            classification: binding.sourceClassification ?? "",
+            startTime: binding.referenceStart,
+            endTime: binding.referenceEnd,
+          },
+        },
+      };
+    },
+    [],
+  );
+
+  const editDynamic = useCallback(
+    (id: string, fn: (formation: DynamicFormation) => DynamicFormation) => {
+      commitDynamic((list) => list.map((d) => (d.id === id ? fn(d) : d)));
+    },
+    [commitDynamic],
+  );
+
+  const undoDynamic = useCallback(() => {
+    const previous = dynamicHistory.current.past.pop();
+    if (!previous) return;
+    setProject((p) => {
+      dynamicHistory.current.future.push(p.dynamicFormations ?? []);
+      setDynamicHistoryDepth({
+        past: dynamicHistory.current.past.length,
+        future: dynamicHistory.current.future.length,
+      });
+      return { ...p, dynamicFormations: previous };
+    });
+  }, []);
+
+  const redoDynamic = useCallback(() => {
+    const next = dynamicHistory.current.future.pop();
+    if (!next) return;
+    setProject((p) => {
+      dynamicHistory.current.past.push(p.dynamicFormations ?? []);
+      setDynamicHistoryDepth({
+        past: dynamicHistory.current.past.length,
+        future: dynamicHistory.current.future.length,
+      });
+      return { ...p, dynamicFormations: next };
+    });
+  }, []);
+
+  const createDynamicFromFormation = useCallback(
+    (formationId: string) => {
+      const formation = project.formations.find((f) => f.id === formationId);
+      if (!formation) return null;
+      const created = dynamicFromFormation(formation, {
+        id: nextId("dyn"),
+        duration: 8,
+        seed: project.seed,
+      });
+      commitDynamic((list) => [...list, created]);
+      setExplicitDynamicId(created.id);
+      setSelectedPointIdsState([]);
+      setSelectedMotionGroupId(null);
+      setDynamicEditTime(0);
+      return created;
+    },
+    [commitDynamic, project.formations, project.seed],
+  );
+
+  const removeDynamicFormation = useCallback(
+    (id: string) => {
+      commitDynamic((list) => list.filter((d) => d.id !== id));
+      setProject((p) => ({
+        ...p,
+        timeline: p.timeline.map((c) => {
+          if (c.dynamicFormationId !== id) return c;
+          const { dynamicFormationId: _detached, ...rest } = c;
+          return rest;
+        }),
+      }));
+
+      setExplicitDynamicId((current) => (current === id ? null : current));
+    },
+    [commitDynamic],
+  );
+
+  const patchDynamicFormation = useCallback(
+    (id: string, patch: Partial<DynamicFormation>) => {
+      editDynamic(id, (d) => ({ ...d, ...patch }));
+    },
+    [editDynamic],
+  );
+
+  const setClipDynamicFormation = useCallback(
+    (clipId: string, dynamicFormationId: string | null) => {
+      setProject((p) => ({
+        ...p,
+        timeline: p.timeline.map((c) => {
+          if (c.id !== clipId) return c;
+          if (dynamicFormationId) return { ...c, dynamicFormationId };
+          const { dynamicFormationId: _detached, ...rest } = c;
+          return rest;
+        }),
+      }));
+    },
+    [],
+  );
+
+  const addDynamicClip = useCallback(
+    (dynamicFormationId: string, timing?: { transition?: number; hold?: number }) => {
+      const id = nextId("c");
+      // Resolve the dynamic formation INSIDE the updater: a library insert adds
+      // the formation and the clip in the same tick, so the closure snapshot of
+      // project.dynamicFormations would still be empty here.
+      setProject((p) => {
+        const dynamic = (p.dynamicFormations ?? []).find((d) => d.id === dynamicFormationId);
+        if (!dynamic) return p;
+        const sourceId =
+          dynamic.sourceFormationId && p.formations.some((f) => f.id === dynamic.sourceFormationId)
+            ? dynamic.sourceFormationId
+            : (p.formations[0]?.id ?? "");
+        const clip: TimelineClip = {
+          id,
+          formationId: sourceId,
+          start: 0,
+          transition: Math.max(0.5, timing?.transition ?? 10),
+          // A dynamic clip holds for at least one full animation cycle.
+          hold: Math.max(timing?.hold ?? 0, dynamic.duration, 4),
+          easing: "minJerk",
+          color: [140, 210, 255],
+          effect: "solid",
+          phase: "SHOW",
+          dynamicFormationId: dynamic.id,
+          playbackRate: 1,
+          dynamicStartOffset: 0,
+        };
+        return { ...p, timeline: insertClipBeforeLanding(p.timeline, clip) };
+      });
+
+      setSelectedClipId(id);
+      setExplicitDynamicId(dynamicFormationId);
+    },
+    [],
+  );
+
+  const applyDynamicPreset = useCallback(
+    (id: string, preset: DynamicPresetId, amount = 1) => {
+      editDynamic(id, (d) => applyPreset(d, preset, amount));
+      setSelectedMotionGroupId(null);
+    },
+    [editDynamic],
+  );
+
+  const mirrorDynamicGroups = useCallback(
+    (id: string) => editDynamic(id, mirrorGroupsX),
+    [editDynamic],
+  );
+
+  // ---- point selection ----------------------------------------------------
+  const setSelectedPointIds = useCallback((ids: string[]) => {
+    setSelectedPointIdsState([...new Set(ids)]);
+  }, []);
+
+  const togglePointSelection = useCallback((id: string) => {
+    setSelectedPointIdsState((current) =>
+      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+    );
+  }, []);
+
+  const clearPointSelection = useCallback(() => setSelectedPointIdsState([]), []);
+
+  const selectPointSide = useCallback(
+    (side: "left" | "right" | "centre" | "all") => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      if (side === "all") {
+        setSelectedPointIdsState(formation.points.map((p) => p.id));
+        return;
+      }
+      const split = splitLeftRight(formation);
+      setSelectedPointIdsState(split[side]);
+    },
+    [selectedDynamicFormation],
+  );
+
+  /**
+   * Viewport bridge: a drone in a dynamic clip is flying ONE base point, given by
+   * that clip's assignment. Selection is therefore stored per point id, not per
+   * drone, and survives re-assignment.
+   */
+  const dynamicClipForFormation = useMemo(() => {
+    const formation = selectedDynamicFormation;
+    if (!formation) return null;
+    if (selectedClip?.dynamicFormationId === formation.id) return selectedClip;
+    return project.timeline.find((c) => c.dynamicFormationId === formation.id) ?? null;
+  }, [project.timeline, selectedClip, selectedDynamicFormation]);
+
+  const pointIdByDrone = useMemo(() => {
+    const formation = selectedDynamicFormation;
+    if (!formation || formation.points.length === 0) return [] as string[];
+    const clipAssignment = dynamicClipForFormation
+      ? plan.assignments.find((a) => a.clipId === dynamicClipForFormation.id)
+      : undefined;
+    return Array.from({ length: project.droneCount }, (_, i) => {
+      const target = clipAssignment?.assignments[i]?.targetPointIndex ?? i;
+      return (
+        formation.points[target % formation.points.length]?.id ??
+        dynamicPointId(target % formation.points.length)
+      );
+    });
+  }, [dynamicClipForFormation, plan.assignments, project.droneCount, selectedDynamicFormation]);
+
+  const pointIdForDrone = useCallback(
+    (droneIndex: number) => pointIdByDrone[droneIndex] ?? null,
+    [pointIdByDrone],
+  );
+
+  const selectedDroneIndices = useMemo(() => {
+    if (selectedPointIds.length === 0) return [];
+    const wanted = new Set(selectedPointIds);
+    return pointIdByDrone.reduce<number[]>((acc, id, i) => {
+      if (wanted.has(id)) acc.push(i);
+      return acc;
+    }, []);
+  }, [pointIdByDrone, selectedPointIds]);
+
+  const dynamicGroupRgbByDrone = useMemo(() => {
+    const map = new Map<number, [number, number, number]>();
+    const formation = selectedDynamicFormation;
+    if (!formation) return map;
+    const colorByPoint = new Map<string, [number, number, number]>();
+    for (const group of formation.groups) {
+      const rgb: [number, number, number] = [
+        group.color[0] / 255,
+        group.color[1] / 255,
+        group.color[2] / 255,
+      ];
+      for (const id of group.pointIds) colorByPoint.set(id, rgb);
+    }
+    pointIdByDrone.forEach((id, i) => {
+      const rgb = colorByPoint.get(id);
+      if (rgb) map.set(i, rgb);
+    });
+    return map;
+  }, [pointIdByDrone, selectedDynamicFormation]);
+
+  // ---- motion groups -----------------------------------------------------
+  const createMotionGroupFromSelection = useCallback(
+    (name: string) => {
+      const formation = selectedDynamicFormation;
+      if (!formation || selectedPointIds.length === 0) return;
+      const groupId = nextId("mg");
+      editDynamic(formation.id, (d) => addMotionGroup(d, name, selectedPointIds, groupId));
+      setSelectedMotionGroupId(groupId);
+    },
+    [editDynamic, selectedDynamicFormation, selectedPointIds],
+  );
+
+  const deleteMotionGroup = useCallback(
+    (groupId: string) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => removeMotionGroup(d, groupId));
+      setSelectedMotionGroupId((current) => (current === groupId ? null : current));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const patchMotionGroupState = useCallback(
+    (groupId: string, patch: Partial<MotionGroup>) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => patchMotionGroup(d, groupId, patch));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const assignSelectionToGroup = useCallback(
+    (groupId: string) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) =>
+        patchMotionGroup(d, groupId, { pointIds: selectedPointIds }),
+      );
+    },
+    [editDynamic, selectedDynamicFormation, selectedPointIds],
+  );
+
+  // ---- keyframes ---------------------------------------------------------
+  const upsertGlobalKeyframe = useCallback(
+    (key: TransformKeyframe) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => upsertTransformKeyframe(d, key));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const deleteGlobalKeyframe = useCallback(
+    (t: number) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => removeTransformKeyframe(d, t));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const upsertDeformationKeyframe = useCallback(
+    (groupId: string, key: GroupDeformationKeyframe) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => upsertGroupKeyframe(d, groupId, key));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const deleteDeformationKeyframe = useCallback(
+    (groupId: string, t: number) => {
+      const formation = selectedDynamicFormation;
+      if (!formation) return;
+      editDynamic(formation.id, (d) => removeGroupKeyframe(d, groupId, t));
+    },
+    [editDynamic, selectedDynamicFormation],
+  );
+
+  const dynamicPreviewPoints = useMemo(() => {
+    if (!selectedDynamicFormation) return null;
+    try {
+      return sampleDynamicFormation(selectedDynamicFormation, dynamicEditTime);
+    } catch {
+      return null;
+    }
+  }, [dynamicEditTime, selectedDynamicFormation]);
+
+  const dynamicReport = useMemo(() => {
+    if (!selectedDynamicFormation) return null;
+    return validateDynamicFormation(selectedDynamicFormation, {
+      limits: project.limits,
+      area: project.area,
+      expectedPointCount: project.droneCount,
+    });
+  }, [project.area, project.droneCount, project.limits, selectedDynamicFormation]);
+
+  const selectDynamicFormation = useCallback((id: string | null) => {
+    setExplicitDynamicId(id);
+    setSelectedPointIdsState([]);
+    setSelectedMotionGroupId(null);
+    setDynamicEditTime(0);
+  }, []);
+
+  // ---- Transition analysis / optimisation --------------------------------
+  const canAnalyzeSelectedClip =
+    !!selectedClipId && isOptimizableClip(project, selectedClipId, plan);
+
+  /**
+   * Converts an analysis into a plan override the full-show planner can apply.
+   * `targetPointIndex` indexes the CANONICAL fleet-indexed target list the
+   * analysis was run against (see trajectory/target.ts), so no re-mapping
+   * against base formation points happens here.
+   */
+  const overrideFromAnalysis = useCallback(
+    (clipId: string, analysis: TransitionAnalysis): ClipTransitionOverride | null => {
+      if (!isOptimizableClip(project, clipId, plan)) return null;
+      if (analysis.dronePlans.length === 0) return null;
+      return {
+        targetPointIndex: analysis.dronePlans.map((p) => p.targetPointIndex),
+        startOffsets: analysis.dronePlans.map((p) => p.startOffset),
+        laneOffsets: analysis.dronePlans.map((p) => p.lane.offsetMetres),
+        lateralOffsets: analysis.dronePlans.map((p) => p.lateralOffsetMetres ?? 0),
+        strategy: `${analysis.metrics.assignmentStrategy}+optimized`,
+      };
+    },
+    [project, plan],
+  );
+
+  const analyzeSelectedTransition = useCallback(() => {
+    const clipId = selectedClipId;
+    if (!clipId || !isOptimizableClip(project, clipId, plan)) return;
+    setTransitionBusy(true);
+    setTransitionError(null);
+    try {
+      const input = transitionInputForClip(project, plan, clipId, {
+        strategy: assignmentStrategy,
+        sampleRate,
+      });
+      const analysis = analyzeTransitionCore(input, DEFAULT_OPTIMIZATION_SETTINGS);
+      setTransitionAnalysis({ clipId, analysis });
+      setAssignmentComparison({
+        clipId,
+        comparison: compareAssignmentStrategies({
+          source: input.source,
+          target: input.target,
+          drones: input.drones,
+        }),
+      });
+      setOptimization(null);
+    } catch (err) {
+      setTransitionAnalysis(null);
+      setAssignmentComparison(null);
+      setTransitionError(describeTransitionError(err));
     } finally {
       setTransitionBusy(false);
     }
@@ -5514,7 +6624,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   const lightingStatesAtTime = useCallback(
-    (t: number, positions?: readonly Vector3Tuple[]): DroneLightState[] => {
+    (t: number): DroneLightState[] => {
       // An imported reference-owned interval owns its LEDs too: the displayed
       // colour is the original RGB byte triplet, not an authored effect.
       if (
@@ -5541,10 +6651,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         {
           project: previewProject,
           participation: plan.participation,
-          // The viewport already sampled the whole fleet for this frame. Reuse
-          // those positions when supplied instead of repeating the O(N)
-          // trajectory walk solely for lighting evaluation.
-          positions: positions ?? samplesAtTime(t).map((s) => s.position),
+          positions: samplesAtTime(t).map((s) => s.position),
         },
         t,
       );
