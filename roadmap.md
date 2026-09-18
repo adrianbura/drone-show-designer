@@ -80,3 +80,9 @@ immediately, and Presentation keeps animating its camera with no input.
 
 Limitation: software rendering, so these numbers are only valid as a before/after comparison,
 never as an fps promise on real GPUs.
+
+## Verificare browser 2026-09-18 (main @ 77c1105)
+- ✅ New Show: 3 șabloane (Blank/Short opener/Classic arc) — structuri corecte, Review cu rezumat, EDIT fără alegere de șablon, texte EN/RO fără promisiuni de siguranță
+- ✅ Copy/paste clipuri: meniu + Ctrl+C/V, identități noi, un Undo = un Paste, Copy fără history/dirty, TAKEOFF/LANDING fără Copy, Paste dezactivat explicat, inputuri neatinse
+- ⚠️ BUG UI documentat: meniul contextual al clipurilor nu se redeschide prin click-dreapta după executarea unei comenzi (Ctrl+C/V rămân funcționale); remediere strict UI, de decis
+- ✅ 1395 teste, typecheck, lint, build — toate curate
