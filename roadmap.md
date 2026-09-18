@@ -29,12 +29,13 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 ## Prioritate curentă
 
 1. [x] Viewport invalidate-on-demand implementat: editor tehnic `demand`, Presentation `always`.
-2. [ ] Re-măsurare browser 150/500 și verificare seek/playback/controls/gizmo/Presentation.
+2. [x] Re-măsurare browser 150/500 și verificare seek/playback/controls/selecție/Presentation.
 3. [ ] Copy/paste pentru clipuri și scene, apoi șabloane de show.
 4. [ ] Efecte de lumină avansate.
 5. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
-6. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
-7. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
+6. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
+7. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
+8. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
 
 ## Capabilități livrate
 
