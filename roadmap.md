@@ -107,3 +107,9 @@ click dreapta cu gest real de mouse (`mouse.down`/`mouse.up`, fără pauză):
 
 Limitare: JSDOM nu poate reproduce geometria (fără layout și fără repoziționare la coliziune);
 acel aspect rămâne verificabil doar în browser.
+
+Verificat și pe fereastră scurtă (1280×820): marginea de jos a clipului înainte și după Copy —
+meniul rămâne deschis, 0 clipuri inserate; click stânga execută o dată; 3 submeniuri (13 rânduri);
+Enter pe `Paste` inserează exact 1 clip, un Undo îl elimină; meniul pe zona liberă a cronologiei se
+deschide. Suita completă: 159 fișiere / 1396 teste / 1 skipped, fără instabilitate Radix/JSDOM la
+această rulare.

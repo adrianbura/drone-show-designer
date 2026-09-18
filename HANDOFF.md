@@ -354,3 +354,9 @@ Verificat în browser (gest real de mouse, fără pauză): marginea de jos a cli
 Copy — meniul rămâne deschis, nicio comandă și niciun Paste executat; click stânga execută o dată;
 submeniuri funcționale; Enter pe `Paste` execută exact un Paste; un Paste = un Undo; meniul pe zona
 liberă a cronologiei se deschide. 399 teste țintite, typecheck, lint și build curate.
+
+Verificat și pe fereastră scurtă (1280×820): marginea de jos a clipului înainte și după Copy —
+meniul rămâne deschis, 0 clipuri inserate; click stânga execută o dată; 3 submeniuri (13 rânduri);
+Enter pe `Paste` inserează exact 1 clip, un Undo îl elimină; meniul pe zona liberă a cronologiei se
+deschide. Suita completă: 159 fișiere / 1396 teste / 1 skipped, fără instabilitate Radix/JSDOM la
+această rulare.
