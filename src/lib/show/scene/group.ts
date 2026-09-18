@@ -46,7 +46,9 @@ export function objectBasePoints(
   if (object.source.kind === "STATIC") {
     return findStaticSource(project, object.source.formationId)?.points ?? [];
   }
-  return findDynamicSource(project, object.source.dynamicFormationId)?.points.map((p) => p.base) ?? [];
+  return (
+    findDynamicSource(project, object.source.dynamicFormationId)?.points.map((p) => p.base) ?? []
+  );
 }
 
 /**
@@ -67,7 +69,9 @@ export function sceneGroupPivot(
   objectIds: readonly string[],
 ): Vector3Tuple {
   const wanted = new Set(objectIds);
-  const centres = scene.objects.filter((o) => wanted.has(o.id)).map((o) => objectCentre(project, o));
+  const centres = scene.objects
+    .filter((o) => wanted.has(o.id))
+    .map((o) => objectCentre(project, o));
   return geometricCentre(centres);
 }
 
@@ -244,6 +248,45 @@ export function duplicateSceneObjects(
   return { scene: next, objectIds: created };
 }
 
+/** Detached, session-local snapshot of selected visual instances. */
+export interface SceneObjectClipboardPayload {
+  readonly objects: readonly SceneFormationInstance[];
+}
+
+/** Copy is non-mutating and preserves the scene order of the selection. */
+export function copySceneObjects(
+  scene: FormationScene,
+  objectIds: readonly string[],
+): SceneObjectClipboardPayload | null {
+  const wanted = new Set(objectIds);
+  const objects = scene.objects
+    .filter((object) => wanted.has(object.id))
+    .map((object) => JSON.parse(JSON.stringify(object)) as SceneFormationInstance);
+  return objects.length > 0 ? { objects } : null;
+}
+
+/** Paste appends fresh instances; shared formation/motion assets remain shared. */
+export function pasteSceneObjects(
+  scene: FormationScene,
+  payload: SceneObjectClipboardPayload,
+  offset: Vector3Tuple = ZERO,
+): { readonly scene: FormationScene; readonly objectIds: readonly string[] } {
+  let next = scene;
+  const created: string[] = [];
+  for (const source of payload.objects) {
+    const id = nextObjectId(next);
+    const copy: SceneFormationInstance = {
+      ...(JSON.parse(JSON.stringify(source)) as SceneFormationInstance),
+      id,
+      name: nextObjectName(next, source.name),
+      transform: { ...source.transform, position: addVec(source.transform.position, offset) },
+    };
+    next = { ...next, objects: [...next.objects, copy] };
+    created.push(id);
+  }
+  return { scene: next, objectIds: created };
+}
+
 /** Removes every selected object at once (one mutation, one undo entry). */
 export function removeSceneObjects(
   scene: FormationScene,
@@ -274,7 +317,8 @@ export function mixedTransformFlags(
   if (!first || list.length < 2) {
     return { position: false, rotationDeg: false, scale: false, mirrorX: false };
   }
-  const same = (a: Vector3Tuple, b: Vector3Tuple) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+  const same = (a: Vector3Tuple, b: Vector3Tuple) =>
+    a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
   return {
     position: list.some((o) => !same(o.transform.position, first.transform.position)),
     rotationDeg: list.some((o) => !same(o.transform.rotationDeg, first.transform.rotationDeg)),

@@ -43,6 +43,8 @@ export type StudioCommandId =
   | "TRANSITION_DESIGN"
   | "REPLAN_ASSIGNMENT"
   // ---- document
+  | "COPY_CLIP"
+  | "PASTE_CLIP"
   | "DUPLICATE_CLIP"
   | "RENAME_CLIP"
   | "DELETE_CLIP"
@@ -109,6 +111,7 @@ export interface ClipCommandContext {
   readonly ownership: ClipOwnership;
   readonly canCompareReference: boolean;
   readonly canRestoreReference: boolean;
+  readonly canPasteClip: boolean;
   /** Development-only surfaces for planned capabilities. */
   readonly experimentalEnabled: boolean;
   /**
@@ -232,7 +235,15 @@ function clipMenu(ctx: ClipCommandContext): StudioCommandMenu {
       : [];
 
   const document: StudioCommand[] = [];
-  if (isShow) document.push(cmd("DUPLICATE_CLIP", "Duplicate"));
+  if (isShow) {
+    document.push(cmd("COPY_CLIP", "Copy", { shortcut: "Ctrl+C" }));
+    document.push(
+      ctx.canPasteClip
+        ? cmd("PASTE_CLIP", "Paste", { shortcut: "Ctrl+V" })
+        : blocked("PASTE_CLIP", "Paste", "Copy a SHOW clip first."),
+    );
+    document.push(cmd("DUPLICATE_CLIP", "Duplicate"));
+  }
   document.push(cmd("RENAME_CLIP", "Rename…"));
 
   const reference: StudioCommand[] =

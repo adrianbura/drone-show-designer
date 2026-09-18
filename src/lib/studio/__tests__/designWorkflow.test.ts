@@ -12,8 +12,10 @@ import { createDefaultProject } from "../../show/defaultProject";
 import {
   alignSceneObjectsBy,
   applySceneDesignAction,
+  copySceneObjects,
   objectCentre,
   projectScene,
+  pasteSceneObjects,
   resolveSceneAt,
   sceneForClip,
   timelineThumbnails,
@@ -23,13 +25,21 @@ import { IDENTITY_INSTANCE_TRANSFORM } from "../../show/scene/types";
 import type { FormationScene } from "../../show/scene";
 import { makeFormation } from "../../show/formations";
 import type { ShowProject, TimelineClip } from "../../show/types";
-import { canConvertClipToScene, convertClipToScene, duplicateShowClip } from "../clipDesign";
+import {
+  canConvertClipToScene,
+  convertClipToScene,
+  copyShowClip,
+  duplicateShowClip,
+  pasteShowClip,
+} from "../clipDesign";
 
 const IDS = { clipId: "clip-copy", lightingEffectId: (i: number) => `fx-copy-${i}` };
 
 const N = 12;
 
-function clip(over: Partial<TimelineClip> & Pick<TimelineClip, "id" | "formationId">): TimelineClip {
+function clip(
+  over: Partial<TimelineClip> & Pick<TimelineClip, "id" | "formationId">,
+): TimelineClip {
   return {
     start: 0,
     transition: 8,
@@ -160,6 +170,44 @@ describe("duplicate clip for design", () => {
     const after = upsertScene(result.project, edited);
     expect(projectScene(after, clipId)).toEqual(projectScene(owned, clipId));
     expect(projectScene(after, IDS.clipId)).not.toEqual(copy);
+  });
+});
+
+describe("design clipboard", () => {
+  it("pastes the Copy-time clip snapshot with fresh clip and object ids", () => {
+    const source = convertClipToScene(base(), showClipId(base()))!.project;
+    const clipId = showClipId(source);
+    const payload = copyShowClip(source, clipId)!;
+    const scene = projectScene(source, clipId)!;
+    const changed = upsertScene(source, {
+      ...scene,
+      objects: scene.objects.map((object) => ({
+        ...object,
+        transform: { ...object.transform, position: [99, 99, 99] },
+      })),
+    });
+    const result = pasteShowClip(changed, payload, IDS)!;
+    const pasted = projectScene(result.project, result.clipId)!;
+    expect(pasted.objects[0]!.id).toBe("clip-copy-obj-1");
+    expect(pasted.objects[0]!.transform.position).not.toEqual([99, 99, 99]);
+    expect(projectScene(result.project, clipId)).toEqual(projectScene(changed, clipId));
+  });
+
+  it("copies selected scene objects without mutation and pastes fresh instances", () => {
+    const project = convertClipToScene(base(), showClipId(base()))!.project;
+    const scene = projectScene(project, showClipId(project))!;
+    const payload = copySceneObjects(scene, [scene.objects[0]!.id])!;
+    const result = pasteSceneObjects(scene, payload);
+    expect(scene.objects).toHaveLength(1);
+    expect(result.scene.objects).toHaveLength(2);
+    expect(result.objectIds[0]).not.toBe(scene.objects[0]!.id);
+    expect(result.scene.objects[1]!.source).toEqual(scene.objects[0]!.source);
+  });
+
+  it("refuses a clip paste after its shared asset dependency disappears", () => {
+    const project = base();
+    const payload = copyShowClip(project, showClipId(project))!;
+    expect(pasteShowClip({ ...project, formations: [] }, payload, IDS)).toBeNull();
   });
 });
 

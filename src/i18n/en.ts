@@ -265,6 +265,7 @@ export const en = {
   "shortcuts.seekEnds": "Jump to start / end",
   "shortcuts.undo": "Undo",
   "shortcuts.redo": "Redo",
+  "shortcuts.copyPaste": "Copy / paste the current selection",
   "shortcuts.gizmoMode": "Gizmo: move / rotate / scale",
   "shortcuts.selectAll": "Select all scene objects",
   "shortcuts.duplicate": "Duplicate selection",

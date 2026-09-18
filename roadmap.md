@@ -30,12 +30,13 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 
 1. [x] Viewport invalidate-on-demand implementat: editor tehnic `demand`, Presentation `always`.
 2. [x] Re-măsurare browser 150/500 și verificare seek/playback/controls/selecție/Presentation.
-3. [ ] Copy/paste pentru clipuri și scene, apoi șabloane de show.
-4. [ ] Efecte de lumină avansate.
-5. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
-6. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
-7. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
-8. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
+3. [x] Copy/paste intern pentru clipuri SHOW și obiectele scenei (ID-uri noi, un singur Undo).
+4. [ ] Verificare UX/browser copy/paste, apoi șabloane de show.
+5. [ ] Efecte de lumină avansate.
+6. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
+7. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
+8. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
+9. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
 
 ## Capabilități livrate
 
@@ -52,6 +53,7 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 - [x] Single responsive mount for Inspector/LeftPanel surfaces
 - [x] Cinematic Presentation viewport with audience camera and explicit estimated fallback
 - [x] Browser frame-time probe at 150 and 500 drones (software-GL sandbox numbers recorded below)
+- [x] Internal Copy/Paste for SHOW clips and selected scene objects (single-revision Paste)
 - [ ] ~~Automatic beat detection~~ — dropped by the owner: show moments are authored manually, the manual BPM grid stays
 - [ ] ~~.skyc export~~ — dropped: the target hardware loads ESSP, which the app already reads and writes byte-identically
 

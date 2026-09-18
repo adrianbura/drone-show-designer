@@ -12,6 +12,8 @@ export type ShortcutAction =
   | { readonly type: "seekEnd" }
   | { readonly type: "undo" }
   | { readonly type: "redo" }
+  | { readonly type: "copySelection" }
+  | { readonly type: "pasteSelection" }
   | { readonly type: "clearSelection" }
   /** Scene editor: viewport gizmo mode (Windows-first W / E / R). */
   | { readonly type: "gizmoMode"; readonly mode: "MOVE" | "ROTATE" | "SCALE" }
@@ -56,6 +58,8 @@ export function resolveShortcut(event: ShortcutEventLike): ShortcutAction | null
     if (key === "z") return event.shiftKey ? { type: "redo" } : { type: "undo" };
     if (key === "y") return { type: "redo" };
     if (key === "a") return { type: "selectAll" };
+    if (key === "c") return { type: "copySelection" };
+    if (key === "v") return { type: "pasteSelection" };
     if (key === "d") return { type: "duplicateSelection" };
     return null;
   }
@@ -101,6 +105,7 @@ export const SHORTCUT_HELP: readonly { readonly keys: string; readonly labelKey:
   { keys: "Home / End", labelKey: "shortcuts.seekEnds" },
   { keys: "Ctrl + Z", labelKey: "shortcuts.undo" },
   { keys: "Ctrl + Y", labelKey: "shortcuts.redo" },
+  { keys: "Ctrl + C / V", labelKey: "shortcuts.copyPaste" },
   { keys: "W / E / R", labelKey: "shortcuts.gizmoMode" },
   { keys: "Ctrl + A", labelKey: "shortcuts.selectAll" },
   { keys: "Ctrl + D", labelKey: "shortcuts.duplicate" },

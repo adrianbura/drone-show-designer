@@ -81,6 +81,7 @@ describe("studio surface routing", () => {
       ownership: "NONE",
       canCompareReference: false,
       canRestoreReference: false,
+      canPasteClip: false,
       experimentalEnabled: false,
       textRebuild: { available: true },
     } as const;

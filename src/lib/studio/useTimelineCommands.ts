@@ -44,6 +44,9 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
     setTime,
     removeClip,
     duplicateClipForDesign,
+    designClipboardKind,
+    copyClipForDesign,
+    pasteDesignClipboard,
     canEditClipAsScene,
     editClipAsScene,
     commitClipTiming,
@@ -86,6 +89,7 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
         // No clip-level reference restore authority exists yet; scene objects are
         // restored individually in the scene panel. Never pretend otherwise.
         canRestoreReference: false,
+        canPasteClip: designClipboardKind === "CLIP",
         experimentalEnabled: import.meta.env.DEV,
         textRebuild: (() => {
           const eligibility = resolveTextRebuildEligibility(project, clipId);
@@ -95,11 +99,21 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
         })(),
       };
     },
-    [beatGrid.beats, canEditClipAsScene, lightingEffects, ownershipOf, project],
+    [
+      beatGrid.beats,
+      canEditClipAsScene,
+      designClipboardKind,
+      lightingEffects,
+      ownershipOf,
+      project,
+    ],
   );
 
   const execute = useCallback(
-    (id: StudioCommandId, target: { clipId?: string; time?: number; markerId?: string; effectId?: string }) => {
+    (
+      id: StudioCommandId,
+      target: { clipId?: string; time?: number; markerId?: string; effectId?: string },
+    ) => {
       const clipId = target.clipId;
       /** ONE routing path: select the target, then reveal the owning surface. */
       const focusSurface = (surface: StudioSurfaceId, id?: string) => {
@@ -148,6 +162,12 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
           return;
         case "DUPLICATE_CLIP":
           if (clipId) duplicateClipForDesign(clipId);
+          return;
+        case "COPY_CLIP":
+          if (clipId) copyClipForDesign(clipId);
+          return;
+        case "PASTE_CLIP":
+          pasteDesignClipboard();
           return;
         case "RENAME_CLIP": {
           if (!clipId) return;
@@ -206,11 +226,13 @@ export function useTimelineCommands(onRename?: (request: RenameRequest) => void)
       addMarker,
       beatGrid.beats,
       commitClipTiming,
+      copyClipForDesign,
       duplicateClipForDesign,
       editClipAsScene,
       markers,
       onRename,
       patchMarker,
+      pasteDesignClipboard,
       project,
       removeClip,
       removeLightingEffect,

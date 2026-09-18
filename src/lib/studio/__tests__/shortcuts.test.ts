@@ -19,7 +19,10 @@ describe("keyboard shortcuts", () => {
 
   it("seeks with arrows and jumps with Home/End", () => {
     expect(resolveShortcut({ key: "ArrowRight" })).toEqual({ type: "seek", delta: 1 });
-    expect(resolveShortcut({ key: "ArrowLeft", shiftKey: true })).toEqual({ type: "seek", delta: -5 });
+    expect(resolveShortcut({ key: "ArrowLeft", shiftKey: true })).toEqual({
+      type: "seek",
+      delta: -5,
+    });
     expect(resolveShortcut({ key: "Home" })).toEqual({ type: "seekStart" });
     expect(resolveShortcut({ key: "End" })).toEqual({ type: "seekEnd" });
   });
@@ -29,6 +32,12 @@ describe("keyboard shortcuts", () => {
     expect(resolveShortcut({ key: "Z", ctrlKey: true, shiftKey: true })).toEqual({ type: "redo" });
     expect(resolveShortcut({ key: "y", ctrlKey: true })).toEqual({ type: "redo" });
     expect(resolveShortcut({ key: "Escape" })).toEqual({ type: "clearSelection" });
+  });
+
+  it("maps copy/paste without stealing text-entry shortcuts", () => {
+    expect(resolveShortcut({ key: "c", ctrlKey: true })).toEqual({ type: "copySelection" });
+    expect(resolveShortcut({ key: "V", metaKey: true })).toEqual({ type: "pasteSelection" });
+    expect(resolveShortcut({ key: "c", ctrlKey: true, target: { tagName: "INPUT" } })).toBeNull();
   });
 
   it("ignores unrelated keys", () => {

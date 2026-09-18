@@ -73,10 +73,10 @@ repository-ul GitHub folosit și de Lovable.
   folosit prin prompturi delimitate și verificat ulterior.
 - **Obiectiv principal:** aplicație profesională și ușor de folosit.
 - **Ramură canonică:** `main`; nu se rescrie istoricul publicat.
-- **Ultima stare analizată:** `main` la `9c5b0aa` („Render technical viewport on demand").
-- **Lucru curent:** randarea la cerere este verificată în browser și închisă: editorul tehnic
-  oprit nu mai produce cadre (16,7 ms/cadru idle la 150 și 500), Presentation continuă să anime.
-- **Prioritate activă:** copy/paste pentru clipuri și scene, apoi șabloane de show.
+- **Ultima stare analizată:** `main` la `a62bcaa` (verificarea Lovable pentru viewport).
+- **Lucru curent:** copy/paste intern este implementat pentru clipuri SHOW și obiectele scenei,
+  cu snapshot la Copy, identități noi la Paste și o singură revizie Undo.
+- **Prioritate activă:** verificare UX/browser pentru copy/paste, apoi șabloane de show.
 - **Validare încă necesară:** toate cifrele de performanță provin din Playwright headless cu
   SwiftShader; o măsurătoare pe GPU real rămâne de făcut înainte de orice promisiune de fps.
 - **Comandă de reluare:** când utilizatorul spune „continuă”, se pornește prioritatea activă din
@@ -234,14 +234,37 @@ compun manual, grila BPM manuală rămâne) și exportul `.skyc` (hardware-ul ț
 
 Rămas, în ordinea de lucru:
 
-1. **Copy/paste + șabloane de show** — comenzi noi în `store.tsx` (o intrare de history
-   per operație) + `src/lib/studio/showTemplates.ts`.
-2. **Efecte de lumină avansate** peste preseturile existente.
-3. **Imagine → figură mai puternic** (contur vs. umplere, diagnostic de separare).
-4. **Cost de redare la 500 de drone** — singura țintă de performanță rămasă după închiderea
+1. **Verificare copy/paste în browser** — clip SHOW din timeline și selecție de obiecte din
+   scenă; confirmă selecția rezultatului și un singur pas Undo pentru fiecare Paste.
+2. **Șabloane de show** — `src/lib/studio/showTemplates.ts`, fără a dubla autoritatea motoarelor.
+3. **Efecte de lumină avansate** peste preseturile existente.
+4. **Imagine → figură mai puternic** (contur vs. umplere, diagnostic de separare).
+5. **Cost de redare la 500 de drone** — singura țintă de performanță rămasă după închiderea
    re-măsurării (pauza este rezolvată).
-5. **Curățenie**: împărțirea `store.tsx` pe felii, lint global, CI și teste Playwright pe
+6. **Curățenie**: împărțirea `store.tsx` pe felii, lint global, CI și teste Playwright pe
    timeline/gizmo/viewport; `.gitignore` pentru `__pycache__`/`.pyc`.
+
+### COPY/PASTE CLIPURI ȘI SCENE — IMPLEMENTAT (18 sep 2026)
+
+- `Ctrl+C / Ctrl+V` folosește un clipboard intern sesiunii și nu scrie datele show-ului în
+  clipboardul sistemului de operare;
+- dacă sunt selectate obiecte vizuale, se copiază acele obiecte; altfel se copiază clipul SHOW;
+- Copy este stare de editor, fără dirty/history; Paste creează ID-uri noi, selectează rezultatul
+  și produce exact o singură revizie Undo;
+- clipul păstrează snapshotul de la momentul Copy, scena, efectele de lumină și referințele
+  interne remapate; asset-urile formation/dynamic rămân partajate și lipsa lor blochează Paste;
+- meniul contextual al clipului oferă Copy/Paste, iar Paste explică de ce este indisponibil.
+
+Validare locală:
+
+- TypeScript `tsc --noEmit`: **trecut**;
+- teste țintite: **47/47 trecute**;
+- build producție: **trecut**, cu avertismentele istorice de chunk/directive;
+- ESLint pe fișierele atinse: **0 erori**, 11 avertismente istorice în `store.tsx`;
+- suită completă: **157 fișiere trecute, 1 eșuat; 1388 teste trecute, 2 eșuate,
+  1 skipped**. Ambele eșecuri sunt testele Radix/JSDOM cunoscute din
+  `studioContextMenu.dom.test.tsx`, care nu reușesc să deschidă meniul nici înaintea acestei
+  schimbări; testele pure ale autorității meniului și copy/paste trec.
 
 ## 6. Limitări cunoscute, de comunicat onest
 
@@ -254,18 +277,14 @@ Rămas, în ordinea de lucru:
 ## 7. Prompt de verificare pentru Lovable
 
 ```text
-Sincronizează mai întâi ultimul main și nu rescrie istoricul. Verifică schimbarea de performanță
-din Viewport3D: editorul tehnic trebuie să folosească frameloop="demand", iar modul Presentation
-să rămână frameloop="always" deoarece camera cinematică se mișcă permanent.
+Sincronizează ultimul main și nu rescrie istoricul. Verifică în browser copy/paste: (1) un clip
+SHOW din timeline prin meniul contextual Copy/Paste și Ctrl+C/Ctrl+V; (2) unul și mai multe
+obiecte selectate în Scene editor prin Ctrl+C/Ctrl+V. Confirmă că Paste selectează rezultatul,
+generează identități noi, păstrează aspectul și că un singur Undo elimină întregul Paste.
 
-Nu modifica motoarele show/trajectory/safety, store.tsx, importul sau exportul. Rulează aceeași
-probă browser folosită la baseline-ul din 18 sep 2026, în aceleași condiții headless SwiftShader,
-pentru 150 și 500 de drone, atât în pauză cât și în redare. Confirmă și prin interacțiune că seek,
-playback, OrbitControls, selecția și gizmo-ul redesenează imediat, iar Presentation continuă să
-anime camera.
-
-Scrie în HANDOFF.md și roadmap.md cifrele before/after, metoda exactă și orice regresie. Nu marca
-optimizarea finalizată dacă editorul oprit continuă să producă o buclă de cadre sau dacă oricare
-dintre interacțiunile de mai sus nu actualizează viewportul. Rulează testele, typecheck, lint pe
-fișierele atinse și build-ul înainte de raportare.
+Confirmă că shortcuturile nu interceptează Ctrl+C/Ctrl+V în input/textarea/contenteditable și că
+TAKEOFF/LANDING nu oferă copiere de clip. Nu modifica motoarele show/trajectory/safety, importul
+sau exportul și nu reimplementa clipboardul. Dacă găsești o problemă, documenteaz-o și aplică
+doar o corecție UI limitată; orice schimbare în store/core trebuie raportată înainte. Actualizează
+HANDOFF.md și roadmap.md și rulează testele, typecheck, lint relevant și build.
 ```

@@ -24,6 +24,7 @@ function clip(patch: Partial<ClipCommandContext> = {}): ClipCommandContext {
     ownership: "NONE",
     canCompareReference: false,
     canRestoreReference: false,
+    canPasteClip: false,
     experimentalEnabled: false,
     textRebuild: { available: true },
     ...patch,
@@ -81,6 +82,14 @@ describe("command authority", () => {
     expect(show).not.toContain("COMPARE_REFERENCE");
     expect(show).not.toContain("RESTORE_REFERENCE");
     expect(show).not.toContain("VIEW_IMPORTED_RGB");
+  });
+
+  it("exposes clip copy and only enables paste for a clip clipboard", () => {
+    expect(findCommand(resolveTimelineCommands(clip()), "COPY_CLIP")?.available).toBe(true);
+    expect(findCommand(resolveTimelineCommands(clip()), "PASTE_CLIP")?.available).toBe(false);
+    expect(
+      findCommand(resolveTimelineCommands(clip({ canPasteClip: true })), "PASTE_CLIP")?.available,
+    ).toBe(true);
   });
 
   it("hides restore until a real restore continuation exists", () => {

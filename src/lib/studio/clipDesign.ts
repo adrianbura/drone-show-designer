@@ -23,7 +23,7 @@
  * Pure module: no React, no Three.js, no I/O.
  */
 import type { LightingEffectInstance } from "../show/lighting";
-import { projectScene, sceneForClip, synthesizeScene, upsertScene } from "../show/scene";
+import { projectScene, synthesizeScene, upsertScene } from "../show/scene";
 import { SCENE_SCHEMA_VERSION, type FormationScene } from "../show/scene/types";
 import { clipPhase, type ShowProject, type TimelineClip } from "../show/types";
 import { insertClipBeforeLanding } from "./clipInsertion";
@@ -42,10 +42,7 @@ export function canConvertClipToScene(project: ShowProject, clipId: string): boo
 }
 
 /** Materialises the clip's implicit scene as an authored, editable scene. */
-export function convertClipToScene(
-  project: ShowProject,
-  clipId: string,
-): ClipDesignResult | null {
+export function convertClipToScene(project: ShowProject, clipId: string): ClipDesignResult | null {
   const clip = project.timeline.find((c) => c.id === clipId);
   if (!clip || !canConvertClipToScene(project, clipId)) return null;
   const scene = synthesizeScene(project, clip);
@@ -62,6 +59,137 @@ export interface ClipDuplicationIds {
   readonly lightingEffectId: (index: number) => string;
 }
 
+/** Immutable, session-local snapshot used by Copy/Paste. */
+export interface ClipClipboardPayload {
+  readonly clip: TimelineClip;
+  readonly scene: FormationScene | null;
+  readonly lightingEffects: readonly LightingEffectInstance[];
+}
+
+const clonePlain = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+/** Copy never mutates project/history and captures the design at Copy time. */
+export function copyShowClip(project: ShowProject, clipId: string): ClipClipboardPayload | null {
+  const clip = project.timeline.find((candidate) => candidate.id === clipId);
+  if (!clip || clipPhase(clip) !== "SHOW") return null;
+  const scene = projectScene(project, clipId);
+  return {
+    clip: clonePlain(clip),
+    scene: scene ? clonePlain(scene) : null,
+    lightingEffects: clonePlain(
+      (project.lighting?.effects ?? []).filter((effect) => effect.target.clipId === clipId),
+    ),
+  };
+}
+
+function clipboardDependenciesExist(project: ShowProject, payload: ClipClipboardPayload): boolean {
+  const staticIds = new Set(project.formations.map((formation) => formation.id));
+  const dynamicIds = new Set((project.dynamicFormations ?? []).map((formation) => formation.id));
+  if (!staticIds.has(payload.clip.formationId)) return false;
+  if (payload.clip.dynamicFormationId && !dynamicIds.has(payload.clip.dynamicFormationId))
+    return false;
+  return (payload.scene?.objects ?? []).every((object) =>
+    object.source.kind === "STATIC"
+      ? staticIds.has(object.source.formationId)
+      : dynamicIds.has(object.source.dynamicFormationId),
+  );
+}
+
+function sceneObjectIdMap(
+  scene: FormationScene | null,
+  clipId: string,
+): ReadonlyMap<string, string> {
+  return new Map(
+    (scene?.objects ?? []).map((object, index) => [object.id, `${clipId}-obj-${index + 1}`]),
+  );
+}
+
+function remapSceneObjects(
+  scene: FormationScene,
+  clipId: string,
+  objectIds: ReadonlyMap<string, string>,
+): FormationScene {
+  const remap = (id: string) => objectIds.get(id) ?? id;
+  return {
+    ...clonePlain(scene),
+    id: clipId,
+    name: `${scene.name} copy`,
+    schemaVersion: SCENE_SCHEMA_VERSION,
+    objects: scene.objects.map((object) => ({ ...clonePlain(object), id: remap(object.id) })),
+    ...(scene.pointGroups
+      ? {
+          pointGroups: scene.pointGroups.map((group) => ({
+            ...clonePlain(group),
+            instanceId: remap(group.instanceId),
+          })),
+        }
+      : {}),
+    ...(scene.visualGroups
+      ? {
+          visualGroups: scene.visualGroups.map((group) => ({
+            ...clonePlain(group),
+            objectIds: group.objectIds.map(remap),
+          })),
+        }
+      : {}),
+    ...(scene.visualStates
+      ? {
+          visualStates: scene.visualStates.map((state) => ({
+            ...clonePlain(state),
+            objects: state.objects.map((object) => ({
+              ...clonePlain(object),
+              objectId: remap(object.objectId),
+            })),
+          })),
+        }
+      : {}),
+  };
+}
+
+/** Paste creates a fresh planner-owned SHOW clip as one complete project transform. */
+export function pasteShowClip(
+  project: ShowProject,
+  payload: ClipClipboardPayload,
+  ids: ClipDuplicationIds,
+): ClipDesignResult | null {
+  if (!clipboardDependenciesExist(project, payload)) return null;
+  const timeline = insertClipBeforeLanding(project.timeline, {
+    ...clonePlain(payload.clip),
+    id: ids.clipId,
+    phase: "SHOW",
+  });
+  const objectIds = sceneObjectIdMap(payload.scene, ids.clipId);
+  const copiedEffects = payload.lightingEffects.map((effect, index) => ({
+    ...clonePlain(effect),
+    id: ids.lightingEffectId(index),
+    target:
+      "instanceId" in effect.target
+        ? {
+            ...clonePlain(effect.target),
+            clipId: ids.clipId,
+            instanceId: objectIds.get(effect.target.instanceId) ?? effect.target.instanceId,
+          }
+        : { ...clonePlain(effect.target), clipId: ids.clipId },
+  }));
+  let next: ShowProject = { ...project, timeline };
+  if (copiedEffects.length > 0) {
+    next = {
+      ...next,
+      lighting: {
+        schemaVersion: project.lighting?.schemaVersion ?? 1,
+        effects: [...(project.lighting?.effects ?? []), ...copiedEffects],
+      },
+    };
+  }
+  const scene = payload.scene ? remapSceneObjects(payload.scene, ids.clipId, objectIds) : null;
+  if (scene) next = upsertScene(next, scene);
+  return {
+    project: next,
+    clipId: ids.clipId,
+    sceneObjectIds: scene?.objects.map((object) => object.id) ?? [],
+  };
+}
+
 /**
  * Duplicates a SHOW clip for design work. TAKEOFF / LANDING clips are refused:
  * their semantics are owned by the pre-show and landing engines.
@@ -71,52 +199,6 @@ export function duplicateShowClip(
   clipId: string,
   ids: ClipDuplicationIds,
 ): ClipDesignResult | null {
-  const clip = project.timeline.find((c) => c.id === clipId);
-  if (!clip || clipPhase(clip) !== "SHOW") return null;
-  const hasAuthoredScene = !!projectScene(project, clipId);
-  const source = sceneForClip(project, clip);
-
-  const copyClip: TimelineClip = { ...clip, id: ids.clipId, phase: "SHOW" };
-  const timeline = insertClipBeforeLanding(project.timeline, copyClip);
-
-  const objects = source.objects.map((object, index) => ({
-    ...object,
-    id: `${ids.clipId}-obj-${index + 1}`,
-  }));
-  const copyScene: FormationScene = {
-    ...source,
-    id: ids.clipId,
-    name: `${source.name} copy`,
-    schemaVersion: SCENE_SCHEMA_VERSION,
-    objects,
-  };
-
-  // Lighting travels with the design copy so the duplicate LOOKS identical.
-  const sourceEffects = project.lighting?.effects ?? [];
-  const copiedEffects: LightingEffectInstance[] = sourceEffects
-    .filter((e) => e.target.kind === "SCENE" && e.target.clipId === clipId)
-    .map((effect, index) => ({
-      ...effect,
-      id: ids.lightingEffectId(index),
-      target: { kind: "SCENE", clipId: ids.clipId },
-    }));
-
-  let next: ShowProject = { ...project, timeline };
-  if (copiedEffects.length > 0) {
-    next = {
-      ...next,
-      lighting: {
-        schemaVersion: project.lighting?.schemaVersion ?? 1,
-        effects: [...sourceEffects, ...copiedEffects],
-      },
-    };
-  }
-  // The duplicate always gets an AUTHORED scene when the source had one; a plain
-  // legacy clip stays legacy (its implicit scene is identical anyway).
-  const withScene = hasAuthoredScene ? upsertScene(next, copyScene) : next;
-  return {
-    project: withScene,
-    clipId: ids.clipId,
-    sceneObjectIds: hasAuthoredScene ? objects.map((o) => o.id) : [],
-  };
+  const payload = copyShowClip(project, clipId);
+  return payload ? pasteShowClip(project, payload, ids) : null;
 }

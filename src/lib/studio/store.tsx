@@ -140,7 +140,14 @@ import {
   withLandingClip,
   withTakeoffClip,
 } from "../show/preshow/phaseClips";
-import { canConvertClipToScene, convertClipToScene, duplicateShowClip } from "./clipDesign";
+import {
+  canConvertClipToScene,
+  convertClipToScene,
+  copyShowClip,
+  duplicateShowClip,
+  pasteShowClip,
+  type ClipClipboardPayload,
+} from "./clipDesign";
 import {
   applyPointSelection,
   type ScenePointSelectionOperation,
@@ -352,6 +359,9 @@ import {
   applySceneGroupDelta,
   duplicateObject,
   duplicateSceneObjects,
+  copySceneObjects,
+  pasteSceneObjects,
+  type SceneObjectClipboardPayload,
   mirrorObjectX,
   mirrorSceneObjects,
   mixedTransformFlags,
@@ -651,6 +661,10 @@ interface StudioContextValue {
   editClipAsScene: (clipId: string) => boolean;
   /** "Duplicate clip" for design; returns the new clip id. */
   duplicateClipForDesign: (clipId: string) => string | null;
+  /** Session-local design clipboard. Copy is non-mutating; Paste is one undo revision. */
+  designClipboardKind: "CLIP" | "SCENE_OBJECTS" | null;
+  copyClipForDesign: (clipId: string) => boolean;
+  pasteDesignClipboard: () => string | null;
   /** Normalised front-elevation thumbnail points per clip (identification aid). */
   clipThumbnails: Record<string, ThumbnailPoint[]>;
 
@@ -1353,6 +1367,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [project, setProject] = useState<ShowProject>(() => createDefaultProject());
   // Clean startup: nothing is selected because nothing is authored yet.
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [designClipboard, setDesignClipboard] = useState<
+    | { readonly kind: "CLIP"; readonly payload: ClipClipboardPayload }
+    | { readonly kind: "SCENE_OBJECTS"; readonly payload: SceneObjectClipboardPayload }
+    | null
+  >(null);
+  const copySelectionRef = useRef<() => void>(() => {});
+  const pasteSelectionRef = useRef<() => void>(() => {});
   /**
    * SINGLE RECONCILIATION AUTHORITY. Assigned once below, referenced through a
    * ref so early commands (undo/redo restore, clip delete) can reuse exactly the
@@ -5981,6 +6002,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           if (timelineHistory.current.future.length > 0) redoTimeline();
           else redoDynamic();
           break;
+        case "copySelection":
+          copySelectionRef.current();
+          break;
+        case "pasteSelection":
+          pasteSelectionRef.current();
+          break;
         case "clearSelection":
           setSelectedPointIdsState([]);
           setSelectedMotionGroupId(null);
@@ -6162,6 +6189,67 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     },
     [pushSnapshot, selectClip],
   );
+
+  /** Clip Copy captures a detached snapshot but does not dirty the document. */
+  const copyClipForDesign = useCallback((clipId: string) => {
+    const payload = copyShowClip(projectRef.current, clipId);
+    if (!payload) return false;
+    setDesignClipboard({ kind: "CLIP", payload });
+    return true;
+  }, []);
+
+  /** Paste targets either the selected scene or the timeline, based on clipboard kind. */
+  const pasteDesignClipboard = useCallback((): string | null => {
+    if (!designClipboard) return null;
+    if (designClipboard.kind === "CLIP") {
+      const clipId = nextId("clip");
+      const result = pasteShowClip(projectRef.current, designClipboard.payload, {
+        clipId,
+        lightingEffectId: (index: number) => `${clipId}-fx-${index + 1}`,
+      });
+      if (!result) return null;
+      pushSnapshot(projectRef.current);
+      setProject(result.project);
+      selectClip(result.clipId);
+      return result.clipId;
+    }
+
+    const clipId = selectedClipIdRef.current;
+    if (!clipId) return null;
+    const staticIds = new Set(projectRef.current.formations.map((formation) => formation.id));
+    const dynamicIds = new Set(
+      (projectRef.current.dynamicFormations ?? []).map((formation) => formation.id),
+    );
+    const valid = designClipboard.payload.objects.every((object) =>
+      object.source.kind === "STATIC"
+        ? staticIds.has(object.source.formationId)
+        : dynamicIds.has(object.source.dynamicFormationId),
+    );
+    if (!valid) return null;
+    let created: readonly string[] = [];
+    editScene(clipId, (scene) => {
+      const result = pasteSceneObjects(scene, designClipboard.payload);
+      created = result.objectIds;
+      return result.scene;
+    });
+    if (created.length === 0) return null;
+    setSelectedSceneObjectIds(created, created[created.length - 1] ?? null);
+    return clipId;
+  }, [designClipboard, editScene, pushSnapshot, selectClip, setSelectedSceneObjectIds]);
+
+  copySelectionRef.current = () => {
+    const clipId = selectedClipIdRef.current;
+    if (!clipId) return;
+    if (sceneSelection.ids.length > 0 && selectedScene) {
+      const payload = copySceneObjects(selectedScene, sceneSelection.ids);
+      if (payload) setDesignClipboard({ kind: "SCENE_OBJECTS", payload });
+      return;
+    }
+    copyClipForDesign(clipId);
+  };
+  pasteSelectionRef.current = () => {
+    pasteDesignClipboard();
+  };
 
   /**
    * LIBRARY "USE IN SHOW" = ONE AUTHORING ACTION.
@@ -6684,6 +6772,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       canEditClipAsScene,
       editClipAsScene,
       duplicateClipForDesign,
+      designClipboardKind: designClipboard?.kind ?? null,
+      copyClipForDesign,
+      pasteDesignClipboard,
       clipThumbnails,
       gizmoMode,
       setGizmoMode,
@@ -7097,6 +7188,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       canEditClipAsScene,
       editClipAsScene,
       duplicateClipForDesign,
+      designClipboard,
+      copyClipForDesign,
+      pasteDesignClipboard,
       clipThumbnails,
       gizmoMode,
       gizmoTranslateSnap,

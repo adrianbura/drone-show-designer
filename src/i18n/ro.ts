@@ -274,6 +274,7 @@ export const ro: Dictionary = {
   "shortcuts.seekEnds": "Salt la început / final",
   "shortcuts.undo": "Anulează",
   "shortcuts.redo": "Refă",
+  "shortcuts.copyPaste": "Copiază / lipește selecția curentă",
   "shortcuts.gizmoMode": "Gizmo: mutare / rotire / scalare",
   "shortcuts.selectAll": "Selectează toate obiectele scenei",
   "shortcuts.duplicate": "Duplică selecția",
