@@ -6,15 +6,13 @@
  * menu primitive. It contains ZERO availability rules and ZERO mutations: the
  * owner passes `onCommand`, which dispatches into the canonical store actions.
  *
- * NO OPENING-GESTURE SUPPRESSION. An event-level trace at 1366, 1024 and 900 px
- * proved native Radix never activates an item from the opening right-click: for
- * a mouse the right-button release completes before `contextmenu` fires, so no
- * item exists yet to receive it. The real cause of "dead" menu actions was the
- * timeline track taking pointer capture on portal-bubbled pointerdowns; that is
- * fixed at the track (see `src/lib/studio/menuSurface.ts`). Redundant gesture
- * logic and timers were therefore deleted rather than maintained.
+ * The track ignores pointer events that bubble from the menu portal (see
+ * `src/lib/studio/menuSurface.ts`). The content also ignores non-primary
+ * pointer releases in capture: on platforms where `contextmenu` fires before
+ * right-button release, collision flipping can place a row under the cursor and
+ * Radix would otherwise activate it with the same gesture that opened the menu.
  */
-import type { ReactNode } from "react";
+import type { PointerEvent, ReactNode } from "react";
 
 import {
   ContextMenu,
@@ -29,6 +27,10 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import type { StudioCommand, StudioCommandId, StudioCommandMenu } from "@/lib/studio/commands";
+
+function ignoreOpeningButtonRelease(event: PointerEvent) {
+  if (event.button !== 0) event.stopPropagation();
+}
 
 function Item({
   command,
@@ -70,6 +72,7 @@ export default function StudioContextMenu({
       <ContextMenuContent
         data-testid="studio-context-menu"
         collisionPadding={8}
+        onPointerUpCapture={ignoreOpeningButtonRelease}
         className="max-h-[80vh] w-56 overflow-y-auto"
       >
         <ContextMenuLabel className="truncate py-1 text-[11px]">
@@ -88,7 +91,11 @@ export default function StudioContextMenu({
                 <ContextMenuSubTrigger className="text-xs" data-testid={`ctx-sub-${s.id}`}>
                   {s.label}
                 </ContextMenuSubTrigger>
-                <ContextMenuSubContent collisionPadding={8} className="w-52">
+                <ContextMenuSubContent
+                  collisionPadding={8}
+                  onPointerUpCapture={ignoreOpeningButtonRelease}
+                  className="w-52"
+                >
                   {s.items.map((c) => (
                     <Item key={c.id} command={c} onCommand={onCommand} />
                   ))}

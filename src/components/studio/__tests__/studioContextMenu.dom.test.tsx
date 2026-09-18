@@ -69,18 +69,21 @@ describe("StudioContextMenu in the DOM", () => {
     // browser fires `contextmenu`, so no item exists yet to receive it.
     pointer(trigger, "pointerdown", { button: 2 });
     pointer(trigger, "pointerup", { button: 2 });
-    trigger.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }));
+    trigger.dispatchEvent(
+      new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }),
+    );
     await waitFor(() => expect(screen.getByTestId("studio-context-menu")).toBeTruthy());
     expect(onCommand).not.toHaveBeenCalled();
     expect(screen.getByTestId("studio-context-menu")).toBeTruthy();
   });
 
-
   it("an immediate pointer click on a top-level item invokes it exactly once", async () => {
     const onCommand = vi.fn();
     render(<Harness onCommand={onCommand} />);
     const trigger = screen.getByTestId("clip");
-    trigger.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }));
+    trigger.dispatchEvent(
+      new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }),
+    );
     await waitFor(() => expect(screen.getByTestId("studio-context-menu")).toBeTruthy());
     const item = screen.getByTestId("ctx-RENAME_CLIP");
     pointer(item, "pointerdown");
@@ -92,11 +95,35 @@ describe("StudioContextMenu in the DOM", () => {
     expect(onCommand).toHaveBeenCalledWith("RENAME_CLIP");
   });
 
+  it("does not activate an item when the opening right button is released over it", async () => {
+    const onCommand = vi.fn();
+    render(<Harness onCommand={onCommand} />);
+    const trigger = screen.getByTestId("clip");
+    pointer(trigger, "pointerdown", { button: 2 });
+    trigger.dispatchEvent(
+      new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }),
+    );
+    await waitFor(() => expect(screen.getByTestId("studio-context-menu")).toBeTruthy());
+
+    const item = screen.getByTestId("ctx-RENAME_CLIP");
+    pointer(item, "pointerup", { button: 2 });
+    expect(onCommand).not.toHaveBeenCalled();
+    expect(screen.getByTestId("studio-context-menu")).toBeTruthy();
+
+    pointer(item, "pointerdown");
+    pointer(item, "pointerup");
+    pointer(item, "click");
+    await waitFor(() => expect(onCommand).toHaveBeenCalledTimes(1));
+    expect(onCommand).toHaveBeenCalledWith("RENAME_CLIP");
+  });
+
   it("submenu items activate through pointer interaction", async () => {
     const onCommand = vi.fn();
     render(<Harness onCommand={onCommand} />);
     const trigger = screen.getByTestId("clip");
-    trigger.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }));
+    trigger.dispatchEvent(
+      new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2 }),
+    );
     await waitFor(() => expect(screen.getByTestId("studio-context-menu")).toBeTruthy());
     const sub = screen.getByTestId("ctx-sub-LIGHTING");
     pointer(sub, "pointerover");
