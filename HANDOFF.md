@@ -234,10 +234,13 @@ compun manual, grila BPM manuală rămâne) și exportul `.skyc` (hardware-ul ț
 încarcă ESSP, format pe care aplicația îl citește și îl scrie deja bit cu bit).
 
 Rămas, în ordinea de lucru:
-2. **Copy/paste + șabloane de show** — comenzi noi în `store.tsx` (o intrare de history
+
+1. **Copy/paste + șabloane de show** — comenzi noi în `store.tsx` (o intrare de history
    per operație) + `src/lib/studio/showTemplates.ts`.
-3. **Efecte de lumină avansate** peste preseturile existente.
-4. **Imagine → figură mai puternic** (contur vs. umplere, diagnostic de separare).
+2. **Efecte de lumină avansate** peste preseturile existente.
+3. **Imagine → figură mai puternic** (contur vs. umplere, diagnostic de separare).
+4. **Cost de redare la 500 de drone** — singura țintă de performanță rămasă după închiderea
+   re-măsurării (pauza este rezolvată).
 5. **Curățenie**: împărțirea `store.tsx` pe felii, lint global, CI și teste Playwright pe
    timeline/gizmo/viewport; `.gitignore` pentru `__pycache__`/`.pyc`.
 
