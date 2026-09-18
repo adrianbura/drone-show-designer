@@ -587,7 +587,8 @@ export const ro: Dictionary = {
     "Scade numărul de drone cerut sau simplifică structura, ca punctele să stea mai depărtate.",
   "image.compile.guide.BUDGET_EXCEEDS_DESIGN":
     "Scade numărul de drone cerut sau adaugă structură, ca designul să poată folosi tot bugetul.",
-  "image.compile.guide.EMPTY_DESIGN": "Activează cel puțin un element de structură, apoi recompilează.",
+  "image.compile.guide.EMPTY_DESIGN":
+    "Activează cel puțin un element de structură, apoi recompilează.",
   "image.compile.guide.SYMMETRY_ADJUSTED":
     "Nu e nevoie de nicio acțiune: numărul de puncte a fost echilibrat între elementele oglindite.",
   "image.error.UNSUPPORTED_TYPE": "Sunt acceptate doar imagini PNG, JPEG și WebP.",

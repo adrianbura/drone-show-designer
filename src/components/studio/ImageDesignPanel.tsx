@@ -352,7 +352,6 @@ export default function ImageDesignPanel() {
     [compiled],
   );
 
-
   const pick = async (file: File | undefined) => {
     if (!file) return;
     setSaved(null);
