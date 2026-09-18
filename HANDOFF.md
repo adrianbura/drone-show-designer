@@ -355,7 +355,7 @@ Copy — meniul rămâne deschis, nicio comandă și niciun Paste executat; clic
 submeniuri funcționale; Enter pe `Paste` execută exact un Paste; un Paste = un Undo; meniul pe zona
 liberă a cronologiei se deschide. 399 teste țintite, typecheck, lint și build curate.
 
-## ILUMINARE AVANSATĂ — EDITOR GRADIENT MULTI-STOP (în lucru, 2026-09-18)
+## ILUMINARE AVANSATĂ — EDITOR GRADIENT MULTI-STOP (verificat, 2026-09-18, main @ 563b546)
 
 Primul increment al priorității „Efecte de lumină avansate” extinde inspectorul unificat pentru
 efectele canonice `COLOR_SWEEP`: operatorul poate adăuga stopuri, schimba poziția 0–100%, culoarea
@@ -365,8 +365,22 @@ editare în istoricul proiectului.
 
 Logica pură din `src/lib/studio/effectStack.ts` normalizează pozițiile în 0–1, păstrează ordinea,
 inserează în cel mai mare interval și interpolează culoarea nouă. Testele pure și testul DOM al
-Scene Composer acoperă adăugare, repoziționare, eliminare și limita de două stopuri. Typecheck,
-lint relevant și build sunt curate; verificarea UX în browser cu Lovable rămâne pasul următor.
+Scene Composer acoperă adăugare, repoziționare, eliminare și limita de două stopuri.
+
+Verificare în browser (Playwright real, Chromium headless, 1600×1800 și 1280×820; „Depth Stagger
+Demo”, clip SHOW `c-ds-approach`, obiect de scenă selectat, `Gradient sweep` adăugat și aplicat din
+previzualizare): stopurile canonice apar cu culoare și poziție 0–100%; „Add stop” inserează la 50%
+cu culoare interpolată (#ffc878 + #5078ff → #a8a0bc) și eticheta de culoare din cronologie se
+schimbă; editarea culorii se aplică; pozițiile se limitează la 0/100% și rămân ordonate, inclusiv la
+o mutare în interval care reordonează stopurile; eliminarea se oprește la minimul de două (butoane
+inactive); Undo/Redo exact pentru adăugare, culoare, mutare și eliminare (9/9 verificări țintite);
+gradientul cu trei stopuri persistă identic prin salvare și redeschidere; fără regresii la Colour
+A/B, direcția gradientului, axa din inspector, selecția cu click stânga, duplicarea efectului și
+redarea previzualizării; editorul rămâne accesibil pe fereastră scurtă. 1399 teste / 1 skipped,
+typecheck, lint pe fișierele atinse și build — curate.
+
+Observație de metodă (nu defect): scurtăturile de tastatură sunt ignorate corect cât timp focalizarea
+este într-un câmp de introducere, deci Undo se verifică doar după ce câmpul de culoare pierde focusul.
 
 Verificat și pe fereastră scurtă (1280×820): marginea de jos a clipului înainte și după Copy —
 meniul rămâne deschis, 0 clipuri inserate; click stânga execută o dată; 3 submeniuri (13 rânduri);
