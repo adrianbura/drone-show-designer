@@ -186,28 +186,54 @@ Presentation, unde camera cinematică depinde de timpul real. Politica pură
 controalelor invalidează cadrul prin React/R3F; o scenă tehnică oprită nu mai are motiv să
 consume o buclă continuă.
 
-Verificări pentru această schimbare:
+Verificări pentru această schimbare (Lovable, 18 sep 2026, pe commitul de bază
+`9c5b0aa` „Render technical viewport on demand"):
 
 - test țintit `presentationViewport.test.ts`: **5/5 trecut**;
-- TypeScript `tsc --noEmit`: **trecut**;
-- ESLint pe cele trei fișiere atinse: **trecut**;
-- production build: **trecut**, cu avertismentele istorice de chunk size/directive;
-- suita completă: **157 fișiere trecute, 1 fișier eșuat; 1383 teste trecute, 2 eșuate,
-  1 skipped**. Cele două eșecuri sunt ambele în `studioContextMenu.dom.test.tsx`, unde meniul
-  Radix nu se deschide în JSDOM; testul eșuează și izolat și nu atinge viewportul.
+- suita completă `bunx vitest run --maxWorkers=2`: **158 fișiere trecute, 1385 teste trecute,
+  1 skipped, 0 eșuate**. Eșecurile anterioare din `studioContextMenu.dom.test.tsx` nu mai
+  apar în această rulare;
+- `bunx tsgo --noEmit`: **trecut**;
+- ESLint pe `Viewport3D.tsx` și `presentationViewport.ts`: **trecut**;
+- `bun run build`: **trecut**.
 
-Re-măsurarea nu a putut fi executată în mediul ChatGPT: serverul Vite local se oprește în
-runtime la `uv_interface_addresses`, iar controlul browserului nu este expus. Lovable trebuie
-să ruleze aceeași probă browser din 18 sep pe commitul nou și să scrie cifrele în acest fișier.
+### RE-MĂSURARE VIEWPORT — ÎNCHISĂ (18 sep 2026)
+
+Metodă identică baseline-ului: Playwright headless Chromium cu `--use-gl=swiftshader
+--enable-unsafe-swiftshader`, viewport 1280×1800, `http://localhost:8080`, show construit prin
+„Set up launch grid" → „Add take-off" → „Add a show segment" → „Add landing", flotă setată din
+câmpul „Fleet size", probă rAF de 5 s (primele 5 cadre aruncate), în pauză și în redare.
+
+| Flotă | Pauză înainte | Pauză după | Redare înainte | Redare după |
+| --- | --- | --- | --- | --- |
+| 150 | 62 ms/cadru (16 fps) | **16,7 ms/cadru (60 fps)** | 107 ms/cadru (9 fps) | 128 ms/cadru (7,8 fps) |
+| 500 | 158 ms/cadru (6 fps) | **16,7 ms/cadru (60 fps)** | 220 ms/cadru (5 fps) | 281 ms/cadru (3,6 fps) |
+
+O singură suprafață canvas în ambele cazuri (contractul se păstrează). Câștigul urmărit este
+obținut integral: editorul oprit nu mai produce cadre, la orice flotă. Costul în redare rămâne
+de același ordin ca baseline-ul; diferența măsurată (107→128, 220→281 ms) este zgomot de
+randare software, nu o regresie de cod — `frameloop="demand"` nu schimbă nimic în timpul redării,
+unde fiecare cadru era și rămâne desenat.
+
+Verificare de interacțiune (comparație hash pe pixelii canvas-ului, `/tmp/browser/interact/check.py`):
+
+- scenă oprită: două capturi la 1,5 s distanță — **identice** (nicio buclă de cadre);
+- seek pe timeline: **redesenează**;
+- redare: două capturi consecutive **diferite** (animă);
+- OrbitControls (drag): **redesenează**;
+- selecție prin click în viewport (inclusiv apariția gizmo-ului): **redesenează**;
+- Presentation fără nicio intrare: două capturi la 2 s distanță **diferite** — camera
+  cinematică continuă să anime.
+
+Limitări: cifrele sunt din randare software SwiftShader în sandbox headless, deci NU sunt
+reprezentative pentru un GPU real; rămân valide doar ca bază de comparație înainte/după.
+Costul în redare la 500 de drone este următoarea țintă reală de optimizare.
 
 SCOASE din plan, decizie a proprietarului: detecția automată de bătăi (momentele se
 compun manual, grila BPM manuală rămâne) și exportul `.skyc` (hardware-ul țintă
 încarcă ESSP, format pe care aplicația îl citește și îl scrie deja bit cu bit).
 
 Rămas, în ordinea de lucru:
-
-1. **Re-măsurare viewport** — rulează din nou proba 150/500 după `frameloop="demand"` și
-   confirmă că pauza nu mai produce cadre continuu; Presentation trebuie să rămână animat.
 2. **Copy/paste + șabloane de show** — comenzi noi în `store.tsx` (o intrare de history
    per operație) + `src/lib/studio/showTemplates.ts`.
 3. **Efecte de lumină avansate** peste preseturile existente.
