@@ -46,7 +46,14 @@ import {
   type LightingSelectionPresetId,
   type MotionSelectionPresetId,
 } from "@/lib/studio/selectionEffects";
-import { LIGHTING_EASINGS, type LightingEasing } from "@/lib/show/lighting";
+import {
+  LIGHTING_ANCHORS,
+  LIGHTING_BLEND_MODES,
+  LIGHTING_EASINGS,
+  type LightingAnchor,
+  type LightingBlendMode,
+  type LightingEasing,
+} from "@/lib/show/lighting";
 import { clipPhase, type RGB } from "@/lib/show/types";
 import { useStudio } from "@/lib/studio/store";
 
@@ -543,6 +550,44 @@ export default function EffectStackPanel({ view = "ALL" }: { view?: EffectStackV
                 {effectPresetLabel(selected)}
               </p>
               <div className="grid grid-cols-2 gap-1">
+                <label className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                  <span>Anchor</span>
+                  <select
+                    data-testid="effect-inspector-anchor"
+                    value={selected.anchor}
+                    onChange={(event) =>
+                      patchLightingEffect(selected.id, {
+                        anchor: event.target.value as LightingAnchor,
+                      })
+                    }
+                    className="studio-input w-24 font-mono"
+                  >
+                    {LIGHTING_ANCHORS.map((anchor) => (
+                      <option key={anchor} value={anchor}>
+                        {anchor.replaceAll("_", " ")}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+                  <span>Blend</span>
+                  <select
+                    data-testid="effect-inspector-blend"
+                    value={selected.blendMode}
+                    onChange={(event) =>
+                      patchLightingEffect(selected.id, {
+                        blendMode: event.target.value as LightingBlendMode,
+                      })
+                    }
+                    className="studio-input w-24 font-mono"
+                  >
+                    {LIGHTING_BLEND_MODES.map((mode) => (
+                      <option key={mode} value={mode}>
+                        {mode.replaceAll("_", " ")}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
                   <span>Start</span>
                   <input

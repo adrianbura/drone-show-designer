@@ -368,6 +368,11 @@ inserează în cel mai mare interval și interpolează culoarea nouă. Testele p
 Scene Composer acoperă adăugare, repoziționare, eliminare și limita de două stopuri. Typecheck,
 lint relevant și build sunt curate; verificarea UX în browser cu Lovable rămâne pasul următor.
 
+Inspectorul unificat expune acum și `anchor` (`ABSOLUTE`, `SCENE_START`, `FORMATION_READY`,
+`SCENE_END`) plus `blendMode` (`REPLACE`, `MULTIPLY_INTENSITY`, `ADD`) direct pe instanța canonică
+de efect. Nu există conversii sau evaluator alternativ; schimbările merg prin `patchLightingEffect`
+și istoricul existent. Testul DOM confirmă persistența valorilor și pașii Undo separați.
+
 Verificat și pe fereastră scurtă (1280×820): marginea de jos a clipului înainte și după Copy —
 meniul rămâne deschis, 0 clipuri inserate; click stânga execută o dată; 3 submeniuri (13 rânduri);
 Enter pe `Paste` inserează exact 1 clip, un Undo îl elimină; meniul pe zona liberă a cronologiei se
