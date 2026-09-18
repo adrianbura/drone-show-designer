@@ -14,7 +14,7 @@
  * fixed at the track (see `src/lib/studio/menuSurface.ts`). Redundant gesture
  * logic and timers were therefore deleted rather than maintained.
  */
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import {
   ContextMenu,
@@ -64,29 +64,11 @@ export default function StudioContextMenu({
   children: ReactNode;
   asChild?: boolean;
 }) {
-  // TEMP DEBUG
-  useEffect(() => {
-    (globalThis as any).__scmLog ??= [];
-    (globalThis as any).__scmLog.push(["mount", menu.title, Date.now()]);
-    return () => (globalThis as any).__scmLog.push(["unmount", menu.title, Date.now()]);
-  }, []);
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  (globalThis as any).__scmLog ??= [];
   return (
-    <ContextMenu
-      onOpenChange={(o) => {
-        (globalThis as any).__scmLog.push([menu.title, o, Date.now()]);
-        onOpenChange?.(o);
-      }}
-    >
+    <ContextMenu {...(onOpenChange ? { onOpenChange } : {})}>
       <ContextMenuTrigger asChild={asChild}>{children}</ContextMenuTrigger>
       <ContextMenuContent
         data-testid="studio-context-menu"
-        onPointerDownOutside={(e) => (globalThis as any).__scmLog.push(["pointerDownOutside", (e.target as any)?.tagName ?? "?", (e.detail as any)?.originalEvent?.type])}
-        onFocusOutside={(e) => (globalThis as any).__scmLog.push(["focusOutside", (e.target as any)?.tagName ?? "?"])}
-        onInteractOutside={() => (globalThis as any).__scmLog.push(["interactOutside"])}
-        onEscapeKeyDown={() => (globalThis as any).__scmLog.push(["escape"])}
-        onCloseAutoFocus={() => (globalThis as any).__scmLog.push(["closeAutoFocus"])}
         collisionPadding={8}
         className="max-h-[80vh] w-56 overflow-y-auto"
       >

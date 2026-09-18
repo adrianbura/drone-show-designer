@@ -904,8 +904,6 @@ export default function Timeline({
                 const needsRecalc = phase === "SHOW" && transitionDesignNeedsRecalculation(clip.id);
                 const timing = `T ${formatSeconds(transition, comma)} · H ${formatSeconds(hold, comma)}`;
                 const baseMenuContext = clipContext(clip.id);
-                // TEMP DEBUG
-                ((globalThis as any).__tlLog ??= []).push([clip.id, baseMenuContext ? "ctx" : "NULL", Date.now()]);
                 const menuContext =
                   baseMenuContext && contextPhase?.clipId === clip.id
                     ? { ...baseMenuContext, authoringPhase: contextPhase.phase }
