@@ -37,7 +37,8 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 6. [x] Verificare UX/browser pentru șabloane.
 7. [x] Gard UI pentru eliberarea butonului dreapta în meniul contextual; verificat în browser.
 8. [ ] Efecte de lumină avansate.
-   - [ ] Editor multi-stop pentru gradientele `COLOR_SWEEP` în inspectorul unificat.
+   - [x] Editor multi-stop pentru gradientele `COLOR_SWEEP` în inspectorul unificat — verificat în
+         browser (vezi „Verificare browser 2026-09-18 — editor gradient multi-stop”).
 9. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
 10. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
 11. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
