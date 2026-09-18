@@ -392,3 +392,34 @@ meniul rămâne deschis, 0 clipuri inserate; click stânga execută o dată; 3 s
 Enter pe `Paste` inserează exact 1 clip, un Undo îl elimină; meniul pe zona liberă a cronologiei se
 deschide. Suita completă: 159 fișiere / 1396 teste / 1 skipped, fără instabilitate Radix/JSDOM la
 această rulare.
+
+## IMAGINE → FIGURĂ — DIAGNOSTIC ACȚIONABIL (2026-09-18)
+
+`src/components/studio/imageDiagnostics.ts` este o proiecție pură a raportului canonic:
+`summarizeCompileIssues` numără avertismentele și observațiile, ridică starea la `ATTENTION` numai
+când compilatorul însuși a emis `severity: "warning"` și deduce coduri de ghidaj deduplicate
+(`DETAILS_OMITTED` și `UNDER_RESOLVED` colapsează într-un singur sfat). Nu conține geometrie, nu are
+severitate proprie și nu returnează niciun semnal de blocare, deci salvarea rămâne posibilă.
+
+`ImageDesignPanel` afișează, sub raportul existent: un rezumat compact (`data-testid`
+`image-compile-status`, `data-status=CLEAR|ATTENTION`), lista completă a mesajelor canonice
+neschimbate, fiecare cu pictogramă și etichetă textuală de severitate („Warning" / „Note",
+„Avertizare" / „Observație") — deci severitatea nu depinde de culoare — și o secțiune „Ce poți
+ajusta" (`image-compile-guidance`) derivată exclusiv din codurile existente. Textele EN/RO sunt
+`image.compile.*`; niciunul nu afirmă ceva despre siguranța zborului, iar `visualLab.notSafety`
+rămâne afișat: validarea full-show este autoritatea.
+
+Verificare browser (Chromium, 1280×820, `detail.jpg` și `star.webp`): la 40 de drone starea este
+`CLEAR` („Clear — no design warnings", 0 mesaje); la 60–2000 apare `ATTENTION` cu
+`SPACING_TIGHT` și ghidajul „Lower the requested drone count or simplify the structure…"; la 12
+drone apar un avertisment `DETAILS_OMITTED` și o observație `UNDER_RESOLVED` (`sev=['warning',
+'info']`), cu un singur sfat de rezoluție; în română: „Atenție — 1 avertizare/avertizări de design",
+„Avertizare: Distanța dintre puncte 1.45 m…", „Ce poți ajusta". Butonul de salvare rămâne activ cu
+avertismente.
+
+Verificări: `imageDiagnostics.test.ts` 6/6 (stare curată, atenție doar la warning, deduplicare,
+paritate EN/RO, absența afirmațiilor de siguranță, lipsa unui semnal de blocare), teste imagine /
+compilator / i18n 84/84, typecheck curat, ESLint + Prettier curate pe fișierele atinse, build curat.
+Suita completă: 161 fișiere / 1403 teste trecute / 1 skipped, cu un singur fișier instabil,
+`sceneComposerPanel.dom.test.tsx`, care depășește limita implicită de 5 s sub încărcare (trece
+izolat în 4,46 s); nu atinge fluxul imaginii.
