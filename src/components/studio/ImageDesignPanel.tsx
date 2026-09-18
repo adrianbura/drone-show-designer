@@ -48,6 +48,7 @@ import {
   type VisualFormationDesign,
 } from "@/lib/visual";
 import AiReferencePanel, { type AiReferenceMeta } from "./AiReferencePanel";
+import { summarizeCompileIssues } from "./imageDiagnostics";
 import StructureEditorToolbar from "./StructureEditorToolbar";
 import StructureInspector from "./StructureInspector";
 import StructureList from "./StructureList";
@@ -344,6 +345,13 @@ export default function ImageDesignPanel() {
       return null;
     }
   }, [count, design]);
+
+  /** Operator-facing projection of the canonical compiler issues. */
+  const summary = useMemo(
+    () => summarizeCompileIssues(compiled?.result.report.issues ?? []),
+    [compiled],
+  );
+
 
   const pick = async (file: File | undefined) => {
     if (!file) return;
