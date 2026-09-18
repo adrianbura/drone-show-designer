@@ -36,12 +36,13 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
    raportat și nemodificat: obiectele de scenă lipite nu sunt selectate, pentru că
    `pasteDesignClipboard` citește ID-urile create înainte ca `editScene` să comite proiectul
    (`store.tsx:2556`, `:6229`). Necesită aprobare pentru o corecție în store.
-5. [ ] Șabloane de show.
-5. [ ] Efecte de lumină avansate.
-6. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
-7. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
-8. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
-9. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
+5. [ ] Selecția obiectelor lipite în scenă (corecție în store, după aprobare).
+6. [ ] Șabloane de show.
+7. [ ] Efecte de lumină avansate.
+8. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
+9. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
+10. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
+11. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
 
 ## Capabilități livrate
 
