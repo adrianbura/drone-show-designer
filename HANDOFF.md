@@ -355,7 +355,7 @@ Copy — meniul rămâne deschis, nicio comandă și niciun Paste executat; clic
 submeniuri funcționale; Enter pe `Paste` execută exact un Paste; un Paste = un Undo; meniul pe zona
 liberă a cronologiei se deschide. 399 teste țintite, typecheck, lint și build curate.
 
-## ILUMINARE AVANSATĂ — EDITOR GRADIENT MULTI-STOP (în lucru, 2026-09-18)
+## ILUMINARE AVANSATĂ — EDITOR GRADIENT MULTI-STOP (verificat, 2026-09-18)
 
 Primul increment al priorității „Efecte de lumină avansate” extinde inspectorul unificat pentru
 efectele canonice `COLOR_SWEEP`: operatorul poate adăuga stopuri, schimba poziția 0–100%, culoarea
@@ -366,7 +366,9 @@ editare în istoricul proiectului.
 Logica pură din `src/lib/studio/effectStack.ts` normalizează pozițiile în 0–1, păstrează ordinea,
 inserează în cel mai mare interval și interpolează culoarea nouă. Testele pure și testul DOM al
 Scene Composer acoperă adăugare, repoziționare, eliminare și limita de două stopuri. Typecheck,
-lint relevant și build sunt curate; verificarea UX în browser cu Lovable rămâne pasul următor.
+lint relevant și build sunt curate. Lovable a verificat în browser adăugarea în cel mai mare
+interval cu interpolare, clamp/reordonare 0–100%, limita de două stopuri, Undo/Redo, persistența,
+swatch-ul cronologiei, controalele vechi și accesibilitatea la 1280×820.
 
 Inspectorul unificat expune acum și `anchor` (`ABSOLUTE`, `SCENE_START`, `FORMATION_READY`,
 `SCENE_END`) plus `blendMode` (`REPLACE`, `MULTIPLY_INTENSITY`, `ADD`) direct pe instanța canonică
@@ -385,7 +387,10 @@ Primul increment rămas expune în `ImageDesignPanel` distanța minimă, lista l
 diagnostice ale designului vizual; validarea full-show rămâne autoritatea pentru siguranța zborului.
 Cele 60 de teste țintite pentru compilator și analiza imaginii, typecheck, lint relevant și build
 sunt curate. Verificarea UX în browser pentru cele trei moduri, diagnostic și salvarea în bibliotecă
-rămâne pasul următor.
+este încheiată: cele trei moduri produc structuri distincte și exact-N, avertismentele apar coerent,
+nu blochează salvarea, proveniența rămâne `IMAGE`, nu se persistă pixeli, iar EN/RO și 1280×820 au
+fost verificate. Diagnosticul oferă acum și stare clar/atenție, etichete textuale de severitate și
+recomandări corective deduplicate, fără semnal de blocare sau afirmații de siguranță.
 
 ## PLAYBACK 500 DRONE — REUTILIZAREA EȘANTIONULUI DE CADRU (în lucru, 2026-09-18)
 

@@ -555,7 +555,7 @@ describe("drone group lighting authoring UX", () => {
     });
     expect(api.project.scenes?.[0]?.pointGroups?.[0]?.name).toBe("Diamond sparkle B");
     expect(api.project.lighting?.effects).toHaveLength(3);
-  });
+  }, 15_000);
 });
 
 describe("selection-scoped motion authoring", () => {

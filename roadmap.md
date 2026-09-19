@@ -37,12 +37,13 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 6. [x] Verificare UX/browser pentru șabloane.
 7. [x] Gard UI pentru eliberarea butonului dreapta în meniul contextual; verificat în browser.
 8. [ ] Efecte de lumină avansate.
-   - [ ] Editor multi-stop pentru gradientele `COLOR_SWEEP` în inspectorul unificat.
+   - [x] Editor multi-stop pentru gradientele `COLOR_SWEEP` în inspectorul unificat, verificat în browser.
    - [ ] Ancoră temporală și mod de blend în inspectorul unificat.
-9. [ ] Imagine → figură: contur/umplere și diagnostic de separare.
+9. [x] Imagine → figură: contur/umplere și diagnostic de separare.
    - [x] Import local, Contur/Structural/Umplut și compilare deterministă exact-N există.
    - [x] Afișarea distanței minime și a avertismentelor compilatorului în panoul imaginii.
-   - [ ] Verificare browser pentru contur/umplere, diagnostic și salvare în bibliotecă.
+   - [x] Verificare browser pentru contur/umplere, diagnostic și salvare în bibliotecă.
+   - [x] Rezumat clar/atenție, severitate textuală și ghidaj corectiv localizat EN/RO.
 10. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
     - [x] Eliminarea eșantionării duble a traiectoriilor pe cadru când iluminarea este activă.
     - [ ] Re-măsurare browser la 150/500 drone și profilarea următorului hotspot.

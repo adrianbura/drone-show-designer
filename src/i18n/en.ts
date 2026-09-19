@@ -561,6 +561,23 @@ export const en = {
   "image.diag.contour": "contour points {raw} → {simplified}",
   "image.diag.analysis": "analysis {width}×{height} px, polarity {polarity}",
   "image.diag.timing": "decode {decode} ms · analyse {analysis} ms · compile {compile} ms",
+  "image.compile.statusClear": "Clear — no design warnings",
+  "image.compile.statusAttention": "Attention — {warnings} design warning(s)",
+  "image.compile.notes": "{count} note(s)",
+  "image.compile.severity.warning": "Warning",
+  "image.compile.severity.info": "Note",
+  "image.compile.guidanceTitle": "What to adjust",
+  "image.compile.guide.DETAILS_OMITTED":
+    "Raise the drone count, lower the detail level, or simplify the structure so fine detail gets enough points.",
+  "image.compile.guide.UNDER_RESOLVED":
+    "Raise the drone count, lower the detail level, or simplify the structure so fine detail gets enough points.",
+  "image.compile.guide.SPACING_TIGHT":
+    "Lower the requested drone count or simplify the structure so points sit farther apart.",
+  "image.compile.guide.BUDGET_EXCEEDS_DESIGN":
+    "Lower the requested drone count or add structure, so the design can use the whole budget.",
+  "image.compile.guide.EMPTY_DESIGN": "Enable at least one structure element, then recompile.",
+  "image.compile.guide.SYMMETRY_ADJUSTED":
+    "No action needed: point counts were balanced across mirrored elements.",
   "image.error.UNSUPPORTED_TYPE": "Only PNG, JPEG and WebP images are supported.",
   "image.error.FILE_TOO_LARGE": "The image is larger than 8 MB.",
   "image.error.DECODE_FAILED": "The image could not be decoded.",
