@@ -12,6 +12,18 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 - interoperabilitate: exporturile și integrările sunt declarate disponibile numai după validare;
 - recuperare: greșelile, stările invalide și munca nesalvată au căi clare de remediere.
 
+### Referință funcțională ESSP — show-ul real cu 150 de drone
+
+Arhiva ESSP furnizată de owner este benchmark-ul principal pentru limbajul show-ului, nu doar o
+mostră de format binar. Evoluția editorului trebuie să pornească din comportamente observabile în
+acel show: succesiunea formațiilor, felul în care punctele construiesc și desfac imaginile,
+tranzițiile și traiectoriile, ritmul, staționările, efectele LED și schimbările de culoare.
+
+Analiza existentă a validat formatul, cele două ceasuri ESSP, playback-ul, importul, forensics și
+conversia segmentelor, dar nu constituie încă un catalog complet al gramaticii vizuale a show-ului.
+Nu declarăm o funcție „inspirată din ESSP” fără o observație măsurată și trasabilă la segmentul din
+referință. Nu copiem datele sau formatul proprietar; extragem principii generice de authoring.
+
 ## Mod de lucru
 
 - ChatGPT coordonează proiectul ca Project Manager tehnic și menține sincronizate acest roadmap
@@ -28,6 +40,17 @@ Construim o aplicație profesională și ușor de folosit. Fiecare element de ro
 
 ## Prioritate curentă
 
+0. [ ] Benchmark ESSP 150 drone — transformarea show-ului real într-o specificație de produs.
+   - [x] Arhiva brută a fost reatașată și verificată; nu este păstrată în repository.
+   - [x] Inventar temporal inițial: formații, tranziții, hold-uri, takeoff/landing și momente-cheie.
+   - [x] Analiză cinematică inițială: convergență/divergență, rotație, scalare,
+         deformare, viteze și easing observabil.
+   - [ ] Analiză LED aprofundată: palete, sweep-uri, gradient, sincronizare și relația culoare–mișcare
+         (inventarul inițial confirmă 100+ culori simultane și evoluție continuă).
+   - [x] Catalog inițial „pattern observat → capabilitate existentă → lipsă → criteriu de acceptare”
+         în `docs/ESSP_SHOW_BENCHMARK.md`.
+   - [x] Reprioritizarea inițială: storyboard de referință, tranziții, iluminare spațială și
+         compoziție multi-parte înaintea funcțiilor speculative.
 1. [x] Viewport invalidate-on-demand implementat: editor tehnic `demand`, Presentation `always`.
 2. [x] Re-măsurare browser 150/500 și verificare seek/playback/controls/selecție/Presentation.
 3. [x] Copy/paste intern pentru clipuri SHOW și obiectele scenei (ID-uri noi, un singur Undo).

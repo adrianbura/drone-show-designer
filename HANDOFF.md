@@ -37,6 +37,31 @@ Aceste două calități sunt obligatorii împreună:
 - La prioritizare, se preferă eliminarea contradicțiilor și a fricțiunii din fluxurile principale
   înaintea adăugării de funcții izolate care măresc suprafața produsului.
 
+### Autoritate de referință: arhiva ESSP cu 150 de drone
+
+Ownerul a clarificat că show-ul real din arhiva ESSP trebuie folosit la maximum drept benchmark
+funcțional pentru aplicație: efecte, schimbări de culoare, mișcări, formarea/desfacerea imaginilor,
+tranziții, ritm și logică de show. Reverse-engineering-ul containerului nu este suficient.
+
+Ce este deja solid: cele 150 de fișiere per-dronă au fundamentat formatul observat, axele/scara,
+ceasurile independente 8 Hz poziție / 12 Hz RGB, playback-ul determinist, importul read-only,
+forensics, segmentarea și conversia măsurată. Vezi `docs/ESSP_REFERENCE_FORMAT.md` și
+`docs/ESSP_REFERENCE_FORENSICS.md`.
+
+Lacuna recunoscută: nu există încă un catalog trasabil al gramaticii vizuale a show-ului care să
+lege fiecare pattern observat de capabilitățile editorului și de lipsurile sale. Aceasta devine
+prioritatea zero înaintea extinderilor speculative. Pentru fiecare segment trebuie măsurate:
+geometria/formația, corespondența dronelor, tipul tranziției, mișcarea globală și deformarea,
+hold-urile, paleta și dinamica LED, apoi rezultatul trebuie tradus în cerințe și teste generice.
+
+Arhiva a fost reatașată la 2026-09-21 și analizată read-only. Rezultatul de produs este în
+`docs/ESSP_SHOW_BENCHMARK.md`: 150/150 fișiere valide și byte-perfect la round-trip, show de
+593.25 s, structură repetată de formații lungi (~38–45 s) despărțite de tranziții majore (~7–12 s),
+mișcare locală în hold-uri și iluminare per-dronă foarte bogată (peste 100 de culori simultane în
+mai multe cadre; până la 146 culori lit distincte în eșantionarea pe secunde). Prioritatea de produs
+devine storyboard-ul geometry+LED, authoring-ul tranzițiilor global/local și iluminarea spațială.
+Arhiva brută rămâne în afara repository-ului; nu se copiază payloadurile sau traiectoriile.
+
 ### Continuitate între conversații
 
 Repository-ul este memoria canonică a proiectului; memoria unei conversații nu este o
