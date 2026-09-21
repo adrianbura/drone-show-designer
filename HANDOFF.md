@@ -62,6 +62,12 @@ mai multe cadre; până la 146 culori lit distincte în eșantionarea pe secunde
 devine storyboard-ul geometry+LED, authoring-ul tranzițiilor global/local și iluminarea spațială.
 Arhiva brută rămâne în afara repository-ului; nu se copiază payloadurile sau traiectoriile.
 
+O verificare 3D ulterioară a confirmat o regulă structurală suplimentară: cadrele reprezentative
+folosesc în majoritate un plan de prezentare înclinat cu aproximativ 14–15° față de planul frontal.
+În coordonate studio, `Z ≈ −0.26 × Y + constant`, cu aport X aproape nul; partea superioară a
+imaginii se deplasează spre −Z. Editorul trebuie să modeleze explicit planul de prezentare către
+public (inclusiv pitch/tilt), nu să presupună că toate figurile sunt plate în world X–Y.
+
 ### Continuitate între conversații
 
 Repository-ul este memoria canonică a proiectului; memoria unei conversații nu este o

@@ -49,6 +49,8 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
          (inventarul inițial confirmă 100+ culori simultane și evoluție continuă).
    - [x] Catalog inițial „pattern observat → capabilitate existentă → lipsă → criteriu de acceptare”
          în `docs/ESSP_SHOW_BENCHMARK.md`.
+   - [x] Confirmarea planului comun de prezentare: majoritatea imaginilor au pitch/tilt ~14–15°,
+         aproximativ `Z = −0.26 × Y + constant`; cerință pentru authoring proiectat spre public.
    - [x] Reprioritizarea inițială: storyboard de referință, tranziții, iluminare spațială și
          compoziție multi-parte înaintea funcțiilor speculative.
 1. [x] Viewport invalidate-on-demand implementat: editor tehnic `demand`, Presentation `always`.

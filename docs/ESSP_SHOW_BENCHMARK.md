@@ -27,6 +27,21 @@ storyboard or semantic names, so the application must never present inferred int
 | Minimum sampled pair distance |                                        1.987 m at 18.125 s |
 | Codec verification            |            150/150 files byte-perfect after parse → encode |
 
+### Common presentation-plane tilt
+
+The images are not authored in a perfectly vertical X–Y plane. A least-squares/PCA plane fit on
+representative settled frames (32, 90, 168, 216, 267, 319, 374, 427, 475 and 526 s) finds a stable
+tilt of approximately **14–15° from the frontal plane** in most scenes. In studio coordinates the
+dominant relation is `Z ≈ −0.26 × Y + constant`: as altitude increases, the upper part of the image
+moves toward negative Z. The X contribution is normally near zero, so this is primarily a rotation
+around the X axis, not a sideways yaw.
+
+Frames with strongly three-dimensional content have larger residuals around the fitted plane, but
+retain the same underlying inclination. This is present in the decoded positions, not introduced by
+the 2D plotting projection. Product implication: formation authoring needs an explicit audience
+presentation plane (position + yaw + pitch/tilt), and front preview must project through that plane
+rather than silently flattening all formations onto world X–Y.
+
 The differing 0.125 s position/RGB endpoints are preserved. Colours remain sample-and-hold on the
 12 Hz source clock; position playback remains linearly interpolated on the 8 Hz source clock.
 
@@ -105,6 +120,7 @@ individual points.
 | 100+ simultaneous per-drone colours                | `COLOR_SWEEP`, directional reveal, blend modes               | spatial colour-field editor and richer multi-group gradients      |
 | continuous LED animation without discrete cuts     | independent canonical lighting engine                        | continuous lighting analyzer and visual curve/heatmap             |
 | outline, repeated motifs and text/logo-like scenes | visual compiler, text and figure library                     | reference-driven templates and faster multi-part composition      |
+| common ~15° tilted presentation plane              | audience camera and site viewing direction                   | explicit formation tilt and audience-projected authoring          |
 | staged takeoff/landing                             | canonical phases                                             | phase authoring that permits validated intermediate visual beats  |
 
 ## Product priority derived from the show
