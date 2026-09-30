@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 
 - The bundled A & B wedding project is opened through the canonical project parser/adoption boundary on first load, so its editable state matches a normal Open operation.
+- The bundled A & B choreography uses per-image drone budgets with SMART_PREPARE and reserve lights OFF, because inactive drones must prepare the next visual invisibly rather than duplicate the current shape.

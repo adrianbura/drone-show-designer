@@ -40,12 +40,14 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
 
 ## Prioritate curentă
 
-0. [ ] Refacere regie „A & B — Wedding Story” ca poveste născută dintr-un cer de stele.
-   - [ ] Deschidere cu toate cele 200 de drone ca boltă stelară și Carul Mare lizibil.
-   - [ ] Imaginile folosesc numai numărul necesar de drone; restul se sting și pregătesc discret scena următoare.
-   - [ ] Countdown-ul folosește un singur inel clar, nu repetiții inutile.
-   - [ ] Inima de nuntă are contur și umplere, cu pulsație vizuală de bătaie.
-   - [ ] Verificare prin deschidere reală în editor, redare și analiză completă a show-ului.
+0. [x] Refacere regie „A & B — Wedding Story” ca poveste născută dintr-un cer de stele.
+   - [x] Deschidere cu toate cele 200 de drone ca boltă stelară și Carul Mare lizibil.
+   - [x] Imaginile folosesc numai numărul necesar de drone; restul se sting și pregătesc discret scena următoare.
+   - [x] Countdown-ul folosește un singur inel clar, nu repetiții inutile.
+   - [x] Inima de nuntă are contur și umplere, cu pulsație vizuală de bătaie.
+   - [x] Verificare prin deschidere reală în editor, redare și analiză completă a show-ului.
+   - [ ] Remediere separată de zbor: analiza 10 Hz este FAIL/BLOCKED (299 erori, 210 avertismente,
+         1.231 conflicte); designul nu este ESSP-ready și nu este autorizat pentru zbor.
 0. [ ] Benchmark ESSP 150 drone — transformarea show-ului real într-o specificație de produs.
    - [x] Arhiva brută a fost reatașată și verificată; nu este păstrată în repository.
    - [x] Inventar temporal inițial: formații, tranziții, hold-uri, takeoff/landing și momente-cheie.

@@ -6667,10 +6667,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   );
 
   const lightingStatesAtTime = useCallback(
-    (
-      t: number,
-      knownPositions?: readonly TrajectorySample["position"][],
-    ): DroneLightState[] => {
+    (t: number, knownPositions?: readonly TrajectorySample["position"][]): DroneLightState[] => {
       // An imported reference-owned interval owns its LEDs too: the displayed
       // colour is the original RGB byte triplet, not an authored effect.
       if (
