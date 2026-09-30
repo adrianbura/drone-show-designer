@@ -440,3 +440,23 @@ meniul rămâne deschis, 0 clipuri inserate; click stânga execută o dată; 3 s
 Enter pe `Paste` inserează exact 1 clip, un Undo îl elimină; meniul pe zona liberă a cronologiei se
 deschide. Suita completă: 159 fișiere / 1396 teste / 1 skipped, fără instabilitate Radix/JSDOM la
 această rulare.
+
+## A & B — REGIE DIN STELE (implementat, 2026-09-30)
+
+Proiectul bundled deschis automat a fost refăcut ca poveste continuă: 200 de drone formează întâi
+o boltă stelară cu cele șapte puncte ale Carului Mare evidențiate, apoi imaginile se desprind din
+stele. Bugetele vizuale sunt deliberate, nu toate-N: două destine 100, A & B 120, inimă 160,
+countdown 56, inele 96, constelație 80, infinit 90 și final 180. Participarea este `SMART_PREPARE`,
+look-ahead 2, iar dronele neparticipante au luminile `OFF` în timp ce se pregătesc sau așteaptă.
+
+Inima are 72 de puncte pe contur și 88 în interior. `dyn-heartbeat` îi aplică două impulsuri într-un
+ciclu de 4 s, cu dilatare maximă verificată de 7,5%; efectul LED pulsează la 2 s. Countdown-ul este
+un singur cerc de 56 de drone. Durata rămâne 263,2 s, audio rămâne neîncorporat, iar fișierul trece
+prin parserul și adopția canonică Save/Open.
+
+Verificări: parser + planner = 200 trasee și zero erori de compunere; planul de participare confirmă
+bugetele și dronele stinse/prepoziționate; 68 teste țintite trec; typecheck și build trec; browserul
+încarcă un canvas fără erori și afișează 200 drone, 11 clipuri, 4:23, Starry sky, Living wedding
+heart și Single countdown ring. Analiza completă la 10 Hz este în mod onest `FAIL/BLOCKED`: 299
+erori, 210 avertismente și 1.231 conflicte. Acesta este un design editabil, nu ESSP-ready și nu
+trebuie folosit pentru zbor înaintea remedierii separate a traseelor, distanțelor și home pads.

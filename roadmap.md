@@ -40,13 +40,15 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
 
 ## Prioritate curentă
 
-0. [ ] Refacere regie „A & B — Wedding Story” ca poveste născută dintr-un cer de stele.
-   - [ ] Deschidere cu toate cele 200 de drone ca boltă stelară și Carul Mare lizibil.
-   - [ ] Imaginile folosesc numai numărul necesar de drone; restul se sting și pregătesc discret scena următoare.
-   - [ ] Countdown-ul folosește un singur inel clar, nu repetiții inutile.
-   - [ ] Inima de nuntă are contur și umplere, cu pulsație vizuală de bătaie.
-   - [ ] Verificare prin deschidere reală în editor, redare și analiză completă a show-ului.
-0. [ ] Benchmark ESSP 150 drone — transformarea show-ului real într-o specificație de produs.
+0. [x] Refacere regie „A & B — Wedding Story” ca poveste născută dintr-un cer de stele.
+   - [x] Deschidere cu toate cele 200 de drone ca boltă stelară și Carul Mare lizibil.
+   - [x] Imaginile folosesc numai numărul necesar de drone; restul se sting și pregătesc discret scena următoare.
+   - [x] Countdown-ul folosește un singur inel clar, nu repetiții inutile.
+   - [x] Inima de nuntă are contur și umplere, cu pulsație vizuală de bătaie.
+   - [x] Verificare prin deschidere reală în editor, redare și analiză completă a show-ului.
+   - [ ] Remediere separată de zbor: analiza 10 Hz este FAIL/BLOCKED (299 erori, 210 avertismente,
+         1.231 conflicte); designul nu este ESSP-ready și nu este autorizat pentru zbor.
+1. [ ] Benchmark ESSP 150 drone — transformarea show-ului real într-o specificație de produs.
    - [x] Arhiva brută a fost reatașată și verificată; nu este păstrată în repository.
    - [x] Inventar temporal inițial: formații, tranziții, hold-uri, takeoff/landing și momente-cheie.
    - [x] Analiză cinematică inițială: convergență/divergență, rotație, scalare,
@@ -59,27 +61,27 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
          aproximativ `Z = −0.26 × Y + constant`; cerință pentru authoring proiectat spre public.
    - [x] Reprioritizarea inițială: storyboard de referință, tranziții, iluminare spațială și
          compoziție multi-parte înaintea funcțiilor speculative.
-1. [x] Viewport invalidate-on-demand implementat: editor tehnic `demand`, Presentation `always`.
-2. [x] Re-măsurare browser 150/500 și verificare seek/playback/controls/selecție/Presentation.
-3. [x] Copy/paste intern pentru clipuri SHOW și obiectele scenei (ID-uri noi, un singur Undo).
-4. [x] Verificare UX/browser copy/paste; cauza meniului aparent blocat a fost izolată la
+2. [x] Viewport invalidate-on-demand implementat: editor tehnic `demand`, Presentation `always`.
+3. [x] Re-măsurare browser 150/500 și verificare seek/playback/controls/selecție/Presentation.
+4. [x] Copy/paste intern pentru clipuri SHOW și obiectele scenei (ID-uri noi, un singur Undo).
+5. [x] Verificare UX/browser copy/paste; cauza meniului aparent blocat a fost izolată la
        eliberarea butonului dreapta peste un rând repoziționat sub cursor.
-5. [x] Șabloane de show: Blank, Short opener și Classic arc în New Show.
-6. [x] Verificare UX/browser pentru șabloane.
-7. [x] Gard UI pentru eliberarea butonului dreapta în meniul contextual; verificat în browser.
-8. [ ] Efecte de lumină avansate.
+6. [x] Șabloane de show: Blank, Short opener și Classic arc în New Show.
+7. [x] Verificare UX/browser pentru șabloane.
+8. [x] Gard UI pentru eliberarea butonului dreapta în meniul contextual; verificat în browser.
+9. [ ] Efecte de lumină avansate.
    - [x] Editor multi-stop pentru gradientele `COLOR_SWEEP` în inspectorul unificat, verificat în browser.
    - [ ] Ancoră temporală și mod de blend în inspectorul unificat.
-9. [x] Imagine → figură: contur/umplere și diagnostic de separare.
-   - [x] Import local, Contur/Structural/Umplut și compilare deterministă exact-N există.
-   - [x] Afișarea distanței minime și a avertismentelor compilatorului în panoul imaginii.
-   - [x] Verificare browser pentru contur/umplere, diagnostic și salvare în bibliotecă.
-   - [x] Rezumat clar/atenție, severitate textuală și ghidaj corectiv localizat EN/RO.
-10. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
+10. [x] Imagine → figură: contur/umplere și diagnostic de separare.
+    - [x] Import local, Contur/Structural/Umplut și compilare deterministă exact-N există.
+    - [x] Afișarea distanței minime și a avertismentelor compilatorului în panoul imaginii.
+    - [x] Verificare browser pentru contur/umplere, diagnostic și salvare în bibliotecă.
+    - [x] Rezumat clar/atenție, severitate textuală și ghidaj corectiv localizat EN/RO.
+11. [ ] Cost de redare la 500 de drone (pauza este rezolvată; redarea rămâne grea).
     - [x] Eliminarea eșantionării duble a traiectoriilor pe cadru când iluminarea este activă.
     - [ ] Re-măsurare browser la 150/500 drone și profilarea următorului hotspot.
-11. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
-12. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
+12. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
+13. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
 
 ## Capabilități livrate
 
