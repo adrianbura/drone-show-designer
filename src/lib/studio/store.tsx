@@ -5519,8 +5519,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   /** Adopts a parsed/migrated envelope with its planning state and editor prefs. */
   const adoptProjectFileRef = useRef<
-    (file: ProjectFile, fileName: string, fileState?: "FILE" | "RECOVERED") => AdoptProjectOutcome
-  >();
+    | ((
+        file: ProjectFile,
+        fileName: string,
+        fileState?: "FILE" | "RECOVERED",
+      ) => AdoptProjectOutcome)
+    | null
+  >(null);
 
   const adoptProjectFile = useCallback(
     (
