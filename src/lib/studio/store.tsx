@@ -17,6 +17,7 @@ import {
 } from "react";
 
 import { createDefaultProject } from "../show/defaultProject";
+import weddingShowFileUrl from "@/assets/shows/a-and-b-wedding-show-200-drones.droneshow.json?url";
 import { invalidateDerivedAnalysis, type DerivedAnalysisSetters } from "./derivedAnalysis";
 import {
   ADOPTED_TIMELINE_VIEW,
@@ -5185,6 +5186,34 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   // DOCUMENT LIFECYCLE. `documentOpen` is the single source of truth for the
   // NO SHOW OPEN state; every editing surface is gated on it.
   const [documentOpen, setDocumentOpen] = useState(true);
+
+  // Open the authored A & B wedding show on first load. It travels through the
+  // canonical parser/adoption boundary, exactly like a project chosen with Open.
+  useEffect(() => {
+    let active = true;
+    void fetch(weddingShowFileUrl)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Unable to open bundled show (${response.status}).`);
+        return response.text();
+      })
+      .then((text) => {
+        if (!active) return;
+        const parsed = parseProjectFile(text);
+        const outcome = adoptProjectFileRef.current?.(
+          parsed,
+          "a-and-b-wedding-show-200-drones.droneshow.json",
+        );
+        if (outcome?.ok) setProjectSavedAt(parsed.savedAt);
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        const parsed = toProjectFileError(error);
+        setProjectFileError({ code: parsed.code, message: parsed.message });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   const [documentAction, setDocumentAction] = useState<DocumentFeedback | null>(null);
 
   const savedSignature = useRef<string | null>(null);
@@ -5489,6 +5518,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const clearDocumentAction = useCallback(() => setDocumentAction(null), []);
 
   /** Adopts a parsed/migrated envelope with its planning state and editor prefs. */
+  const adoptProjectFileRef = useRef<
+    (file: ProjectFile, fileName: string, fileState?: "FILE" | "RECOVERED") => AdoptProjectOutcome
+  >();
+
   const adoptProjectFile = useCallback(
     (
       file: ProjectFile,
@@ -5509,6 +5542,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       }),
     [adoptProject],
   );
+
+  adoptProjectFileRef.current = adoptProjectFile;
 
   const openProjectFile = useCallback(
     async (file: File) => {

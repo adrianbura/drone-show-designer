@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- The bundled A & B wedding project is opened through the canonical project parser/adoption boundary on first load, so its editable state matches a normal Open operation.
