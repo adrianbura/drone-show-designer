@@ -46,6 +46,8 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
    - [x] Countdown-ul folosește un singur inel clar, nu repetiții inutile.
    - [x] Inima de nuntă are contur și umplere, cu pulsație vizuală de bătaie.
    - [x] Verificare prin deschidere reală în editor, redare și analiză completă a show-ului.
+   - [x] „Two Destinies” refăcut după referința furnizată: portret liniar mire–mireasă cu 120 de drone,
+         orientat spre public; 80 de drone rămân stinse în pregătire.
    - [ ] Remediere separată de zbor: analiza 10 Hz este FAIL/BLOCKED (299 erori, 210 avertismente,
          1.231 conflicte); designul nu este ESSP-ready și nu este autorizat pentru zbor.
 1. [ ] Benchmark ESSP 150 drone — transformarea show-ului real într-o specificație de produs.

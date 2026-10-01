@@ -445,7 +445,7 @@ această rulare.
 
 Proiectul bundled deschis automat a fost refăcut ca poveste continuă: 200 de drone formează întâi
 o boltă stelară cu cele șapte puncte ale Carului Mare evidențiate, apoi imaginile se desprind din
-stele. Bugetele vizuale sunt deliberate, nu toate-N: două destine 100, A & B 120, inimă 160,
+stele. Bugetele vizuale sunt deliberate, nu toate-N: mire și mireasă 120, A & B 120, inimă 160,
 countdown 56, inele 96, constelație 80, infinit 90 și final 180. Participarea este `SMART_PREPARE`,
 look-ahead 2, iar dronele neparticipante au luminile `OFF` în timp ce se pregătesc sau așteaptă.
 
@@ -460,3 +460,12 @@ bugetele și dronele stinse/prepoziționate; 68 teste țintite trec; typecheck �
 heart și Single countdown ring. Analiza completă la 10 Hz este în mod onest `FAIL/BLOCKED`: 299
 erori, 210 avertismente și 1.231 conflicte. Acesta este un design editabil, nu ESSP-ready și nu
 trebuie folosit pentru zbor înaintea remedierii separate a traseelor, distanțelor și home pads.
+
+## A & B — TWO DESTINIES, MIRE ȘI MIREASĂ (2026-10-01)
+
+Forma abstractă cu două trasee a fost înlocuită după referința vizuală furnizată de owner cu un
+portret liniar mire–mireasă: fețe apropiate, părul miresei, mâinile, reverul și conturul exterior.
+Figura folosește 120 de drone într-un plan înclinat spre public, pe aproximativ 84 × 62 m; celelalte
+80 rămân în logica existentă `SMART_PREPARE`, cu luminile stinse. Imaginea sursă nu este încorporată
+în proiect; fișierul păstrează numai geometria deterministă rezultată. Această schimbare este una de
+regie vizuală și nu anulează starea generală `FAIL/BLOCKED` a analizei de zbor descrise mai sus.
