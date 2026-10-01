@@ -445,7 +445,7 @@ această rulare.
 
 Proiectul bundled deschis automat a fost refăcut ca poveste continuă: 200 de drone formează întâi
 o boltă stelară cu cele șapte puncte ale Carului Mare evidențiate, apoi imaginile se desprind din
-stele. Bugetele vizuale sunt deliberate, nu toate-N: două destine 100, A & B 120, inimă 160,
+stele. Bugetele vizuale sunt deliberate, nu toate-N: mire și mireasă 120, A & B 120, inimă 160,
 countdown 56, inele 96, constelație 80, infinit 90 și final 180. Participarea este `SMART_PREPARE`,
 look-ahead 2, iar dronele neparticipante au luminile `OFF` în timp ce se pregătesc sau așteaptă.
 
