@@ -460,3 +460,12 @@ bugetele și dronele stinse/prepoziționate; 68 teste țintite trec; typecheck �
 heart și Single countdown ring. Analiza completă la 10 Hz este în mod onest `FAIL/BLOCKED`: 299
 erori, 210 avertismente și 1.231 conflicte. Acesta este un design editabil, nu ESSP-ready și nu
 trebuie folosit pentru zbor înaintea remedierii separate a traseelor, distanțelor și home pads.
+
+## A & B — TWO DESTINIES, MIRE ȘI MIREASĂ (2026-10-01)
+
+Forma abstractă cu două trasee a fost înlocuită după referința vizuală furnizată de owner cu un
+portret liniar mire–mireasă: fețe apropiate, părul miresei, mâinile, reverul și conturul exterior.
+Figura folosește 120 de drone într-un plan înclinat spre public, pe aproximativ 84 × 62 m; celelalte
+80 rămân în logica existentă `SMART_PREPARE`, cu luminile stinse. Imaginea sursă nu este încorporată
+în proiect; fișierul păstrează numai geometria deterministă rezultată. Această schimbare este una de
+regie vizuală și nu anulează starea generală `FAIL/BLOCKED` a analizei de zbor descrise mai sus.
