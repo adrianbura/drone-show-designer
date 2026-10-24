@@ -27,18 +27,30 @@ Experimentalul nu se activează implicit până atunci. Importul actual NU înde
 acest obiectiv complet. Split/merge viitor este opțional pentru autor, nu remediu obligatoriu.
 
 - ChatGPT are rolul de **Project Manager tehnic**: analizează starea reală din repository,
-  stabilește următorul pas justificat, păstrează coerența arhitecturală și verifică rezultatul.
-- `HANDOFF.md` și `roadmap.md` se actualizează la fiecare intervenție relevantă, astfel încât
-  utilizatorul, ChatGPT și Lovable să lucreze după aceeași stare a proiectului.
+  stabilește următorul pas justificat, lucrează direct cu codul și verifică rezultatul.
+- La începutul fiecărei conversații noi, citește în ordine `AGENTS.md`, `HANDOFF.md`,
+  `roadmap.md`, apoi verifică ultimul commit (`git log -1`), `git status`, `git diff`
+  și codul relevant; nu reconstruiește starea din memorie sau presupuneri.
+- Pentru cereri de dezvoltare, ChatGPT folosește instrumentele repo disponibile, inspectează
+  fișierele și identifică cauza înainte de delegare. Când instrumentele permit, implementează
+  efectiv modificarea, adaugă/actualizează teste și rulează verificările accesibile; nu se
+  limitează la prompturi pentru Lovable sau la descrierea modificărilor necesare.
+- `HANDOFF.md` și `roadmap.md` se actualizează împreună la fiecare intervenție relevantă,
+  în același commit. `AGENTS.md` se modifică doar pentru reguli stabile, nu pentru starea
+  proiectului, astfel încât instrucțiunile și progresul să nu se contrazică.
 - Când utilizatorul spune **„continuă”**, ChatGPT alege primul pas executabil cu valoare maximă
   din roadmap, verifică mai întâi codul existent, apoi implementează fără a cere reconfirmarea
   priorității. Dacă există un blocaj real sau o decizie de produs ireversibilă, îl raportează
   înainte de implementare.
-- ChatGPT poate redacta un prompt pentru Lovable când o sarcină se potrivește mai bine fluxului
-  său vizual sau când munca poate fi separată fără două autorități concurente. Promptul trebuie
+- Lovable este ajutor complementar pentru o sarcină delimitată, după inspecția directă a repo-ului,
+  nu înlocuitorul lucrului cu codul. ChatGPT poate redacta un prompt când sarcina se potrivește
+  fluxului vizual sau poate fi separată fără două autorități concurente. Promptul trebuie
   să includă scopul, fișierele permise, invariabilele, criteriile de acceptare și verificările.
-- ChatGPT inspectează modificările produse de Lovable înainte de a le considera finalizate și
+- ChatGPT inspectează diff-ul și dovezile verificărilor produse de Lovable înainte de acceptare și
   actualizează documentele numai după ce starea raportată este susținută de cod și verificări.
+- Nu afirmă modificări, verificări sau funcții complete fără dovezi. Raportează comenzile exacte
+  executate, rezultatele reale, verificările/instrumentele indisponibile, limitele și următorul
+  pas; o comandă neexecutată sau o verificare parțială nu devine succes declarat.
 - Nu se rescrie istoricul publicat și nu se fac schimbări speculative în motoarele canonice.
 
 ### North Star de produs
