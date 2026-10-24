@@ -10,6 +10,7 @@ import { buildReferenceShow } from "../../reference";
 import { analyzeReferenceShow } from "../../forensics/report";
 import { extractReferenceTimeline } from "../extract";
 import { referenceDroneFileBytes, referenceShowFromLayer } from "../layer";
+import { baseShape } from "../../forensics/__tests__/fixtures";
 
 const RATE = 8;
 const DRONES = 6;
@@ -43,6 +44,59 @@ async function syntheticShow() {
 }
 
 describe("reference timeline extraction", () => {
+  it("tiles pulse, morph travel and destination without duplicate clips and retains dynamics", async () => {
+    const shape = baseShape(24);
+    const files = shape.map((point, drone) => ({
+      name: `${drone + 1}.essp`,
+      bytes: buildSyntheticEssp({
+        xyz: Array.from({ length: 24 * RATE }, (_, sample) => {
+          const time = sample / RATE;
+          const scale = time < 12 ? 1 + 0.12 * Math.sin((Math.PI * time) / 3) : 1;
+          const morph = Math.min(1, Math.max(0, (time - 12) / 4));
+          const target: [number, number, number] = [(drone - 12) * 2.5, 40 + (drone % 5) * 4, 0];
+          const x = point[0] * scale + (target[0] - point[0]) * morph;
+          const y = point[1] + (target[1] - point[1]) * morph;
+          const z = point[2] * scale + (target[2] - point[2]) * morph;
+          return [Math.round(x * 100), Math.round(z * 100), Math.round(y * 100)];
+        }),
+        rgb: Array.from({ length: 24 * 12 }, (_, sample) => [sample % 256, 40, 90]),
+      }),
+    }));
+    const show = await buildReferenceShow(files);
+    const report = analyzeReferenceShow(show);
+    const before = JSON.stringify(report);
+    const result = extractReferenceTimeline(show, report, {
+      groupVisualIdentity: true,
+      decomposeScenes: false,
+    });
+    const visuals = result.layer.bindings.filter((binding) => binding.kind === "SCENE");
+    expect(visuals).toHaveLength(2);
+    const pulse = visuals[0];
+    const destination = visuals[1];
+    if (!pulse || !destination) throw new Error("Expected pulse and destination clips");
+    expect(pulse.referenceEnd).toBeGreaterThanOrEqual(12);
+    expect(pulse.referenceEnd).toBeLessThan(13);
+    expect(pulse.sourceClassification).toBe("DYNAMIC_DEFORMATION");
+    expect(
+      result.timeline.find((clip) => clip.id === pulse.clipId)?.dynamicFormationId,
+    ).toBeTruthy();
+    expect(destination.referenceStart).toBe(pulse.referenceEnd);
+    expect(destination.referenceHoldStart).toBeGreaterThanOrEqual(16);
+    expect(destination.referenceHoldStart - destination.referenceStart).toBeGreaterThan(3);
+    // This fixture starts airborne (no takeoff); check visual tiling rather
+    // than the extractor's pre-existing synthetic takeoff fallback of 0.1 s.
+    let cursor = pulse.referenceStart;
+    for (const binding of visuals) {
+      expect(binding.referenceStart).toBeCloseTo(cursor, 3);
+      expect(binding.referenceEnd).toBeGreaterThanOrEqual(binding.referenceStart);
+      cursor = binding.referenceEnd;
+    }
+    expect(cursor).toBe(destination.referenceEnd);
+    expect(JSON.stringify(report)).toBe(before);
+    expect(referenceShowFromLayer(result.layer).drones.map(referenceDroneFileBytes)).toEqual(
+      show.drones.map(referenceDroneFileBytes),
+    );
+  });
   it("preserves the report and every source byte across extraction and layer reopen", async () => {
     const show = await syntheticShow();
     const report = analyzeReferenceShow(show);

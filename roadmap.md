@@ -93,6 +93,9 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
     - [x] Increment 2: recuperarea prefixului compatibil absorbit în run-ul mixt, fără
           schimbarea motorului; pe salvarea reală inimă până la 281,00 s, tranziție până
           la 292,00 s. 162 fișiere / 1413 teste trecute, 1 skipped; sursa 150/150 identică.
+    - [x] Increment 3: audit temporal integral 26 clipuri și eliminarea episodului incert
+          duplicat 122,00–132,25 s; 25 clipuri după corecție, continue 0–486,75 s.
+          1415 teste trecute / 1 skipped; inima dinamică verificată pe 18.000 poziții.
     - [ ] Activare în importul normal: blocată de incompatibilitățile de editare la reunirea
           clipurilor statice cu cele dinamice; implementarea este opt-in tehnic, nu UI.
     - [ ] Următorul pas: reprezentare compatibilă STATIC/DYNAMIC pentru episoadele grupate,
@@ -100,7 +103,8 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
           rerularea celor 56 de teste downstream înainte de activare.
     - [ ] Identitate pentru deformări locale/porumbei și imagini schimbate prin drone active;
           rafinarea completă a run-urilor mixte (prefixul confirmat este recuperat) și
-          verificare vizuală integrală; cele 26 clipuri opt-in necesită audit, nu activare.
+          verificare vizuală integrală a celor 25 clipuri opt-in; auditul numeric este
+          terminat, dar etichetarea imaginilor și porumbeii nu sunt validate integral.
     - [ ] Split/merge temporal cu un Undo și aplicarea reanalizei fără pierderea editărilor.
 
 ## Capabilități livrate
