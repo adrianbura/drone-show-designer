@@ -629,9 +629,9 @@ export function extractReferenceTimeline(
   if (!report.landingInterval) {
     warnings.push("No landing descent was detected in the imported show.");
   }
-  if (scenes.length < report.segments.filter((s) => SCENE_CLASSES.has(s.classification)).length) {
+  if (scenes.length < report.segments.length) {
     warnings.push(
-      "Short stable segments were absorbed into the surrounding transitions and were not extracted as clips.",
+      "Visual scenes are inferred separately from motion segments; compatible motion fragments may share one scene. Uncertain short fragments still require review.",
     );
   }
 

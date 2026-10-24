@@ -8,7 +8,7 @@ function pulseMorph(rate: number) {
   const shape = baseShape(40);
   return sequenceFromFrames(Array.from({ length: rate * 24 }, (_, index) => {
     const t = index / rate;
-    const scale = t < 12 ? 1 + 0.12 * Math.sin(Math.PI * t) : 1;
+    const scale = t < 12 ? 1 + 0.12 * Math.sin(Math.PI * t / 3) : 1;
     const morph = Math.min(1, Math.max(0, (t - 12) / 4));
     return shape.map((p, i): P => {
       const target: P = [(i - 20) * 2.5, 40 + (i % 5) * 4, 0];
