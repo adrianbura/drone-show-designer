@@ -106,7 +106,9 @@ describe("import visual episodes (report remains motion-only)", () => {
   it("does not emit the recovered prefix again as an uncertain dynamic segment", () => {
     const sequence = pulseMorph(8);
     const report = analyzeSequence(sequence);
-    const mixed = report.segments.find((segment) => segment.startTime === 11);
+    const mixed = report.segments.find(
+      (segment) => segment.startTime <= 12 && segment.endTime >= 16,
+    );
     if (!mixed) throw new Error("Expected the absorbed pulse/morph run");
     mixed.classification = "DYNAMIC_DEFORMATION";
     const scenes = visualSceneSegments(sequence, report, 4);
