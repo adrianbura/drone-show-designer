@@ -64,7 +64,9 @@ import {
 } from "./types";
 
 export interface ReferenceExtractionOptions {
-  /** Minimum duration for uncertain motion fragments; confirmed identities survive. */
+  /** Opt-in identity projection while downstream editing compatibility is validated. */
+  readonly groupVisualIdentity?: boolean;
+  /** Minimum duration; identity-confirmed episodes bypass this only in opt-in mode. */
   readonly minSceneSeconds?: number;
   /** Scene classes converted to an animated formation instead of a static one. */
   readonly animateMotionScenes?: boolean;
@@ -93,6 +95,11 @@ const DARK_BRIGHTNESS = 0.12;
  * is not convincing and scene-level lighting is kept.
  */
 const LIGHTING_GROUP_BRIGHTNESS_DELTA = 0.15;
+
+const SCENE_CLASSES = new Set([
+  "STATIC_FORMATION", "GLOBAL_TRANSLATION", "GLOBAL_ROTATION", "RIGID_MOTION",
+  "DYNAMIC_DEFORMATION",
+]);
 
 const ANIMATED_CLASSES = new Set([
   "GLOBAL_TRANSLATION",
@@ -180,8 +187,16 @@ export function extractReferenceTimeline(
     throw new ReferenceLayerError("NO_REFERENCE_SHOW", "The imported show has no drones.");
   }
   let acceptedEnd = Number.NEGATIVE_INFINITY;
-  const sourceSequence = sequenceFromReferenceShow(show);
-  const scenes = visualSceneSegments(sourceSequence, report, minSceneSeconds).filter((segment) => {
+  const sourceSequence = options.groupVisualIdentity ? sequenceFromReferenceShow(show) : null;
+  const candidates = sourceSequence
+    ? visualSceneSegments(sourceSequence, report, minSceneSeconds)
+    : report.segments.filter((segment) => {
+        if (!SCENE_CLASSES.has(segment.classification) || segment.duration < minSceneSeconds) return false;
+        if (report.takeoffInterval && segment.endTime <= report.takeoffInterval.endTime + 1e-6) return false;
+        if (report.landingInterval && segment.startTime >= report.landingInterval.startTime - 1e-6) return false;
+        return true;
+      }).sort((a, b) => a.startTime - b.startTime);
+  const scenes = candidates.filter((segment) => {
     if (segment.endTime <= acceptedEnd + MIN_EXTRACTED_TRANSITION_SECONDS) return false;
     acceptedEnd = segment.endTime;
     return true;

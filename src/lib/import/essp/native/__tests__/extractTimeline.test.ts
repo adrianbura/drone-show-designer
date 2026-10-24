@@ -48,7 +48,7 @@ describe("reference timeline extraction", () => {
     const report = analyzeReferenceShow(show);
     const originalReport = JSON.stringify(report);
     const originalFiles = show.drones.map(referenceDroneFileBytes);
-    const result = extractReferenceTimeline(show, report);
+    const result = extractReferenceTimeline(show, report, { groupVisualIdentity: true });
     const reopened = referenceShowFromLayer(JSON.parse(JSON.stringify(result.layer)));
     expect(JSON.stringify(report)).toBe(originalReport);
     expect(reopened.drones.map(referenceDroneFileBytes)).toEqual(originalFiles);
