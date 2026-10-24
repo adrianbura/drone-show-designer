@@ -553,3 +553,88 @@ clasa de mișcare; inima este absorbită pentru că pulsațiile nu trec de pragu
 Un plan de implementare cu fișierele vizate și invariabilele, urmat de cod și de rezultatele
 exacte ale verificărilor. Dacă o decizie schimbă semantics `ReferenceForensicsReport` sau formatul
 salvat, trebuie spus înainte de implementare.
+
+## INCREMENT EXECUTABIL — identitate vizuală separată (2026-10-24)
+
+### Livrat și limită de activare
+
+`native/visualIdentity.ts` măsoară reziduul unui fit de similitudine pe punctele originale,
+cu corespondență după dronă: elimină translația, rotația și dilatarea uniformă numai pentru
+compararea identității. Nu schimbă motorul de mișcare, scalele sau pozițiile originale.
+Folosește toleranța injectată `report.thresholds.deformationRmsMeters`, fără un prag numeric nou.
+`native/visualScenes.ts` construiește episoade din segmentele forensice, comparând toate
+eșantioanele cu o ancoră fixă (nu doar capetele suprapuse, nu chaining de drift). Tranzițiile
+cu identitate incompatibilă rămân bariere. RGB/luminozitatea singure nu creează limite.
+Episoadele cu identitate confirmată pot supraviețui pragului de 4 s; fragmentele incerte îl
+păstrează. Metricile episodului sunt derivate read-only; raportul original nu este rescris.
+
+`extractReferenceTimeline(..., { groupVisualIdentity: true })` este o opțiune REALĂ nouă,
+tehnică, implicit **false**. Nu există încă selector UI. Activarea generală a fost încercată,
+dar a produs 18 regresii în șase fișiere (editare text/geometrie, mixed ownership și fixture
+ESSP care presupune că o simplă translație este imagine nouă). Aceste 56 de teste trec pe
+commitul inițial `f82bd7c`, verificat într-o copie izolată cu aliasurile spre acea copie.
+Activarea a fost retrasă; după izolarea opțiunii, întreaga suită trece. Nu declara acest pas
+drept remediere completă a importului folosit de owner.
+
+### Rezultate pe proiectul salvat al ownerului
+
+Sursa reală redeschisă are **150 drone**, 4 Hz poziții, 12 Hz lumini, 486,75 s; numele fișierului
+conține „200”, dar acesta NU este numărul flotei din referința importată. Browserul a confirmat
+150 drone / 23 clipuri în proiectul existent. Nu s-a înlocuit proiectul ownerului.
+
+Extragerea opt-in verificată direct cu `decomposeScenes:false, animateMotionScenes:false`:
+
+| Interval sursă | Episod / fază |
+| --- | --- |
+| 241,00–251,25 s | formare inimă |
+| 251,25–280,50 s | inimă, pulsațiile grupate într-un singur episod |
+| 280,50–292,00 s | tranziție spre castel |
+| 292,00–322,25 s | castel |
+
+Diferențele de 0,25 s sunt rezoluția ferestrelor suprapuse existente, nu timpi hardcodați.
+Rezultatul are 30 episoade SHOW / 32 clipuri cu takeoff+landing, intervale continue până la
+486,75 s. **150/150 fișiere ESSP reconstruite sunt byte-identice** cu payloadurile originale
+salvate; raportul forensics este identic înainte/după. Acestea verifică sursa păstrată, nu o
+nouă certificare de zbor sau export mixt după editări.
+
+### Verificări reale
+
+- `bunx vitest run --maxWorkers=2`: **162 fișiere trecute; 1411 teste trecute, 1 skipped**.
+- 6 regresii noi: pulsații+morph la 4 și 8 Hz, translație/rotație/hold ca un episod,
+  episod static de 1,875 s păstrat, luminozitate fără fragmentare, report+source byte round-trip
+  prin extragere opt-in și redeschidere layer. Fișierele de teste:
+  `native/__tests__/visualScenes.test.ts`, `native/__tests__/extractTimeline.test.ts`.
+- ESLint pe toate cele șase fișiere de cod/test modificate: **0 erori, 0 avertismente**.
+- `bun run lint` global: **659 erori / 28 avertismente**, majoritar formatare existentă.
+  Copia inițială `f82bd7c`: **662 erori / 28 avertismente**. Nu s-a făcut cleanup global
+  în această prioritate și nu se declară lint global curat.
+- Typecheck/build: verificate prin verificările automate ale mediului Lovable, cu `build OK`
+  în `/tmp/observability/build-errors.log`; NU s-au executat manual `bun run build` sau
+  `typecheck`, deoarece mediul le execută automat. Raportarea trebuie să păstreze distincția.
+- Browser Chromium 1280×1800: Open pe fișierul ownerului reușește, 150 drone / 23 clipuri,
+  zero erori de pagină. Scena 18 existentă rămâne 51 s transition + 30,3 s hold: intenționat,
+  noua proiecție nu rescrie automat proiectele salvate. Nu este verificare UI a activării noi.
+- Metadata leaf `/` completată cu `og:type` și `twitter:card`; fără schimbare de pagină.
+
+### Următorul pas exact și ce NU există
+
+1. Rezolvă compatibilitatea STATIC/DYNAMIC a episoadelor reunite înainte de activarea normală.
+   Primul simptom: un static hold devenit episod dinamic blochează Replace as Text cu
+   `DYNAMIC_CLIP_UNSUPPORTED`. Nu relaxa acel guard fără o tranzacție de geometrie sigură.
+2. Actualizează fixture-ul de export care presupune ≥2 scene doar din hold→translate→hold;
+   folosește două geometrii realmente distincte, nu slăbi testele de RGB/export.
+3. Porumbeii reali nu sunt încă reuniți: fit-ul de similitudine al întregii flote nu poate
+   recunoaște sigur deformări locale, rezerve sau imagini schimbate prin active-drone mask.
+   RGB agregat disponibil în raport nu oferă membership per dronă; sursa îl are, dar această
+   etapă nu îl interpretează. Documentează configurația înainte de noi praguri.
+4. Nu se rafinează încă un run forensics mixt pulsație→morph. Regresia sintetică conservă
+   0–11 s ca episod și lasă 11–16 s mixt pentru rafinare; nu pretinde limita exactă 12 s.
+   Absorbția upstream `minSegmentSeconds` rămâne neschimbată și poate pierde episoade mai scurte.
+5. Split/merge temporal nu are API/store/UI existent; `decomposition` rămâne spațială.
+   Reanaliza read-only există în store, dar reaplicarea limitelor pe timeline cu păstrarea
+   editărilor NU există încă. Extragerea normală recreează proiectul; nu o folosi ca migrare
+   fără pierderi. Viitorul pas trebuie să folosească history canonic, o mutație = un Undo.
+
+Raportul `ReferenceForensicsReport`, versiunea algoritmului forensics, schema și formatul
+proiectului nu au fost schimbate. Codul/docurile sunt salvate de mecanismul automat Lovable;
+nu s-au făcut commit/push/rebase/force/amend/squash manual.

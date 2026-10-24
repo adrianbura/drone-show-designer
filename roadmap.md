@@ -86,6 +86,18 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
 13. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
 14. [ ] **Delimitarea scenelor la import** — scenă vizuală vs. mișcări interne, pentru toate
     scenele și toate importurile (detalii și criterii de acceptare în `HANDOFF.md`).
+    - [x] Increment conservator: proiecție separată de identitate geometrică, deterministă,
+          fără schimbarea raportului, schemelor sau datelor ESSP; 6 regresii noi.
+    - [x] Verificare pe proiectul salvat: inimă 251,25–280,50 s, tranziție 280,50–292,00 s,
+          castel 292,00–322,25 s; 150/150 fișiere originale identice.
+    - [ ] Activare în importul normal: blocată de incompatibilitățile de editare la reunirea
+          clipurilor statice cu cele dinamice; implementarea este opt-in tehnic, nu UI.
+    - [ ] Următorul pas: reprezentare compatibilă STATIC/DYNAMIC pentru episoadele grupate,
+          refacerea fixture-urilor care confundă translația cu o imagine nouă, apoi
+          rerularea celor 56 de teste downstream înainte de activare.
+    - [ ] Identitate pentru deformări locale/porumbei și imagini schimbate prin drone active;
+          rafinarea run-urilor mixte pulsație→tranziție și verificare vizuală integrală.
+    - [ ] Split/merge temporal cu un Undo și aplicarea reanalizei fără pierderea editărilor.
 
 ## Capabilități livrate
 

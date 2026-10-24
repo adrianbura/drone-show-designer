@@ -1,7 +1,7 @@
 /**
  * EXTRACTION (layer A) — imported reference show -> native editable timeline.
  *
- * The forensic report is the segmentation authority; the EXISTING conversion
+ * The forensic report is the motion authority; the EXISTING conversion
  * pipeline (`convertReferenceSegmentToDynamicFormation`, optionally narrowed to
  * a drone subset) is the only geometry engine used. Nothing here re-implements
  * decomposition, fitting or fidelity measurement, and nothing mutates the
@@ -38,6 +38,7 @@ import {
 } from "../../../show/scene/types";
 import { segmentEligibility } from "../conversion/types";
 import { sequenceFromReferenceShow } from "../forensics/adapter";
+import { visualSceneSegments } from "./visualScenes";
 import type { ReferenceForensicsReport, ReferenceSceneSegment } from "../forensics/types";
 import { colorAt, sampleReferenceShow } from "../playback";
 import type { ReferenceDrone, ReferenceShow } from "../types";
@@ -63,7 +64,9 @@ import {
 } from "./types";
 
 export interface ReferenceExtractionOptions {
-  /** Segments shorter than this are not promoted to their own scene clip. */
+  /** Opt-in identity projection while downstream editing compatibility is validated. */
+  readonly groupVisualIdentity?: boolean;
+  /** Minimum duration; identity-confirmed episodes bypass this only in opt-in mode. */
   readonly minSceneSeconds?: number;
   /** Scene classes converted to an animated formation instead of a static one. */
   readonly animateMotionScenes?: boolean;
@@ -100,6 +103,7 @@ const SCENE_CLASSES = new Set([
   "RIGID_MOTION",
   "DYNAMIC_DEFORMATION",
 ]);
+
 const ANIMATED_CLASSES = new Set([
   "GLOBAL_TRANSLATION",
   "GLOBAL_ROTATION",
@@ -158,23 +162,6 @@ function staticPointsAt(show: ReferenceShow, time: number): Vector3Tuple[] {
   return sampleReferenceShow(show, time).map((s) => s.position as Vector3Tuple);
 }
 
-/** Scene segments, in time order, that are long enough to author as clips. */
-function sceneSegments(
-  report: ReferenceForensicsReport,
-  minSceneSeconds: number,
-): ReferenceSceneSegment[] {
-  return report.segments
-    .filter((s) => SCENE_CLASSES.has(s.classification) && s.duration >= minSceneSeconds)
-    .filter((s) => {
-      const takeoff = report.takeoffInterval;
-      const landing = report.landingInterval;
-      if (takeoff && s.endTime <= takeoff.endTime + 1e-6) return false;
-      if (landing && s.startTime >= landing.startTime - 1e-6) return false;
-      return true;
-    })
-    .sort((a, b) => a.startTime - b.startTime);
-}
-
 /** One accepted object of a decomposed scene, with its own bundled geometry. */
 interface ComposedObject {
   readonly group: SceneDecompositionGroup;
@@ -203,7 +190,24 @@ export function extractReferenceTimeline(
     throw new ReferenceLayerError("NO_REFERENCE_SHOW", "The imported show has no drones.");
   }
   let acceptedEnd = Number.NEGATIVE_INFINITY;
-  const scenes = sceneSegments(report, minSceneSeconds).filter((segment) => {
+  const sourceSequence = options.groupVisualIdentity ? sequenceFromReferenceShow(show) : null;
+  const candidates = sourceSequence
+    ? visualSceneSegments(sourceSequence, report, minSceneSeconds)
+    : report.segments
+        .filter((segment) => {
+          if (!SCENE_CLASSES.has(segment.classification) || segment.duration < minSceneSeconds)
+            return false;
+          if (report.takeoffInterval && segment.endTime <= report.takeoffInterval.endTime + 1e-6)
+            return false;
+          if (
+            report.landingInterval &&
+            segment.startTime >= report.landingInterval.startTime - 1e-6
+          )
+            return false;
+          return true;
+        })
+        .sort((a, b) => a.startTime - b.startTime);
+  const scenes = candidates.filter((segment) => {
     if (segment.endTime <= acceptedEnd + MIN_EXTRACTED_TRANSITION_SECONDS) return false;
     acceptedEnd = segment.endTime;
     return true;
@@ -229,7 +233,7 @@ export function extractReferenceTimeline(
   const effects: LightingEffectInstance[] = [];
   const warnings: string[] = [];
   /** Built lazily: the analysis sequence is only needed for decomposition. */
-  let sequence: ReturnType<typeof sequenceFromReferenceShow> | null = null;
+  let sequence: ReturnType<typeof sequenceFromReferenceShow> | null = sourceSequence;
 
   let order = 0;
   const pushClip = (args: {
@@ -651,9 +655,9 @@ export function extractReferenceTimeline(
   if (!report.landingInterval) {
     warnings.push("No landing descent was detected in the imported show.");
   }
-  if (scenes.length < report.segments.filter((s) => SCENE_CLASSES.has(s.classification)).length) {
+  if (scenes.length < report.segments.length) {
     warnings.push(
-      "Short stable segments were absorbed into the surrounding transitions and were not extracted as clips.",
+      "Visual scenes are inferred separately from motion segments; compatible motion fragments may share one scene. Uncertain short fragments still require review.",
     );
   }
 
