@@ -91,7 +91,7 @@ describe("import visual episodes (report remains motion-only)", () => {
     expect(scenes[0]?.duration).toBe(1.875);
   });
 
-  it("never bridges an incompatible morph back to the same outline", () => {
+  it("never bridges the incompatible morph into the destination outline", () => {
     const sequence = pulseMorph(8);
     const report = analyzeSequence(sequence);
     const scenes = visualSceneSegments(sequence, report, 4);
@@ -110,6 +110,16 @@ describe("import visual episodes (report remains motion-only)", () => {
       8,
     );
     const report = analyzeSequence(sequence);
+    const original = report.segments[0];
+    if (!original) throw new Error("Expected a static segment");
+    report.segments = Array.from({ length: 4 }, (_, index) => ({
+      ...original,
+      id: `colour-${index}`,
+      startTime: index * 2,
+      endTime: index === 3 ? 7.875 : (index + 1) * 2,
+      duration: index === 3 ? 1.875 : 2,
+      metrics: { ...original.metrics, lightingChangeEnergy: index % 2 },
+    }));
     report.lighting = {
       sampleRateHz: 12,
       meanBrightness: 0.5,
