@@ -56,6 +56,25 @@ export function visualSceneSegments(
       current = { members: [segment], anchor, confirmed: true };
       episodes.push(current);
     } else {
+      // Upstream short-run absorption can put the end of a pulse into the
+      // following morph run. Recover only the prefix proved against an already
+      // confirmed, fixed anchor; never infer a new visual from a moving anchor.
+      if (current?.confirmed && last && segment.startTime <= last.endTime) {
+        let compatibleEnd = start - 1;
+        for (let sample = start; sample <= end; sample++) {
+          const residual = visualIdentityResidual(sequence, current.anchor, sample);
+          if (!Number.isFinite(residual) || residual > tolerance) break;
+          compatibleEnd = sample;
+        }
+        const prefixEndTime = sequence.times[compatibleEnd];
+        if (prefixEndTime !== undefined && prefixEndTime > last.endTime) {
+          current.members.push({
+            ...segment,
+            endTime: prefixEndTime,
+            duration: prefixEndTime - segment.startTime,
+          });
+        }
+      }
       // A real/uncertain transition is a barrier, not an episode to absorb.
       current = undefined;
       if (segment.classification !== "FORMATION_TRANSITION") {
