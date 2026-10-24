@@ -77,7 +77,9 @@ describe("reference timeline extraction", () => {
     expect(pulse.referenceEnd).toBeGreaterThanOrEqual(12);
     expect(pulse.referenceEnd).toBeLessThan(13);
     expect(pulse.sourceClassification).toBe("DYNAMIC_DEFORMATION");
-    expect(result.timeline.find((clip) => clip.id === pulse.clipId)?.dynamicFormationId).toBeTruthy();
+    expect(
+      result.timeline.find((clip) => clip.id === pulse.clipId)?.dynamicFormationId,
+    ).toBeTruthy();
     expect(destination.referenceStart).toBe(pulse.referenceEnd);
     expect(destination.referenceHoldStart).toBeGreaterThanOrEqual(16);
     expect(destination.referenceHoldStart - destination.referenceStart).toBeGreaterThan(3);
