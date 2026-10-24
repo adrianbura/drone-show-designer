@@ -472,3 +472,84 @@ Figura folosește 120 de drone într-un plan înclinat spre public, pe aproximat
 80 rămân în logica existentă `SMART_PREPARE`, cu luminile stinse. Imaginea sursă nu este încorporată
 în proiect; fișierul păstrează numai geometria deterministă rezultată. Această schimbare este una de
 regie vizuală și nu anulează starea generală `FAIL/BLOCKED` a analizei de zbor descrise mai sus.
+
+## BRIEF PENTRU CHATGPT — delimitarea scenelor la import (2026-10-24, prioritate activă)
+
+### Ce a raportat ownerul și ce s-a confirmat
+
+Ownerul a salvat show-ul A & B prin **Save**, apoi l-a redeschis prin **Open**, și a observat două
+defecte de import:
+
+1. **Scena 18 este un singur obiect** deși conține două imagini distincte: **inimă** și **castel**.
+2. **Scena de deschidere cu cei doi porumbei este spartă în mai multe clipuri**, deși rămâne
+   aceeași imagine.
+
+Ambele sunt reale. Proiectul salvat are poziții la **4 Hz** și lumini la **12 Hz** (alt show decât
+arhiva ESSP de referință, care are 8 Hz).
+
+Intervalele masurate în proiectul salvat:
+
+| Interval | Ce se întâmplă |
+| --- | --- |
+| 4:01 – 4:11,5 | paharele se transformă în inimă |
+| 4:11,5 – 4:40,25 | inimă roșie cu pulsație (pulsurile sunt scurte, ~1–2,5 s) |
+| 4:40,25 – 4:52,25 | inima se transformă în castel |
+| 4:52,25 – 5:22,25 | castel stabil; iluminarea completă apare spre 4:58 |
+
+Valorile care disting cele două stări:
+
+- **inimă → castel:** schimbare netă a formei ~10,4–10,8 m, viteza medie a dronelor ~1,39 m/s;
+- **castel stabil:** deformare medie 0,013 m, viteza medie a dronelor 0,010 m/s.
+
+### Cauza, în cod
+
+Importul împarte show-ul după **mișcare**, nu după **imagine**:
+
+- `src/lib/import/essp/forensics/segmentation.ts:124` `segmentShow()` grupează ferestre de mișcare
+  și le clasifică; pragurile sunt `BALANCED_THRESHOLDS` în
+  `src/lib/import/essp/forensics/types.ts:258`: `staticCentroidSpeedMps 0.15`,
+  `deformationRmsMeters 0.4`, `transitionNetResidualMeters 2`, `minSegmentSeconds 1`,
+  `holdMinSeconds 3`. Lumina intră doar ca `lightingEnergyAt` în metrici și în
+  `correlatedBoundaries`, deci **schimbările RGB nu creează singure o limită de scenă**.
+- `src/lib/import/essp/native/extract.ts:196` `minSceneSeconds = options.minSceneSeconds ?? 4`, iar
+  `extract.ts:162-167` `sceneSegments()` păstrează doar segmentele cu
+  `duration >= minSceneSeconds`. **Pulsurile inimii (1–2,5 s) sunt eliminate aici**, iar tot
+  intervalul inimii ajunge în cele ~51 s de „tranziție" atribuite castelului.
+- `src/lib/import/essp/native/decomposition.ts` `proposeSceneDecomposition()` împarte **o scenă în
+  mai multe obiecte simultan** (spațial), nu în timp — deci nu poate repara nici inima, nici
+  porumbeii.
+
+Cele două simptome sunt aceeași cauză, în sensuri opuse: **mișcarea este confundată cu imaginea**.
+Porumbeii sunt fragmentați pentru că trecerea translation → rotație/deformare → staționare schimbă
+clasa de mișcare; inima este absorbită pentru că pulsațiile nu trec de pragul de 4 s.
+
+### Ce trebuie construit (deci, nu ajustarea unui singur prag)
+
+1. **Două niveluri distincte:** *scenă vizuală* (o imagine) și *mișcări din interiorul ei*
+   (forma, pulsația, rotația). O schimbare de viteză, de clasă de mișcare sau de culoare **nu**
+   creează singură o scenă nouă.
+2. **Limita de scenă se decide comparând forma înainte și după**, împreună cu aprinderea, stingerea
+   și culoarea dronelor — nu Only după viteza medie.
+3. **Pulsațiile se grupează în scena lor** („Inimă"), nu se elimină; fragmentele de deschidere ale
+   porumbeilor se reunesc într-o singură scenă.
+4. **Separare și reunire manuală** cu undo, pentru delimitările incerte; o mutație = o intrare de
+   undo.
+5. **Traseele și luminile originale rămân intacte.** Se schimbă organizarea pentru editare, nu
+   spectacolul.
+6. **Valabil pentru toate scenele și toate importurile**, iar proiectele deja salvate trebuie să
+   poată fi reanalizate fără pierderea editărilor.
+
+### Criterii de acceptare
+
+- porumbeii din deschidere apar ca **o singură scenă**;
+- **Inimă → tranziție → Castel** sunt trei intervale distincte, cu timpii de mai sus;
+- restul show-ului este reanalizat și nu apar scene noi sau pierdute;
+- traseele, luminile și exportul ESSP round-trip rămân identice cu cele de dinainte;
+- typecheck, lint, `bunx vitest run --maxWorkers=2` și `bun run build` curate, plus verificare
+  browser pe proiectul salvat.
+
+### Ce trebuie să returneze ChatGPT
+
+Un plan de implementare cu fișierele vizate și invariabilele, urmat de cod și de rezultatele
+exacte ale verificărilor. Dacă o decizie schimbă semantics `ReferenceForensicsReport` sau formatul
+salvat, trebuie spus înainte de implementare.

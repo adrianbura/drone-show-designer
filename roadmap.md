@@ -84,6 +84,8 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
     - [ ] Re-măsurare browser la 150/500 drone și profilarea următorului hotspot.
 12. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
 13. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
+14. [ ] **Delimitarea scenelor la import** — scenă vizuală vs. mișcări interne, pentru toate
+    scenele și toate importurile (detalii și criterii de acceptare în `HANDOFF.md`).
 
 ## Capabilități livrate
 
