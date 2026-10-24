@@ -1,7 +1,7 @@
 /**
  * EXTRACTION (layer A) — imported reference show -> native editable timeline.
  *
- * The forensic report is the segmentation authority; the EXISTING conversion
+ * The forensic report is the motion authority; the EXISTING conversion
  * pipeline (`convertReferenceSegmentToDynamicFormation`, optionally narrowed to
  * a drone subset) is the only geometry engine used. Nothing here re-implements
  * decomposition, fitting or fidelity measurement, and nothing mutates the
@@ -38,6 +38,7 @@ import {
 } from "../../../show/scene/types";
 import { segmentEligibility } from "../conversion/types";
 import { sequenceFromReferenceShow } from "../forensics/adapter";
+import { visualSceneSegments } from "./visualScenes";
 import type { ReferenceForensicsReport, ReferenceSceneSegment } from "../forensics/types";
 import { colorAt, sampleReferenceShow } from "../playback";
 import type { ReferenceDrone, ReferenceShow } from "../types";
