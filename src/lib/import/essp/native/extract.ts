@@ -64,7 +64,7 @@ import {
 } from "./types";
 
 export interface ReferenceExtractionOptions {
-  /** Segments shorter than this are not promoted to their own scene clip. */
+  /** Minimum duration for uncertain motion fragments; confirmed identities survive. */
   readonly minSceneSeconds?: number;
   /** Scene classes converted to an animated formation instead of a static one. */
   readonly animateMotionScenes?: boolean;
@@ -94,13 +94,6 @@ const DARK_BRIGHTNESS = 0.12;
  */
 const LIGHTING_GROUP_BRIGHTNESS_DELTA = 0.15;
 
-const SCENE_CLASSES = new Set([
-  "STATIC_FORMATION",
-  "GLOBAL_TRANSLATION",
-  "GLOBAL_ROTATION",
-  "RIGID_MOTION",
-  "DYNAMIC_DEFORMATION",
-]);
 const ANIMATED_CLASSES = new Set([
   "GLOBAL_TRANSLATION",
   "GLOBAL_ROTATION",
@@ -159,23 +152,6 @@ function staticPointsAt(show: ReferenceShow, time: number): Vector3Tuple[] {
   return sampleReferenceShow(show, time).map((s) => s.position as Vector3Tuple);
 }
 
-/** Scene segments, in time order, that are long enough to author as clips. */
-function sceneSegments(
-  report: ReferenceForensicsReport,
-  minSceneSeconds: number,
-): ReferenceSceneSegment[] {
-  return report.segments
-    .filter((s) => SCENE_CLASSES.has(s.classification) && s.duration >= minSceneSeconds)
-    .filter((s) => {
-      const takeoff = report.takeoffInterval;
-      const landing = report.landingInterval;
-      if (takeoff && s.endTime <= takeoff.endTime + 1e-6) return false;
-      if (landing && s.startTime >= landing.startTime - 1e-6) return false;
-      return true;
-    })
-    .sort((a, b) => a.startTime - b.startTime);
-}
-
 /** One accepted object of a decomposed scene, with its own bundled geometry. */
 interface ComposedObject {
   readonly group: SceneDecompositionGroup;
@@ -204,7 +180,8 @@ export function extractReferenceTimeline(
     throw new ReferenceLayerError("NO_REFERENCE_SHOW", "The imported show has no drones.");
   }
   let acceptedEnd = Number.NEGATIVE_INFINITY;
-  const scenes = sceneSegments(report, minSceneSeconds).filter((segment) => {
+  const sourceSequence = sequenceFromReferenceShow(show);
+  const scenes = visualSceneSegments(sourceSequence, report, minSceneSeconds).filter((segment) => {
     if (segment.endTime <= acceptedEnd + MIN_EXTRACTED_TRANSITION_SECONDS) return false;
     acceptedEnd = segment.endTime;
     return true;
@@ -230,7 +207,7 @@ export function extractReferenceTimeline(
   const effects: LightingEffectInstance[] = [];
   const warnings: string[] = [];
   /** Built lazily: the analysis sequence is only needed for decomposition. */
-  let sequence: ReturnType<typeof sequenceFromReferenceShow> | null = null;
+  let sequence: ReturnType<typeof sequenceFromReferenceShow> | null = sourceSequence;
 
   let order = 0;
   const pushClip = (args: {
