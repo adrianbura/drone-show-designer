@@ -6,20 +6,35 @@ import { sourceSceneEvidence } from "../sceneEvidence";
 import type { ReferenceClipBinding } from "../types";
 
 const binding: ReferenceClipBinding = {
-  clipId: "scene", order: 1, kind: "SCENE", sourceSegmentId: null,
-  sourceClassification: "DYNAMIC_DEFORMATION", referenceStart: 0,
-  referenceHoldStart: 0.5, referenceEnd: 1, owner: "REFERENCE", signature: "",
+  clipId: "scene",
+  order: 1,
+  kind: "SCENE",
+  sourceSegmentId: null,
+  sourceClassification: "DYNAMIC_DEFORMATION",
+  referenceStart: 0,
+  referenceHoldStart: 0.5,
+  referenceEnd: 1,
+  owner: "REFERENCE",
+  signature: "",
 };
 
 async function fixture(rgb: number[][]) {
-  return buildReferenceShow([{ name: "1.essp", bytes: buildSyntheticEssp({
-    xyz: Array.from({ length: 9 }, (_, i) => [i * 100, 0, 3000]), rgb,
-  }) }]);
+  return buildReferenceShow([
+    {
+      name: "1.essp",
+      bytes: buildSyntheticEssp({
+        xyz: Array.from({ length: 9 }, (_, i) => [i * 100, 0, 3000]),
+        rgb,
+      }),
+    },
+  ]);
 }
 
 describe("source scene evidence without invented effects", () => {
   it("preserves source clocks, dynamic classification, inferred transition and actual preview", async () => {
-    const show = await fixture(Array.from({ length: 13 }, (_, i) => i < 6 ? [0, 0, 0] : [255, 0, 0]));
+    const show = await fixture(
+      Array.from({ length: 13 }, (_, i) => (i < 6 ? [0, 0, 0] : [255, 0, 0])),
+    );
     const before = show.drones.map(referenceDroneFileBytes);
     const evidence = sourceSceneEvidence(show, binding);
     expect(show.timing.positionRateHz).toBe(8);
@@ -57,6 +72,8 @@ describe("source scene evidence without invented effects", () => {
     const layer = buildReferenceLayer(show, [binding]);
     const reopened = referenceShowFromLayer(JSON.parse(JSON.stringify(layer)));
     expect(sourceSceneEvidence(reopened, rightBinding)).toEqual(right);
-    expect(reopened.drones.map(referenceDroneFileBytes)).toEqual(show.drones.map(referenceDroneFileBytes));
+    expect(reopened.drones.map(referenceDroneFileBytes)).toEqual(
+      show.drones.map(referenceDroneFileBytes),
+    );
   });
 });
