@@ -80,7 +80,11 @@ function trajectory(index: number): number[][] {
   // Change relative drone geometry, not just the centroid or uniform scale.
   const targetX = x * (index < 3 ? 1.8 : 0.6) + 960;
   const targetY = y + (index % 3 === 1 ? 700 : -300);
-  const push = (seconds: number, z: (t: number) => number, morph: (t: number) => number = () => 0) => {
+  const push = (
+    seconds: number,
+    z: (t: number) => number,
+    morph: (t: number) => number = () => 0,
+  ) => {
     for (let f = 0; f < seconds * RATE; f += 1) {
       const t = f / RATE;
       const amount = morph(t);
@@ -93,9 +97,21 @@ function trajectory(index: number): number[][] {
   };
   push(12, (t) => (t / 12) * 3000);
   push(20, () => 3000);
-  push(16, () => 3000, (t) => t / 16);
-  push(20, () => 3000, () => 1);
-  push(12, (t) => 3000 * (1 - t / 12), () => 1);
+  push(
+    16,
+    () => 3000,
+    (t) => t / 16,
+  );
+  push(
+    20,
+    () => 3000,
+    () => 1,
+  );
+  push(
+    12,
+    (t) => 3000 * (1 - t / 12),
+    () => 1,
+  );
   return out;
 }
 
@@ -104,7 +120,10 @@ async function importedShow(): Promise<ReferenceShow> {
     const xyz = trajectory(i);
     return {
       name: `${i + 1}.essp`,
-      bytes: buildSyntheticEssp({ xyz, rgb: rgbTrack(i, Math.ceil((xyz.length / RATE) * RGB_RATE)) }),
+      bytes: buildSyntheticEssp({
+        xyz,
+        rgb: rgbTrack(i, Math.ceil((xyz.length / RATE) * RGB_RATE)),
+      }),
     };
   });
   return buildReferenceShow(files);
@@ -200,8 +219,9 @@ function framesOwnedBy(
 
 function pickSpread(list: readonly number[], count = 5): number[] {
   if (list.length <= count) return [...list];
-  return Array.from({ length: count }, (_, i) =>
-    list[Math.floor(((i + 0.5) * list.length) / count)]!,
+  return Array.from(
+    { length: count },
+    (_, i) => list[Math.floor(((i + 0.5) * list.length) / count)]!,
   );
 }
 
@@ -522,9 +542,9 @@ describe("ESSP acceptance — undo / redo of a lighting edit", () => {
       assignmentStrategy: STRATEGY,
       transitionOverrides: {},
     });
-    expect(redone.layer.bindings.filter((b) => b.owner === "PLANNER").map((b) => b.clipId)).toEqual([
-      clipId,
-    ]);
+    expect(redone.layer.bindings.filter((b) => b.owner === "PLANNER").map((b) => b.clipId)).toEqual(
+      [clipId],
+    );
     const after = pipeline(edited, show, redone.layer);
     const frames = framesOwnedBy(redone.layer, frameTimes(after.set), "PLANNER", clipId);
     expect(frames.length).toBeGreaterThan(0);
@@ -551,9 +571,9 @@ describe("ESSP acceptance — save / reopen", () => {
     const roundTripped = migrateReferenceLayer(JSON.parse(JSON.stringify(promotedLayer)));
     const reopenedShow = referenceShowFromLayer(roundTripped);
     expect(roundTripped.showHash).toBe(promotedLayer.showHash);
-    expect(roundTripped.bindings.filter((b) => b.owner === "PLANNER").map((b) => b.clipId)).toEqual([
-      clipId,
-    ]);
+    expect(roundTripped.bindings.filter((b) => b.owner === "PLANNER").map((b) => b.clipId)).toEqual(
+      [clipId],
+    );
     // Source ESSP data survives verbatim.
     for (let d = 0; d < DRONES; d += 1) {
       expect(Array.from(reopenedShow.drones[d]!.rgbSamples)).toEqual(
