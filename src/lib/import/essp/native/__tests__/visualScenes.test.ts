@@ -150,4 +150,35 @@ describe("import visual episodes (report remains motion-only)", () => {
     };
     expect(visualSceneSegments(sequence, report, 4)).toHaveLength(1);
   });
+
+  it("keeps an overlap-only compatible prefix out of a second uncertain scene", () => {
+    const sequence = pulseMorph(8);
+    const report = analyzeSequence(sequence);
+    const baseline = visualSceneSegments(sequence, report, 4);
+    const pulse = baseline[0];
+    const destination = baseline.at(-1);
+    if (!pulse || !destination) throw new Error("Expected pulse and destination");
+    // Recreate upstream overlap: the pulse already contains the final compatible
+    // sample, while the next run overlaps it before continuing into a morph.
+    report.segments = [
+      pulse,
+      {
+        ...pulse,
+        id: "overlap-morph",
+        startTime: pulse.endTime,
+        endTime: destination.startTime,
+        duration: destination.startTime - pulse.endTime,
+        classification: "DYNAMIC_DEFORMATION",
+      },
+      destination,
+    ];
+    const before = JSON.stringify(report);
+    const scenes = visualSceneSegments(sequence, report, 0);
+    expect(scenes).toHaveLength(2);
+    expect(scenes[0]?.endTime).toBe(pulse.endTime);
+    expect(scenes[0]?.classification).toBe("DYNAMIC_DEFORMATION");
+    expect(scenes[1]?.startTime).toBe(destination.startTime);
+    expect(scenes[1]?.startTime).toBeGreaterThan(scenes[0]?.endTime ?? Infinity);
+    expect(JSON.stringify(report)).toBe(before);
+  });
 });

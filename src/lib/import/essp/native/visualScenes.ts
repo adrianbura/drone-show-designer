@@ -69,8 +69,12 @@ export function visualSceneSegments(
           compatibleEnd = sample;
         }
         const prefixEndTime = sequence.times[compatibleEnd];
+        // Even when the compatible prefix is entirely in the forensic overlap,
+        // the incompatible remainder is travel, not a second visual episode.
+        // Otherwise the same pulse endpoint is emitted again as an uncertain
+        // DYNAMIC scene merely because it adds no new sample to this episode.
+        recoveredPrefix = compatibleEnd >= start;
         if (prefixEndTime !== undefined && prefixEndTime > last.endTime) {
-          recoveredPrefix = true;
           current.members.push({
             ...segment,
             endTime: prefixEndTime,
