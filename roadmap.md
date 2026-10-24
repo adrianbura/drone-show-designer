@@ -91,6 +91,7 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
     Criterii complete în `HANDOFF.md`; experimentalul rămâne dezactivat implicit.
     - [x] Increment 4: dovezi per scenă selectată, proiecție frontală XYZ/RGB din sursă,
           intervale deduse, clasificare mișcare, statistici RGB și rețetă explicit necunoscută.
+          163 fișiere / 1418 teste passed, 1 skipped; browser castel + Unknown verificate.
     - [ ] Reconstrucție completă verificată automat pentru toate scenele, fără reparații manuale:
           geometrie/preview, dinamică, LED exacte și tranziții; recunoaștere conservatoare
           de rețete doar cu dovezi; necunoscutele și limitele rămân vizibile.
