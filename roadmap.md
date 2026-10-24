@@ -84,8 +84,17 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
     - [ ] Re-măsurare browser la 150/500 drone și profilarea următorului hotspot.
 12. [ ] Mentenanță: împărțire `store.tsx`, lint global, CI și Playwright.
 13. [ ] Curățenie repository: ignorare și eliminare controlată `__pycache__`/`.pyc` urmărite.
-14. [ ] **Delimitarea scenelor la import** — scenă vizuală vs. mișcări interne, pentru toate
-    scenele și toate importurile (detalii și criterii de acceptare în `HANDOFF.md`).
+14. [ ] **Reconstrucție automată fidelă la import ESSP** — fiecare scenă cu imagine corectă,
+    mișcare dinamică, lumină/culoare, tranziții și intervale, păstrând traiectoriile originale.
+    Utilizatorul NU trebuie să repare scenele manual; delimitarea este o parte a obiectivului,
+    nu obiectivul complet. Numai dovezi sursă; rețetele efectelor nerecunoscute = necunoscute.
+    Criterii complete în `HANDOFF.md`; experimentalul rămâne dezactivat implicit.
+    - [x] Increment 4: dovezi per scenă selectată, proiecție frontală XYZ/RGB din sursă,
+          intervale deduse, clasificare mișcare, statistici RGB și rețetă explicit necunoscută.
+          163 fișiere / 1418 teste passed, 1 skipped; browser castel + Unknown verificate.
+    - [ ] Reconstrucție completă verificată automat pentru toate scenele, fără reparații manuale:
+          geometrie/preview, dinamică, LED exacte și tranziții; recunoaștere conservatoare
+          de rețete doar cu dovezi; necunoscutele și limitele rămân vizibile.
     - [x] Increment conservator: proiecție separată de identitate geometrică, deterministă,
           fără schimbarea raportului, schemelor sau datelor ESSP; 6 regresii noi.
     - [x] Verificare pe proiectul salvat: inimă 251,25–280,50 s, tranziție 280,50–292,00 s,

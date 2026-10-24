@@ -6,6 +6,26 @@
 
 ## 0. Protocol de colaborare ChatGPT ↔ Lovable
 
+### Obiectiv funcțional obligatoriu — import automat fidel (clarificare 2026-10-24)
+
+La importul unui show, aplicația trebuie să reconstruiască automat FIECARE scenă cu imagine/
+previzualizare corectă, efectele de lumină și culoare, mișcarea dinamică, tranzițiile dintre
+scene și intervalele temporale, păstrând traiectoriile originale ale dronelor. Utilizatorul
+NU trebuie să repare scenele manual. Acesta este criteriul de finalizare, nu simpla
+delimitare inimă→castel și nu existența unui algoritm opt-in.
+
+ESSP observat conține XYZ int16 și RGB uint8 per dronă, cu ceasuri independente; nu conține
+storyboard, nume de imagini sau rețete/parametri de efecte lizibili. Profilul de 13 octeți
+și uint16 de la offset 23 sunt necunoscute și se păstrează. Se reconstruiește rezultatul
+observabil, nu se inventează un autor sau un efect. Recunoașterea incertă rămâne explicit
+necunoscută, iar RGB original nu este pierdut doar pentru că rețeta nu este recunoscută.
+
+Acceptare: toate scenele/limitele și preview-urile verificate față de sursă, mișcarea și
+LED originale păstrate la redare/save/open/export, tranzițiile distincte, necunoscute vizibile,
+fără reparații manuale obligatorii; regresii generice și măsurători la scara reală.
+Experimentalul nu se activează implicit până atunci. Importul actual NU îndeplinește încă
+acest obiectiv complet. Split/merge viitor este opțional pentru autor, nu remediu obligatoriu.
+
 - ChatGPT are rolul de **Project Manager tehnic**: analizează starea reală din repository,
   stabilește următorul pas justificat, păstrează coerența arhitecturală și verifică rezultatul.
 - `HANDOFF.md` și `roadmap.md` se actualizează la fiecare intervenție relevantă, astfel încât
@@ -804,3 +824,57 @@ fallback takeoff airborne și performanța conversiei complete; activarea normal
 Fișiere schimbate: `native/visualScenes.ts`, `native/__tests__/visualScenes.test.ts`,
 `native/__tests__/extractTimeline.test.ts`, `HANDOFF.md`, `roadmap.md`.
 Documentele au fost actualizate împreună; salvare automată Lovable, fără comenzi Git stateful.
+
+## INCREMENT 4 — dovezi sursă vizibile per scenă (2026-10-24)
+
+Obiectivul funcțional explicit este acum în secțiunea 0 și roadmap 14: reconstrucție
+automată completă, fără reparații manuale obligatorii. Acest increment nu o finalizează.
+
+Inspecția `essp/types.ts`, `playback.ts`, layer și UI a confirmat: XYZ/RGB observate,
+două ceasuri, header opac; fără rețete efecte sau storyboard semantic cunoscut.
+UI are redare spliced originală, scene/dynamic formations/lighting authoring și diagnostic
+forensics. Nu se confundă efectele native aproximative cu RGB original păstrat în layer.
+
+Livrat `native/sceneEvidence.ts`: proiecție read-only din sursă + binding salvat; interval
+transition/display dedus, clasificare mișcare dedusă, preview midpoint din XYZ/RGB exact,
+număr de samples, culori distincte și schimbări RGB consecutive per dronă. Ferestrele RGB
+sunt half-open [start,end), nu dublează sample-ul la limită. Fără praguri de recunoaștere
+inventate: rețeta efectelor = UNKNOWN, identitatea semantică = UNKNOWN; lipsa samples RGB
+este explicită. Statisticile RGB sunt pe clip întreg, inclusiv travel, nu numai display.
+
+`SourceScenePanel.tsx` în contextul scenei selectate din Inspector: proiecție frontală X/Y
+din sursă la mijlocul displayului, intervale, mișcare, LED și necunoscute, ownership original
+vs editat. Datele RGB desenate pe canvas sunt culori de conținut, nu tokens de UI. Text EN/RO.
+Schimbarea selecției afișează dovezi pentru orice clip cu binding, inclusiv saved Open.
+Nu se persistă date derivate și nu se schimbă store/parser/forensics/format sau activarea opt-in.
+
+Verificări:
+- 3 teste noi `sceneEvidence.test.ts`: import cu 8/12 Hz, preview concret [6,30,0] și RGB
+  [255,0,0], pulsație clasificată DYNAMIC, travel 0,5 s, samples/culori/changes exacte;
+  RGB absent explicit; intervale adiacente câte 6 samples și layer reopen byte-identic.
+- Suită completă: **163 fișiere passed, 1418 passed, 1 skipped**, total 1419; **115,38 s**.
+  Include regresiile existente de scenes/pulse/morph/transitions/conversion/export.
+- ESLint toate cele 4 fișiere cod/test schimbate (inclusiv Inspector): **0 erori / 0 warnings**.
+- Typecheck și build manual nu sunt permise de mediu; ultimul semnal automat disponibil
+  **build OK 08:33:26 UTC**. Nu se raportează comenzi manuale neexecutate.
+- Browser Open salvarea reală: zero page errors. Panoul selectat arată castelul din samples
+  la mijlocul displayului 292–322,25 s, rețetă Unknown, 9077 culori / 109546 schimbări /
+  146250 samples RGB pe clip. Screenshot de element verificat: castel lizibil și culori.
+  Salvarea păstrează vechea delimitare 241–292 s travel; panoul o arată onest, nu o corectează
+  în tăcere. Acesta este un check al dovezilor, NU remedierea scenei originale salvate.
+
+Limite și următorul increment:
+1. Preview este o proiecție frontală statică la un sample time, nu dovada că întreaga scenă
+   are o singură imagine sau o cameră optimă; 3D și motion playback existente rămân separate.
+2. Mișcarea arătată vine din clasificarea bindingului, nu o nouă recunoaștere; boundaries inferate
+   pot fi greșite. Efectele native deduse rămân aproximative, recipe UNKNOWN explicit.
+3. Pentru performanță, panoul memorează rehidratarea sursei și analiza scenei; modificările layerului
+   pot recrea rehidratarea. Nu a fost măsurat încă costul la flote mari.
+4. Prioritate următoare: delimitare generală cu active-drone membership, diagnoză a multiplelor
+   imagini dintr-un clip și reconstrucție fidelă scene/dynamic/LED, evaluată față de samples,
+   nu solicitarea utilizatorului să repare manual. Migrarea saved timeline cu editări intacte
+   trebuie proiectată separat. Recunoașterea rețetelor rămâne conservatoare și opțională.
+
+Fișiere: `native/sceneEvidence.ts`, `native/__tests__/sceneEvidence.test.ts`,
+`components/studio/SourceScenePanel.tsx`, `components/studio/Inspector.tsx`, `AGENTS.md`,
+`HANDOFF.md`, `roadmap.md`. Documentele au fost actualizate împreună, history Git nerescris.
