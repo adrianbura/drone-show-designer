@@ -28,6 +28,7 @@ import EsspPanel from "./EsspPanel";
 import TextFormationPanel from "./TextFormationPanel";
 import ExportPreflight from "./ExportPreflight";
 import ForensicsPanel from "./ForensicsPanel";
+import SourceScenePanel from "./SourceScenePanel";
 import VerticalStackPanel from "./VerticalStackPanel";
 import GeometryProposalPanel from "./GeometryProposalPanel";
 import ConversionPanel from "./ConversionPanel";
@@ -586,6 +587,7 @@ export default function Inspector({
               <span data-testid="inspector-context-time">{formatShowTime(time)}</span>
             </p>
 
+            <SourceScenePanel />
             <div className="flex flex-wrap gap-1.5">
               {(() => {
                 const menu = resolveTimelineCommands(selectionContext);
