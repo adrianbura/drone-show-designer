@@ -704,3 +704,103 @@ Opțiunea rămâne **implicit false**. Importul normal NU este declarat reparat.
 
 Codul este salvat automat de Lovable; documentele sunt actualizate împreună în aceeași
 intervenție. Nu s-au executat comenzi Git stateful și nu s-a rescris istoricul publicat.
+
+## INCREMENT 3 — audit temporal și prefix limitat la overlap (2026-10-24)
+
+Pornire: `543bdb2ff2be9e6d0faaaecfbbadb12497b83e49`, working tree curat.
+Au fost inspectate documentele, proiecția, testele și conversia/editarea/promotion.
+
+### Defect confirmat și corecție generică
+
+Prefixul compatibil care nu adăuga samples noi (fiind integral în suprapunerea ferestrelor)
+nu era considerat recuperat. Restul incompatibil era apoi emis ca episod DYNAMIC incert.
+Pe sursa reală: `SEG-028` 120,25–122,25 s urmat de `SEG-029` 122,00–132,25 s;
+acesta din urmă devenea clip cu hold 122,251–132,25 s, deși forma era incompatibilă.
+Corecția marchează și prefixul overlap-only drept compatibil: nu îl dublează și păstrează
+restul incompatibil ca travel. Nu schimbă ancora, pragul, segmentShow sau motorul canonic.
+Opțiunea rămâne implicit false; datele sursă, raportul și formatul salvării sunt intacte.
+
+### Audit integral numeric al sursei reale
+
+26 clipuri înainte / **25 după**, 23 episoade SHOW plus takeoff/landing. Pentru fiecare
+clip s-au verificat ordinea, referenceStart/hold/end, prevGap=0 și durata nenegativă.
+Tabelul de mai jos este proiecția cu animate/decompose false, nu o migrare a salvării.
+Overlapul forensics de 0,25 s rămas la unele episoade este normalizat în native timeline;
+nu se pretinde că toate imaginile au fost identificate vizual sau că porumbeii sunt reuniți.
+
+| Clip | Start | Hold start | End | Clasificare |
+| --- | ---: | ---: | ---: | --- |
+| 00 | 0.000 | 6.000 | 28.250 | TAKEOFF |
+| 01 | 28.250 | 28.251 | 33.750 | GLOBAL_TRANSLATION |
+| 02 | 33.750 | 35.000 | 39.000 | GLOBAL_TRANSLATION |
+| 03 | 39.000 | 40.000 | 45.000 | GLOBAL_TRANSLATION |
+| 04 | 45.000 | 45.750 | 51.750 | GLOBAL_TRANSLATION |
+| 05 | 51.750 | 51.751 | 53.500 | DYNAMIC_DEFORMATION |
+| 06 | 53.500 | 75.250 | 79.250 | STATIC_FORMATION |
+| 07 | 79.250 | 79.251 | 81.000 | DYNAMIC_DEFORMATION |
+| 08 | 81.000 | 88.500 | 92.250 | DYNAMIC_DEFORMATION |
+| 09 | 92.250 | 94.500 | 96.250 | DYNAMIC_DEFORMATION |
+| 10 | 96.250 | 102.000 | 105.750 | DYNAMIC_DEFORMATION |
+| 11 | 105.750 | 120.250 | 122.250 | GLOBAL_TRANSLATION |
+| 12 | 122.250 | 135.250 | 145.000 | GLOBAL_TRANSLATION |
+| 13 | 145.000 | 147.750 | 153.250 | GLOBAL_TRANSLATION |
+| 14 | 153.250 | 165.750 | 169.500 | DYNAMIC_DEFORMATION |
+| 15 | 169.500 | 178.750 | 189.500 | RIGID_MOTION |
+| 16 | 189.500 | 189.501 | 198.500 | GLOBAL_ROTATION |
+| 17 | 198.500 | 213.250 | 241.000 | STATIC_FORMATION |
+| 18 | 241.000 | 251.250 | 281.000 | DYNAMIC_DEFORMATION |
+| 19 | 281.000 | 292.000 | 322.250 | STATIC_FORMATION |
+| 20 | 322.250 | 382.000 | 386.000 | GLOBAL_TRANSLATION |
+| 21 | 386.000 | 391.250 | 402.250 | STATIC_FORMATION |
+| 22 | 402.250 | 404.250 | 405.500 | STATIC_FORMATION |
+| 23 | 405.500 | 417.250 | 455.500 | DYNAMIC_DEFORMATION |
+| 24 | 455.500 | 474.250 | 486.750 | LANDING |
+
+Inimă display 251,25–281,00 s, travel 281,00–292,00 s, castel display 292,00–322,25 s.
+**150/150 ESSP byte-identice** după layer reopen; raportul identic înainte/după.
+Conversie separată a inimii reale EXACT_SAMPLED, suggestMotionGroups false: durată 29,75 s,
+120 samples / 150 drone / 18.000 poziții, RMS 4,189668643647895e-15 m,
+max 1,5987211554602254e-14 m, EXCELLENT. Pulsația rămâne DYNAMIC_DEFORMATION.
+Extragerea completă cu animate true a depășit timeoutul de 120 s; nu este declarată verificată.
+
+### Regresii și verificări
+
+- 2 regresii noi: prefix compatibil numai în overlap nu produce episod incert dublu;
+  pipeline ESSP real sintetic păstrează pulsația dinamică și travel spre altă geometrie,
+  tilează scenele și conservă RGB/XYZ bytes. Cazul sintetic începe airborne: fallbackul
+  takeoff existent de 0,1 s se suprapune începutului; documentat, nu reparat în acest scope.
+- Teste vizate: 6 fișiere / **51 passed**, 2,84 s (conversie, scene decomposition,
+  motion inspector/authoring, visual/extract). După corecția de tip tuple din test:
+  cele 2 fișiere editate / **11 passed**, 1,20 s.
+- Suită completă: **162 fișiere passed, 1415 passed / 1 skipped**, total 1416,
+  119,42 s. Corecția ulterioară a adăugat exclusiv tipul tuple al targetului testului.
+- ESLint cele trei fișiere modificate: **0 erori / 0 warnings** după corecția formatării.
+  Lint global nu a fost rerulat; baseline anterior 659 erori / 28 warnings.
+- Typecheck/build manual interzise de mediu. Verificarea automată a detectat trei TS2532
+  în test, rezolvate prin tuple explicit, fără assertions; ultimul semnal **build OK
+  08:30:01 UTC**. Nu se inventează rezultate ale unor comenzi manuale neexecutate.
+- Browser Open salvare reală: 150 drone / 23 clipuri originale, zero page errors,
+  screenshot verificat. Nu este playback integral sau test UI al opțiunii tehnice.
+  Pagina de conținut `/` are metadata proprie completă și nu a fost modificată.
+
+### Compatibilitatea editării: investigată, nu relaxată
+
+EXACT_SAMPLED (`conversion/convert.ts`) păstrează tracks globale și deformarea per dronă.
+Group suggestions sunt disabled: activarea unui preset peste residualul existent poate
+dubla mișcarea. `sceneMotionAuthoring.ts` și patch-urile din store oferă controale dinamice,
+dar nu decompoziție fidelă sampled-motion → grupuri rigide/pulsație + residual conservat.
+`geometryApplyCommand.ts`/`geometryApplyStoreTransaction.ts` oferă tranzacții canonice;
+`native/signature.ts` și reconciliation decid promotion din output, nu din intenție.
+Guardurile text/static rămân neschimbate. Reanaliza store doar schimbă raportul;
+split/merge temporal + Undo și aplicarea limitelor fără pierderea editărilor lipsesc.
+
+Următorul pas sigur: propunere explicită opt-in care păstrează EXACT_SAMPLED și provenance,
+editează grupul selectat fără dublarea residualului, măsoară fidelitatea și conservarea
+punctelor neatinse; aplicare atomică în history/promotion cu un Undo. Nu implementa înainte
+de teste concrete pentru residual, source bytes și save/open/Undo.
+
+Rămân: verificarea vizuală integrală, porumbeii/active masks, mișcarea editabilă sigur,
+fallback takeoff airborne și performanța conversiei complete; activarea normală este blocată.
+Fișiere schimbate: `native/visualScenes.ts`, `native/__tests__/visualScenes.test.ts`,
+`native/__tests__/extractTimeline.test.ts`, `HANDOFF.md`, `roadmap.md`.
+Documentele au fost actualizate împreună; salvare automată Lovable, fără comenzi Git stateful.
