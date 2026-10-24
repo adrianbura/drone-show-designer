@@ -104,13 +104,16 @@ repository-ul GitHub folosit și de Lovable.
   folosit prin prompturi delimitate și verificat ulterior.
 - **Obiectiv principal:** aplicație profesională și ușor de folosit.
 - **Ramură canonică:** `main`; nu se rescrie istoricul publicat.
-- **Ultima stare analizată:** `main` la `e33dfcf` („Add design copy and paste workflow").
-- **Lucru curent:** copy/paste este în verificare browser la Lovable; trei șabloane de show sunt
-  implementate în wizardul New Show și verificate static/local.
-- **Prioritate activă:** închiderea verificării Lovable pentru copy/paste și șabloane, apoi efecte
-  de lumină avansate.
-- **Validare încă necesară:** toate cifrele de performanță provin din Playwright headless cu
-  SwiftShader; o măsurătoare pe GPU real rămâne de făcut înainte de orice promisiune de fps.
+- **Ultima stare analizată:** `main` la `11c7619` („Analiza show-ului importat"); arborele de lucru
+  este curat, iar documentele de stare au fost sincronizate la 2026-10-24.
+- **Lucru curent:** defectul de delimitare a scenelor la importul ESSP (porumbeii fragmentați,
+  pulsațiile inimii absorbite, „inimă → castel" într-un singur obiect) este confirmat pe proiectul
+  salvat și redeschis de owner; soluția este specificată, dar NU este încă implementată.
+- **Prioritate activă:** refacerea delimitării scenelor la import pe modelul „imagine vs. mișcare
+  internă", pentru toate scenele și toate importurile (detalii în secțiunea finală).
+- **Datorii deschise:** lumina `fx-ab-04b` a portretului mire–mireasă nu apare în vizualizare
+  (cauză neidentificată); analiza full-show a show-ului A & B rămâne `FAIL/BLOCKED`; toate cifrele
+  de performanță provin din Playwright headless cu SwiftShader, deci nu sunt o promisiune de fps.
 - **Comandă de reluare:** când utilizatorul spune „continuă”, se pornește prioritatea activă din
   `roadmap.md`, verificând mai întâi dacă Lovable a publicat între timp un commit nou.
 
