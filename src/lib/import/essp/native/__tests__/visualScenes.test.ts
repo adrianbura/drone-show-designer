@@ -3,6 +3,7 @@ import { sequenceFromFrames } from "../../forensics/adapter";
 import { analyzeSequence } from "../../forensics/report";
 import { baseShape, type P } from "../../forensics/__tests__/fixtures";
 import { visualSceneSegments } from "../visualScenes";
+import { visualIdentityResidual } from "../visualIdentity";
 
 function pulseMorph(rate: number) {
   const shape = baseShape(40);
@@ -34,10 +35,22 @@ describe("import visual episodes (report remains motion-only)", () => {
       const scenes = visualSceneSegments(sequence, report, 4);
       const pulseScenes = scenes.filter((s) => s.startTime < 11 && s.endTime > 1);
       expect(pulseScenes).toHaveLength(1);
-      // The final pulse and morph share one upstream motion run. This
-      // conservative projection leaves that mixed tail for later refinement.
       expect(pulseScenes[0]?.startTime).toBe(0);
-      expect(pulseScenes[0]?.endTime).toBe(11);
+      // The last pulse was absorbed into the morph by segmentShow. Its
+      // compatible prefix is recovered until the first incompatible sample.
+      const pulse = pulseScenes[0];
+      expect(pulse?.endTime).toBeGreaterThanOrEqual(12);
+      expect(pulse?.endTime).toBeLessThan(13);
+      expect(pulse?.classification).toBe("DYNAMIC_DEFORMATION");
+      if (!pulse) throw new Error("Expected a recovered pulse episode");
+      const anchor = Math.round(0.875 * rate);
+      const endSample = Math.round(pulse.endTime * rate);
+      expect(visualIdentityResidual(sequence, anchor, endSample)).toBeLessThanOrEqual(
+        report.thresholds.deformationRmsMeters,
+      );
+      expect(visualIdentityResidual(sequence, anchor, endSample + 1)).toBeGreaterThan(
+        report.thresholds.deformationRmsMeters,
+      );
       const destination = scenes.find((s) => s.startTime > 15);
       expect(destination).toBeDefined();
       expect(destination?.startTime).toBeGreaterThan(pulseScenes[0]?.endTime ?? Infinity);
@@ -78,6 +91,32 @@ describe("import visual episodes (report remains motion-only)", () => {
     expect(scenes[0]?.duration).toBe(1.875);
   });
 
+  it("never bridges the incompatible morph into the destination outline", () => {
+    const sequence = pulseMorph(8);
+    const report = analyzeSequence(sequence);
+    const scenes = visualSceneSegments(sequence, report, 4);
+    const pulse = scenes[0];
+    const destination = scenes.at(-1);
+    expect(pulse).toBeDefined();
+    expect(destination).toBeDefined();
+    expect(destination?.startTime).toBeGreaterThan(pulse?.endTime ?? Infinity);
+    expect(scenes.some((scene) => scene.startTime < 12 && scene.endTime > 16)).toBe(false);
+  });
+
+  it("does not emit the recovered prefix again as an uncertain dynamic segment", () => {
+    const sequence = pulseMorph(8);
+    const report = analyzeSequence(sequence);
+    const mixed = report.segments.find(
+      (segment) => segment.startTime <= 12 && segment.endTime >= 16,
+    );
+    if (!mixed) throw new Error("Expected the absorbed pulse/morph run");
+    mixed.classification = "DYNAMIC_DEFORMATION";
+    const scenes = visualSceneSegments(sequence, report, 4);
+    expect(scenes.filter((scene) => scene.startTime < 12 && scene.endTime > 11)).toHaveLength(1);
+    expect(scenes[0]?.endTime).toBeGreaterThanOrEqual(12);
+    expect(scenes[0]?.endTime).toBeLessThan(13);
+  });
+
   it("does not use brightness or colour energy alone to fragment stable geometry", () => {
     const shape = baseShape();
     const sequence = sequenceFromFrames(
@@ -85,6 +124,16 @@ describe("import visual episodes (report remains motion-only)", () => {
       8,
     );
     const report = analyzeSequence(sequence);
+    const original = report.segments[0];
+    if (!original) throw new Error("Expected a static segment");
+    report.segments = Array.from({ length: 4 }, (_, index) => ({
+      ...original,
+      id: `colour-${index}`,
+      startTime: index * 2,
+      endTime: index === 3 ? 7.875 : (index + 1) * 2,
+      duration: index === 3 ? 1.875 : 2,
+      metrics: { ...original.metrics, lightingChangeEnergy: index % 2 },
+    }));
     report.lighting = {
       sampleRateHz: 12,
       meanBrightness: 0.5,

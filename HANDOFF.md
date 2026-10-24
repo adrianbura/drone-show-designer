@@ -638,3 +638,69 @@ nouă certificare de zbor sau export mixt după editări.
 Raportul `ReferenceForensicsReport`, versiunea algoritmului forensics, schema și formatul
 proiectului nu au fost schimbate. Codul/docurile sunt salvate de mecanismul automat Lovable;
 nu s-au făcut commit/push/rebase/force/amend/squash manual.
+
+## INCREMENT 2 — prefix visual absorbit recuperat (2026-10-24, 08:10 UTC)
+
+### Rezumat și decizie conservatoare
+
+Pipeline-ul real și testele downstream au fost inspectate înainte de editare, inclusiv
+`segmentShow`, extragerea STATIC/DYNAMIC, guardul text, layer/save/open și reanaliza din
+store. Nu s-a aplicat recomandarea de a eticheta static un episod rigid animat: ar elimina
+mișcarea din reprezentarea nativă după promovare. Guardurile de editare rămân intacte.
+
+În `native/visualScenes.ts`, dacă un segment mixt incompatibil urmează unui episod deja
+confirmat, prefixul său este comparat sample-cu-sample cu ancora FIXĂ a acelui episod.
+Prefixul compatibil este recuperat până la primul sample incompatibil; restul run-ului
+rămâne travel între episoade. Nu este emis din nou ca episod dinamic incert. Nu se încearcă
+descoperirea unei forme noi în interiorul run-ului și nu se schimbă `segmentShow`.
+Reziduurile nefinite sunt tratate ca incompatibile. Pragul existent este reutilizat.
+Mișcarea și pulsația rămân dinamice; RGB/luminozitatea nu decid identitatea geometrică.
+
+### Verificări exacte
+
+- `bunx vitest run --maxWorkers=2`: **162 fișiere passed, 1413 teste passed, 1 skipped**,
+  total 1414; durata 139,00 s. Prima rulare a găsit o presupunere greșită în testul nou
+  despre startul exact al run-ului; testul a fost corectat, apoi suita completă rerulată.
+- `visualScenes.test.ts`: 7 teste, inclusiv recuperarea la 4/8 Hz cu verificarea sample-ului
+  compatibil și a celui imediat următor incompatibil, nereemiterea prefixului, morph ca
+  barieră și reunirea a patru fragmente statice de 2 s cu energie LED diferită.
+- ESLint pe cele două fișiere schimbate: **0 erori / 0 warnings**.
+- `bun run lint`: **659 erori / 28 warnings**, identic cu baseline-ul documentat;
+  lint global NU este curat. Nu s-a făcut cleanup în afara priorității.
+- Typecheck separat și `bun run build` NU au fost lansate manual: mediul Lovable interzice
+  acestea și le rulează automat. Semnal disponibil: `build OK` la 08:05:55 UTC în
+  `/tmp/observability/build-errors.log`. Nu există un rezultat separat de typecheck de
+  raportat; ChatGPT poate executa ambele comenzi în mediul său înainte de acceptare.
+- Salvarea ownerului citită prin `parseProjectFile`, sursa redeschisă prin
+  `referenceShowFromLayer`, analizată și extrasă opt-in cu decompose/animate false:
+  **26 clipuri totale**, inimă: formare 241,00–251,25 s, display 251,25–281,00 s;
+  tranziție spre castel 281,00–292,00 s; castel 292,00–322,25 s.
+  Raportul identic înainte/după; **150/150 payloaduri ESSP byte-identice** după layer reopen.
+  Acesta este un check read-only al proiecției, nu o migrare a timeline-ului salvat.
+- Browser Chromium 1280×1800: Open pe copia temporară a salvării reale, URL `/`,
+  A & B — Wedding Story, 150 drone, 23 clipuri originale, zero page errors; screenshot
+  verificat. Numărul original nu se schimbă la Open, intenționat. Nu este verificare UI
+  a activării opt-in, nici playback integral sau validare de zbor.
+- Split/merge temporal + Undo: API/UI absent în codul inspectat, deci NEVERIFICABIL;
+  decomposition este spațială. `analyzeReferenceMotion` actualizează doar raportul și
+  selecția, nu limitele timeline-ului. Aplicarea reanalizei cu păstrarea editărilor lipsește.
+- Singura pagină de conținut `/` are metadata completă; nu a fost modificată.
+
+### Fișiere și pași rămași
+
+Modificate: `src/lib/import/essp/native/visualScenes.ts`,
+`src/lib/import/essp/native/__tests__/visualScenes.test.ts`, `AGENTS.md`,
+`HANDOFF.md`, `roadmap.md`. Schema raportului, formatul proiectului și datele sursă intacte.
+Opțiunea rămâne **implicit false**. Importul normal NU este declarat reparat.
+
+1. Audit integral al celor 26 clipuri opt-in vs. 32 din incrementul anterior: prefixele
+   recuperate nu mai sunt emise dublu ca episoade incerte; verifică vizual fiecare limită.
+2. Compatibilitate de authoring pentru episod cu mișcare rigidă/pulsație: proiectează o
+   tranzacție sigură care păstrează mișcarea sau o conversie explicită, nu relaxa guardul.
+3. Active-drone membership și deformări locale pentru porumbei rămân neimplementate.
+4. Split/merge temporal în history canonic și reaplicare reanaliză fără pierderi rămân follow-up.
+5. După acestea, activare normală, fixture de export cu două forme realmente distincte,
+   regresii downstream și verificare completă UI/save/open/export.
+
+Codul este salvat automat de Lovable; documentele sunt actualizate împreună în aceeași
+intervenție. Nu s-au executat comenzi Git stateful și nu s-a rescris istoricul publicat.

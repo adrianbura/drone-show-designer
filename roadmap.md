@@ -90,13 +90,17 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
           fără schimbarea raportului, schemelor sau datelor ESSP; 6 regresii noi.
     - [x] Verificare pe proiectul salvat: inimă 251,25–280,50 s, tranziție 280,50–292,00 s,
           castel 292,00–322,25 s; 150/150 fișiere originale identice.
+    - [x] Increment 2: recuperarea prefixului compatibil absorbit în run-ul mixt, fără
+          schimbarea motorului; pe salvarea reală inimă până la 281,00 s, tranziție până
+          la 292,00 s. 162 fișiere / 1413 teste trecute, 1 skipped; sursa 150/150 identică.
     - [ ] Activare în importul normal: blocată de incompatibilitățile de editare la reunirea
           clipurilor statice cu cele dinamice; implementarea este opt-in tehnic, nu UI.
     - [ ] Următorul pas: reprezentare compatibilă STATIC/DYNAMIC pentru episoadele grupate,
           refacerea fixture-urilor care confundă translația cu o imagine nouă, apoi
           rerularea celor 56 de teste downstream înainte de activare.
     - [ ] Identitate pentru deformări locale/porumbei și imagini schimbate prin drone active;
-          rafinarea run-urilor mixte pulsație→tranziție și verificare vizuală integrală.
+          rafinarea completă a run-urilor mixte (prefixul confirmat este recuperat) și
+          verificare vizuală integrală; cele 26 clipuri opt-in necesită audit, nu activare.
     - [ ] Split/merge temporal cu un Undo și aplicarea reanalizei fără pierderea editărilor.
 
 ## Capabilități livrate
