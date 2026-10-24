@@ -13,3 +13,4 @@
 
 - The bundled A & B wedding project is opened through the canonical project parser/adoption boundary on first load, so its editable state matches a normal Open operation.
 - The bundled A & B choreography uses per-image drone budgets with SMART_PREPARE and reserve lights OFF, because inactive drones must prepare the next visual invisibly rather than duplicate the current shape.
+- `HANDOFF.md` and `roadmap.md` are the canonical asynchronous channel between Lovable and ChatGPT on this project: every material step updates both files in the same commit, and a new conversation starts by reading them plus the Git state instead of rebuilding the plan from memory.
