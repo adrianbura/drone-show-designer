@@ -103,6 +103,18 @@ describe("import visual episodes (report remains motion-only)", () => {
     expect(scenes.some((scene) => scene.startTime < 12 && scene.endTime > 16)).toBe(false);
   });
 
+  it("does not emit the recovered prefix again as an uncertain dynamic segment", () => {
+    const sequence = pulseMorph(8);
+    const report = analyzeSequence(sequence);
+    const mixed = report.segments.find((segment) => segment.startTime === 11);
+    if (!mixed) throw new Error("Expected the absorbed pulse/morph run");
+    mixed.classification = "DYNAMIC_DEFORMATION";
+    const scenes = visualSceneSegments(sequence, report, 4);
+    expect(scenes.filter((scene) => scene.startTime < 12 && scene.endTime > 11)).toHaveLength(1);
+    expect(scenes[0]?.endTime).toBeGreaterThanOrEqual(12);
+    expect(scenes[0]?.endTime).toBeLessThan(13);
+  });
+
   it("does not use brightness or colour energy alone to fragment stable geometry", () => {
     const shape = baseShape();
     const sequence = sequenceFromFrames(
