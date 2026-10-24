@@ -27,16 +27,24 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
 ## Mod de lucru
 
 - ChatGPT coordonează proiectul ca Project Manager tehnic și menține sincronizate acest roadmap
-  și `HANDOFF.md` după fiecare schimbare relevantă.
+  și `HANDOFF.md` în aceeași intervenție și același commit după fiecare schimbare relevantă;
+  modifică `AGENTS.md` doar când se schimbă reguli stabile, nu pentru progresul curent.
+- Pentru dezvoltare, folosește direct instrumentele repo: inspectează fișierele și identifică
+  cauza înainte de delegare, implementează când instrumentele permit, adaugă/actualizează teste
+  și rulează verificările accesibile; descrierile și prompturile singure nu încheie sarcina.
 - Comanda utilizatorului **„continuă”** pornește următorul element executabil din secțiunea
   „Prioritate curentă”, cu implementare, teste și actualizarea documentației de stare.
-- Lovable este folosit printr-un prompt delimitat atunci când poate accelera o sarcină vizuală
-  sau independentă; rezultatul său este revizuit înainte ca elementul să fie bifat.
+- Lovable oferă ajutor complementar printr-un prompt delimitat pentru o sarcină vizuală
+  sau independentă; diff-ul și dovezile verificărilor sunt inspectate înainte de bifare.
 - Repository-ul GitHub este memoria canonică între conversații. După fiecare etapă materială,
   `HANDOFF.md` păstrează deciziile, verificările, blocajele și următorul pas exact, iar acest
   roadmap păstrează ordinea și starea priorităților.
 - O conversație nouă începe prin citirea `AGENTS.md`, `HANDOFF.md` și `roadmap.md`, apoi prin
-  verificarea stării Git și a codului; nu reconstruiește planul din memorie sau presupuneri.
+  verificarea ultimului commit (`git log -1`), `git status`, `git diff` și codului relevant,
+  în această ordine; nu reconstruiește planul din memorie sau presupuneri.
+- Raportarea include comenzile exacte rulate, rezultatele, verificările/instrumentele indisponibile,
+  limitele și următorul pas; nu declară modificări, verificări sau funcții complete fără dovezi.
+  Istoricul Git publicat nu se rescrie.
 
 ## Prioritate curentă
 
