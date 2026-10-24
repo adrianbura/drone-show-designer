@@ -529,7 +529,7 @@ clasa de mișcare; inima este absorbită pentru că pulsațiile nu trec de pragu
    (forma, pulsația, rotația). O schimbare de viteză, de clasă de mișcare sau de culoare **nu**
    creează singură o scenă nouă.
 2. **Limita de scenă se decide comparând forma înainte și după**, împreună cu aprinderea, stingerea
-   și culoarea dronelor — nu Only după viteza medie.
+   și culoarea dronelor — nu doar după viteza medie.
 3. **Pulsațiile se grupează în scena lor** („Inimă"), nu se elimină; fragmentele de deschidere ale
    porumbeilor se reunesc într-o singură scenă.
 4. **Separare și reunire manuală** cu undo, pentru delimitările incerte; o mutație = o intrare de
