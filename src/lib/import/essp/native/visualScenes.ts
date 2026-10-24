@@ -103,7 +103,23 @@ export function visualSceneSegments(
       const start = sampleAt(sequence, first.startTime);
       const end = sampleAt(sequence, last.endTime);
       const residuals = intervalResiduals(sequence, start, end);
-      const dynamic = members.some((s) => s.classification !== "STATIC_FORMATION");
+      // Identity removes rigid transforms only for grouping. Preserve their
+      // motion class for conversion/authoring instead of labelling every merged
+      // episode as deformation (and never flatten moving samples to STATIC).
+      const motionClasses = new Set(
+        members
+          .map((member) => member.classification)
+          .filter((kind) => kind !== "STATIC_FORMATION"),
+      );
+      const classification: ReferenceSceneSegment["classification"] =
+        motionClasses.size === 0
+          ? "STATIC_FORMATION"
+          : motionClasses.has("DYNAMIC_DEFORMATION") || motionClasses.has("FORMATION_TRANSITION")
+            ? "DYNAMIC_DEFORMATION"
+            : motionClasses.size === 1
+              ? (members.find((member) => member.classification !== "STATIC_FORMATION")
+                  ?.classification ?? "STATIC_FORMATION")
+              : "RIGID_MOTION";
       const periodicity = detectPeriodicity(
         residuals.projectionSeries,
         residuals.stepSeconds,
@@ -122,9 +138,7 @@ export function visualSceneSegments(
           ...first,
           endTime: last.endTime,
           duration,
-          classification: dynamic
-            ? ("DYNAMIC_DEFORMATION" as const)
-            : ("STATIC_FORMATION" as const),
+          classification,
           periodicity,
           activeDroneIds,
           clusters: [],
