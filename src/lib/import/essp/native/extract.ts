@@ -97,7 +97,10 @@ const DARK_BRIGHTNESS = 0.12;
 const LIGHTING_GROUP_BRIGHTNESS_DELTA = 0.15;
 
 const SCENE_CLASSES = new Set([
-  "STATIC_FORMATION", "GLOBAL_TRANSLATION", "GLOBAL_ROTATION", "RIGID_MOTION",
+  "STATIC_FORMATION",
+  "GLOBAL_TRANSLATION",
+  "GLOBAL_ROTATION",
+  "RIGID_MOTION",
   "DYNAMIC_DEFORMATION",
 ]);
 
@@ -190,12 +193,20 @@ export function extractReferenceTimeline(
   const sourceSequence = options.groupVisualIdentity ? sequenceFromReferenceShow(show) : null;
   const candidates = sourceSequence
     ? visualSceneSegments(sourceSequence, report, minSceneSeconds)
-    : report.segments.filter((segment) => {
-        if (!SCENE_CLASSES.has(segment.classification) || segment.duration < minSceneSeconds) return false;
-        if (report.takeoffInterval && segment.endTime <= report.takeoffInterval.endTime + 1e-6) return false;
-        if (report.landingInterval && segment.startTime >= report.landingInterval.startTime - 1e-6) return false;
-        return true;
-      }).sort((a, b) => a.startTime - b.startTime);
+    : report.segments
+        .filter((segment) => {
+          if (!SCENE_CLASSES.has(segment.classification) || segment.duration < minSceneSeconds)
+            return false;
+          if (report.takeoffInterval && segment.endTime <= report.takeoffInterval.endTime + 1e-6)
+            return false;
+          if (
+            report.landingInterval &&
+            segment.startTime >= report.landingInterval.startTime - 1e-6
+          )
+            return false;
+          return true;
+        })
+        .sort((a, b) => a.startTime - b.startTime);
   const scenes = candidates.filter((segment) => {
     if (segment.endTime <= acceptedEnd + MIN_EXTRACTED_TRANSITION_SECONDS) return false;
     acceptedEnd = segment.endTime;
