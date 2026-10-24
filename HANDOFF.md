@@ -6,6 +6,26 @@
 
 ## 0. Protocol de colaborare ChatGPT ↔ Lovable
 
+### Obiectiv funcțional obligatoriu — import automat fidel (clarificare 2026-10-24)
+
+La importul unui show, aplicația trebuie să reconstruiască automat FIECARE scenă cu imagine/
+previzualizare corectă, efectele de lumină și culoare, mișcarea dinamică, tranzițiile dintre
+scene și intervalele temporale, păstrând traiectoriile originale ale dronelor. Utilizatorul
+NU trebuie să repare scenele manual. Acesta este criteriul de finalizare, nu simpla
+delimitare inimă→castel și nu existența unui algoritm opt-in.
+
+ESSP observat conține XYZ int16 și RGB uint8 per dronă, cu ceasuri independente; nu conține
+storyboard, nume de imagini sau rețete/parametri de efecte lizibili. Profilul de 13 octeți
+și uint16 de la offset 23 sunt necunoscute și se păstrează. Se reconstruiește rezultatul
+observabil, nu se inventează un autor sau un efect. Recunoașterea incertă rămâne explicit
+necunoscută, iar RGB original nu este pierdut doar pentru că rețeta nu este recunoscută.
+
+Acceptare: toate scenele/limitele și preview-urile verificate față de sursă, mișcarea și
+LED originale păstrate la redare/save/open/export, tranzițiile distincte, necunoscute vizibile,
+fără reparații manuale obligatorii; regresii generice și măsurători la scara reală.
+Experimentalul nu se activează implicit până atunci. Importul actual NU îndeplinește încă
+acest obiectiv complet. Split/merge viitor este opțional pentru autor, nu remediu obligatoriu.
+
 - ChatGPT are rolul de **Project Manager tehnic**: analizează starea reală din repository,
   stabilește următorul pas justificat, păstrează coerența arhitecturală și verifică rezultatul.
 - `HANDOFF.md` și `roadmap.md` se actualizează la fiecare intervenție relevantă, astfel încât
