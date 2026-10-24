@@ -81,13 +81,15 @@ describe("reference timeline extraction", () => {
     expect(destination.referenceStart).toBe(pulse.referenceEnd);
     expect(destination.referenceHoldStart).toBeGreaterThanOrEqual(16);
     expect(destination.referenceHoldStart - destination.referenceStart).toBeGreaterThan(3);
-    let cursor = 0;
-    for (const binding of result.layer.bindings) {
+    // This fixture starts airborne (no takeoff); check visual tiling rather
+    // than the extractor's pre-existing synthetic takeoff fallback of 0.1 s.
+    let cursor = pulse.referenceStart;
+    for (const binding of visuals) {
       expect(binding.referenceStart).toBeCloseTo(cursor, 3);
       expect(binding.referenceEnd).toBeGreaterThanOrEqual(binding.referenceStart);
       cursor = binding.referenceEnd;
     }
-    expect(cursor).toBe(show.timing.playbackDurationSeconds);
+    expect(cursor).toBe(destination.referenceEnd);
     expect(JSON.stringify(report)).toBe(before);
     expect(referenceShowFromLayer(result.layer).drones.map(referenceDroneFileBytes)).toEqual(
       show.drones.map(referenceDroneFileBytes),
