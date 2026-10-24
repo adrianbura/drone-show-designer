@@ -9,6 +9,7 @@ import { buildSyntheticEssp } from "../../codec";
 import { buildReferenceShow } from "../../reference";
 import { analyzeReferenceShow } from "../../forensics/report";
 import { extractReferenceTimeline } from "../extract";
+import { referenceDroneFileBytes, referenceShowFromLayer } from "../layer";
 
 const RATE = 8;
 const DRONES = 6;
@@ -42,6 +43,18 @@ async function syntheticShow() {
 }
 
 describe("reference timeline extraction", () => {
+  it("preserves the report and every source byte across extraction and layer reopen", async () => {
+    const show = await syntheticShow();
+    const report = analyzeReferenceShow(show);
+    const originalReport = JSON.stringify(report);
+    const originalFiles = show.drones.map(referenceDroneFileBytes);
+    const result = extractReferenceTimeline(show, report);
+    const reopened = referenceShowFromLayer(JSON.parse(JSON.stringify(result.layer)));
+    expect(JSON.stringify(report)).toBe(originalReport);
+    expect(reopened.drones.map(referenceDroneFileBytes)).toEqual(originalFiles);
+    // Motion changes within one geometric outline no longer create clips.
+    expect(result.layer.bindings.filter((binding) => binding.kind === "SCENE")).toHaveLength(1);
+  });
   it("analyses and extracts a synthetic imported show into editable clips", async () => {
     const show = await syntheticShow();
     const report = analyzeReferenceShow(show);
