@@ -107,7 +107,9 @@ export function visualSceneSegments(
       // motion class for conversion/authoring instead of labelling every merged
       // episode as deformation (and never flatten moving samples to STATIC).
       const motionClasses = new Set(
-        members.map((member) => member.classification).filter((kind) => kind !== "STATIC_FORMATION"),
+        members
+          .map((member) => member.classification)
+          .filter((kind) => kind !== "STATIC_FORMATION"),
       );
       const classification: ReferenceSceneSegment["classification"] =
         motionClasses.size === 0
@@ -115,8 +117,8 @@ export function visualSceneSegments(
           : motionClasses.has("DYNAMIC_DEFORMATION") || motionClasses.has("FORMATION_TRANSITION")
             ? "DYNAMIC_DEFORMATION"
             : motionClasses.size === 1
-              ? members.find((member) => member.classification !== "STATIC_FORMATION")
-                  ?.classification ?? "STATIC_FORMATION"
+              ? (members.find((member) => member.classification !== "STATIC_FORMATION")
+                  ?.classification ?? "STATIC_FORMATION")
               : "RIGID_MOTION";
       const periodicity = detectPeriodicity(
         residuals.projectionSeries,

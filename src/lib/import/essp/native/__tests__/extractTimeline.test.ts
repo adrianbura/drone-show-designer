@@ -100,7 +100,9 @@ describe("reference timeline extraction", () => {
       decomposeScenes: false,
     });
     expect(defaults.timeline).toEqual(explicitOff.timeline);
-    expect(defaults.layer.bindings.filter((entry) => entry.kind === "SCENE").length).toBeGreaterThan(1);
+    expect(
+      defaults.layer.bindings.filter((entry) => entry.kind === "SCENE").length,
+    ).toBeGreaterThan(1);
     expect(referenceShowFromLayer(result.layer).drones.map(referenceDroneFileBytes)).toEqual(
       show.drones.map(referenceDroneFileBytes),
     );
