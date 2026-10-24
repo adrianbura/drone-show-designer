@@ -10,8 +10,12 @@ import type {
 import { visualIdentityResidual } from "./visualIdentity";
 
 const VISUAL_CLASSES = new Set([
-  "STATIC_FORMATION", "GLOBAL_TRANSLATION", "GLOBAL_ROTATION", "RIGID_MOTION",
-  "DYNAMIC_DEFORMATION", "FORMATION_TRANSITION",
+  "STATIC_FORMATION",
+  "GLOBAL_TRANSLATION",
+  "GLOBAL_ROTATION",
+  "RIGID_MOTION",
+  "DYNAMIC_DEFORMATION",
+  "FORMATION_TRANSITION",
 ]);
 
 function sampleAt(sequence: PointCloudSequence, time: number): number {
@@ -59,62 +63,72 @@ export function visualSceneSegments(
       }
     }
   }
-  return episodes.flatMap(({ members, confirmed }) => {
-    const first = members[0];
-    const last = members.at(-1);
-    if (!first || !last) return [];
-    const duration = last.endTime - first.startTime;
-    // Duration alone cannot discard a bounded visual episode. The motion
-    // pipeline has already performed its configured short-window cleanup.
-    if (duration <= 0) return [];
-    if (!confirmed && duration < minimumSceneSeconds) return [];
-    if (members.length === 1 && first.classification !== "FORMATION_TRANSITION") return [first];
-    const start = sampleAt(sequence, first.startTime);
-    const end = sampleAt(sequence, last.endTime);
-    const residuals = intervalResiduals(sequence, start, end);
-    const dynamic = members.some((s) => s.classification !== "STATIC_FORMATION");
-    const periodicity = detectPeriodicity(
-      residuals.projectionSeries, residuals.stepSeconds,
-      report.thresholds.periodicityMinConfidence,
-    );
-    const average = (key: keyof ReferenceSceneSegment["metrics"]) =>
-      members.reduce((sum, s) => sum + s.metrics[key] * s.duration, 0)
-      / members.reduce((sum, s) => sum + s.duration, 0);
-    const from = centroidAt(sequence, start);
-    const to = centroidAt(sequence, end);
-    const activeDroneIds = sequence.droneIds.filter((_, index) =>
-      (residuals.mean[index] ?? 0) > report.thresholds.activeDroneResidualMeters);
-    return [{
-      ...first,
-      endTime: last.endTime,
-      duration,
-      classification: dynamic ? "DYNAMIC_DEFORMATION" as const : "STATIC_FORMATION" as const,
-      periodicity,
-      activeDroneIds,
-      clusters: [],
-      metrics: {
-        centroidTravelMeters: Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]),
-        meanCentroidSpeedMps: average("meanCentroidSpeedMps"),
-        maxRotationDeg: Math.max(0, ...residuals.rotationSeries),
-        totalRotationDeg: members.reduce((sum, s) => sum + s.metrics.totalRotationDeg, 0),
-        meanScale: average("meanScale"),
-        rigidRmsMeters: residuals.rmsSeries.reduce((sum, v) => sum + v, 0) / Math.max(1, residuals.rmsSeries.length),
-        deformationRmsMeters: average("deformationRmsMeters"),
-        maxDeformationMeters: Math.max(...members.map((s) => s.metrics.maxDeformationMeters)),
-        medianDeformationMeters: average("medianDeformationMeters"),
-        netShapeChangeMeters: netShapeChange(sequence, start, end),
-        activeFraction: activeDroneIds.length / Math.max(1, sequence.droneCount),
-        meanAltitudeMeters: average("meanAltitudeMeters"),
-        altitudeChangeMeters: to[1] - from[1],
-        lightingChangeEnergy: average("lightingChangeEnergy"),
-      },
-      label: first.label,
-    }];
-  }).filter((segment) => {
-    const takeoff = report.takeoffInterval;
-    const landing = report.landingInterval;
-    if (takeoff && segment.endTime <= takeoff.endTime) return false;
-    if (landing && segment.startTime >= landing.startTime) return false;
-    return true;
-  });
+  return episodes
+    .flatMap(({ members, confirmed }) => {
+      const first = members[0];
+      const last = members.at(-1);
+      if (!first || !last) return [];
+      const duration = last.endTime - first.startTime;
+      // Duration alone cannot discard a bounded visual episode. The motion
+      // pipeline has already performed its configured short-window cleanup.
+      if (duration <= 0) return [];
+      if (!confirmed && duration < minimumSceneSeconds) return [];
+      if (members.length === 1 && first.classification !== "FORMATION_TRANSITION") return [first];
+      const start = sampleAt(sequence, first.startTime);
+      const end = sampleAt(sequence, last.endTime);
+      const residuals = intervalResiduals(sequence, start, end);
+      const dynamic = members.some((s) => s.classification !== "STATIC_FORMATION");
+      const periodicity = detectPeriodicity(
+        residuals.projectionSeries,
+        residuals.stepSeconds,
+        report.thresholds.periodicityMinConfidence,
+      );
+      const average = (key: keyof ReferenceSceneSegment["metrics"]) =>
+        members.reduce((sum, s) => sum + s.metrics[key] * s.duration, 0) /
+        members.reduce((sum, s) => sum + s.duration, 0);
+      const from = centroidAt(sequence, start);
+      const to = centroidAt(sequence, end);
+      const activeDroneIds = sequence.droneIds.filter(
+        (_, index) => (residuals.mean[index] ?? 0) > report.thresholds.activeDroneResidualMeters,
+      );
+      return [
+        {
+          ...first,
+          endTime: last.endTime,
+          duration,
+          classification: dynamic
+            ? ("DYNAMIC_DEFORMATION" as const)
+            : ("STATIC_FORMATION" as const),
+          periodicity,
+          activeDroneIds,
+          clusters: [],
+          metrics: {
+            centroidTravelMeters: Math.hypot(to[0] - from[0], to[1] - from[1], to[2] - from[2]),
+            meanCentroidSpeedMps: average("meanCentroidSpeedMps"),
+            maxRotationDeg: Math.max(0, ...residuals.rotationSeries),
+            totalRotationDeg: members.reduce((sum, s) => sum + s.metrics.totalRotationDeg, 0),
+            meanScale: average("meanScale"),
+            rigidRmsMeters:
+              residuals.rmsSeries.reduce((sum, v) => sum + v, 0) /
+              Math.max(1, residuals.rmsSeries.length),
+            deformationRmsMeters: average("deformationRmsMeters"),
+            maxDeformationMeters: Math.max(...members.map((s) => s.metrics.maxDeformationMeters)),
+            medianDeformationMeters: average("medianDeformationMeters"),
+            netShapeChangeMeters: netShapeChange(sequence, start, end),
+            activeFraction: activeDroneIds.length / Math.max(1, sequence.droneCount),
+            meanAltitudeMeters: average("meanAltitudeMeters"),
+            altitudeChangeMeters: to[1] - from[1],
+            lightingChangeEnergy: average("lightingChangeEnergy"),
+          },
+          label: first.label,
+        },
+      ];
+    })
+    .filter((segment) => {
+      const takeoff = report.takeoffInterval;
+      const landing = report.landingInterval;
+      if (takeoff && segment.endTime <= takeoff.endTime) return false;
+      if (landing && segment.startTime >= landing.startTime) return false;
+      return true;
+    });
 }

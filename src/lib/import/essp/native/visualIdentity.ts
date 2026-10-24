@@ -26,6 +26,8 @@ export function visualIdentityResidual(
     return rigidFitCentered(reference, candidate).rmsError;
   }
   const scale = referenceRadius / candidateRadius;
-  return rigidFitCentered(reference, Float64Array.from(candidate, (value) => value * scale))
-    .rmsError;
+  return rigidFitCentered(
+    reference,
+    Float64Array.from(candidate, (value) => value * scale),
+  ).rmsError;
 }
