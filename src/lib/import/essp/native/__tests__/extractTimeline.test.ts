@@ -20,17 +20,17 @@ function trajectory(index: number): number[][] {
   const out: number[][] = [];
   const x = (index % 3) * 500 - 500;
   const y = Math.floor(index / 3) * 500 - 250;
-  const push = (seconds: number, z: (t: number) => number, dx = 0) => {
+  const push = (seconds: number, z: (t: number) => number, dx = 0, offset = 0) => {
     for (let f = 0; f < seconds * RATE; f += 1) {
       const t = f / RATE;
-      out.push([x + dx * t, y, Math.round(z(t))]);
+      out.push([x + offset + dx * t, y, Math.round(z(t))]);
     }
   };
   push(12, (t) => (t / 12) * 3000); // ascent to 30 m
   push(20, () => 3000); // static formation
   push(16, () => 3000, 60); // slow global translation
-  push(20, () => 3000); // static formation
-  push(12, (t) => 3000 * (1 - t / 12)); // descent
+  push(20, () => 3000, 0, 60 * 16); // same outline holds at its translated position
+  push(12, (t) => 3000 * (1 - t / 12), 0, 60 * 16); // descent without teleporting back
   return out;
 }
 
@@ -44,6 +44,68 @@ async function syntheticShow() {
 }
 
 describe("reference timeline extraction", () => {
+  it("represents grouped stationary fragments as STATIC without an animated object", async () => {
+    const files = Array.from({ length: DRONES }, (_, drone) => ({
+      name: `${drone + 1}.essp`,
+      bytes: buildSyntheticEssp({
+        xyz: Array.from({ length: 8 * RATE }, () => [drone * 500, (drone % 2) * 500, 3000]),
+        rgb: Array.from({ length: 8 * 12 }, () => [255, 40, 90]),
+      }),
+    }));
+    const show = await buildReferenceShow(files);
+    const report = analyzeReferenceShow(show);
+    const original = report.segments[0];
+    if (!original) throw new Error("Expected a stationary source segment");
+    report.segments = [
+      { ...original, id: "static-a", endTime: 4, duration: 4 },
+      { ...original, id: "static-b", startTime: 4, duration: original.endTime - 4 },
+    ];
+    const before = JSON.stringify(report);
+    const result = extractReferenceTimeline(show, report, {
+      groupVisualIdentity: true,
+      decomposeScenes: false,
+    });
+    const visuals = result.diagnostics.filter((diagnostic) => diagnostic.kind === "SCENE");
+    expect(visuals).toHaveLength(1);
+    expect(visuals[0]?.classification).toBe("STATIC_FORMATION");
+    expect(visuals[0]?.representation).toBe("STATIC");
+    expect(result.dynamicFormations).toHaveLength(0);
+    expect(JSON.stringify(report)).toBe(before);
+    expect(referenceShowFromLayer(result.layer).drones.map(referenceDroneFileBytes)).toEqual(
+      show.drones.map(referenceDroneFileBytes),
+    );
+  });
+
+  it("keeps a hold–translation–hold episode DYNAMIC and default grouping disabled", async () => {
+    const show = await syntheticShow();
+    const report = analyzeReferenceShow(show);
+    const result = extractReferenceTimeline(show, report, {
+      groupVisualIdentity: true,
+      decomposeScenes: false,
+    });
+    const visuals = result.diagnostics.filter((diagnostic) => diagnostic.kind === "SCENE");
+    expect(visuals).toHaveLength(1);
+    expect(visuals[0]?.classification).toBe("GLOBAL_TRANSLATION");
+    expect(visuals[0]?.representation).toBe("DYNAMIC");
+    expect(visuals[0]?.fidelityStatus).toBe("EXCELLENT");
+    expect(visuals[0]?.fidelityRmsMeters).toBeLessThan(1e-10);
+    expect(result.dynamicFormations).toHaveLength(1);
+    const binding = result.layer.bindings.find((entry) => entry.kind === "SCENE");
+    expect(result.timeline.find((clip) => clip.id === binding?.clipId)?.dynamicFormationId).toBe(
+      result.dynamicFormations[0]?.id,
+    );
+    const defaults = extractReferenceTimeline(show, report, { decomposeScenes: false });
+    const explicitOff = extractReferenceTimeline(show, report, {
+      groupVisualIdentity: false,
+      decomposeScenes: false,
+    });
+    expect(defaults.timeline).toEqual(explicitOff.timeline);
+    expect(defaults.layer.bindings.filter((entry) => entry.kind === "SCENE").length).toBeGreaterThan(1);
+    expect(referenceShowFromLayer(result.layer).drones.map(referenceDroneFileBytes)).toEqual(
+      show.drones.map(referenceDroneFileBytes),
+    );
+  });
+
   it("tiles pulse, morph travel and destination without duplicate clips and retains dynamics", async () => {
     const shape = baseShape(24);
     const files = shape.map((point, drone) => ({
