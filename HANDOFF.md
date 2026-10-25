@@ -1050,3 +1050,47 @@ grupuri/măști. Grupurile de culori exacte sunt descriptive, fără membership 
 Rapoartele nu conțin raw tracks și nu schimbă schema proiectului/forensics.
 Următorul pas: diagnoză locală/grup-condiționată cu verificare held-out și suport explicit;
 fără relaxarea pragurilor, efecte ghicite sau activarea importului experimental.
+
+## A doua arhivă owner — verificare disponibilitate (2026-10-25, 08:08 UTC)
+
+Bază inspectată: `142396b0e93e98aa9f98043299e35b56f8ad1fbe`, arbore curat;
+AGENTS, HANDOFF integral, roadmap, `scripts/auditEsspRgb.ts` și testele auditului citite.
+Solicitare: audit separat pentru `wedding-sorin-frg-no-movement.zip`, fără repetarea
+sau modificarea auditului benchmark principal.
+
+Blocaj confirmat: fișierul exact NU este disponibil în `/mnt/user-uploads` sau
+`/tmp/user-uploads`; inventarul recursiv conține două ZIP-uri ESSP_8_12_mainv4_2f6001
+(cu/fără -2), dar nu wedding-sorin. Căutarea independentă read-only în aceste mounturi,
+`/tmp` și proiect nu a găsit numele cerut. Afirmația istorică de la diagnostic UI despre
+„ambele ZIP-uri” nu stabilește disponibilitatea acestei a doua arhive: inventarul actual
+are prioritate. Salvarea `.droneshow_2.json` NU a fost folosită ca substitut.
+
+SHA-256, structura ZIP, numărul ESSP, clockurile și compatibilitatea parserului sunt
+NEVERIFICATE pentru wedding-sorin, deoarece bytes nu sunt accesibili. Niciun audit nou,
+raport JSON/Markdown ori rezultat LED nu a fost inventat. Benchmark-ul și rapoartele lui,
+CLI-ul, codul aplicației și payloadurile au rămas nemodificate; experimentalul rămâne oprit.
+
+Inspecția CLI existent a identificat două condiții pentru reluare sigură:
+- `readRgbAuditArchive` cere exact 150 ID-uri numerice unice 1–150 și clockuri XYZ 8 Hz /
+  RGB 12 Hz. Un refuz al acestei validări este o limită a CLI benchmark, nu automat dovada
+  incompatibilității cu parserul ESSP general; verifică separat parserul pe fiecare fișier.
+- CLI adaugă necondiționat intervalele din `docs/ESSP_SHOW_BENCHMARK.md`; nu îl rula direct
+  pe wedding-sorin cu acele intervale fără dovada apartenenței la același benchmark.
+  Pentru o arhivă distinctă, folosește numai show întreg, ferestre și segmente forensics
+  calculate din acea sursă, cu originea explicită și output separat, fără rețete inferate.
+
+Verificări executate:
+- `git log -1 --format='%H %s'`, `git status --short`, `git diff --stat`,
+  `git diff --check`, `git show --stat --oneline HEAD`: bază identificată, arbore inițial curat.
+- Python `Path.exists()` pentru calea exactă și inventar `Path.rglob('*')` pe ambele
+  mounturi: arhiva lipsește; nu s-a calculat checksum pentru alt fișier în locul ei.
+- `bunx vitest run src/lib/import/essp/native/__tests__/rgbAudit.test.ts src/lib/import/essp/native/__tests__/spatialRgb.test.ts src/lib/import/essp/native/__tests__/sceneEvidence.test.ts --maxWorkers=2`:
+  **3 fișiere / 19 passed**, 993 ms, exit 0.
+- `bunx eslint scripts/auditEsspRgb.ts src/lib/import/essp/native/rgbAudit.ts src/lib/import/essp/native/__tests__/rgbAudit.test.ts`:
+  exit 0, fără erori/avertismente.
+- Suita completă și browserul nu au fost rulate: doar documentația se schimbă.
+  Typecheck/build manual nepermise în acest mediu, neexecutate; nu se declară rezultat nou.
+
+Următorul pas blocat: ownerul reatașează `wedding-sorin-frg-no-movement.zip`;
+calculează SHA-256 ÎNAINTE de decodare, inspectează ZIP/parser, apoi audit separat reproductibil
+cu intervale proprii. HANDOFF și roadmap actualizate împreună, fără comenzi Git stateful.
