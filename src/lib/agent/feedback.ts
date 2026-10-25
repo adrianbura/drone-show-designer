@@ -32,7 +32,7 @@ export function sanitizeFeedback(text: string): string {
     .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email]")
     .replace(/\d{4,}/g, "[num]")
     // eslint-disable-next-line no-control-regex
-    .replace(/[-]/g, " ")
+    .replace(/[\x00-\x1F\x7F]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, MAX_TEXT);
