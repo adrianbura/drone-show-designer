@@ -168,6 +168,55 @@ hide brief changes (minimum coherence and support coverage help expose this). Ne
 original benchmark by interval, inspect low-fit/multigroup cases and design localized diagnostic
 presentation; do not change canonical lighting or import defaults on these measurements alone.
 
+### Original ZIP interval audit (2026-10-25)
+
+The agent actually accessed owner-uploaded `ESSP_8_12_mainv4_2f6001-2.zip` and
+`ESSP_8_12_mainv4_2f6001.zip`; both have SHA-256
+`0055f8ce360ac2adebcfdaff866b3715ac18df7bbedb91ef7fac465f11af2c9a`.
+The first was audited, not the saved editor project. The historical `(5).zip` filename above
+has no recorded checksum: identity with that earlier upload cannot be established from its name.
+Observed payload facts match 150 files, 4,746 XYZ samples at 8 Hz and 7,120 RGB samples at 12 Hz.
+All 150 reconstructed files were byte-identical; the archive checksum was unchanged after audit.
+
+Reproduce locally (Bun CLI, never an app/server endpoint):
+
+```sh
+bun scripts/auditEsspRgb.ts original.zip /tmp/essp-rgb-audit 0055f8ce360ac2adebcfdaff866b3715ac18df7bbedb91ef7fac465f11af2c9a
+```
+
+Reports: [JSON](audits/essp-original-rgb-0055f8ce.json) and
+[Markdown](audits/essp-original-rgb-0055f8ce.md). Two independent runs produced byte-identical
+JSON and Markdown. Reports contain aggregate evidence and per-file hashes, not source tracks.
+279 summaries: full show, all 21 numeric broad benchmark intervals, all 138 current balanced
+forensic segments, and 119 non-overlapping 5-second windows (last window truncated).
+Overlapping benchmark/forensic summaries are not additive. Native ticks are half-open;
+full-show stop is sampleCount/rate to include the last RGB sample, never extrapolating XYZ.
+
+New diagnostic definitions: per-channel mean centered variance and mean squared residual
+in byte² per paired drone; mean channel fit over non-uniform eligible ticks; total
+energy-weighted fit `clamp(1 − sum residual / sum centered energy, 0, 1)` over eligible frames.
+Color distribution reports top eight exact byte triplets, distinct triplets per tick,
+largest exact-color group fraction, and dark fractions for all RGB and paired RGB separately.
+Groups are descriptive, not inferred masks. Tick reasons prioritize no-pairs, uniform,
+insufficient fleet/geometry, a non-uniform channel below 0.85 fit, then multi-axis gradient
+energy below 0.9 dominant share. These are model limitations, NOT nonlinear effect recognition.
+
+Results: 1,068,000 original RGB samples; 1,067,700 paired (99.9719%), 7,118/7,120 ticks paired.
+Only the final two RGB ticks lack XYZ coverage (300 samples); they remain in the RGB counts.
+7,116 ticks fail at least one channel's linear-fit threshold, two paired ticks have insufficient
+geometry/gradient support, zero support one stable gradient. Every interval/window reports
+LOW_OR_UNSTABLE_FIT. Energy-weighted full-show fit is 18.4464%; mean R/G/B fits are
+15.9064% / 17.0553% / 14.8295%. This is not primarily missing-clock coverage or uniformity.
+It is strong evidence against a single fleet-wide affine field; it does not prove authored groups.
+
+Full-show exact dark fraction is 33.3774%, 30,939 distinct RGB triplets across time.
+In 406–449 s, mean simultaneous distinct colors is 128.056 (range 22–148), dark fraction
+10.1227%, mean largest exact-color group fraction 10.9535%: high diversity with weak global fit.
+No direction/sweep/recipe is claimed. The 23 saved bindings remain a separate source; this
+archive audit explains the same model limitation but does not re-audit those saved intervals.
+Next: inspect local-neighborhood/group-conditional fit with explicit support and held-out checks,
+not loosen global thresholds or generate guessed effects. Existing spatial RGB UI stays unchanged.
+
 ## Capability mapping
 
 | Observed pattern                                   | Existing foundation                                          | Product gap / next acceptance target                              |

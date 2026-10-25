@@ -1001,3 +1001,52 @@ nu s-a resetat/rebazat/rescris istoricul. HANDOFF și roadmap actualizate prin a
 Etapa UI este livrată; importul automat fidel și auditul integral LED rămân deschise.
 Următorul pas: inventar trasabil per interval din arhiva disponibilă, inclusiv nonlinear/multi-grup,
 comparat cu capabilitățile editorului, fără a inventa rețete sau a activa experimentalul.
+
+## Audit RGB per interval pe ZIP owner — 2026-10-25
+
+Bază inspectată: `051df91ba10e1d70f648ea1bb32cd2ed229c47de`, arbore curat; documentele
+AGENTS/HANDOFF/roadmap/benchmark și codul/parserul/fit-ul citite înaintea modificărilor.
+Arhiva chiar a fost accesibilă în user-uploads: `ESSP_8_12_mainv4_2f6001-2.zip`, SHA-256
+`0055f8ce360ac2adebcfdaff866b3715ac18df7bbedb91ef7fac465f11af2c9a`; varianta fără `-2`
+are același checksum. Numele istoric `(5).zip` nu are checksum consemnat; nu declarăm acea
+identitate retroactiv. Nu s-a folosit salvarea editorului în loc de ZIP.
+
+Livrat: CLI local `scripts/auditEsspRgb.ts`, modul read-only `native/rgbAudit.ts`, teste
+`native/__tests__/rgbAudit.test.ts`, și rapoarte agregate JSON/Markdown în docs/audits.
+`fitSpatialRgbFrame` expune aditiv variance/reziduuri/fit pe fiecare canal și energia
+axei dominante din calculul existent; nu schimbă criteriile canonice de redare/iluminare.
+Blind spot-ul fitului total este expus, nu relaxat: un canal nonlinear slab poate fi
+ascuns de un canal liniar puternic; regresia verifică fit total >0,99 și fit G=0.
+Teste separate disting multi-axial liniar de două grupuri discrete neliniare, uniform,
+insuficient/lipsă perechi, 8/12 Hz, intervale fracționare, valori finite și source invariance.
+AGENTS adaugă doar regula stabilă de izolare a CLI-ului local de runtime-ul aplicației.
+
+Audit efectiv: 150 fișiere, clockuri native 8/12 Hz, 21 intervale benchmark extrase din
+tabelul existent, 138 segmente balanced forensics curente și 119 ferestre 5 s, plus show
+întreg = 279 rezumate. 1.068.000 samples RGB, 1.067.700 pereche (99,9719%),
+7118/7120 ticks pereche. Ultimii doi ticks RGB nu sunt extrapolați peste XYZ.
+7116 ticks au cel puțin un canal sub fit 0,85; două ticks pereche au suport geometric
+insuficient; niciun gradient unic susținut. Fit global energy-weighted 18,4464%,
+mean fit R/G/B 15,9064/17,0553/14,8295%. Toate rezumatele LOW_OR_UNSTABLE_FIT.
+406–449 s: 128,056 culori simultane mediu (22–148), dark 10,1227%; această diversitate
+și fitul slab resping un model afin global, NU dovedesc o rețetă sau grupuri semantice.
+Cele 23 bindinguri salvate sunt sursă separată, nu reauditate aici.
+
+Comenzi efectiv rulate:
+- `bunx prettier --write src/lib/import/essp/native/spatialRgb.ts src/lib/import/essp/native/rgbAudit.ts src/lib/import/essp/native/__tests__/rgbAudit.test.ts scripts/auditEsspRgb.ts`.
+- `bunx vitest run src/lib/import/essp/native/__tests__/rgbAudit.test.ts src/lib/import/essp/native/__tests__/spatialRgb.test.ts src/lib/import/essp/native/__tests__/sceneEvidence.test.ts --maxWorkers=2`: 19 passed, 3 fișiere, 1,21 s.
+- `bun scripts/auditEsspRgb.ts /mnt/user-uploads/ESSP_8_12_mainv4_2f6001-2.zip /tmp/essp-original-rgb-audit 0055f8ce360ac2adebcfdaff866b3715ac18df7bbedb91ef7fac465f11af2c9a`: reușit, toate fișierele reconstruite byte-identic și arrays/raport nemodificate.
+- Aceeași comandă cu output `/tmp/essp-original-rgb-audit-repeat`; `cmp` pentru JSON și Markdown: ambele exit 0, reproductibile byte-identic.
+- `bunx vitest run src/lib/import/essp/native/__tests__ src/components/studio/__tests__/spatialRgbDiagnostic.dom.test.tsx src/lib/acceptance/__tests__/importedRgbAfterOpen.test.ts src/lib/show/__tests__/integration/esspLightingExport.test.ts --maxWorkers=2`: 83 passed, 11 fișiere, 9,12 s.
+- `bunx vitest run --maxWorkers=2`: 166 fișiere, 1445 passed / 1 skipped, 135,71 s.
+- `bunx eslint src/lib/import/essp/native/spatialRgb.ts src/lib/import/essp/native/rgbAudit.ts src/lib/import/essp/native/__tests__/rgbAudit.test.ts scripts/auditEsspRgb.ts`: exit 0, fără erori/avertismente.
+- `sha256sum /mnt/user-uploads/ESSP_8_12_mainv4_2f6001-2.zip`: checksum neschimbat după audit.
+- `git diff <base> --check`: curat; diff inspectat. Nu există comenzi Git stateful.
+Typecheck/build manual nepermise și neexecutate; harness a raportat build OK 07:27:35 UTC.
+Nu s-a rulat browserul (etapă CLI/read-only, UI neschimbat). Experimentalul rămâne oprit.
+
+Limitări: statisticile sunt in-sample; low-channel fit nu separă sigur nonlinearitate de
+grupuri/măști. Grupurile de culori exacte sunt descriptive, fără membership semantic.
+Rapoartele nu conțin raw tracks și nu schimbă schema proiectului/forensics.
+Următorul pas: diagnoză locală/grup-condiționată cu verificare held-out și suport explicit;
+fără relaxarea pragurilor, efecte ghicite sau activarea importului experimental.

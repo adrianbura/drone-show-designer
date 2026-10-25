@@ -28,6 +28,8 @@ export async function readRgbAuditArchive(bytes: Uint8Array, archiveName: string
   const show = await buildReferenceShow(files, { hashFiles: true });
   if (
     show.drones.length !== 150 ||
+    !show.report.invariants.identicalPositionRate ||
+    !show.report.invariants.identicalRgbRate ||
     show.timing.positionRateHz !== 8 ||
     show.timing.rgbRateHz !== 12
   )

@@ -80,9 +80,14 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
          20 teste țintite, 77 downstream, 1439 passed / 1 skipped în suita completă;
          lint curat, build automat OK; desktop și inspector mobil 390/320 px verificate.
          Salvarea reală disponibilă: fit mediu 21,4%, fără gradient declarat, zero erori browser.
-   - [ ] Audit per interval pe arhiva benchmark originală și diagnoză low-fit/multi-grup.
-         Arhivele încărcate sunt accesibile în acest mediu (150 fișiere fiecare), dar această
-         etapă nu reprezintă auditul integral al lor. Detalii și limite în HANDOFF.md.
+   - [x] Audit RGB read-only per interval pe ZIP-ul owner disponibil (2026-10-25):
+         SHA-256 0055f8ce…, 150/150 fișiere byte-identice, 279 rezumate (21 benchmark,
+         138 segmente forensics, 119 ferestre + show întreg), JSON/Markdown reproductibile.
+         99,9719% probe pereche; 7116 ticks cu fit slab pe cel puțin un canal;
+         niciun gradient unic susținut. Nu echivalează fără checksum cu istoricul `(5).zip`.
+         19 teste țintite, 83 downstream, 1445 passed / 1 skipped global; lint curat.
+   - [ ] Diagnostic local/grup-condiționat cu suport și verificare held-out pentru cazuri
+         low-fit; nu inventa efecte și nu relaxa pragurile globale. Detalii în HANDOFF.md.
    - [x] Catalog inițial „pattern observat → capabilitate existentă → lipsă → criteriu de acceptare”
          în `docs/ESSP_SHOW_BENCHMARK.md`.
    - [x] Confirmarea planului comun de prezentare: majoritatea imaginilor au pitch/tilt ~14–15°,
