@@ -44,7 +44,7 @@ const status = (ws: I[]) => {
 const nums = (ws: I[], g: (w: I) => number | null) =>
   ws.map(g).filter((v): v is number => v !== null && Number.isFinite(v));
 const rows: string[] = [];
-const side = (label: string, x: { sha: string; r: any }) => {
+const side = (label: string, x: { sha: string; r: ReturnType<typeof JSON.parse> }) => {
   const fs = full(x.r),
     c = x.r.clocks;
   rows.push(
