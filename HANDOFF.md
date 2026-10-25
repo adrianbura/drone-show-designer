@@ -890,3 +890,16 @@ Limite și următorul increment:
 Fișiere: `native/sceneEvidence.ts`, `native/__tests__/sceneEvidence.test.ts`,
 `components/studio/SourceScenePanel.tsx`, `components/studio/Inspector.tsx`, `AGENTS.md`,
 `HANDOFF.md`, `roadmap.md`. Documentele au fost actualizate împreună, history Git nerescris.
+
+
+## Update de continuitate — 2026-10-25
+
+### Integrare ESSP motion-class preservation
+- Integrat în `main` prin PR #5: https://github.com/adrianbura/drone-show-designer/pull/5
+- Commit de merge: `3851931554526e0e3aae9e0603a29c122aabb141`.
+- Patru fișiere integrate: `visualScenes.ts`, testele `visualScenes.test.ts` și `extractTimeline.test.ts`, plus fixture/regresii în `esspLightingExport.test.ts`.
+- Clasificarea episoadelor grupate păstrează STATIC pentru fragmente exclusiv staționare, GLOBAL_TRANSLATION când clasa de mișcare este aceeași și RIGID_MOTION când sunt combinate clase rigide; deformarea/tranziția rămâne clasificată dinamic. Gruparea experimentală rămâne dezactivată implicit.
+- PR #4 a fost închis ca duplicat, fără merge; nu s-a rescris istoricul publicat.
+- Dovezi de test existente de la Lovable pentru schimbările candidate: 1.422 teste trecute, 1 skipped; lint pe cele patru fișiere fără erori/avertismente. Acest asistent nu a putut executa testele local, iar pentru commitul de merge nu există statusuri GitHub Actions sau checks vizibile prin conector.
+- Nu este o livrare completă a obiectivului ESSP: importul experimental rămâne oprit implicit și nu s-a validat în browser reconstrucția tuturor scenelor, iluminării și tranzițiilor.
+- Următorul pas: continuă prioritatea 14 din roadmap printr-o etapă end-to-end de benchmark/audit vizual LED pentru show-ul ESSP real; măsoară sweep/gradient/sincronizare și leagă dovezile de capabilitățile existente și de teste. Nu activa importul experimental fără verificare de fidelitate.
