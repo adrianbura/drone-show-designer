@@ -184,7 +184,7 @@ describe("applyAgentOp", () => {
     const f = makeFormation("f1", [[10, 40, 0]]);
     const project = makeProject({
       formations: [f],
-      timeline: [makeClip("c1", "f1", { phase: "TAKEOFF" })],
+      timeline: [makeClip("c1", "f1", { phase: "TAKEOFF" }), makeClip("c2", "f1")],
       scenes: [{ id: "c2", name: "s", schemaVersion: 1, objects: [] } as never],
     });
     expect(applyAgentOp(project, null, { kind: "ROTATE_SCENE", axis: "Z", degrees: 10 })).toEqual({

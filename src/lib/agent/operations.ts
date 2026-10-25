@@ -82,20 +82,16 @@ function quatMul(a: Quat, b: Quat): Quat {
 /** Stable Euler (deg) readback of a quaternion; X then Y then Z, as quatFromEulerDeg. */
 function eulerDegFromQuat(q: Quat): Vector3Tuple {
   const [x, y, z, w] = q;
-  // Rotation matrix elements for the same X→Y→Z convention.
-  const m02 = 2 * (x * z + w * y);
-  const m12 = 2 * (y * z - w * x);
-  const m22 = w * w - x * x - y * y + z * z;
-  const m01 = 2 * (x * y - w * z);
-  const m11 = w * w - x * x + y * y - z * z;
-  const m00 = w * w + x * x - y * y - z * z;
+  // R = Rz·Ry·Rx (intrinsic X→Y→Z, matching quatFromEulerDeg):
+  //   m20 = −sin(ry), m21 = cos(ry)sin(rx), m10 = sin(rz)cos(ry).
+  const m20 = 2 * (x * z - w * y);
   const m21 = 2 * (y * z + w * x);
+  const m22 = w * w - x * x - y * y + z * z;
+  const m10 = 2 * (x * y + w * z);
+  const m00 = w * w + x * x - y * y - z * z;
   const rx = Math.atan2(m21, m22);
-  const ry = Math.asin(Math.max(-1, Math.min(1, m02)));
-  const rz = Math.atan2(m01, m11);
-  // Guard the gimbal branch: when |m02| ≈ 1 the decomposition above is still
-  // a valid (not unique) representation, which is all we need.
-  void m12;
+  const ry = Math.asin(Math.max(-1, Math.min(1, -m20)));
+  const rz = Math.atan2(m10, m00);
   const DEG = 180 / Math.PI;
   return [rx * DEG, ry * DEG, rz * DEG];
 }

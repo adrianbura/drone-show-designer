@@ -50,7 +50,14 @@ const FAILURE_LABELS: Record<string, [string, string]> = {
 };
 
 export default function AgentPanel({ onClose }: { onClose: () => void }) {
-  const { t } = useI18n();
+  const { language } = useI18n();
+  const ro = language === "ro";
+  const t = (r: string, e: string, values?: Record<string, string | number>) => {
+    const s = ro ? r : e;
+    return values
+      ? s.replace(/\{(\w+)\}/g, (m, name: string) => (name in values ? String(values[name]) : m))
+      : s;
+  };
   const { project, selectedClipId, applyAgentProject, undoTimeline, timelineHistoryDepth } =
     useStudio();
   const [entries, setEntries] = useState<ChatEntry[]>([]);
@@ -74,7 +81,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
   }, [entries, busy]);
 
   const say = useCallback((text: string, source?: "local" | "model") => {
-    setEntries((e) => [...e, { role: "agent", text, source }]);
+    setEntries((e) => [...e, source ? { role: "agent", text, source } : { role: "agent", text }]);
   }, []);
 
   const submit = useCallback(async () => {
