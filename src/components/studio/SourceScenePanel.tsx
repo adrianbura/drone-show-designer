@@ -3,6 +3,7 @@ import { useI18n } from "@/i18n";
 import { useStudio } from "@/lib/studio/store";
 import { referenceShowFromLayer } from "@/lib/import/essp/native/layer";
 import { sourceSceneEvidence } from "@/lib/import/essp/native/sceneEvidence";
+import SpatialRgbDiagnostic from "./SpatialRgbDiagnostic";
 
 export default function SourceScenePanel() {
   const { referenceLayer, selectedClipId } = useStudio();
@@ -101,6 +102,7 @@ export default function SourceScenePanel() {
           {ro ? "Nu există eșantioane RGB în acest interval." : "No RGB samples in this interval."}
         </p>
       )}
+      <SpatialRgbDiagnostic evidence={evidence.lighting.spatial} ro={ro} />
     </section>
   );
 }

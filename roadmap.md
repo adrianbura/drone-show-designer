@@ -74,8 +74,15 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
          Metrici disponibile în `lighting.spatial`, nu încă afișate; LED aprofundat rămâne deschis.
          Final: 13 teste țintite, 89 downstream, 164 fișiere / 1432 passed / 1 skipped;
          lint schimbări și diff-check curate; build automat OK. Typecheck/build manual neexecutate.
-   - [ ] Audit per interval pe arhiva benchmark originală și diagnoză low-fit/multi-grup;
-         apoi afișare localizată a metricilor și limitelor. Detalii/verificări finale în HANDOFF.md.
+   - [x] Diagnostic RGB vizibil (2026-10-25): integrat în inspectorul scenei, EN/RO,
+         acoperire XYZ/RGB, fit disponibil, axă/gradient/evoluție numai cu suport;
+         uniform/insuficient/low-fit/indisponibil explicite, rețeta necunoscută.
+         20 teste țintite, 77 downstream, 1439 passed / 1 skipped în suita completă;
+         lint curat, build automat OK; desktop și inspector mobil 390/320 px verificate.
+         Salvarea reală disponibilă: fit mediu 21,4%, fără gradient declarat, zero erori browser.
+   - [ ] Audit per interval pe arhiva benchmark originală și diagnoză low-fit/multi-grup.
+         Arhivele încărcate sunt accesibile în acest mediu (150 fișiere fiecare), dar această
+         etapă nu reprezintă auditul integral al lor. Detalii și limite în HANDOFF.md.
    - [x] Catalog inițial „pattern observat → capabilitate existentă → lipsă → criteriu de acceptare”
          în `docs/ESSP_SHOW_BENCHMARK.md`.
    - [x] Confirmarea planului comun de prezentare: majoritatea imaginilor au pitch/tilt ~14–15°,

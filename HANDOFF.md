@@ -948,3 +948,56 @@ Experimentalul rămâne oprit implicit; motoarele canonice, AGENTS.md și datele
 Următorul pas: audit trasabil al intervalelor din arhiva benchmark originală, inclusiv cazuri low-fit
 și multi-grup; apoi prezentare diagnostică localizată a acoperirii/necunoscutelor. Nu transforma
 deriva aparentă într-o rețetă și nu activa importul pe baza acestor fit-uri.
+
+## Diagnostic RGB vizibil — 2026-10-25
+
+Bază verificată: `2ad25a37b6ef681ed2c55845f99f0eeb6600637d`, arbore inițial curat.
+Inspecția a confirmat că operatorul vede `sourceSceneEvidence` prin `SourceScenePanel`,
+în sumarul selecției din `Inspector`. Nu s-au lansat subagenți și nu s-au folosit comenzi Git stateful.
+
+Livrat: `SpatialRgbDiagnostic.tsx`, integrat în panoul existent, EN/RO. Secțiune accesibilă
+numită, status anunțat polite, tabel semantic dt/dd cu coloane flexibile și text care se rupe.
+Explică lipsa probelor pereche, uniformitatea spațială (nu exclude schimbarea temporală),
+insuficiența geometrică/probelor, fit slab/instabil și gradientul susținut. Expune probele,
+momentele pereche/evaluate, ceasul și prima/ultima probă; fit mediu/minim numai dacă finite.
+Axa unsigned, puterea și evoluția sunt afișate numai pentru SUPPORTED_GRADIENT;
+viteza aparentă numai dacă finită și disponibilă, niciodată etichetată sweep sau viteză de dronă.
+Fit mare nu înseamnă rețetă recunoscută. Rețeta rămâne necunoscută; RGB nu este intensitate calibrată.
+Nu se modifică modulul metric pur, payloaduri, motoare, format, AGENTS.md sau import defaults.
+
+Teste noi: `spatialRgbDiagnostic.dom.test.tsx`, 7 cazuri cu date ESSP sintetice deterministe:
+gradient măsurat, uniform, nonlinear low-fit, insuficient/lipsă perechi, unavailable/EN,
+NaN/Infinity eliminate, integrare în selecție și layer salvat neschimbat. Accesibilitatea
+este verificată prin rolurile region/status și etichetele lor, nu printr-un audit WCAG complet.
+
+Comenzi și rezultate executate:
+- `bunx vitest run src/components/studio/__tests__/spatialRgbDiagnostic.dom.test.tsx src/lib/import/essp/native/__tests__/spatialRgb.test.ts src/lib/import/essp/native/__tests__/sceneEvidence.test.ts --maxWorkers=2`: 20 passed, 3 fișiere, 2,26 s.
+- `bunx vitest run src/components/studio/__tests__/spatialRgbDiagnostic.dom.test.tsx src/lib/import/essp/native/__tests__ src/lib/acceptance/__tests__/importedRgbAfterOpen.test.ts src/lib/show/__tests__/integration/esspLightingExport.test.ts --maxWorkers=2`: 77 passed, 10 fișiere, 8,79 s (după corectarea typecheck-ului fixture-ului).
+- `bunx vitest run --maxWorkers=2`: 165 fișiere, 1439 passed / 1 skipped, 133,53 s.
+- `bunx eslint src/components/studio/SpatialRgbDiagnostic.tsx src/components/studio/SourceScenePanel.tsx src/components/studio/__tests__/spatialRgbDiagnostic.dom.test.tsx`: exit 0, fără erori/avertismente la rularea finală. Prima rulare a semnalat doar formatare, corectată cu `bunx prettier --write` pe cele două fișiere noi.
+- Typecheck/build manual nu sunt permise în acest mediu și nu au fost lansate.
+  Harness a identificat inițial sourceClassification absent în fixture; corectat.
+  Ultimul semnal verificat: `build OK`, 2026-10-25T07:02:23Z, inclusiv typecheck automat.
+- `python3 /tmp/browser/rgb-ui/check_rgb_ui.py`: Open proiect sintetic de 25 drone,
+  selectare scenă, RO, desktop 1280×1800 și inspector mobil deschis prin double-click
+  la 390×844 și 320×740; fără overflow intern (355/355 și 295/295 px), zero page errors.
+  Capturi finale inspectate: desktop.png, mobile-320.png. Prima încercare doar în inspectorul
+  stacked era parțial acoperită de timeline; verificarea finală folosește dock-ul mobil real.
+- `python3 /tmp/browser/rgb-ui/check_saved.py`: Open copia temporară a salvării ownerului,
+  150 drone/23 bindinguri; scena selectată 241–322,25 s: 146250 probe pereche, 975/975 momente,
+  prima/ultima 241 / 322,1667 s, fit mediu 21,4%, minim 0,0%; fără gradient/viteză declarate,
+  rețetă necunoscută și zero page errors. Încercările intermediare au eșuat pe selectori
+  presupuşi și pe încărcarea directă din mount; rularea finală a reușit din copie în /tmp.
+
+Disponibilitatea sursei a fost verificată efectiv: ambele ZIP-uri din user-uploads sunt
+accesibile și conțin câte 150 intrări ESSP citibile integral. Nu sunt în repository.
+Aceasta verifică accesul/containerul, NU reprezintă auditul RGB integral al arhivei benchmark
+și nu dovedește identitatea dintre arhive și salvarea deschisă. Niciun payload original schimbat.
+
+Diff-ul față de bază este limitat la panoul existent, componenta/testele noi și aceste două
+documente; `git diff <base> --check` verificat curat. Salvarea automată gestionează commiturile;
+nu s-a resetat/rebazat/rescris istoricul. HANDOFF și roadmap actualizate prin același patch.
+
+Etapa UI este livrată; importul automat fidel și auditul integral LED rămân deschise.
+Următorul pas: inventar trasabil per interval din arhiva disponibilă, inclusiv nonlinear/multi-grup,
+comparat cu capabilitățile editorului, fără a inventa rețete sau a activa experimentalul.
