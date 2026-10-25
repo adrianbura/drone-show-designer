@@ -247,3 +247,4 @@ această rulare.
 - [x] Etapă RGB A+B+C (grupuri, puls/val cu held-out, reconstrucție vs sursă + UNKNOWN), UI EN/RO, validare pe ambele show-uri (`docs/audits/rgb-structure/`). Următor: grupuri cu toleranță la zgomot, faza valului, verificare vizuală panou.
 
 - [x] 2026-10-25 Grupuri RGB aproape identice (toleranță ≤2, complete-link, ferestre 5 s, suport ≥3) în panoul Structură RGB EN/RO; verificat în browser pe ESSP real. Rămas: auditul metodologic Python (owner), titlul/secțiunile proiectului vechi rămân după importul ESSP.
+- [~] 2026-10-25 Scenă importată → bibliotecă → copie editabilă exactă (XYZ+RGB+timp+proveniență). Livrat: salvare + inserare + lumini exacte + teste; titlul vechi reparat. Rămas: verificare în browser a inserării, schimbarea numărului de drone (validare în așteptare), rerulare suită completă.
