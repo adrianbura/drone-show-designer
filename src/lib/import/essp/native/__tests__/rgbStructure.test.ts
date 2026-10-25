@@ -4,6 +4,7 @@ import { buildReferenceShow } from "../../reference";
 import { referenceDroneFileBytes } from "../layer";
 import {
   analyzeRgbGroups,
+  analyzeRgbNearGroups,
   analyzeRgbStructure,
   analyzeRgbTemporal,
   evaluateRgbReconstruction,
@@ -122,5 +123,53 @@ describe("C — reconstruction vs exact source", () => {
     expect(analyzeRgbStructure(s, b20).recipe).toBe("UNKNOWN");
     expect(s.drones.map(referenceDroneFileBytes)).toEqual(before);
     expect(JSON.stringify(s.report)).toBe(report);
+  });
+});
+
+describe("A2 — near-identical groups per 5 s window", () => {
+  it("groups ±1-byte noise that exact grouping rejects", async () => {
+    const s = await show((d, _x, _y, f) => {
+      const j = (d * 7 + f) % 3 === 0 ? 1 : 0;
+      return d < 18 ? [200 + j, 10, 10] : [10, 10, 200 - j];
+    });
+    expect(analyzeRgbGroups(s, b20).status).toBe("AMBIGUOUS");
+    const n = analyzeRgbNearGroups(s, b20);
+    expect(n.windows).toHaveLength(4);
+    for (const w of n.windows) {
+      expect(w.status).toBe("MULTIPLE_GROUPS");
+      expect(w.groups.map((g) => g.support)).toEqual([18, 18]);
+      expect(w.groups[0]!.maxPairDistance).toBe(1);
+      expect(w.groups[0]!.exact).toBe(false);
+    }
+  });
+  it("rejects a difference of 3 bytes", async () => {
+    const s = await show((d) => [100 + (d % 2) * 3, 0, 0], 4);
+    const w = analyzeRgbNearGroups(s, b20).windows[0]!;
+    expect(w.status).toBe("NO_GROUPS");
+  });
+  it("complete link does not chain 0→2→4", async () => {
+    // values 0,0,0,2,2,2,4,4,4: chaining would merge all; complete link must not
+    const s = await show((d) => [Math.floor(d / 3) * 2, 0, 0], 9);
+    const w = analyzeRgbNearGroups(s, b20).windows[0]!;
+    for (const g of w.groups) expect(g.maxPairDistance).toBeLessThanOrEqual(2);
+    expect(w.groups.some((g) => g.support === 9)).toBe(false);
+    expect(w.status).toBe("AMBIGUOUS");
+    expect(w.contestedDrones).toBeGreaterThan(0);
+  });
+  it("windows are independent of scene boundaries", async () => {
+    const s = await show((d, _x, _y, f) => (f < 60 ? [50, 50, 50] : d < 18 ? [255, 0, 0] : [0, 255, 0]));
+    const n = analyzeRgbNearGroups(s, b20);
+    expect(n.windows[0]!.status).toBe("SINGLE_GROUP");
+    expect(n.windows[1]!.groups.map((g) => g.support)).toEqual([18, 18]);
+  });
+  it("requires support of at least 3", async () => {
+    const s = await show((d) => [d < 2 ? 9 : 100 + d * 10, 0, 0], 6);
+    expect(analyzeRgbNearGroups(s, b20).windows[0]!.status).toBe("NO_GROUPS");
+  });
+  it("structure keeps recipe UNKNOWN", async () => {
+    const s = await show(() => [1, 2, 3]);
+    const r = analyzeRgbStructure(s, b20);
+    expect(r.recipe).toBe("UNKNOWN");
+    expect(r.nearGroups.windows[0]!.status).toBe("SINGLE_GROUP");
   });
 });
