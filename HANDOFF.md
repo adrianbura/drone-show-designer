@@ -1058,15 +1058,16 @@ AGENTS, HANDOFF integral, roadmap, `scripts/auditEsspRgb.ts` și testele auditul
 Solicitare: audit separat pentru `wedding-sorin-frg-no-movement.zip`, fără repetarea
 sau modificarea auditului benchmark principal.
 
-Blocaj confirmat: fișierul exact NU este disponibil în `/mnt/user-uploads` sau
+Blocaj local confirmat: fișierul exact NU este disponibil în sandboxul Lovable în `/mnt/user-uploads` sau
 `/tmp/user-uploads`; inventarul recursiv conține două ZIP-uri ESSP_8_12_mainv4_2f6001
 (cu/fără -2), dar nu wedding-sorin. Căutarea independentă read-only în aceste mounturi,
 `/tmp` și proiect nu a găsit numele cerut. Afirmația istorică de la diagnostic UI despre
 „ambele ZIP-uri” nu stabilește disponibilitatea acestei a doua arhive: inventarul actual
 are prioritate. Salvarea `.droneshow_2.json` NU a fost folosită ca substitut.
 
-SHA-256, structura ZIP, numărul ESSP, clockurile și compatibilitatea parserului sunt
-NEVERIFICATE pentru wedding-sorin, deoarece bytes nu sunt accesibili. Niciun audit nou,
+SHA-256, structura ZIP, numărul ESSP și clockurile nu au fost verificate direct de Lovable;
+dovezile raportate ulterior din mediul chatului sunt consemnate mai jos, cu origine distinctă.
+Compatibilitatea parserului proiectului rămâne NEVERIFICATĂ pe arhiva reală. Niciun audit nou,
 raport JSON/Markdown ori rezultat LED nu a fost inventat. Benchmark-ul și rapoartele lui,
 CLI-ul, codul aplicației și payloadurile au rămas nemodificate; experimentalul rămâne oprit.
 
@@ -1091,6 +1092,53 @@ Verificări executate:
 - Suita completă și browserul nu au fost rulate: doar documentația se schimbă.
   Typecheck/build manual nepermise în acest mediu, neexecutate; nu se declară rezultat nou.
 
-Următorul pas blocat: ownerul reatașează `wedding-sorin-frg-no-movement.zip`;
+Următorul pas blocat local: transferă/reatașează `wedding-sorin-frg-no-movement.zip` în Lovable;
 calculează SHA-256 ÎNAINTE de decodare, inspectează ZIP/parser, apoi audit separat reproductibil
 cu intervale proprii. HANDOFF și roadmap actualizate împreună, fără comenzi Git stateful.
+
+### Corecție de proveniență — 2026-10-25, 08:12 UTC
+
+Bază locală reverificată: `692052e6ea51657244d95a9e8f124a014a807eb2`, arbore curat.
+Titlul commitului spune „Added analyzeArchive option”, dar diff-ul lui modifică doar cele
+două documente: CLI-ul real nu are încă un mod generic sau `--no-benchmark-intervals`.
+
+Ownerul a furnizat rezultatul unei inspecții în mediul chatului, separat de sandboxul Lovable:
+- Locație raportată: `/mnt/data/wedding-sorin-frg-no-movement.zip`; 2.251.837 bytes.
+- SHA-256 verificat în mediul chatului, raportat de owner:
+  `e7a4246016b3aa175e020858a7cf9406f72c38c99f090ab9ada702e97cea558f`.
+  Lovable NU a recalculat acest hash: fișierul și `/mnt/data` nu sunt accesibile local.
+- Inventar raportat: 304 intrări, 150 ESSP reale sub `wedding-sorin-frg-no-movement/`,
+  150 AppleDouble asociate sub `__MACOSX/`, o intrare folder, `pyroEffects.json`
+  de 2 bytes (`{}`) și companionul AppleDouble. Enumerarea categoriilor însumează 303,
+  nu 304; lista central-directory completă este necesară pentru intrarea rămasă,
+  fără a presupune ce conține. Fișierele AppleDouble NU sunt drone suplimentare.
+- Fiecare ESSP real raportat: 30.031 bytes; magic `45 53 53`, version 1,
+  u16@17=4000, u32@19=12000, u16@25=12000, u32@27=18000, identice pentru cele 150.
+  Conform layoutului existent, acestea indică XYZ 4 Hz / RGB 12 Hz, 2.000 triplete XYZ /
+  6.000 triplete RGB; 31+12.000+18.000=30.031 bytes. Este interpretarea headerului
+  raportat, NU rezultat de decodare/audit local. Profilul opac și u16@23 rămân necunoscute.
+- Exemple de nume/ID raportate: 13, 44, 52; lista completă și unicitatea ID-urilor nu sunt
+  disponibile. NU se deduce setul 1–150, nici doar din numărul de fișiere.
+
+Cod inspectat: `numericSourceId()` citește exclusiv basename numeric `digits.essp`,
+fără limită 1–150; acea limită este impusă de `readRgbAuditArchive`, nu de parserul general.
+Filtrul ZIP al auditului acceptă orice sufix `.essp`, inclusiv companionii `._*.essp`,
+care ar invalida numărul/ID-urile. CLI-ul benchmark ar refuza și clockul XYZ 4 Hz.
+Aceste incompatibilități sunt ale CLI-ului strict; compatibilitatea bytes cu parserul general
+nu este încă demonstrată. Nu se declară audit XYZ/RGB, staticitate sau lipsă de mișcare
+din numele arhivei; JSON-ul gol nu furnizează rețete/nume de efecte.
+
+Decizie conservatoare: numai documentele sunt corectate; modul generic rămâne de implementat
+și testat, nu este declarat existent. Pentru reluare:
+1. Atașează ZIP-ul în conversația Lovable sau pune-l în mountul accesibil și compară SHA-256
+   înainte de unzip cu hashul chat-side de mai sus; păstrează originalul read-only.
+2. Listează toate intrările, exclude `__MACOSX/` și basename `._*`, inspectează lista completă
+   a ID-urilor reale, unicitatea și bytes fiecărui fișier cu parserul/round-trip existent.
+3. Testează separat un mod generic pe bytes parser-supported: ID-uri numerice neconsecutive,
+   clockuri 4/12 Hz, companionii AppleDouble ignorați, checksum înainte de decodare,
+   fără intervale benchmark și fără modificarea comportamentului benchmark implicit.
+4. Auditează numai intervalele proprii (show întreg/ferestre/forensics), dacă parserul acceptă;
+   salvează JSON/Markdown separat, repetă și compară, fără raport sau efecte inventate.
+
+Verificările acestei corecții sunt consemnate în roadmap; benchmark-ul original nu a fost
+procesat sau modificat. Nu există un nou rezultat de audit real wedding-sorin.

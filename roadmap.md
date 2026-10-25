@@ -89,12 +89,24 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
    - [ ] Diagnostic local/grup-condiționat cu suport și verificare held-out pentru cazuri
          low-fit; nu inventa efecte și nu relaxa pragurile globale. Detalii în HANDOFF.md.
    - [ ] Audit separat `wedding-sorin-frg-no-movement.zip` — BLOCAT la 2026-10-25:
-         fișier absent din ambele mounturi user-uploads, `/tmp` și proiect; necesită reatașare.
-         SHA-256/structură/compatibilitate încă neverificate, niciun raport nou generat.
+         absent numai din sandboxul Lovable; accesibil în mediul chatului la `/mnt/data`.
+         Ownerul raportează 2.251.837 bytes, SHA-256
+         e7a4246016b3aa175e020858a7cf9406f72c38c99f090ab9ada702e97cea558f,
+         150 ESSP reale + AppleDouble, header XYZ 4 Hz/RGB 12 Hz. Lista completă de ID-uri
+         rămâne necunoscută (exemple 13/44/52); inventarul raportat 304 necesită reconciliere
+         cu cele 303 intrări enumerate pe categorii. Compatibilitate/audit local neverificate.
          CLI curent cere 150 drone, 8/12 Hz și adaugă intervalele benchmark necondiționat;
          înainte de audit verifică parserul și folosește intervale proprii pentru alt show,
          fără să suprascrii/reprocesezi benchmark-ul. Reverificare: 19 teste passed, lint curat;
-         doar HANDOFF + roadmap modificate. Detalii și comenzi în HANDOFF.
+         doar HANDOFF + roadmap modificate. CLI nu are încă mod generic, în ciuda titlului
+         commitului 692052e; transferă arhiva în Lovable, verifică hashul înainte de decodare,
+         exclude AppleDouble și testează un mod fără intervale benchmark înainte de audit.
+         Detalii și proveniența separată a dovezilor în HANDOFF.
+         Corecție 08:13 UTC: comanda Vitest cu rgbAudit/spatialRgb/sceneEvidence și
+         `--maxWorkers=2`: 3 fișiere, 19 passed, 1,33 s; ESLint pe CLI/rgbAudit/test exit 0;
+         `git diff 692052e6ea51657244d95a9e8f124a014a807eb2 --check` exit 0,
+         diff numai HANDOFF/roadmap. Suita completă/browser neexecutate (documentație);
+         typecheck/build manual nepermise și neexecutate. Niciun audit real nou.
    - [x] Catalog inițial „pattern observat → capabilitate existentă → lipsă → criteriu de acceptare”
          în `docs/ESSP_SHOW_BENCHMARK.md`.
    - [x] Confirmarea planului comun de prezentare: majoritatea imaginilor au pitch/tilt ~14–15°,
