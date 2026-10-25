@@ -244,3 +244,4 @@ deschide. Suita completă: 159 fișiere / 1396 teste / 1 skipped, fără instabi
 această rulare.
 
 - [x] Audit RGB read-only `wedding-sorin-frg-no-movement.zip` (SHA `e7a42460…`, XYZ 4 Hz / RGB 12 Hz, AppleDouble exclus, mod `--generic`, raport `docs/audits/wedding-sorin-e7a42460/`). Mod generic: ID-uri neconsecutive unice, duplicate respinse, testat. Comparație read-only livrată (`scripts/compareRgbAudits.ts`). Următor: diagnostic local low-fit.
+- [x] Etapă RGB A+B+C (grupuri, puls/val cu held-out, reconstrucție vs sursă + UNKNOWN), UI EN/RO, validare pe ambele show-uri (`docs/audits/rgb-structure/`). Următor: grupuri cu toleranță la zgomot, faza valului, verificare vizuală panou.
