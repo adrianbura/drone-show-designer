@@ -280,9 +280,10 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
         {entries.length === 0 && (
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             {t(
-              "Selectează o scenă și spune-mi ce să fac: „înclină scena 20 de grade spre stânga”, „schimbă culoarea în auriu”. Fiecare modificare trece prin validator și poate fi anulată.",
-              "Select a scene and tell me what to do: “tilt the scene 20 degrees left”, “recolor it gold”. Every change passes the validator and can be undone.",
-            )}
+              "Selectează o scenă și spune-mi ce să fac: „înclină scena 20 de grade spre stânga”, „schimbă culoarea în auriu”, „ține scena 12 secunde”, „selectează inima”. Fiecare modificare trece prin validator și poate fi anulată.",
+              "Select a scene and tell me what to do: “tilt the scene 20 degrees left”, “recolor it gold”, “hold the scene for 12 seconds”, “select the heart”. Every change passes the validator and can be undone.",
+            )}{" "}
+            {capabilitySummary(ro)}
           </p>
         )}
         {entries.map((entry, i) => {
