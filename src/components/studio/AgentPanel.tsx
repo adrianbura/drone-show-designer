@@ -143,7 +143,9 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
     if (!entry || entry.role !== "agent" || !entry.feedback || entry.feedbackSaved) return;
     recordFeatureRequest(entry.feedback.text, entry.feedback.reason);
     setEntries((entries) =>
-      entries.map((e, i) => (i === entryIndex && e.role === "agent" ? { ...e, feedbackSaved: true } : e)),
+      entries.map((e, i) =>
+        i === entryIndex && e.role === "agent" ? { ...e, feedbackSaved: true } : e,
+      ),
     );
   }, []);
 
