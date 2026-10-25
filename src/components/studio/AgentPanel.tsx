@@ -121,8 +121,26 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [entries, busy]);
 
-  const say = useCallback((text: string, source?: "local" | "model") => {
-    setEntries((e) => [...e, source ? { role: "agent", text, source } : { role: "agent", text }]);
+  const say = useCallback(
+    (text: string, source?: "local" | "model", feedback?: { text: string; reason: string }) => {
+      setEntries((e) => [
+        ...e,
+        source || feedback
+          ? { role: "agent", text, source, feedback }
+          : { role: "agent", text },
+      ]);
+    },
+    [],
+  );
+
+  const saveFeedback = useCallback((entryIndex: number) => {
+    setEntries((entries) =>
+      entries.map((entry, i) => {
+        if (i !== entryIndex || entry.role !== "agent" || !entry.feedback) return entry;
+        recordFeatureRequest(entry.feedback.text, entry.feedback.reason);
+        return { ...entry, feedbackSaved: true };
+      }),
+    );
   }, []);
 
   const submit = useCallback(async () => {
