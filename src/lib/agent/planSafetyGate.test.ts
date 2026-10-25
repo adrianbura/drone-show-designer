@@ -117,7 +117,7 @@ describe("untrusted model plan gate", () => {
     const plan = { operations: [{ tool: "rotate", args: { degrees: 20 } }] };
     const result = checkAgentPlan(plan, capabilities, "scene-1");
     expect(result.ok).toBe(true);
-    if (result.ok) result.operations[0].args.degrees = 90;
-    expect(plan.operations[0].args.degrees).toBe(20);
+    if (result.ok) result.operations[0]!.args["degrees"] = 90;
+    expect(plan.operations[0]!.args["degrees"]).toBe(20);
   });
 });

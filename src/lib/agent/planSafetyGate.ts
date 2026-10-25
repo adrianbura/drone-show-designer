@@ -36,7 +36,7 @@ export function checkAgentPlan(
   if (!isRecord(input) || Object.keys(input).some((key) => key !== "operations")) {
     return { ok: false, reason: "Invalid plan envelope" };
   }
-  const operations = input.operations;
+  const operations = input["operations"];
   if (!Array.isArray(operations) || operations.length === 0 || operations.length > maxOperations) {
     return { ok: false, reason: "Invalid operation count" };
   }
@@ -73,6 +73,7 @@ export function checkAgentPlan(
       if (typeof value !== expected || (expected === "number" && !Number.isFinite(value))) {
         return { ok: false, reason: "Invalid argument type", operationIndex: index };
       }
+      // eslint-disable-next-line no-control-regex -- intentionally rejects control characters
       if (typeof value === "string" && (value.length > 2048 || /[\u0000-\u001F]/.test(value))) {
         return { ok: false, reason: "Invalid string argument", operationIndex: index };
       }
