@@ -162,21 +162,12 @@ export function gateModelOps(
   return { ok: true, ops: wire };
 }
 
-function toWire(op: {
-  kind: "ROTATE_SCENE" | "RECOLOR_SCENE" | "SET_DURATION" | "SELECT_SCENE";
-  axis?: "X" | "Y" | "Z";
-  degrees?: number;
-  color?: readonly [number, number, number];
-  holdSeconds?: number;
-  deltaSeconds?: number;
-  sceneIndex?: number;
-  sceneName?: string;
-}): AgentInterpretation["ops"][number] {
+function toWire(op: ModelOp): AgentInterpretation["ops"][number] {
   return {
     kind: op.kind,
     axis: op.axis ?? null,
     degrees: op.degrees ?? null,
-    color: op.color ? [op.color[0], op.color[1], op.color[2]] : null,
+    color: op.color ? [op.color[0]!, op.color[1]!, op.color[2]!] : null,
     holdSeconds: op.holdSeconds ?? null,
     deltaSeconds: op.deltaSeconds ?? null,
     sceneIndex: op.sceneIndex ?? null,
