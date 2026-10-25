@@ -1152,3 +1152,4 @@ procesat sau modificat. Nu există un nou rezultat de audit real wedding-sorin.
 - Neschimbate (sha256 -c OK): `docs/ESSP_SHOW_BENCHMARK.md`, `docs/audits/essp-original-rgb-0055f8ce.md`. Import experimental neactivat.
 - Teste: `rgbAudit.test.ts` + `spatialRgb.test.ts` 17/17; eslint pe fișierele schimbate curat.
 - Următorul pas: interpretarea comparativă a intervalelor (fără nume de efecte inventate).
+- Completare 09:04 UTC: `readRgbAuditArchive(..., { generic: true, clocks: null })` acceptă ID-uri numerice pozitive unice cu goluri (ex. 13/44/52), respinge duplicatele și fișierele invalide; provenance include `sourceIds`. Implicitul benchmark (150 ID-uri 1–150, XYZ 8 Hz/RGB 12 Hz) neschimbat și testat. CLI `--generic` folosește acest mod. Teste: rgbAudit+spatialRgb+essp 36/36; eslint curat; `git diff --check` curat; benchmark-ul și auditul original verificate cu `sha256sum -c`.
