@@ -243,8 +243,8 @@ export function analyzeSpatialRgb(show: ReferenceShow, binding: ReferenceClipBin
   let temporalPairs = 0,
     fieldRateSum = 0,
     gradientRateSum = 0,
-    speedPairs = 0,
-    speedSum = 0;
+    speedPairs = 0;
+  const speedVectorSum = zero();
   let previous: Frame | null = null;
   for (let index = first; index < stop; index++) {
     const frame = fitFrame(show, index);
@@ -301,7 +301,8 @@ export function analyzeSpatialRgb(show: ReferenceShow, binding: ReferenceClipBin
           norm(residual) <= Math.max(1e-6, norm(velocity) * 0.1)
         ) {
           speedPairs++;
-          speedSum += speed;
+          for (let i = 0; i < 3; i++)
+            speedVectorSum[i] = (speedVectorSum[i] ?? 0) + speed * (frame.direction[i] ?? 0);
         }
       }
     }
@@ -353,8 +354,8 @@ export function analyzeSpatialRgb(show: ReferenceShow, binding: ReferenceClipBin
       speedSupportedPairs: speedPairs,
       // Apparent iso-color field speed, NOT drone speed or an identified sweep recipe.
       apparentSpeedMetersPerSecond:
-        stable && temporalPairs > 0 && speedPairs / temporalPairs >= 0.8
-          ? speedSum / speedPairs
+        direction && temporalPairs > 0 && speedPairs / temporalPairs >= 0.8
+          ? dot(speedVectorSum, direction) / speedPairs
           : null,
     },
     recipe: "UNKNOWN" as const,
