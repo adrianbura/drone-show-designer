@@ -25,7 +25,9 @@ export default function SaveExactScene({
   const [status, setStatus] = useState<string | null>(null);
   const t = (r: string, e: string) => (ro ? r : e);
   if (binding.kind !== "SCENE") return null;
-  const clipName = project.timeline.find((c) => c.id === binding.clipId)?.name ?? "Imported scene";
+  const clip = project.timeline.find((c) => c.id === binding.clipId);
+  const clipName =
+    project.formations.find((f) => f.id === clip?.formationId)?.name ?? "Imported scene";
 
   const save = async () => {
     setStatus(null);
