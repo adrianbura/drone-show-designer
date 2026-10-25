@@ -281,7 +281,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       setBusy(false);
       inputRef.current?.focus();
     }
-  }, [input, busy, project, selectedClipId, selectClip, say, t, ro]);
+  }, [input, busy, project, selectedClipId, selectedClip?.hold, selectClip, say, t, ro]);
 
   const apply = useCallback(
     (edit: PendingEdit) => {
