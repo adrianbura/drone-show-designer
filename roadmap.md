@@ -245,3 +245,5 @@ această rulare.
 
 - [x] Audit RGB read-only `wedding-sorin-frg-no-movement.zip` (SHA `e7a42460…`, XYZ 4 Hz / RGB 12 Hz, AppleDouble exclus, mod `--generic`, raport `docs/audits/wedding-sorin-e7a42460/`). Mod generic: ID-uri neconsecutive unice, duplicate respinse, testat. Comparație read-only livrată (`scripts/compareRgbAudits.ts`). Următor: diagnostic local low-fit.
 - [x] Etapă RGB A+B+C (grupuri, puls/val cu held-out, reconstrucție vs sursă + UNKNOWN), UI EN/RO, validare pe ambele show-uri (`docs/audits/rgb-structure/`). Următor: grupuri cu toleranță la zgomot, faza valului, verificare vizuală panou.
+
+- [x] 2026-10-25 Grupuri RGB aproape identice (toleranță ≤2, complete-link, ferestre 5 s, suport ≥3) în panoul Structură RGB EN/RO; verificat în browser pe ESSP real. Rămas: auditul metodologic Python (owner), titlul/secțiunile proiectului vechi rămân după importul ESSP.

@@ -1161,3 +1161,13 @@ procesat sau modificat. Nu există un nou rezultat de audit real wedding-sorin.
 - Validare reală separată: `docs/audits/rgb-structure/` (benchmark 138 segmente: 11 reconstruibile prin grupuri, 127 UNKNOWN; wedding 80: 4 / 76). Niciun puls/val nu a trecut validarea held-out pe show-urile reale — rezultat conservator.
 - Verificări: suita completă 168 fișiere, 1460 passed / 1 skipped; 19 fișiere import/downstream 170 passed; eslint curat pe 7 fișiere; rapoartele sursă `sha256sum -c` neschimbate. Export, import experimental și eșantioanele nu au fost atinse.
 - Rămâne: grupuri aproape-identice (toleranță la zgomot), dezînfășurarea fazei la val, verificare vizuală a panoului pe salvarea reală.
+
+## 2026-10-25 — Near-identical RGB groups (Lovable, TS/UI only)
+
+- Status `fcdde1e`: present, tree clean before work; build OK.
+- `rgbStructure.ts` → `analyzeRgbNearGroups(show, binding, {tolerance=2, windowSeconds=5})`: fixed 5 s windows inside the bound interval (no shared-scene assumption), complete-link (every pair max |Δ| per channel/tick ≤ tolerance, no chaining), deterministic greedy seeding by ascending source id, support ≥3, contested-drone count → AMBIGUOUS; ≤240 windows, else `truncated`. Exposed as `analyzeRgbStructure().nearGroups`; `recipe` stays `UNKNOWN`; source samples/playback untouched.
+- UI: `RgbStructureDiagnostic` line `rgb-near-groups`, EN/RO.
+- Tests: 6 synthetic (±1 noise grouped where exact fails; Δ3 rejected; 0→2→4 no chaining + contested; window independence; support <3; recipe UNKNOWN). `rgbStructure.test.ts` 15/15; `src/lib/import/essp` + `src/components/studio` 248 tests — 3 studio DOM tests timed out only under parallel load and pass alone (27/27); eslint clean; build OK.
+- Browser (Playwright, localhost): ADVANCED → Import `ESSP_8_12_mainv4_2f6001-2.zip` → Make editable → 36 clips, 150 drones; Inspector on imported takeoff shows "Near-identical groups … 2 windows of 5 s: 1 clear, 1 ambiguous … mean coverage 41.3%". Console: 1 external `ERR_CONNECTION_REFUSED`, no page errors. Not verified: selecting a later imported scene via automation (timeline clip not clickable by text).
+- Observed, not fixed: after importing ESSP over the bundled project, the title stays "A & B — Wedding Story" and A & B section labels remain above the timeline.
+- Python methodological audit of near-grouping is owned by the owner side, outside the repo.
