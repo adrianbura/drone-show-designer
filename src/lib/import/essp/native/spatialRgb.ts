@@ -175,23 +175,27 @@ export function fitSpatialRgbFrame(show: ReferenceShow, index: number): Frame {
   const varianceByChannel = zero();
   const residualByChannel = zero();
   const fitByChannel: [number | null, number | null, number | null] = [null, null, null];
-  const channelFits = [0, 1, 2].map((i) => {
-    let v = 0,
-      e = 0;
-    positions.forEach((position, d) => {
-      const delta = (colors[d]?.[i] ?? 0) - (mean[i] ?? 0);
-      const row = gradient[i];
-      const predicted = row ? dot(row, position.map((x, j) => x - (center[j] ?? 0)) as Vec) : 0;
-      v += delta ** 2;
-      e += (delta - predicted) ** 2;
-    });
-    varianceByChannel[i] = v / Math.max(1, count);
-    residualByChannel[i] = e / Math.max(1, count);
-    const channelFit = count >= 12 && observed.length > 0 && v / count >= 1
-      ? Math.max(0, Math.min(1, 1 - e / v)) : null;
-    fitByChannel[i] = channelFit;
-    return v / Math.max(1, count) < 1 || (channelFit !== null && channelFit >= 0.85);
-  }).every(Boolean);
+  const channelFits = [0, 1, 2]
+    .map((i) => {
+      let v = 0,
+        e = 0;
+      positions.forEach((position, d) => {
+        const delta = (colors[d]?.[i] ?? 0) - (mean[i] ?? 0);
+        const row = gradient[i];
+        const predicted = row ? dot(row, position.map((x, j) => x - (center[j] ?? 0)) as Vec) : 0;
+        v += delta ** 2;
+        e += (delta - predicted) ** 2;
+      });
+      varianceByChannel[i] = v / Math.max(1, count);
+      residualByChannel[i] = e / Math.max(1, count);
+      const channelFit =
+        count >= 12 && observed.length > 0 && v / count >= 1
+          ? Math.max(0, Math.min(1, 1 - e / v))
+          : null;
+      fitByChannel[i] = channelFit;
+      return v / Math.max(1, count) < 1 || (channelFit !== null && channelFit >= 0.85);
+    })
+    .every(Boolean);
   if (
     principal &&
     coherence !== null &&
