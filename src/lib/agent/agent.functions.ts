@@ -8,7 +8,10 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 
+import { toRuntimeCapabilities } from "./capabilities";
 import { parseAgentCommand } from "./parser";
+import { checkAgentPlan, type AgentOperation } from "./planSafetyGate";
+import type { ModelOp } from "./agent.server";
 
 export interface AgentInterpretation {
   source: "model" | "local";
