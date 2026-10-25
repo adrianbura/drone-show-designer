@@ -7,22 +7,39 @@ import { analyzeSpatialRgb } from "../spatialRgb";
 import type { ReferenceClipBinding } from "../types";
 
 const binding: ReferenceClipBinding = {
-  clipId: "scene", order: 1, kind: "SCENE", sourceSegmentId: null,
-  sourceClassification: "DYNAMIC_DEFORMATION", referenceStart: 0,
-  referenceHoldStart: 0, referenceEnd: 1, owner: "REFERENCE", signature: "",
+  clipId: "scene",
+  order: 1,
+  kind: "SCENE",
+  sourceSegmentId: null,
+  sourceClassification: "DYNAMIC_DEFORMATION",
+  referenceStart: 0,
+  referenceHoldStart: 0,
+  referenceEnd: 1,
+  owner: "REFERENCE",
+  signature: "",
 };
 
-async function fixture(color: (x: number, y: number, frame: number, drone: number) => number[], moving = false) {
-  return buildReferenceShow(Array.from({ length: 25 }, (_, drone) => {
-    const x = drone % 5 - 2, y = Math.floor(drone / 5) - 2;
-    return {
-      name: `${drone + 1}.essp`,
-      bytes: buildSyntheticEssp({
-        xyz: Array.from({ length: 9 }, (_, frame) => [x * 100 + (moving ? frame * 15 : 0), 0, 3000 + y * 100]),
-        rgb: Array.from({ length: 13 }, (_, frame) => color(x, y, frame, drone)),
-      }),
-    };
-  }));
+async function fixture(
+  color: (x: number, y: number, frame: number, drone: number) => number[],
+  moving = false,
+) {
+  return buildReferenceShow(
+    Array.from({ length: 25 }, (_, drone) => {
+      const x = (drone % 5) - 2,
+        y = Math.floor(drone / 5) - 2;
+      return {
+        name: `${drone + 1}.essp`,
+        bytes: buildSyntheticEssp({
+          xyz: Array.from({ length: 9 }, (_, frame) => [
+            x * 100 + (moving ? frame * 15 : 0),
+            0,
+            3000 + y * 100,
+          ]),
+          rgb: Array.from({ length: 13 }, (_, frame) => color(x, y, frame, drone)),
+        }),
+      };
+    }),
+  );
 }
 
 describe("source spatial RGB evidence", () => {
@@ -56,7 +73,11 @@ describe("source spatial RGB evidence", () => {
   });
 
   it("rejects changing nonlinear per-drone colors with zero linear spatial correlation", async () => {
-    const show = await fixture((x, y, frame) => [40 + 15 * x * x + frame, 30 + 10 * y * y + frame * 2, 10]);
+    const show = await fixture((x, y, frame) => [
+      40 + 15 * x * x + frame,
+      30 + 10 * y * y + frame * 2,
+      10,
+    ]);
     const result = analyzeSpatialRgb(show, binding);
     expect(result.status).toBe("LOW_OR_UNSTABLE_FIT");
     expect(result.coherence).toBeCloseTo(0, 10);
@@ -82,13 +103,21 @@ describe("source spatial RGB evidence", () => {
 
   it("keeps XYZ/RGB arrays, bytes and reports unchanged and yields identical evidence after Open", async () => {
     const show = await fixture((x, _y, frame) => [100 + 20 * x + frame, 20, 10]);
-    const arrays = show.drones.map((d) => ({ xyz: Array.from(d.positionSamples), rgb: Array.from(d.rgbSamples) }));
+    const arrays = show.drones.map((d) => ({
+      xyz: Array.from(d.positionSamples),
+      rgb: Array.from(d.rgbSamples),
+    }));
     const bytes = show.drones.map(referenceDroneFileBytes);
     const report = JSON.stringify(show.report);
     const layer = buildReferenceLayer(show, [binding]);
     const saved = JSON.stringify(layer);
     const result = sourceSceneEvidence(show, binding);
-    expect(show.drones.map((d) => ({ xyz: Array.from(d.positionSamples), rgb: Array.from(d.rgbSamples) }))).toEqual(arrays);
+    expect(
+      show.drones.map((d) => ({
+        xyz: Array.from(d.positionSamples),
+        rgb: Array.from(d.rgbSamples),
+      })),
+    ).toEqual(arrays);
     expect(show.drones.map(referenceDroneFileBytes)).toEqual(bytes);
     expect(JSON.stringify(show.report)).toBe(report);
     expect(JSON.stringify(layer)).toBe(saved);
@@ -106,7 +135,11 @@ describe("source spatial RGB evidence", () => {
     expect(right.firstPairedTime).toBe(0.5);
     expect(left.temporal.consecutiveSupportedPairs).toBe(5);
     expect(right.temporal.consecutiveSupportedPairs).toBe(5);
-    const fractional = analyzeSpatialRgb(show, { ...binding, referenceStart: 0.09, referenceEnd: 0.26 });
+    const fractional = analyzeSpatialRgb(show, {
+      ...binding,
+      referenceStart: 0.09,
+      referenceEnd: 0.26,
+    });
     expect(fractional.rgbFrameRange).toEqual([2, 4]);
     const endpoint = analyzeSpatialRgb(show, { ...binding, referenceStart: 1, referenceEnd: 2 });
     expect(endpoint.pairedSamples).toBe(25);
@@ -115,13 +148,19 @@ describe("source spatial RGB evidence", () => {
 
   it("does not extrapolate missing position tracks or RGB and reports insufficient fleets", async () => {
     const show = await fixture((x) => [100 + 20 * x, 20, 10]);
-    const noPairs = analyzeSpatialRgb({ ...show, drones: show.drones.map((d) => ({ ...d, positionSampleCount: 0 })) }, binding);
+    const noPairs = analyzeSpatialRgb(
+      { ...show, drones: show.drones.map((d) => ({ ...d, positionSampleCount: 0 })) },
+      binding,
+    );
     expect(noPairs.status).toBe("NO_PAIRED_SAMPLES");
     expect(noPairs.direction).toBeNull();
     const small = analyzeSpatialRgb({ ...show, drones: show.drones.slice(0, 5) }, binding);
     expect(small.status).toBe("INSUFFICIENT_EVIDENCE");
     expect(small.direction).toBeNull();
-    const absent = analyzeSpatialRgb({ ...show, drones: show.drones.map((d) => ({ ...d, rgbSampleCount: 0 })) }, binding);
+    const absent = analyzeSpatialRgb(
+      { ...show, drones: show.drones.map((d) => ({ ...d, rgbSampleCount: 0 })) },
+      binding,
+    );
     expect(absent.evaluatedFrames).toBe(0);
     expect(absent.status).toBe("NO_PAIRED_SAMPLES");
   });
