@@ -91,7 +91,7 @@ function rgbToHex(color: readonly number[]): string {
  * resolved to absolute seconds using the client-supplied current hold, so
  * every gated operation carries exactly the declared arguments.
  */
-function gateModelOps(
+export function gateModelOps(
   ops: ModelOp[],
   selectedClipId: string | null,
   currentHoldSeconds: number | null,
