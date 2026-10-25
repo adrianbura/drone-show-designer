@@ -64,7 +64,9 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
    - [x] Analiză cinematică inițială: convergență/divergență, rotație, scalare,
          deformare, viteze și easing observabil.
    - [ ] Analiză LED aprofundată: palete, sweep-uri, gradient, sincronizare și relația culoare–mișcare
-         (inventarul inițial confirmă 100+ culori simultane și evoluție continuă).
+         (inventarul inițial confirmă 100+ culori simultane și evoluție continuă). Următorul pas
+         executabil: audit măsurat al direcției/vitezei gradientelor și al sincronizării RGB cu XYZ,
+         apoi mapare la capabilități și criterii de acceptare; importul experimental rămâne oprit.
    - [x] Catalog inițial „pattern observat → capabilitate existentă → lipsă → criteriu de acceptare”
          în `docs/ESSP_SHOW_BENCHMARK.md`.
    - [x] Confirmarea planului comun de prezentare: majoritatea imaginilor au pitch/tilt ~14–15°,
@@ -115,9 +117,10 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
           1415 teste trecute / 1 skipped; inima dinamică verificată pe 18.000 poziții.
     - [ ] Activare în importul normal: blocată de incompatibilitățile de editare la reunirea
           clipurilor statice cu cele dinamice; implementarea este opt-in tehnic, nu UI.
-    - [ ] Următorul pas: reprezentare compatibilă STATIC/DYNAMIC pentru episoadele grupate,
-          refacerea fixture-urilor care confundă translația cu o imagine nouă, apoi
-          rerularea celor 56 de teste downstream înainte de activare.
+    - [x] Reprezentare compatibilă STATIC/DYNAMIC pentru episoadele grupate; fixture-urile
+          disting translația rigidă de o imagine nouă. Integrat în main prin PR #5
+          (commit 3851931). Lovable a raportat 1.422 teste trecute / 1 skipped și lint
+          curat pe cele patru fișiere; nu există CI status disponibil pentru commitul de merge.
     - [ ] Identitate pentru deformări locale/porumbei și imagini schimbate prin drone active;
           rafinarea completă a run-urilor mixte (prefixul confirmat este recuperat) și
           verificare vizuală integrală a celor 25 clipuri opt-in; auditul numeric este
