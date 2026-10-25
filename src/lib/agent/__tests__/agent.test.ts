@@ -221,3 +221,143 @@ describe("validateAgentProject", () => {
     expect(validateAgentProject(low, "c2").issues).toContain("ALTITUDE_BELOW_MIN");
   });
 });
+
+describe("capabilities registry", () => {
+  it("lists every supported op kind and marks roadmap items unsupported", async () => {
+    const { AGENT_CAPABILITIES, SUPPORTED_CAPABILITIES, capabilityInstructions } = await import(
+      "../capabilities"
+    );
+    const supported = SUPPORTED_CAPABILITIES.map((c) => c.kind).sort();
+    expect(supported).toEqual(["RECOLOR_SCENE", "ROTATE_SCENE", "SELECT_SCENE", "SET_DURATION"]);
+    // Roadmap items exist and are honestly marked unsupported.
+    const unsupported = AGENT_CAPABILITIES.filter((c) => c.status === "unsupported").map(
+      (c) => c.kind,
+    );
+    expect(unsupported).toContain("SCALE_SCENE");
+    expect(unsupported).toContain("CHANGE_DRONE_COUNT");
+    // Model instructions mention only supported kinds.
+    const instructions = capabilityInstructions();
+    for (const kind of supported) expect(instructions).toContain(kind);
+    for (const kind of unsupported) expect(instructions).not.toContain(`- ${kind}:`);
+  });
+});
+
+describe("parseAgentCommand — duration and selection", () => {
+  it("parses an absolute hold time", () => {
+    const r = parseAgentCommand("ține scena 12 secunde");
+    expect(r.ok && r.ops[0]).toEqual({ kind: "SET_DURATION", holdSeconds: 12 });
+  });
+
+  it("parses relative extend/shorten", () => {
+    const up = parseAgentCommand("prelungește cu 5 secunde");
+    expect(up.ok && up.ops[0]).toEqual({ kind: "SET_DURATION", deltaSeconds: 5 });
+    const down = parseAgentCommand("shorten it by 3 seconds");
+    expect(down.ok && down.ops[0]).toEqual({ kind: "SET_DURATION", deltaSeconds: -3 });
+  });
+
+  it("parses scene selection by index and by name", () => {
+    const byIndex = parseAgentCommand("selectează scena 5");
+    expect(byIndex.ok && byIndex.ops[0]).toEqual({ kind: "SELECT_SCENE", sceneIndex: 5 });
+    const byName = parseAgentCommand("select the heart");
+    expect(byName.ok && byName.ops[0]).toEqual({ kind: "SELECT_SCENE", sceneName: "heart" });
+  });
+
+  it("does not mistake a plain number of degrees for a duration", () => {
+    const r = parseAgentCommand("rotește scena 30 de grade");
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.ops.every((o) => o.kind === "ROTATE_SCENE")).toBe(true);
+  });
+});
+
+describe("applyAgentOp — SET_DURATION", () => {
+  it("sets an absolute hold and ripples following clips", async () => {
+    const f = makeFormation("f1", [[10, 40, 0]]);
+    const c1 = makeClip("c1", "f1", { start: 0, transition: 2, hold: 5 });
+    const c2 = makeClip("c2", "f1", { start: 7, transition: 2, hold: 5 });
+    const project = makeProject({ formations: [f], timeline: [c1, c2] });
+    const r = applyAgentOp(project, "c1", { kind: "SET_DURATION", holdSeconds: 12 });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const next1 = r.project.timeline.find((c) => c.id === "c1")!;
+    const next2 = r.project.timeline.find((c) => c.id === "c2")!;
+    expect(next1.hold).toBe(12);
+    expect(next2.start).toBe(14); // 0 + 2 + 12
+    expect(r.summary.durationBefore).toBe(5);
+    expect(r.summary.durationAfter).toBe(12);
+    expect(r.summary.followersShifted).toBe(1);
+  });
+
+  it("applies a relative delta and never overlaps followers when shortening", () => {
+    const f = makeFormation("f1", [[10, 40, 0]]);
+    const c1 = makeClip("c1", "f1", { start: 10, transition: 2, hold: 8 });
+    const c2 = makeClip("c2", "f1", { start: 20, transition: 2, hold: 5 });
+    const project = makeProject({ formations: [f], timeline: [c1, c2] });
+    const r = applyAgentOp(project, "c1", { kind: "SET_DURATION", deltaSeconds: -4 });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const next1 = r.project.timeline.find((c) => c.id === "c1")!;
+    const next2 = r.project.timeline.find((c) => c.id === "c2")!;
+    expect(next1.hold).toBe(4);
+    expect(next2.start).toBe(16);
+    expect(next2.start).toBeGreaterThanOrEqual(next1.start + next1.transition + next1.hold);
+  });
+
+  it("refuses a hold shorter than the dynamic animation", () => {
+    const dyn = makeDynamic("d1");
+    const clip = makeClip("c1", "f1", { dynamicFormationId: "d1", hold: 4 });
+    const project = makeProject({
+      formations: [makeFormation("f1", [[10, 40, 0]])],
+      dynamicFormations: [dyn],
+      timeline: [clip],
+    });
+    const r = applyAgentOp(project, "c1", { kind: "SET_DURATION", holdSeconds: 2 });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toBe("DURATION_BELOW_ANIMATION");
+  });
+});
+
+describe("resolveSceneTarget", () => {
+  it("resolves by 1-based timeline position and by name", async () => {
+    const { resolveSceneTarget } = await import("../operations");
+    const f1 = { ...makeFormation("f1", [[10, 40, 0]]), name: "Inima" };
+    const f2 = { ...makeFormation("f2", [[-10, 40, 0]]), name: "Castel" };
+    const c1 = makeClip("c1", "f1", { start: 0 });
+    const c2 = makeClip("c2", "f2", { start: 10 });
+    const project = makeProject({ formations: [f1, f2], timeline: [c1, c2] });
+
+    const byIndex = resolveSceneTarget(project, { kind: "SELECT_SCENE", sceneIndex: 2 });
+    expect(byIndex).toEqual({ ok: true, clipId: "c2", clipName: "Castel" });
+
+    const byName = resolveSceneTarget(project, { kind: "SELECT_SCENE", sceneName: "inim" });
+    expect(byName).toEqual({ ok: true, clipId: "c1", clipName: "Inima" });
+
+    const missing = resolveSceneTarget(project, { kind: "SELECT_SCENE", sceneIndex: 9 });
+    expect(missing.ok).toBe(false);
+  });
+
+  it("reports ambiguity with candidate names instead of guessing", async () => {
+    const { resolveSceneTarget } = await import("../operations");
+    const f1 = { ...makeFormation("f1", [[10, 40, 0]]), name: "Stea 1" };
+    const f2 = { ...makeFormation("f2", [[-10, 40, 0]]), name: "Stea 2" };
+    const project = makeProject({
+      formations: [f1, f2],
+      timeline: [makeClip("c1", "f1", { start: 0 }), makeClip("c2", "f2", { start: 10 })],
+    });
+    const r = resolveSceneTarget(project, { kind: "SELECT_SCENE", sceneName: "stea" });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.reason).toBe("SCENE_AMBIGUOUS");
+    expect(r.candidates).toEqual(["Stea 1", "Stea 2"]);
+  });
+
+  it("SELECT_SCENE is never a project mutation", () => {
+    const project = makeProject({
+      formations: [makeFormation("f1", [[10, 40, 0]])],
+      timeline: [makeClip("c1", "f1")],
+    });
+    const r = applyAgentOp(project, "c1", { kind: "SELECT_SCENE", sceneIndex: 1 });
+    expect(r.ok).toBe(false);
+  });
+});
