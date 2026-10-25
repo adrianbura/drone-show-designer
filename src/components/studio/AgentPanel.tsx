@@ -350,6 +350,24 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
                       : t("răspuns local", "local answer")}
                   </p>
                 )}
+                {entry.feedback &&
+                  (entry.feedbackSaved ? (
+                    <p className="px-1 text-[10px] text-muted-foreground">
+                      {t(
+                        "Sugestia e salvată local, în acest browser — nu este trimisă nicăieri automat.",
+                        "Suggestion saved locally in this browser — it is not sent anywhere automatically.",
+                      )}
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      className="chip-btn mt-1"
+                      onClick={() => saveFeedback(i)}
+                      data-testid="agent-save-feedback"
+                    >
+                      {t("Salvează ca sugestie de dezvoltare", "Save as development suggestion")}
+                    </button>
+                  ))}
               </div>
             );
           }
