@@ -13,23 +13,43 @@ const state = vi.hoisted(() => ({ studio: {} }));
 vi.mock("@/lib/studio/store", () => ({ useStudio: () => state.studio }));
 vi.mock("@/i18n", () => ({ useI18n: () => ({ language: "ro" }) }));
 const binding: ReferenceClipBinding = {
-  clipId: "scene", order: 1, kind: "SCENE", sourceSegmentId: null,
-  referenceStart: 0, referenceHoldStart: 0.5, referenceEnd: 1,
-  owner: "REFERENCE", signature: "",
+  clipId: "scene",
+  order: 1,
+  kind: "SCENE",
+  sourceSegmentId: null,
+  referenceStart: 0,
+  referenceHoldStart: 0.5,
+  referenceEnd: 1,
+  owner: "REFERENCE",
+  signature: "",
 };
 async function fixture(kind: "gradient" | "uniform" | "nonlinear" = "gradient") {
-  return buildReferenceShow(Array.from({ length: 25 }, (_, drone) => {
-    const x = drone % 5 - 2, y = Math.floor(drone / 5) - 2;
-    return { name: `${drone + 1}.essp`, bytes: buildSyntheticEssp({
-      xyz: Array.from({ length: 9 }, () => [x * 100, 0, 3000 + y * 100]),
-      rgb: Array.from({ length: 13 }, (_, frame) => [
-        kind === "uniform" ? 100 + frame : kind === "nonlinear" ? 40 + 15 * x * x + frame : 100 + 20 * x + frame,
-        20, 10,
-      ]),
-    }) };
-  }));
+  return buildReferenceShow(
+    Array.from({ length: 25 }, (_, drone) => {
+      const x = (drone % 5) - 2,
+        y = Math.floor(drone / 5) - 2;
+      return {
+        name: `${drone + 1}.essp`,
+        bytes: buildSyntheticEssp({
+          xyz: Array.from({ length: 9 }, () => [x * 100, 0, 3000 + y * 100]),
+          rgb: Array.from({ length: 13 }, (_, frame) => [
+            kind === "uniform"
+              ? 100 + frame
+              : kind === "nonlinear"
+                ? 40 + 15 * x * x + frame
+                : 100 + 20 * x + frame,
+            20,
+            10,
+          ]),
+        }),
+      };
+    }),
+  );
 }
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 describe("spatial RGB diagnostic", () => {
   it("renders supported measured values in a named accessible region with a live status", async () => {
     const evidence = analyzeSpatialRgb(await fixture(), binding);
@@ -55,10 +75,20 @@ describe("spatial RGB diagnostic", () => {
   });
   it("distinguishes insufficient and missing paired evidence", async () => {
     const show = await fixture();
-    const view = render(<SpatialRgbDiagnostic evidence={analyzeSpatialRgb({ ...show, drones: show.drones.slice(0, 5) }, binding)} ro />);
+    const view = render(
+      <SpatialRgbDiagnostic
+        evidence={analyzeSpatialRgb({ ...show, drones: show.drones.slice(0, 5) }, binding)}
+        ro
+      />,
+    );
     expect(screen.getByRole("status").textContent).toContain("Probe insuficiente");
     expect(screen.queryByText("Fit liniar mediu")).toBeNull();
-    view.rerender(<SpatialRgbDiagnostic evidence={analyzeSpatialRgb(show, { ...binding, referenceStart: 2, referenceEnd: 3 })} ro />);
+    view.rerender(
+      <SpatialRgbDiagnostic
+        evidence={analyzeSpatialRgb(show, { ...binding, referenceStart: 2, referenceEnd: 3 })}
+        ro
+      />,
+    );
     expect(screen.getByRole("status").textContent).toContain("Nu există probe");
     expect(screen.getByText("Probe pereche XYZ/RGB").nextElementSibling?.textContent).toBe("0");
   });
@@ -69,10 +99,23 @@ describe("spatial RGB diagnostic", () => {
   });
   it("never renders nonfinite metrics and gates unsupported temporal evidence", async () => {
     const evidence = analyzeSpatialRgb(await fixture(), binding);
-    render(<SpatialRgbDiagnostic evidence={{ ...evidence, coherence: NaN,
-      minimumCoherence: Infinity, direction: [NaN, 0, 0], strengthRgbPerMeter: Infinity,
-      temporal: { ...evidence.temporal, apparentSpeedMetersPerSecond: NaN, fieldChangeRgbPerSecond: Infinity },
-    }} ro />);
+    render(
+      <SpatialRgbDiagnostic
+        evidence={{
+          ...evidence,
+          coherence: NaN,
+          minimumCoherence: Infinity,
+          direction: [NaN, 0, 0],
+          strengthRgbPerMeter: Infinity,
+          temporal: {
+            ...evidence.temporal,
+            apparentSpeedMetersPerSecond: NaN,
+            fieldChangeRgbPerSecond: Infinity,
+          },
+        }}
+        ro
+      />,
+    );
     expect(screen.getByRole("region").textContent).not.toMatch(/NaN|Infinity/);
     expect(screen.queryByText("Axă X / Y / Z")).toBeNull();
     expect(screen.getByText("Viteza aparentă nu este susținută de date.")).toBeTruthy();

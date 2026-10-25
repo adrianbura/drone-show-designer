@@ -48,37 +48,82 @@ export default function SpatialRgbDiagnostic({
   };
   if (evidence) {
     if (finite(evidence.pairedSamples))
-      rows.push([text("Probe pereche XYZ/RGB", "Paired XYZ/RGB samples"), String(evidence.pairedSamples)]);
+      rows.push([
+        text("Probe pereche XYZ/RGB", "Paired XYZ/RGB samples"),
+        String(evidence.pairedSamples),
+      ]);
     if (finite(evidence.pairedFrames) && finite(evidence.evaluatedFrames))
-      rows.push([text("Momente cu probe / evaluate", "Paired / evaluated timestamps"), `${evidence.pairedFrames} / ${evidence.evaluatedFrames}`]);
+      rows.push([
+        text("Momente cu probe / evaluate", "Paired / evaluated timestamps"),
+        `${evidence.pairedFrames} / ${evidence.evaluatedFrames}`,
+      ]);
     add(text("Ceas RGB original", "Original RGB clock"), evidence.rgbRateHz, "Hz");
     if (finite(evidence.firstPairedTime) && finite(evidence.lastPairedTime))
-      rows.push([text("Prima / ultima probă", "First / last sample"), `${evidence.firstPairedTime.toFixed(3)} / ${evidence.lastPairedTime.toFixed(3)} s`]);
+      rows.push([
+        text("Prima / ultima probă", "First / last sample"),
+        `${evidence.firstPairedTime.toFixed(3)} / ${evidence.lastPairedTime.toFixed(3)} s`,
+      ]);
     if (finite(evidence.coherence))
       rows.push([text("Fit liniar mediu", "Mean linear fit"), percent(evidence.coherence)]);
     if (finite(evidence.minimumCoherence))
-      rows.push([text("Fit liniar minim", "Minimum linear fit"), percent(evidence.minimumCoherence)]);
+      rows.push([
+        text("Fit liniar minim", "Minimum linear fit"),
+        percent(evidence.minimumCoherence),
+      ]);
     if (supported) {
       if (finite(evidence.supportedFrameFraction))
-        rows.push([text("Momente cu gradient susținut", "Gradient-supported timestamps"), percent(evidence.supportedFrameFraction)]);
+        rows.push([
+          text("Momente cu gradient susținut", "Gradient-supported timestamps"),
+          percent(evidence.supportedFrameFraction),
+        ]);
       if (finite(evidence.directionStability))
-        rows.push([text("Stabilitatea axei", "Axis stability"), percent(evidence.directionStability)]);
+        rows.push([
+          text("Stabilitatea axei", "Axis stability"),
+          percent(evidence.directionStability),
+        ]);
       if (direction)
-        rows.push([text("Axă X / Y / Z", "Axis X / Y / Z"), direction.map((v) => v.toFixed(3)).join(" / ")]);
+        rows.push([
+          text("Axă X / Y / Z", "Axis X / Y / Z"),
+          direction.map((v) => v.toFixed(3)).join(" / "),
+        ]);
       add(text("Putere gradient", "Gradient strength"), evidence.strengthRgbPerMeter, "RGB/m");
     }
   }
-  if (temporal && finite(temporal.consecutiveSupportedPairs) && temporal.consecutiveSupportedPairs > 0) {
-    rows.push([text("Perechi temporale susținute", "Supported temporal pairs"), String(temporal.consecutiveSupportedPairs)]);
+  if (
+    temporal &&
+    finite(temporal.consecutiveSupportedPairs) &&
+    temporal.consecutiveSupportedPairs > 0
+  ) {
+    rows.push([
+      text("Perechi temporale susținute", "Supported temporal pairs"),
+      String(temporal.consecutiveSupportedPairs),
+    ]);
     add(text("Schimbare câmp", "Field change"), temporal.fieldChangeRgbPerSecond, "RGB/s");
-    add(text("Schimbare gradient", "Gradient change"), temporal.gradientChangeRgbPerMeterSecond, "RGB/m/s");
-    add(text("Viteză aparentă a câmpului", "Apparent field speed"), temporal.apparentSpeedMetersPerSecond, "m/s");
+    add(
+      text("Schimbare gradient", "Gradient change"),
+      temporal.gradientChangeRgbPerMeterSecond,
+      "RGB/m/s",
+    );
+    add(
+      text("Viteză aparentă a câmpului", "Apparent field speed"),
+      temporal.apparentSpeedMetersPerSecond,
+      "m/s",
+    );
   }
   return (
-    <section aria-labelledby={heading} className="min-w-0 space-y-2 border-t border-border pt-2 text-xs">
-      <h4 id={heading} className="font-medium">{text("Diagnostic RGB spațial", "Spatial RGB diagnostic")}</h4>
+    <section
+      aria-labelledby={heading}
+      className="min-w-0 space-y-2 border-t border-border pt-2 text-xs"
+    >
+      <h4 id={heading} className="font-medium">
+        {text("Diagnostic RGB spațial", "Spatial RGB diagnostic")}
+      </h4>
       <p role="status" aria-live="polite" className="break-words text-muted-foreground">
-        {explanation ?? text("Analiza spațială nu este disponibilă sau nu este suportată.", "Spatial analysis is unavailable or unsupported.")}
+        {explanation ??
+          text(
+            "Analiza spațială nu este disponibilă sau nu este suportată.",
+            "Spatial analysis is unavailable or unsupported.",
+          )}
       </p>
       <dl className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-2 gap-y-1">
         {rows.map(([label, value]) => (
@@ -90,14 +135,25 @@ export default function SpatialRgbDiagnostic({
       </dl>
       {supported && (
         <p className="text-muted-foreground">
-          {text("Axa este fără sens de deplasare (X lateral, Y vertical, Z adâncime). Viteza aparentă, când există, nu este viteza dronelor.", "The axis has no travel orientation (X lateral, Y vertical, Z depth). Apparent speed, when available, is not drone speed.")}
+          {text(
+            "Axa este fără sens de deplasare (X lateral, Y vertical, Z adâncime). Viteza aparentă, când există, nu este viteza dronelor.",
+            "The axis has no travel orientation (X lateral, Y vertical, Z depth). Apparent speed, when available, is not drone speed.",
+          )}
         </p>
       )}
       {supported && (!temporal || !finite(temporal.apparentSpeedMetersPerSecond)) && (
-        <p className="text-muted-foreground">{text("Viteza aparentă nu este susținută de date.", "Apparent speed is not supported by the data.")}</p>
+        <p className="text-muted-foreground">
+          {text(
+            "Viteza aparentă nu este susținută de date.",
+            "Apparent speed is not supported by the data.",
+          )}
+        </p>
       )}
       <p className="text-muted-foreground">
-        {text("Fit-ul măsoară doar modelul liniar; un fit mare nu identifică un efect. RGB reprezintă valori înregistrate, nu intensitate luminoasă calibrată. Rețeta efectelor: necunoscută.", "Fit measures only the linear model; a high fit does not identify an effect. RGB represents recorded values, not calibrated light intensity. Effect recipe: unknown.")}
+        {text(
+          "Fit-ul măsoară doar modelul liniar; un fit mare nu identifică un efect. RGB reprezintă valori înregistrate, nu intensitate luminoasă calibrată. Rețeta efectelor: necunoscută.",
+          "Fit measures only the linear model; a high fit does not identify an effect. RGB represents recorded values, not calibrated light intensity. Effect recipe: unknown.",
+        )}
       </p>
     </section>
   );
