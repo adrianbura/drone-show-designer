@@ -248,3 +248,7 @@ această rulare.
 
 - [x] 2026-10-25 Grupuri RGB aproape identice (toleranță ≤2, complete-link, ferestre 5 s, suport ≥3) în panoul Structură RGB EN/RO; verificat în browser pe ESSP real. Rămas: auditul metodologic Python (owner), titlul/secțiunile proiectului vechi rămân după importul ESSP.
 - [~] 2026-10-25 Scenă importată → bibliotecă → copie editabilă exactă (XYZ+RGB+timp+proveniență). Livrat: salvare + inserare + lumini exacte + teste; titlul vechi reparat. Rămas: verificare în browser a inserării, schimbarea numărului de drone (validare în așteptare), rerulare suită completă.
+
+## 15. AI AGENT — vertical slice funcțional (2026-10-25, Lovable)
+- TERMINAT: operații tipizate (rotire scenă statică/dinamică, recolorare cu păstrarea animației de luminozitate), validator pre-commit, parser local RO/EN fără cheie, backend model (Lovable AI Gateway, răspunsuri etichetate local/model), panou chat Ctrl+K cu preview/Aplică/Undo, nav stânga simplificată (Advanced tools pliabil). Teste 9/9, suită 1478 trecute, browser smoke pe ESSP real.
+- RĂMAS: scene multi-obiect, mai multe tipuri de operații (scalare, mutare, timing), memorie conversațională, inserarea din bibliotecă verificată în browser (pas automat picat anterior).
