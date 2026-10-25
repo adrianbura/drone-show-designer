@@ -77,7 +77,31 @@ describe("import visual episodes (report remains motion-only)", () => {
     );
     const report = analyzeSequence(sequence);
     expect(new Set(report.segments.map((s) => s.classification)).size).toBeGreaterThan(1);
-    expect(visualSceneSegments(sequence, report, 4)).toHaveLength(1);
+    const episodes = visualSceneSegments(sequence, report, 4);
+    expect(episodes).toHaveLength(1);
+    expect(episodes[0]?.classification).toBe("RIGID_MOTION");
+  });
+
+  it("keeps continuous translation between holds as one translating episode, not static or deformation", () => {
+    const shape = baseShape();
+    const sequence = sequenceFromFrames(
+      Array.from({ length: 160 }, (_, sample) => {
+        const dx = Math.max(0, Math.min(10, sample / 8 - 5)) * 2;
+        return shape.map((p): P => [p[0] + dx, p[1], p[2]]);
+      }),
+      8,
+    );
+    const report = analyzeSequence(sequence);
+    const before = JSON.stringify(report);
+    const positions = sequence.positions.slice();
+    expect(report.segments.some((s) => s.classification === "GLOBAL_TRANSLATION")).toBe(true);
+    const episodes = visualSceneSegments(sequence, report, 4);
+    expect(episodes).toHaveLength(1);
+    expect(episodes[0]?.classification).toBe("GLOBAL_TRANSLATION");
+    expect(episodes[0]?.startTime).toBe(0);
+    expect(episodes[0]?.endTime).toBe(19.875);
+    expect(JSON.stringify(report)).toBe(before);
+    expect(sequence.positions).toEqual(positions);
   });
 
   it("retains a confirmed two-second visual despite the four-second extraction floor", () => {
@@ -148,7 +172,9 @@ describe("import visual episodes (report remains motion-only)", () => {
         changeEnergy: 1,
       })),
     };
-    expect(visualSceneSegments(sequence, report, 4)).toHaveLength(1);
+    const episodes = visualSceneSegments(sequence, report, 4);
+    expect(episodes).toHaveLength(1);
+    expect(episodes[0]?.classification).toBe("STATIC_FORMATION");
   });
 
   it("keeps an overlap-only compatible prefix out of a second uncertain scene", () => {
