@@ -67,7 +67,7 @@ export function checkAgentPlan(
       if (typeof value !== expected || (expected === "number" && !Number.isFinite(value))) {
         return { ok: false, reason: "Invalid argument type", operationIndex: index };
       }
-      if (typeof value === "string" && (value.length > 2048 || /[-]/.test(value))) {
+      if (typeof value === "string" && (value.length > 2048 || /[\u0000-\u001F]/.test(value))) {
         return { ok: false, reason: "Invalid string argument", operationIndex: index };
       }
     }
