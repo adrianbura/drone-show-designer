@@ -52,7 +52,9 @@ export async function parseWithModel(text: string): Promise<ModelParseResult> {
   });
   try {
     const result = streamText({
-      model: provider.responses(MODEL),
+      // The SDK family ships two structurally-identical @ai-sdk/provider
+      // copies (gateway vs openai); the runtime model is the same object.
+      model: provider.responses(MODEL) as never,
       system: INSTRUCTIONS,
       messages: [{ role: "user", content: text }],
       output: Output.object({ schema: opSchema }),
