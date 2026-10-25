@@ -57,10 +57,10 @@ describe("imported scene -> library -> editable copy", () => {
     expect(asset.source).toBe("ESSP_DERIVED");
     expect(asset.assetType).toBe("DYNAMIC_FORMATION");
     expect(asset.droneCount).toBe(N);
-    expect(asset.sourceRef?.params?.holdStart).toBe(2);
-    expect(asset.sourceRef?.params?.end).toBe(7);
-    expect(asset.sourceRef?.params?.effectRecipe).toBe("UNKNOWN");
-    expect(asset.sourceRef?.params?.droneCountAdaptation).toBe("UNAVAILABLE_VALIDATION_PENDING");
+    expect(asset.sourceRef?.params?.["holdStart"]).toBe(2);
+    expect(asset.sourceRef?.params?.["end"]).toBe(7);
+    expect(asset.sourceRef?.params?.["effectRecipe"]).toBe("UNKNOWN");
+    expect(asset.sourceRef?.params?.["droneCountAdaptation"]).toBe("UNAVAILABLE_VALIDATION_PENDING");
     if (asset.formationData.kind !== "DYNAMIC") throw new Error("kind");
     const f = asset.formationData.formation;
     expect(f.duration).toBeCloseTo(5, 6);
@@ -123,7 +123,7 @@ describe("imported scene -> library -> editable copy", () => {
       (reloaded.formationData as { formation: { sampledColors: unknown } }).formation.sampledColors,
     );
     // edit the copy: library asset must not change
-    (copy.points as { base: number[] }[])[0]!.base[0] = 999;
+    (copy.points as unknown as { base: number[] }[])[0]!.base[0] = 999;
     (copy.sampledColors!.byPoint[copy.points[0]!.id] as number[])[0] = 1;
     expect(JSON.stringify(reloaded)).toBe(frozen);
     // drone count larger than fleet stays partial (reserve), never resampled
