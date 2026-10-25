@@ -24,7 +24,8 @@ import type { FormationAsset } from "../../../library/types";
 
 export const MIN_EXACT_SCENE_SECONDS = 0.5;
 
-export type ExactSceneAssetError = "NO_DRONES" | "INTERVAL_TOO_SHORT" | "NO_RGB" | "TAKEOFF_OR_LANDING";
+export type ExactSceneAssetError =
+  "NO_DRONES" | "INTERVAL_TOO_SHORT" | "NO_RGB" | "TAKEOFF_OR_LANDING";
 
 export interface ExactSceneAssetResult {
   readonly asset: FormationAsset | null;

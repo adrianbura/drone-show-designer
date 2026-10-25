@@ -25,7 +25,11 @@ async function show() {
           3000 + d * 100 + Math.round(30 * Math.cos(f / 3)),
         ]),
         // animated RGB unique per drone and frame
-        rgb: Array.from({ length: SECONDS * 12 + 1 }, (_, f) => [(d * 40 + f) % 256, (f * 7) % 256, d * 9]),
+        rgb: Array.from({ length: SECONDS * 12 + 1 }, (_, f) => [
+          (d * 40 + f) % 256,
+          (f * 7) % 256,
+          d * 9,
+        ]),
       }),
     })),
   );
@@ -86,12 +90,17 @@ describe("imported scene -> library -> editable copy", () => {
         ]);
       }
     }
-    expect(s.drones.map((d) => [Array.from(d.positionSamples), Array.from(d.rgbSamples)])).toEqual(before);
+    expect(s.drones.map((d) => [Array.from(d.positionSamples), Array.from(d.rgbSamples)])).toEqual(
+      before,
+    );
   });
 
   it("persists through the library and instantiates an independent editable copy", async () => {
     const s = await show();
-    const asset = buildExactSceneAsset(s, binding, { name: "Scene X", formationId: "dyn-x" }).asset!;
+    const asset = buildExactSceneAsset(s, binding, {
+      name: "Scene X",
+      formationId: "dyn-x",
+    }).asset!;
     const repo = new LocalFormationAssetRepository(new MemoryKeyValueStore());
     const saved = await repo.save(asset);
     const reloaded = (await new LocalFormationAssetRepository(
@@ -106,7 +115,9 @@ describe("imported scene -> library -> editable copy", () => {
       formationId: (i) => `c1-f-${i}`,
       dynamicFormationId: (i) => `c1-dyn-${i}`,
     });
-    const copy = result.project.dynamicFormations!.find((d) => d.id !== "dyn-x" && d.sampledColors)!;
+    const copy = result.project.dynamicFormations!.find(
+      (d) => d.id !== "dyn-x" && d.sampledColors,
+    )!;
     expect(copy.id).not.toBe("dyn-x");
     expect(copy.sampledColors).toEqual(
       (reloaded.formationData as { formation: { sampledColors: unknown } }).formation.sampledColors,
@@ -133,21 +144,23 @@ describe("imported scene -> library -> editable copy", () => {
         target: [0, 0, 0],
       })),
     };
-    const ctx = lightingContextAt(
-      { project: result.project, participation: [plan as never] },
-      t,
-    )!;
+    const ctx = lightingContextAt({ project: result.project, participation: [plan as never] }, t)!;
     const raw = s.drones[2]!.rgbSamples;
     expect(ctx.points[0]!.baseColor).toEqual([raw[42 * 3], raw[42 * 3 + 1], raw[42 * 3 + 2]]);
   });
 
   it("refuses takeoff/landing and too-short intervals", async () => {
     const s = await show();
-    expect(buildExactSceneAsset(s, { ...binding, kind: "TAKEOFF" }, { name: "x", formationId: "a" }).error).toBe(
-      "TAKEOFF_OR_LANDING",
-    );
     expect(
-      buildExactSceneAsset(s, { ...binding, referenceHoldStart: 6.8 }, { name: "x", formationId: "a" }).error,
+      buildExactSceneAsset(s, { ...binding, kind: "TAKEOFF" }, { name: "x", formationId: "a" })
+        .error,
+    ).toBe("TAKEOFF_OR_LANDING");
+    expect(
+      buildExactSceneAsset(
+        s,
+        { ...binding, referenceHoldStart: 6.8 },
+        { name: "x", formationId: "a" },
+      ).error,
     ).toBe("INTERVAL_TOO_SHORT");
   });
 });
