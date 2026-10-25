@@ -109,6 +109,65 @@ individual points.
 - Required future measurements: dominant palette over time, hue/brightness velocity, spatial
   gradient direction, travelling-wave speed, group coherence and fade/sweep boundaries.
 
+### Read-only spatial RGB evidence (2026-10-25)
+
+`native/spatialRgb.ts`, exposed as `sourceSceneEvidence(...).lighting.spatial`, now measures
+an **observable affine RGB field**, not an effect recipe. Every original RGB tick in the binding's
+half-open interval `[referenceStart, referenceEnd)` is evaluated, including travel. Its original
+RGB bytes are paired with XYZ linearly interpolated on the independent position clock and mapped
+to studio metres. Missing RGB/XYZ and timestamps after a drone's final XYZ sample are excluded,
+not extrapolated. Frame range, paired frames/samples and first/last paired timestamps expose coverage.
+
+For each tick the fit is `RGB = meanRGB + G × (position − centroid)`, using centered least squares
+and a minimum-norm pseudoinverse. Position covariance modes below `max(1e-8, largest × 1e-6)`
+are discarded, so a planar formation does not invent a gradient normal to its observed plane.
+
+- **Spatial coherence:** mean and minimum of `clamp(1 − residual RGB energy / centered RGB energy,
+  0, 1)` over eligible frames. This is linear explained variance, not neighbor coherence or proof
+  of a semantic effect. Require at least 12 paired drones and an observable positional mode.
+- **Uniform:** centered RGB energy per drone below 1 byte²; direction, strength and coherence
+  are null. Tiny quantization differences do not establish a meaningful spatial direction.
+- **Supported gradient frame:** coherence ≥0.85; each non-uniform channel separately has fit
+  ≥0.85; the dominant eigenvalue of `GᵀG` explains ≥90% of gradient energy; at least
+  `max(12, 4 × (spatial rank + 1))` paired drones. Orthogonal multichannel gradients and nonlinear
+  patterns are not forced into a single direction even when aggregate coherence is high.
+- **Direction/strength:** dominant unsigned studio XYZ unit axis of `GᵀG`, and its singular
+  value in RGB Euclidean bytes/metre. The largest absolute axis component is positive for
+  deterministic sign. This is not an identified sweep's travel direction. A clip exposes these
+  only if ≥80% of paired frames support a gradient and axial stability is ≥0.95 (dominant
+  eigenvalue of the mean direction outer-product matrix).
+- **Temporal change:** consecutive supported ticks only, with equal paired count and spatial rank;
+  never bridge unsupported ticks or clip boundaries. Mean Euclidean RGB change/second is evaluated
+  at the midpoint of consecutive centroids in world coordinates. Mean Frobenius change of `G`
+  is reported in RGB bytes/metre/second, avoiding confusion with drone velocity.
+- **Apparent field speed:** least-squares iso-color speed `−dot(dRGB/dt, G×axis)/|G×axis|²`
+  in metres/second projected onto the reported axis. Return null unless axes align ≥0.98,
+  gradient changes ≤5% per tick and unexplained temporal RGB change is ≤10% (absolute numerical
+  tolerance 1e-6); ≥80% of supported consecutive pairs must pass. This is conditional apparent
+  field drift, not drone speed, a wave detector, or evidence of an authored effect.
+
+Statuses explicitly distinguish no paired samples, insufficient evidence, uniform, low/unstable
+fit and supported gradient. `recipe` remains **UNKNOWN** throughout. Memory is O(drone count),
+runtime O(original RGB ticks × drone count), with fixed-size matrix work; no all-pairs search,
+persisted fit, raw sample mutation or source resampling. Existing scene RGB counts remain exact.
+
+**Actual saved-project check:** 150 drones, all 23 original saved bindings, 5,841 RGB ticks,
+598 ms total / 93 ms longest binding in sandbox Bun (single measured run, not a browser latency
+promise). All 23 reported LOW_OR_UNSTABLE_FIT, rather than inventing a single gradient.
+Reference layer/report and 150/150 reconstructed ESSP files remained identical. This saved project
+has a different position clock from the raw benchmark; it does not substitute for an interval-by-
+interval audit of the original archive or the opt-in 25-clip projection.
+
+**Limits:** RGB bytes are not calibrated light intensity or perceptual hue; no gamma conversion,
+nonlinear/multi-group field recognition, active-drone masks, palette naming or recipe inference.
+Fits are in-sample diagnostics, not confidence probabilities; accidental correlations remain
+possible. A minimum-norm planar fit says nothing about its unobserved normal or field behavior
+outside sampled positions; field speed is conditional on that extension. Short clips have little
+temporal evidence, changing planes/geometries can confound drift, and whole-clip aggregation can
+hide brief changes (minimum coherence and support coverage help expose this). Next: measure the
+original benchmark by interval, inspect low-fit/multigroup cases and design localized diagnostic
+presentation; do not change canonical lighting or import defaults on these measurements alone.
+
 ## Capability mapping
 
 | Observed pattern                                   | Existing foundation                                          | Product gap / next acceptance target                              |
