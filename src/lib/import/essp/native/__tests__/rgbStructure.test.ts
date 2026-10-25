@@ -88,8 +88,17 @@ describe("B — temporal evidence with held-out validation", () => {
     expect(["PULSATION_SUPPORTED", "WAVE_SUPPORTED"]).not.toContain(r.status);
   });
   it("long intervals are bounded and reported unknown", async () => {
-    const s = await show((_d, _x, _y, f) => [f % 256, 0, 0]);
-    expect(analyzeRgbTemporal(s, bind(200)).status).not.toBe("TOO_LONG"); // clipped to data
+    const s = await buildReferenceShow(
+      Array.from({ length: 4 }, (_, d) => ({
+        name: `${d + 1}.essp`,
+        bytes: buildSyntheticEssp({
+          xyz: [[d * 100, 0, 3000]],
+          rgb: Array.from({ length: 1300 }, (_, f) => [f % 256, 0, 0]),
+        }),
+      })),
+    );
+    expect(analyzeRgbTemporal(s, bind(1300 / 12)).status).toBe("TOO_LONG");
+    expect(analyzeRgbTemporal(s, bind(10)).status).not.toBe("TOO_LONG");
   });
 });
 
