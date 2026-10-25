@@ -39,7 +39,8 @@ async function show(color: (d: number, x: number, y: number, f: number) => numbe
   );
 }
 const b20 = bind(TICKS / 12);
-const sine = (f: number, phase = 0) => Math.round(127 + 100 * Math.sin((2 * Math.PI * f) / 24 + phase));
+const sine = (f: number, phase = 0) =>
+  Math.round(127 + 100 * Math.sin((2 * Math.PI * f) / 24 + phase));
 
 describe("A — simultaneous exact color groups", () => {
   it("finds two supported groups", async () => {

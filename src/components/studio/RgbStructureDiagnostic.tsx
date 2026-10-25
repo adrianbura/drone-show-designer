@@ -23,7 +23,10 @@ export default function RgbStructureDiagnostic({
       "Grupuri ambigue: majoritatea dronelor nu împart exact aceeași secvență de culori.",
       "Ambiguous groups: most drones do not share an exact color sequence.",
     ),
-    SINGLE_GROUP: t("Un singur grup cu secvență identică.", "One group with an identical sequence."),
+    SINGLE_GROUP: t(
+      "Un singur grup cu secvență identică.",
+      "One group with an identical sequence.",
+    ),
     MULTIPLE_GROUPS: t(
       "Mai multe grupuri simultane cu secvențe identice.",
       "Multiple simultaneous groups with identical sequences.",
@@ -60,7 +63,10 @@ export default function RgbStructureDiagnostic({
     UNKNOWN: t("Necunoscut — se redă sursa exactă", "Unknown — exact source is played"),
   };
   return (
-    <section aria-labelledby={heading} className="min-w-0 space-y-2 border-t border-border pt-2 text-xs">
+    <section
+      aria-labelledby={heading}
+      className="min-w-0 space-y-2 border-t border-border pt-2 text-xs"
+    >
       <h4 id={heading} className="font-medium">
         {t("Structură RGB", "RGB structure")}
       </h4>
