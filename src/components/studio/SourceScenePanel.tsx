@@ -5,6 +5,7 @@ import { referenceShowFromLayer } from "@/lib/import/essp/native/layer";
 import { sourceSceneEvidence } from "@/lib/import/essp/native/sceneEvidence";
 import SpatialRgbDiagnostic from "./SpatialRgbDiagnostic";
 import RgbStructureDiagnostic from "./RgbStructureDiagnostic";
+import SaveExactScene from "./SaveExactScene";
 
 export default function SourceScenePanel() {
   const { referenceLayer, selectedClipId } = useStudio();
@@ -105,6 +106,7 @@ export default function SourceScenePanel() {
       )}
       <SpatialRgbDiagnostic evidence={evidence.lighting.spatial} ro={ro} />
       <RgbStructureDiagnostic evidence={evidence.lighting.structure} ro={ro} />
+      {show && <SaveExactScene show={show} binding={binding} ro={ro} />}
     </section>
   );
 }

@@ -66,6 +66,8 @@ export interface LibraryApi {
     dependencies: SceneAssetDependencies,
     input: AssetSaveInput,
   ) => Promise<FormationAsset | null>;
+  /** Saves an already-built asset (e.g. an exact imported ESSP scene). */
+  saveAsset: (asset: FormationAsset) => Promise<FormationAsset | null>;
   remove: (id: string) => Promise<void>;
   rename: (id: string, name: string) => Promise<void>;
   duplicate: (id: string) => Promise<void>;
@@ -144,6 +146,7 @@ export function LibraryProvider({
         run(() => repo.save(assetFromDynamicFormation(formation, input))),
       saveScene: (scene, dependencies, input) =>
         run(() => repo.save(assetFromScene(scene, dependencies, input))),
+      saveAsset: (asset) => run(() => repo.save(asset)),
       remove: async (id) => void (await run(() => repo.remove(id))),
       rename: async (id, name) => void (await run(() => repo.rename(id, name))),
       duplicate: async (id) => void (await run(() => repo.duplicate(id))),
