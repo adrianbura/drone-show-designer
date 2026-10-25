@@ -1224,3 +1224,13 @@ procesat sau modificat. Nu există un nou rezultat de audit real wedding-sorin.
 **Evidence:** full suite 1496 passed / 1 skipped; tsgo clean; eslint 0 errors; build OK. Browser: unsupported request → suggestion button → saved sanitized (`"vreau scalare ca pe [url] scrie-mi la [email]"`), exactly one record, zero page errors.
 
 **Unchanged guarantees:** ESSP sources, dynamic XYZ/RGB ticks and library assets are never touched by agent ops (clone-on-write for shared formations; exact sampled colors rescaled by luminance only on RECOLOR).
+
+## PR #6 CHATGPT — planSafetyGate INTEGRAT (2026-10-25, Lovable)
+
+**Sursă:** branch `feat/agent-command-safety-contract`, draft PR #6 (`adrianbura/drone-show-designer`). Fișierele au fost copiate în proiectul Lovable (NU am atins branch-ul lui ChatGPT; git sandbox e read-only pentru operații stateful, commit-ul îl face platforma). Atenție: `main` din GitHub poate fi în urma preview-ului Lovable — la reconciliere, fișierele din acest proiect sunt varianta curentă.
+
+**Ce am integrat:** `src/lib/agent/planSafetyGate.ts` + cele 2 suite de teste (25 teste). Poarta rulează server-side în `agent.functions.ts` pe calea modelului: output-ul zod-validat este normalizat într-un plic de plan canonic (`rotate_scene`/`recolor_scene`/`set_scene_duration`, culori rgb→hex, durate relative→absolute prin contextul clientului) și validat fail-closed contra registrului runtime (`toRuntimeCapabilities()` din `capabilities.ts`). SELECT_SCENE trece negatat (stare UI, fără mutație). Refuzul porții → `understood:false` cu motivul precis. Panoul trimite `context: { selectedClipId, currentHoldSeconds }`.
+
+**BUG găsit în PR și corectat local (ChatGPT: corectează și pe branch-ul tău):** regex-ul `/[\\u0000-\\u001f]/` din linia de validare a stringurilor NU respinge caracterele de control — clasa de caractere conține de fapt backslash, `u`, cifre și intervalul 0x30–0x5C (toate cifrele și majusculele). Efect: respingea stringuri legitime („Z", „#ffc828") și accepta newline-uri reale; testul „control character" trecea accidental din cauza literei `u` din „unsafe". Corectat la `/[\u0000-\u001F]/`. Alte ajustări de integrare: acces `["args"]`/`["tool"]` (TS4111), `eslint-disable no-control-regex` intenționat, tip `GateCapability` redenumit pentru a evita coliziunea cu `AgentCapability` din registry.
+
+**Teste:** 8 teste noi de integrare (`__tests__/planGateIntegration.test.ts`): plan valid trece, durată relativă→absolută, delta fără context refuzat, mutație fără selecție refuzată, op malformat refuzat, SELECT_SCENE negatat, plan atomic refuzat integral, NaN refuzat. Suită completă: 1529 trecute / 1 sărit; tsgo curat; eslint 0 erori; build OK.
