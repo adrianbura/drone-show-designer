@@ -135,12 +135,13 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
   );
 
   const saveFeedback = useCallback((entryIndex: number) => {
+    // Read first, then record OUTSIDE the state updater: StrictMode runs
+    // updaters twice and the record must be written exactly once.
+    const entry = entriesRef.current[entryIndex];
+    if (!entry || entry.role !== "agent" || !entry.feedback || entry.feedbackSaved) return;
+    recordFeatureRequest(entry.feedback.text, entry.feedback.reason);
     setEntries((entries) =>
-      entries.map((entry, i) => {
-        if (i !== entryIndex || entry.role !== "agent" || !entry.feedback) return entry;
-        recordFeatureRequest(entry.feedback.text, entry.feedback.reason);
-        return { ...entry, feedbackSaved: true };
-      }),
+      entries.map((e, i) => (i === entryIndex && e.role === "agent" ? { ...e, feedbackSaved: true } : e)),
     );
   }, []);
 
