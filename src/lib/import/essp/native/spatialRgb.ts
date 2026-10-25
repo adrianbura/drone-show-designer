@@ -77,9 +77,14 @@ interface Frame {
   direction: Vec | null;
   strength: number | null;
   uniform: boolean;
+  varianceByChannel: Vec;
+  residualByChannel: Vec;
+  fitByChannel: [number | null, number | null, number | null];
+  dominantGradientEnergyFraction: number | null;
 }
 
-function fitFrame(show: ReferenceShow, index: number): Frame {
+/** One native RGB tick; exported for read-only forensic audit, not persisted. */
+export function fitSpatialRgbFrame(show: ReferenceShow, index: number): Frame {
   const time = index / show.timing.rgbRateHz;
   const positions: Vec[] = [],
     colors: Vec[] = [];
@@ -167,7 +172,10 @@ function fitFrame(show: ReferenceShow, index: number): Frame {
   let direction: Vec | null = null;
   let strength: number | null = null;
   // Each changing channel must fit too; a bright linear channel cannot hide nonlinear color.
-  const channelFits = [0, 1, 2].every((i) => {
+  const varianceByChannel = zero();
+  const residualByChannel = zero();
+  const fitByChannel: [number | null, number | null, number | null] = [null, null, null];
+  const channelFits = [0, 1, 2].map((i) => {
     let v = 0,
       e = 0;
     positions.forEach((position, d) => {
@@ -177,8 +185,13 @@ function fitFrame(show: ReferenceShow, index: number): Frame {
       v += delta ** 2;
       e += (delta - predicted) ** 2;
     });
-    return v / Math.max(1, count) < 1 || 1 - e / v >= 0.85;
-  });
+    varianceByChannel[i] = v / Math.max(1, count);
+    residualByChannel[i] = e / Math.max(1, count);
+    const channelFit = count >= 12 && observed.length > 0 && v / count >= 1
+      ? Math.max(0, Math.min(1, 1 - e / v)) : null;
+    fitByChannel[i] = channelFit;
+    return v / Math.max(1, count) < 1 || (channelFit !== null && channelFit >= 0.85);
+  }).every(Boolean);
   if (
     principal &&
     coherence !== null &&
@@ -208,6 +221,10 @@ function fitFrame(show: ReferenceShow, index: number): Frame {
     direction,
     strength,
     uniform,
+    varianceByChannel,
+    residualByChannel,
+    fitByChannel,
+    dominantGradientEnergyFraction: total > 1e-8 && principal ? principal.value / total : null,
   };
 }
 
@@ -247,7 +264,7 @@ export function analyzeSpatialRgb(show: ReferenceShow, binding: ReferenceClipBin
   const speedVectorSum = zero();
   let previous: Frame | null = null;
   for (let index = first; index < stop; index++) {
-    const frame = fitFrame(show, index);
+    const frame = fitSpatialRgbFrame(show, index);
     if (frame.count > 0) {
       pairedFrames++;
       pairedSamples += frame.count;
