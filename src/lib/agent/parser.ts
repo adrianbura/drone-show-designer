@@ -110,6 +110,51 @@ function parseRotations(text: string): RotationMention[] {
   return out;
 }
 
+const SECONDS_RE = /(-?\d+(?:[.,]\d+)?)\s*(?:secunde|secunda|sec|seconds|second|s)\b/i;
+
+/**
+ * Duration mentions: "ține scena 12 secunde" (absolute), "prelungește cu 5
+ * secunde" / "scurtează cu 5 secunde" (relative). Returns null when the
+ * request is not about duration at all.
+ */
+function parseDuration(text: string): AgentOp | null {
+  const t = text.toLowerCase();
+  const m = SECONDS_RE.exec(t);
+  if (!m) return null;
+  const value = Number(m[1]!.replace(",", "."));
+  if (!Number.isFinite(value)) return null;
+  const aboutDuration =
+    /ține|tine|dureaz|durat|stă |sta |hold|last|duration|lung|scurt|shorten|shorter/i.test(t);
+  if (!aboutDuration) return null;
+  if (/prelung|extind|mai mult|lengthen|extend|longer|add|adaug/i.test(t)) {
+    return { kind: "SET_DURATION", deltaSeconds: Math.abs(value) };
+  }
+  if (/scurteaz|scurt|reduce|shorten|shorter|mai puțin|mai putin/i.test(t)) {
+    return { kind: "SET_DURATION", deltaSeconds: -Math.abs(value) };
+  }
+  return { kind: "SET_DURATION", holdSeconds: Math.abs(value) };
+}
+
+/** Scene selection: "selectează scena 5", "select the heart", "alege inima". */
+function parseSelection(text: string): AgentOp | null {
+  const t = text.toLowerCase();
+  if (!/selecteaz|select|alege|choose|deschide|open/i.test(t)) return null;
+  const byIndex = /scena\s+(\d+)|scene\s+(\d+)|clip(?:ul)?\s+(\d+)/i.exec(t);
+  if (byIndex) {
+    const n = Number(byIndex[1] ?? byIndex[2] ?? byIndex[3]);
+    if (Number.isInteger(n) && n >= 1) return { kind: "SELECT_SCENE", sceneIndex: n };
+  }
+  const byName =
+    /(?:selecteaz[ăa]|select|alege|choose|deschide|open)\s+(?:scena|scene|the|clipul|clip)?\s*([a-zăâîșţț0-9 _-]{2,40})/i.exec(
+      t,
+    );
+  if (byName) {
+    const name = byName[1]!.trim();
+    if (name && !/^\d+$/.test(name)) return { kind: "SELECT_SCENE", sceneName: name };
+  }
+  return null;
+}
+
 /**
  * Parses one user request into typed operations. Supports combining a
  * rotation and a recolor in one sentence, e.g.
@@ -120,6 +165,9 @@ export function parseAgentCommand(input: string): ParseResult {
   if (!text) return { ok: false, reason: "EMPTY" };
   const ops: AgentOp[] = [];
 
+  const selection = parseSelection(text);
+  if (selection) ops.push(selection);
+
   for (const r of parseRotations(text)) {
     ops.push({ kind: "ROTATE_SCENE", axis: r.axis, degrees: r.degrees });
   }
@@ -129,6 +177,9 @@ export function parseAgentCommand(input: string): ParseResult {
     const color = parseColor(text);
     if (color) ops.push({ kind: "RECOLOR_SCENE", color });
   }
+
+  const duration = parseDuration(text);
+  if (duration) ops.push(duration);
 
   if (ops.length === 0) return { ok: false, reason: "NOT_UNDERSTOOD" };
   return { ok: true, ops, understood: text };

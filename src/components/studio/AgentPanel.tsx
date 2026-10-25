@@ -15,7 +15,13 @@ import { Bot, Check, Loader2, Send, Undo2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { interpretAgentCommand } from "@/lib/agent/agent.functions";
-import { applyAgentOp, type AgentOp, type AgentOpSummary } from "@/lib/agent/operations";
+import { capabilitySummary } from "@/lib/agent/capabilities";
+import {
+  applyAgentOp,
+  resolveSceneTarget,
+  type AgentOp,
+  type AgentOpSummary,
+} from "@/lib/agent/operations";
 import { parseAgentCommand } from "@/lib/agent/parser";
 import { validateAgentProject, type AgentValidationIssue } from "@/lib/agent/validate";
 import { useI18n } from "@/i18n";
@@ -59,6 +65,15 @@ const FAILURE_LABELS: Record<string, [string, string]> = {
     "Multi-object scenes are not supported by the agent yet.",
   ],
   INVALID_OP: ["Operația cerută nu este validă.", "The requested operation is not valid."],
+  DURATION_BELOW_ANIMATION: [
+    "Durata nu poate fi mai scurtă decât animația scenei.",
+    "The duration cannot be shorter than the scene's animation.",
+  ],
+  SCENE_NOT_FOUND: ["Nu am găsit scena cerută.", "I could not find the requested scene."],
+  SCENE_AMBIGUOUS: [
+    "Mai multe scene se potrivesc — spune numărul exact din cronologie.",
+    "Several scenes match — give the exact timeline number.",
+  ],
 };
 
 export default function AgentPanel({ onClose }: { onClose: () => void }) {
@@ -70,8 +85,14 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       ? s.replace(/\{(\w+)\}/g, (m, name: string) => (name in values ? String(values[name]) : m))
       : s;
   };
-  const { project, selectedClipId, applyAgentProject, undoTimeline, timelineHistoryDepth } =
-    useStudio();
+  const {
+    project,
+    selectedClipId,
+    selectClip,
+    applyAgentProject,
+    undoTimeline,
+    timelineHistoryDepth,
+  } = useStudio();
   const [entries, setEntries] = useState<ChatEntry[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -106,11 +127,13 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       // Local deterministic parse first — free, instant, transparent.
       let ops: AgentOp[] = [];
       let source: "local" | "model" = "local";
+      let clarification: string | null = null;
       const local = parseAgentCommand(text);
       if (local.ok) {
         ops = local.ops;
       } else {
         const interpreted = await interpretAgentCommand({ data: { text } });
+        clarification = interpreted.clarification;
         if (interpreted.understood && interpreted.ops.length > 0) {
           source = interpreted.source;
           ops = interpreted.ops
@@ -121,26 +144,67 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
               if (o.kind === "RECOLOR_SCENE" && o.color) {
                 return { kind: "RECOLOR_SCENE", color: o.color };
               }
+              if (
+                o.kind === "SET_DURATION" &&
+                (o.holdSeconds !== null || o.deltaSeconds !== null)
+              ) {
+                return {
+                  kind: "SET_DURATION",
+                  ...(o.holdSeconds !== null ? { holdSeconds: o.holdSeconds } : {}),
+                  ...(o.deltaSeconds !== null ? { deltaSeconds: o.deltaSeconds } : {}),
+                };
+              }
+              if (o.kind === "SELECT_SCENE" && (o.sceneIndex !== null || o.sceneName)) {
+                return {
+                  kind: "SELECT_SCENE",
+                  ...(o.sceneIndex !== null ? { sceneIndex: o.sceneIndex } : {}),
+                  ...(o.sceneName ? { sceneName: o.sceneName } : {}),
+                };
+              }
               return null;
             })
             .filter((o): o is AgentOp => o !== null);
         }
       }
       if (ops.length === 0) {
-        say(
-          t(
-            "Nu am înțeles cererea. Pot înclina/roti o scenă sau îi pot schimba culoarea, de ex. „înclină scena 20 de grade spre stânga și schimbă culoarea în auriu”.",
-            "I did not understand the request. I can tilt/rotate a scene or change its color, e.g. “tilt the scene 20 degrees left and recolor it gold”.",
-          ),
-        );
+        if (clarification) {
+          say(clarification, source === "model" ? "model" : undefined);
+        } else {
+          say(
+            `${t("Nu am înțeles cererea.", "I did not understand the request.")} ${capabilitySummary(ro)}`,
+          );
+        }
         return;
       }
 
-      // Apply operations in sequence on a candidate copy; never touch the live project.
+      // Apply operations in sequence on a candidate copy; never touch the live
+      // project. SELECT_SCENE is UI state: it resolves immediately, updates the
+      // target for the operations that follow it, and is committed at the end.
       let candidate = project;
+      let targetClipId = selectedClipId;
+      let pendingSelect: string | null = null;
       const summaries: AgentOpSummary[] = [];
       for (const op of ops) {
-        const r = applyAgentOp(candidate, selectedClipId, op);
+        if (op.kind === "SELECT_SCENE") {
+          const target = resolveSceneTarget(candidate, op);
+          if (!target.ok) {
+            const label = FAILURE_LABELS[target.reason] ?? FAILURE_LABELS["SCENE_NOT_FOUND"]!;
+            const extra =
+              target.reason === "SCENE_AMBIGUOUS" && target.candidates
+                ? ` (${target.candidates.slice(0, 4).join(", ")})`
+                : "";
+            say(t(label[0], label[1]) + extra);
+            return;
+          }
+          targetClipId = target.clipId;
+          pendingSelect = target.clipId;
+          say(
+            t("Am selectat scena „{name}”.", "Selected scene “{name}”.", { name: target.clipName }),
+            source,
+          );
+          continue;
+        }
+        const r = applyAgentOp(candidate, targetClipId, op);
         if (!r.ok) {
           const label = FAILURE_LABELS[r.reason] ?? FAILURE_LABELS["INVALID_OP"]!;
           say(t(label[0], label[1]));
@@ -149,7 +213,9 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
         candidate = r.project;
         summaries.push(r.summary);
       }
-      const validation = validateAgentProject(candidate, selectedClipId!);
+      if (pendingSelect) selectClip(pendingSelect);
+      if (summaries.length === 0) return;
+      const validation = validateAgentProject(candidate, targetClipId!);
       if (!validation.ok) {
         for (const issue of validation.issues) {
           const label = ISSUE_LABELS[issue];
@@ -164,7 +230,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       setBusy(false);
       inputRef.current?.focus();
     }
-  }, [input, busy, project, selectedClipId, say, t]);
+  }, [input, busy, project, selectedClipId, selectClip, say, t, ro]);
 
   const apply = useCallback(
     (edit: PendingEdit) => {
@@ -219,9 +285,10 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
         {entries.length === 0 && (
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             {t(
-              "Selectează o scenă și spune-mi ce să fac: „înclină scena 20 de grade spre stânga”, „schimbă culoarea în auriu”. Fiecare modificare trece prin validator și poate fi anulată.",
-              "Select a scene and tell me what to do: “tilt the scene 20 degrees left”, “recolor it gold”. Every change passes the validator and can be undone.",
-            )}
+              "Selectează o scenă și spune-mi ce să fac: „înclină scena 20 de grade spre stânga”, „schimbă culoarea în auriu”, „ține scena 12 secunde”, „selectează inima”. Fiecare modificare trece prin validator și poate fi anulată.",
+              "Select a scene and tell me what to do: “tilt the scene 20 degrees left”, “recolor it gold”, “hold the scene for 12 seconds”, “select the heart”. Every change passes the validator and can be undone.",
+            )}{" "}
+            {capabilitySummary(ro)}
           </p>
         )}
         {entries.map((entry, i) => {
@@ -263,7 +330,19 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
               <ul className="mt-1 space-y-1 text-xs text-foreground">
                 {edit.summaries.map((s, j) => (
                   <li key={j}>
-                    {s.kind === "ROTATE_SCENE" ? (
+                    {s.kind === "SET_DURATION" ? (
+                      <>
+                        {t("Durata scenei", "Scene duration")} ·{" "}
+                        {t("{a} s → {b} s", "{a} s → {b} s", {
+                          a: (s.durationBefore ?? 0).toFixed(1),
+                          b: (s.durationAfter ?? 0).toFixed(1),
+                        })}
+                        {(s.followersShifted ?? 0) > 0 &&
+                          ` · ${t("{n} scene următoare decalează", "{n} following scenes shift", {
+                            n: s.followersShifted ?? 0,
+                          })}`}
+                      </>
+                    ) : s.kind === "ROTATE_SCENE" ? (
                       <>
                         {t("Rotire scenă", "Scene rotation")} ·{" "}
                         {t("altitudine {a}–{b} m → {c}–{d} m", "altitude {a}–{b} m → {c}–{d} m", {
