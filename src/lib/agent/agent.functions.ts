@@ -154,7 +154,7 @@ export function gateModelOps(
     const gatedOp = check.operations[planIndex]!;
     planIndex += 1;
     if (op.kind === "SET_DURATION") {
-      wire.push(toWire({ ...op, holdSeconds: gatedOp.args.seconds as number, deltaSeconds: null }));
+      wire.push(toWire({ ...op, holdSeconds: gatedOp.args["seconds"] as number, deltaSeconds: null }));
       continue;
     }
     wire.push(toWire(op));
@@ -162,7 +162,16 @@ export function gateModelOps(
   return { ok: true, ops: wire };
 }
 
-function toWire(op: ModelOp): AgentInterpretation["ops"][number] {
+function toWire(op: {
+  kind: "ROTATE_SCENE" | "RECOLOR_SCENE" | "SET_DURATION" | "SELECT_SCENE";
+  axis?: "X" | "Y" | "Z" | null;
+  degrees?: number | null;
+  color?: readonly number[] | null;
+  holdSeconds?: number | null;
+  deltaSeconds?: number | null;
+  sceneIndex?: number | null;
+  sceneName?: string | null;
+}): AgentInterpretation["ops"][number] {
   return {
     kind: op.kind,
     axis: op.axis ?? null,
