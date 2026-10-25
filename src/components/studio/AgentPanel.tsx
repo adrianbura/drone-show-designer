@@ -106,6 +106,8 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const entriesRef = useRef<ChatEntry[]>([]);
+  entriesRef.current = entries;
 
   const selectedClip = project.timeline.find((c) => c.id === selectedClipId) ?? null;
   const selectedName = selectedClip
