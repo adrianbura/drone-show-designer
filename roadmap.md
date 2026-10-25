@@ -102,6 +102,11 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
          commitului 692052e; transferă arhiva în Lovable, verifică hashul înainte de decodare,
          exclude AppleDouble și testează un mod fără intervale benchmark înainte de audit.
          Detalii și proveniența separată a dovezilor în HANDOFF.
+         Corecție 08:13 UTC: comanda Vitest cu rgbAudit/spatialRgb/sceneEvidence și
+         `--maxWorkers=2`: 3 fișiere, 19 passed, 1,33 s; ESLint pe CLI/rgbAudit/test exit 0;
+         `git diff 692052e6ea51657244d95a9e8f124a014a807eb2 --check` exit 0,
+         diff numai HANDOFF/roadmap. Suita completă/browser neexecutate (documentație);
+         typecheck/build manual nepermise și neexecutate. Niciun audit real nou.
    - [x] Catalog inițial „pattern observat → capabilitate existentă → lipsă → criteriu de acceptare”
          în `docs/ESSP_SHOW_BENCHMARK.md`.
    - [x] Confirmarea planului comun de prezentare: majoritatea imaginilor au pitch/tilt ~14–15°,
