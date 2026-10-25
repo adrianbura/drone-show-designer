@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/gateway": "^4.0.121",
     "@ai-sdk/openai": "^4.0.101",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
