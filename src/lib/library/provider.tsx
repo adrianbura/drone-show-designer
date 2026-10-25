@@ -6,14 +6,7 @@
  * from the studio store: saving or deleting an asset must never invalidate
  * project state or engine memoisation.
  */
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import type { DynamicFormation } from "../show/dynamic/types";
@@ -141,7 +134,8 @@ export function LibraryProvider({
       error,
       clearError: () => setError(null),
       refresh,
-      saveFormation: (formation, input) => run(() => repo.save(assetFromFormation(formation, input))),
+      saveFormation: (formation, input) =>
+        run(() => repo.save(assetFromFormation(formation, input))),
       saveDynamicFormation: (formation, input) =>
         run(() => repo.save(assetFromDynamicFormation(formation, input))),
       saveScene: (scene, dependencies, input) =>

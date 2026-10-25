@@ -44,7 +44,10 @@ export default function SaveExactScene({
         INTERVAL_TOO_SHORT: t("Intervalul imaginii este prea scurt.", "Visual interval too short."),
         NO_RGB: t("Lipsesc eșantioane RGB.", "RGB samples missing."),
         NO_DRONES: t("Nu există drone.", "No drones."),
-        TAKEOFF_OR_LANDING: t("Decolarea/aterizarea nu se salvează.", "Takeoff/landing is not saved."),
+        TAKEOFF_OR_LANDING: t(
+          "Decolarea/aterizarea nu se salvează.",
+          "Takeoff/landing is not saved.",
+        ),
       };
       setStatus(msg[result.error!] ?? String(result.error));
       return;
