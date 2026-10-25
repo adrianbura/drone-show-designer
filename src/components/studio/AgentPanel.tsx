@@ -327,15 +327,14 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
                     {s.kind === "SET_DURATION" ? (
                       <>
                         {t("Durata scenei", "Scene duration")} ·{" "}
-                        {t(
-                          "{a} s → {b} s{n, plural, =0 {} other {; {n} scene următoare decalează}}",
-                          "{a} s → {b} s{n, plural, =0 {} other {; {n} following scenes shift}}",
-                          {
-                            a: (s.durationBefore ?? 0).toFixed(1),
-                            b: (s.durationAfter ?? 0).toFixed(1),
+                        {t("{a} s → {b} s", "{a} s → {b} s", {
+                          a: (s.durationBefore ?? 0).toFixed(1),
+                          b: (s.durationAfter ?? 0).toFixed(1),
+                        })}
+                        {(s.followersShifted ?? 0) > 0 &&
+                          ` · ${t("{n} scene următoare decalează", "{n} following scenes shift", {
                             n: s.followersShifted ?? 0,
-                          },
-                        )}
+                          })}`}
                       </>
                     ) : s.kind === "ROTATE_SCENE" ? (
                       <>
