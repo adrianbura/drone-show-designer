@@ -10,7 +10,7 @@
  * Coverage rule: an action is "supported" only when it is wired end-to-end
  * (parser + model schema + deterministic operation + validator + undo).
  */
-import type { AgentCapability } from "@/lib/agent/planSafetyGate";
+import type { AgentCapability as GateCapability } from "@/lib/agent/planSafetyGate";
 
 export type AgentCapabilityKind =
   | "ROTATE_SCENE"
@@ -206,7 +206,7 @@ export function capabilityInstructions(): string {
  * strings, and relative durations become absolute seconds before gating, so
  * every gated plan carries exactly the declared arguments.
  */
-export function toRuntimeCapabilities(): AgentCapability[] {
+export function toRuntimeCapabilities(): GateCapability[] {
   return [
     {
       id: "rotate_scene",
