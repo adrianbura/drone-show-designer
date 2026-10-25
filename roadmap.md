@@ -260,3 +260,9 @@ această rulare.
 ## 17. AI AGENT — refuz precis + sugestii locale + atomicitate (2026-10-25, Lovable)
 - TERMINAT: pipeline explicit parser→model→registru→validator; refuz cu motiv precis; sugestii de dezvoltare sanitizate, salvate DOAR local (fără promisiune de predare către agenți); atomicitate multi-pas verificată (proiectul live rămâne byte-identic la eșec parțial); `default` INVALID_OP pentru tipuri halucinate; bug StrictMode (dublare înregistrare) reparat și verificat în browser. Teste agent 27/27, suită 1496 trecute, build curat.
 - RĂMAS: capabilitățile 5–10 din registru (scalare, mutare, tranziții, lumini, inserare bibliotecă, număr drone), memorie conversațională, export al sugestiilor locale din UI.
+
+## 18. AI AGENT — poarta de siguranță PR #6 integrată (2026-10-25, Lovable)
+- [x] Revizuire PR #6 (ChatGPT): `planSafetyGate.ts` fail-closed, 25 teste — calitate bună, integrat server-side pe calea modelului.
+- [x] Bug regex control-chars găsit și corectat local; recomandare de revizuire pentru branch-ul ChatGPT consemnată în HANDOFF.
+- [x] Normalizare plic plan (rgb→hex, durate relative→absolute prin context client), registry runtime din `capabilities.ts`, 8 teste de integrare, suita completă verde.
+- [ ] Următor: reconciliere git main ↔ preview Lovable (platforma face commit; branch-ul ChatGPT rămîne al lui), extindere capabilități (scalare/mutare/tranziții), verificare browser a refuzului prin poartă pe comandă reală de model.
