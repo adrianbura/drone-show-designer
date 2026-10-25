@@ -1208,3 +1208,19 @@ procesat sau modificat. Nu există un nou rezultat de audit real wedding-sorin.
 **Evidence:** agent tests 20/20 (registry honesty, duration absolute/relative/ripple/no-overlap, below-animation refusal, selection by index/name/ambiguity, SELECT_SCENE never mutates); full suite 1489 passed / 1 skipped; tsgo clean; eslint 0 errors (2 pre-existing exhaustive-deps warnings on `t`); build OK. Browser smoke on the real ESSP import (150 drones, 36 clips): "ține scena 12 secunde" → LOCAL preview "7.5 s → 12.0 s · 32 following scenes shift" → Apply → Undo; "selectează scena 5" → "Selected scene “Imported scene 4”"; "mărește scena de două ori" → model clarification "Mărirea scenei (scalarea) nu este încă suportată." (gateway log 10:38:38, gpt-6-astra, 200, 0.025 credits). Zero page errors.
 
 **Limitations (explicit):** 4 of 10 registered capabilities are wired; selection index counts ALL clips including takeoff/landing; SET_DURATION edits hold only (not transition); no conversational memory; library insert + drone count remain unsupported by design until validated.
+
+## 2026-10-25 — AI AGENT milestone 3: refusal pipeline, feedback, atomicity, robustness
+
+**Acceptance pipeline (now explicit):** request → (1) deterministic local parser → (2) managed Lovable AI semantic interpretation (strict schema from the capability registry) → (3) registry + validator gate → if still unsupported: precise reason shown + optional LOCAL feature-request save. No real-time handoff to developer agents is ever promised; the UI states the suggestion stays in the browser.
+
+**Scope delivered:**
+- `src/lib/agent/feedback.ts` — `sanitizeFeedback` (strips URLs, e-mails, digit runs ≥4, control chars; caps 200 chars) + `recordFeatureRequest`/`listFeatureRequests` in localStorage (`dss-agent-feature-requests`, max 50, newest first). SSR-safe, never throws.
+- `AgentPanel.tsx` — refused requests (not-understood, model clarification, op failure) offer "Salvează ca sugestie de dezvoltare"; after saving, the UI states the note is local-only. Recording happens OUTSIDE the React state updater (StrictMode ran updaters twice → duplicate records; fixed, browser-verified: exactly one record).
+- Atomicity made explicit: a failed step in a multi-op request discards the whole candidate and says "Nicio parte a cererii nu a fost aplicată." The live project is never partially modified (candidate-copy architecture).
+- `operations.ts` — `applyAgentOp` now has a `default` branch: any kind outside the registry (e.g. hallucinated by a model) returns INVALID_OP instead of falling through.
+
+**Tests (27/27 agent):** hallucinated tool kind refused; malformed ops (NaN degrees, black color, missing duration fields) refused; prompt-injection strings never produce ops outside the registry and pure injection is not understood; ambiguous selection reports candidates; failed step leaves the live project byte-identical (atomicity); ops never mutate the input project (undo soundness); feedback sanitization (URL/e-mail/number stripping, 200-char cap, empty → null, SSR-safe).
+
+**Evidence:** full suite 1496 passed / 1 skipped; tsgo clean; eslint 0 errors; build OK. Browser: unsupported request → suggestion button → saved sanitized (`"vreau scalare ca pe [url] scrie-mi la [email]"`), exactly one record, zero page errors.
+
+**Unchanged guarantees:** ESSP sources, dynamic XYZ/RGB ticks and library assets are never touched by agent ops (clone-on-write for shared formations; exact sampled colors rescaled by luminance only on RECOLOR).

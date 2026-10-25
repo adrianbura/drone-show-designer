@@ -256,3 +256,7 @@ această rulare.
 ## 16. AI AGENT — registru de capabilități + durată + selectare (2026-10-25, Lovable)
 - TERMINAT: `capabilities.ts` (4 suportate / 6 roadmap refuzate onest, instrucțiunile modelului generate din registru), SET_DURATION prin autoritatea canonică ripple (fără suprapuneri, refuz sub durata animației), SELECT_SCENE după număr/nume cu ambiguitate raportată, clarificări de la model pentru cereri neclare sau nesuportate. Teste agent 20/20, suită completă 1489 trecute, browser smoke pe ESSP real (durată 7,5→12 s cu 32 scene decaleate, selectare, refuz onest al scalării prin model).
 - RĂMAS: următoarele capabilități din registru (scalare cu revalidare separare, mutare, tranziții, lumini, inserare bibliotecă, număr drone), memorie conversațională, acoperire măsurată pe parcurs.
+
+## 17. AI AGENT — refuz precis + sugestii locale + atomicitate (2026-10-25, Lovable)
+- TERMINAT: pipeline explicit parser→model→registru→validator; refuz cu motiv precis; sugestii de dezvoltare sanitizate, salvate DOAR local (fără promisiune de predare către agenți); atomicitate multi-pas verificată (proiectul live rămâne byte-identic la eșec parțial); `default` INVALID_OP pentru tipuri halucinate; bug StrictMode (dublare înregistrare) reparat și verificat în browser. Teste agent 27/27, suită 1496 trecute, build curat.
+- RĂMAS: capabilitățile 5–10 din registru (scalare, mutare, tranziții, lumini, inserare bibliotecă, număr drone), memorie conversațională, export al sugestiilor locale din UI.

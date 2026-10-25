@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { interpretAgentCommand } from "@/lib/agent/agent.functions";
 import { capabilitySummary } from "@/lib/agent/capabilities";
+import { recordFeatureRequest } from "@/lib/agent/feedback";
 import {
   applyAgentOp,
   resolveSceneTarget,
@@ -37,7 +38,14 @@ interface PendingEdit {
 
 type ChatEntry =
   | { role: "user"; text: string }
-  | { role: "agent"; text: string; source?: "local" | "model" }
+  | {
+      role: "agent";
+      text: string;
+      source?: "local" | "model";
+      /** When set, the user may save the refused request as a local suggestion. */
+      feedback?: { text: string; reason: string };
+      feedbackSaved?: boolean;
+    }
   | { role: "preview"; edit: PendingEdit };
 
 const ISSUE_LABELS: Record<AgentValidationIssue, [string, string]> = {
@@ -98,6 +106,8 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const entriesRef = useRef<ChatEntry[]>([]);
+  entriesRef.current = entries;
 
   const selectedClip = project.timeline.find((c) => c.id === selectedClipId) ?? null;
   const selectedName = selectedClip
@@ -113,8 +123,30 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [entries, busy]);
 
-  const say = useCallback((text: string, source?: "local" | "model") => {
-    setEntries((e) => [...e, source ? { role: "agent", text, source } : { role: "agent", text }]);
+  const say = useCallback(
+    (text: string, source?: "local" | "model", feedback?: { text: string; reason: string }) => {
+      const entry: ChatEntry = {
+        role: "agent",
+        text,
+        ...(source ? { source } : {}),
+        ...(feedback ? { feedback } : {}),
+      };
+      setEntries((e) => [...e, entry]);
+    },
+    [],
+  );
+
+  const saveFeedback = useCallback((entryIndex: number) => {
+    // Read first, then record OUTSIDE the state updater: StrictMode runs
+    // updaters twice and the record must be written exactly once.
+    const entry = entriesRef.current[entryIndex];
+    if (!entry || entry.role !== "agent" || !entry.feedback || entry.feedbackSaved) return;
+    recordFeatureRequest(entry.feedback.text, entry.feedback.reason);
+    setEntries((entries) =>
+      entries.map((e, i) =>
+        i === entryIndex && e.role === "agent" ? { ...e, feedbackSaved: true } : e,
+      ),
+    );
   }, []);
 
   const submit = useCallback(async () => {
@@ -168,10 +200,15 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       }
       if (ops.length === 0) {
         if (clarification) {
-          say(clarification, source === "model" ? "model" : undefined);
+          say(clarification, source === "model" ? "model" : undefined, {
+            text,
+            reason: "unsupported-or-ambiguous",
+          });
         } else {
           say(
             `${t("Nu am înțeles cererea.", "I did not understand the request.")} ${capabilitySummary(ro)}`,
+            undefined,
+            { text, reason: "not-understood" },
           );
         }
         return;
@@ -206,8 +243,14 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
         }
         const r = applyAgentOp(candidate, targetClipId, op);
         if (!r.ok) {
+          // Atomicity: a failed step aborts the WHOLE request — the candidate
+          // copy is discarded and the live project is never touched.
           const label = FAILURE_LABELS[r.reason] ?? FAILURE_LABELS["INVALID_OP"]!;
-          say(t(label[0], label[1]));
+          say(
+            `${t(label[0], label[1])} ${t("Nicio parte a cererii nu a fost aplicată.", "No part of the request was applied.")}`,
+            undefined,
+            { text, reason: r.reason },
+          );
           return;
         }
         candidate = r.project;
@@ -313,6 +356,24 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
                       : t("răspuns local", "local answer")}
                   </p>
                 )}
+                {entry.feedback &&
+                  (entry.feedbackSaved ? (
+                    <p className="px-1 text-[10px] text-muted-foreground">
+                      {t(
+                        "Sugestia e salvată local, în acest browser — nu este trimisă nicăieri automat.",
+                        "Suggestion saved locally in this browser — it is not sent anywhere automatically.",
+                      )}
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      className="chip-btn mt-1"
+                      onClick={() => saveFeedback(i)}
+                      data-testid="agent-save-feedback"
+                    >
+                      {t("Salvează ca sugestie de dezvoltare", "Save as development suggestion")}
+                    </button>
+                  ))}
               </div>
             );
           }
