@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+afterEach(cleanup);
 import RgbStructureDiagnostic from "../RgbStructureDiagnostic";
 import type { analyzeRgbStructure } from "@/lib/import/essp/native/rgbStructure";
 
