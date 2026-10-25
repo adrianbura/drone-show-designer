@@ -153,3 +153,45 @@ describe("generic archive mode", () => {
     await expect(readRgbAuditArchive(zip, "g.zip")).rejects.toThrow();
   });
 });
+
+describe("generic archive ID and clock rules", () => {
+  const essp = (i: number, rate = 4000) =>
+    buildSyntheticEssp({
+      xyz: Array.from({ length: 5 }, () => [i * 100, 0, 3000]),
+      rgb: Array.from({ length: 13 }, () => [10, 20, 30]),
+      positionRateRaw: rate,
+    });
+  it("accepts non-consecutive unique IDs only in generic mode", async () => {
+    const zip = zipSync({
+      "s/13.essp": essp(13),
+      "s/44.essp": essp(44),
+      "s/52.essp": essp(52),
+      "__MACOSX/s/._13.essp": new Uint8Array([0, 5, 22, 7]),
+      "s/pyroEffects.json": new TextEncoder().encode("{}"),
+    });
+    const { show, provenance } = await readRgbAuditArchive(zip, "g.zip", {
+      generic: true,
+      clocks: null,
+    });
+    expect(provenance.fileCount).toBe(3);
+    expect(provenance.sourceIds).toEqual([13, 44, 52]);
+    expect(show.timing.positionRateHz).toBe(4);
+    expect(show.timing.rgbRateHz).toBe(12);
+    await expect(readRgbAuditArchive(zip, "g.zip")).rejects.toThrow(/exactly 150/);
+  });
+  it("rejects duplicate IDs in generic mode", async () => {
+    const zip = zipSync({ "a/7.essp": essp(7), "b/7.essp": essp(7) });
+    await expect(
+      readRgbAuditArchive(zip, "d.zip", { generic: true, clocks: null }),
+    ).rejects.toThrow(/unique/);
+  });
+  it("benchmark default still demands 8 Hz XYZ", async () => {
+    const files: Record<string, Uint8Array> = {};
+    for (let i = 1; i <= 150; i++) files[`${i}.essp`] = essp(i, 8000);
+    const ok = await readRgbAuditArchive(zipSync(files), "b.zip");
+    expect(ok.provenance.fileCount).toBe(150);
+    expect(ok.show.timing.positionRateHz).toBe(8);
+    for (let i = 1; i <= 150; i++) files[`${i}.essp`] = essp(i, 4000);
+    await expect(readRgbAuditArchive(zipSync(files), "b.zip")).rejects.toThrow(/native clocks/);
+  });
+});

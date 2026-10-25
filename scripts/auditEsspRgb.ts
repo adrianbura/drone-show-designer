@@ -25,6 +25,7 @@ if (expectedSha) {
 }
 const { show, provenance } = await readRgbAuditArchive(archiveBytes, basename(zipPath), {
   clocks: generic ? null : undefined,
+  generic,
 });
 // Generic mode: benchmark intervals belong to another show and are never applied.
 const benchmark = generic
