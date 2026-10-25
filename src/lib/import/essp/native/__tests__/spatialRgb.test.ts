@@ -45,11 +45,14 @@ async function fixture(
 describe("source spatial RGB evidence", () => {
   it("recovers a diagonal axis in a tilted plane without inventing its unobserved normal component", async () => {
     const show = await fixture((x, y) => [100 + 10 * x + 10 * y, 20, 10]);
-    const tilted = { ...show, drones: show.drones.map((d) => {
-      const samples = d.positionSamples.slice();
-      for (let i = 0; i < samples.length; i += 3) samples[i + 1] = (samples[i + 2] ?? 0) - 3000;
-      return { ...d, positionSamples: samples };
-    }) };
+    const tilted = {
+      ...show,
+      drones: show.drones.map((d) => {
+        const samples = d.positionSamples.slice();
+        for (let i = 0; i < samples.length; i += 3) samples[i + 1] = (samples[i + 2] ?? 0) - 3000;
+        return { ...d, positionSamples: samples };
+      }),
+    };
     const result = analyzeSpatialRgb(tilted, binding);
     // Minimum-norm gradient (10,5,5); the Y-Z normal is unobservable.
     expect(result.status).toBe("SUPPORTED_GRADIENT");
