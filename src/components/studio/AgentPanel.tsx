@@ -225,7 +225,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       setBusy(false);
       inputRef.current?.focus();
     }
-  }, [input, busy, project, selectedClipId, say, t]);
+  }, [input, busy, project, selectedClipId, selectClip, say, t, ro]);
 
   const apply = useCallback(
     (edit: PendingEdit) => {
@@ -324,7 +324,20 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
               <ul className="mt-1 space-y-1 text-xs text-foreground">
                 {edit.summaries.map((s, j) => (
                   <li key={j}>
-                    {s.kind === "ROTATE_SCENE" ? (
+                    {s.kind === "SET_DURATION" ? (
+                      <>
+                        {t("Durata scenei", "Scene duration")} ·{" "}
+                        {t(
+                          "{a} s → {b} s{n, plural, =0 {} other {; {n} scene următoare decalează}}",
+                          "{a} s → {b} s{n, plural, =0 {} other {; {n} following scenes shift}}",
+                          {
+                            a: (s.durationBefore ?? 0).toFixed(1),
+                            b: (s.durationAfter ?? 0).toFixed(1),
+                            n: s.followersShifted ?? 0,
+                          },
+                        )}
+                      </>
+                    ) : s.kind === "ROTATE_SCENE" ? (
                       <>
                         {t("Rotire scenă", "Scene rotation")} ·{" "}
                         {t("altitudine {a}–{b} m → {c}–{d} m", "altitude {a}–{b} m → {c}–{d} m", {
