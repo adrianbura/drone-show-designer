@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { interpretAgentCommand } from "@/lib/agent/agent.functions";
 import { capabilitySummary } from "@/lib/agent/capabilities";
+import { recordFeatureRequest } from "@/lib/agent/feedback";
 import {
   applyAgentOp,
   resolveSceneTarget,
@@ -37,7 +38,14 @@ interface PendingEdit {
 
 type ChatEntry =
   | { role: "user"; text: string }
-  | { role: "agent"; text: string; source?: "local" | "model" }
+  | {
+      role: "agent";
+      text: string;
+      source?: "local" | "model";
+      /** When set, the user may save the refused request as a local suggestion. */
+      feedback?: { text: string; reason: string };
+      feedbackSaved?: boolean;
+    }
   | { role: "preview"; edit: PendingEdit };
 
 const ISSUE_LABELS: Record<AgentValidationIssue, [string, string]> = {
