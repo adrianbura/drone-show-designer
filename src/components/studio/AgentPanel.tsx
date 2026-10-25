@@ -123,7 +123,12 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
 
   const say = useCallback(
     (text: string, source?: "local" | "model", feedback?: { text: string; reason: string }) => {
-      const entry: ChatEntry = { role: "agent", text, source, feedback };
+      const entry: ChatEntry = {
+        role: "agent",
+        text,
+        ...(source ? { source } : {}),
+        ...(feedback ? { feedback } : {}),
+      };
       setEntries((e) => [...e, entry]);
     },
     [],
