@@ -125,9 +125,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
     (text: string, source?: "local" | "model", feedback?: { text: string; reason: string }) => {
       setEntries((e) => [
         ...e,
-        source || feedback
-          ? { role: "agent", text, source, feedback }
-          : { role: "agent", text },
+        source || feedback ? { role: "agent", text, source, feedback } : { role: "agent", text },
       ]);
     },
     [],

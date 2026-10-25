@@ -27,15 +27,17 @@ export interface FeatureRequestRecord {
 
 /** Strips URLs, e-mails, long digit runs and control characters; caps length. */
 export function sanitizeFeedback(text: string): string {
-  return text
-    .replace(/https?:\/\/\S+/gi, "[url]")
-    .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email]")
-    .replace(/\d{4,}/g, "[num]")
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x00-\x1F\x7F]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, MAX_TEXT);
+  return (
+    text
+      .replace(/https?:\/\/\S+/gi, "[url]")
+      .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email]")
+      .replace(/\d{4,}/g, "[num]")
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1F\x7F]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, MAX_TEXT)
+  );
 }
 
 /** Reads the locally saved suggestions (newest first). */

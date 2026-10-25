@@ -380,13 +380,13 @@ describe("robustness — hallucinated, malformed, injected", () => {
     expect(
       applyAgentOp(project(), "c1", { kind: "ROTATE_SCENE", axis: "Z", degrees: NaN }).ok,
     ).toBe(false);
-    expect(
-      applyAgentOp(project(), "c1", { kind: "RECOLOR_SCENE", color: [0, 0, 0] }).ok,
-    ).toBe(false);
+    expect(applyAgentOp(project(), "c1", { kind: "RECOLOR_SCENE", color: [0, 0, 0] }).ok).toBe(
+      false,
+    );
     expect(applyAgentOp(project(), "c1", { kind: "SET_DURATION" }).ok).toBe(false);
-    expect(
-      applyAgentOp(project(), "c1", { kind: "SET_DURATION", holdSeconds: NaN }).ok,
-    ).toBe(false);
+    expect(applyAgentOp(project(), "c1", { kind: "SET_DURATION", holdSeconds: NaN }).ok).toBe(
+      false,
+    );
   });
 
   it("prompt-injection text never produces an operation outside the registry", () => {
