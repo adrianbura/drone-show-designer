@@ -282,10 +282,10 @@ export function lightingContextAt(
     const instance = scene.objects.find((o) => o.id === instanceId);
     const clipColor = lightColorAt(clip, index, project.droneCount, t);
     const baseColor: RGB =
-      instance?.lighting?.color ??
       (role === "ACTIVE_FORMATION"
         ? sampledFor(instance?.source, participation?.formationPointId)
         : null) ??
+      instance?.lighting?.color ??
       clipColor;
     const reference = participation?.target ?? input.positions?.[index] ?? [0, 0, 0];
     points.push({

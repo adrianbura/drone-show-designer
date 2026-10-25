@@ -8,7 +8,6 @@ import { sampleDynamicFormation } from "@/lib/show/dynamic/sampler";
 import { LocalFormationAssetRepository, MemoryKeyValueStore } from "@/lib/library/repository";
 import { insertLibraryAsset } from "@/lib/studio/assetInsertion";
 import { createDefaultProject } from "@/lib/show/defaultProject";
-import { sceneForClip as sceneForClipDbg } from "@/lib/show/scene/migrate";
 import { lightingContextAt } from "@/lib/show/lighting/engine";
 
 const N = 6;
@@ -146,7 +145,6 @@ describe("imported scene -> library -> editable copy", () => {
       })),
     };
     const ctx = lightingContextAt({ project: result.project, participation: [plan as never] }, t)!;
-    console.log('DBG',ctx.clipId,clip.id,clip.start,clip.transition,JSON.stringify(sceneForClipDbg(result.project,clip).objects.map(o=>[o.source,o.lighting])));
     const raw = s.drones[2]!.rgbSamples;
     expect(ctx.points[0]!.baseColor).toEqual([raw[42 * 3], raw[42 * 3 + 1], raw[42 * 3 + 2]]);
   });
