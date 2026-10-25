@@ -30,8 +30,6 @@ export async function readRgbAuditArchive(
 ) {
   const clocks =
     options.clocks === undefined ? { positionRateHz: 8, rgbRateHz: 12 } : options.clocks;
-  const all = Object.keys(unzipSync(bytes, { filter: () => false })).length;
-  void all;
   const entries = Object.entries(
     unzipSync(bytes, {
       filter: (entry) => /\.essp$/i.test(entry.name) && !isAppleDoubleEntry(entry.name),

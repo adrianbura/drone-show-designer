@@ -10,18 +10,26 @@ import {
 } from "../src/lib/import/essp/native/rgbAudit";
 import { analyzeReferenceShow } from "../src/lib/import/essp/forensics/report";
 
-const [zipPath, outputDirectory, expectedSha] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const generic = args.includes("--generic");
+const [zipPath, outputDirectory, expectedSha] = args.filter((a) => !a.startsWith("--"));
 if (!zipPath || !outputDirectory)
   throw new Error(
-    "Usage: bun scripts/auditEsspRgb.ts original.zip output-directory [expected-sha256]",
+    "Usage: bun scripts/auditEsspRgb.ts [--generic] archive.zip output-directory [expected-sha256]",
   );
-const { show, provenance } = await readRgbAuditArchive(
-  new Uint8Array(readFileSync(zipPath)),
-  basename(zipPath),
-);
-if (expectedSha && expectedSha !== provenance.archiveSha256)
-  throw new Error("Archive checksum mismatch.");
-const benchmark = readFileSync(resolve(import.meta.dir, "../docs/ESSP_SHOW_BENCHMARK.md"), "utf8");
+const archiveBytes = new Uint8Array(readFileSync(zipPath));
+// Checksum is verified BEFORE any decoding.
+if (expectedSha) {
+  const digest = Buffer.from(await crypto.subtle.digest("SHA-256", archiveBytes)).toString("hex");
+  if (digest !== expectedSha) throw new Error("Archive checksum mismatch.");
+}
+const { show, provenance } = await readRgbAuditArchive(archiveBytes, basename(zipPath), {
+  clocks: generic ? null : undefined,
+});
+// Generic mode: benchmark intervals belong to another show and are never applied.
+const benchmark = generic
+  ? ""
+  : readFileSync(resolve(import.meta.dir, "../docs/ESSP_SHOW_BENCHMARK.md"), "utf8");
 const forensics = analyzeReferenceShow(show);
 const end = Math.max(
   show.timing.rgbSampleCount / show.timing.rgbRateHz,
@@ -46,6 +54,7 @@ const reportBefore = JSON.stringify(show.report);
 const report = {
   schemaVersion: 1,
   algorithm: "native-rgb-affine-audit-v1",
+  mode: generic ? "GENERIC_ARCHIVE" : "BENCHMARK",
   provenance,
   clocks: show.timing,
   forensicAlgorithm: forensics.algorithmVersion,
