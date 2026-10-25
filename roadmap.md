@@ -88,7 +88,10 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
          19 teste țintite, 83 downstream, 1445 passed / 1 skipped global; lint curat.
    - [ ] Diagnostic local/grup-condiționat cu suport și verificare held-out pentru cazuri
          low-fit; nu inventa efecte și nu relaxa pragurile globale. Detalii în HANDOFF.md.
-   - [ ] Audit separat `wedding-sorin-frg-no-movement.zip` — BLOCAT la 2026-10-25:
+   - [x] Audit separat `wedding-sorin-frg-no-movement.zip` — **STATUS CURENT (2026-10-25 08:59 UTC): FINALIZAT**;
+         arhiva a devenit accesibilă în sandbox, SHA verificat, raport `docs/audits/wedding-sorin-e7a42460/`,
+         comparație `docs/audits/rgb-comparison-0055f8ce-vs-e7a42460.md`.
+         Istoric — BLOCAT la 2026-10-25 (înainte de upload):
          absent numai din sandboxul Lovable; accesibil în mediul chatului la `/mnt/data`.
          Ownerul raportează 2.251.837 bytes, SHA-256
          e7a4246016b3aa175e020858a7cf9406f72c38c99f090ab9ada702e97cea558f,
@@ -240,4 +243,4 @@ Enter pe `Paste` inserează exact 1 clip, un Undo îl elimină; meniul pe zona l
 deschide. Suita completă: 159 fișiere / 1396 teste / 1 skipped, fără instabilitate Radix/JSDOM la
 această rulare.
 
-- [x] Audit RGB read-only `wedding-sorin-frg-no-movement.zip` (SHA `e7a42460…`, XYZ 4 Hz / RGB 12 Hz, AppleDouble exclus, mod `--generic`, raport `docs/audits/wedding-sorin-e7a42460/`). Mod generic: ID-uri neconsecutive unice, duplicate respinse, testat. Următor: comparație intervale între cele două show-uri.
+- [x] Audit RGB read-only `wedding-sorin-frg-no-movement.zip` (SHA `e7a42460…`, XYZ 4 Hz / RGB 12 Hz, AppleDouble exclus, mod `--generic`, raport `docs/audits/wedding-sorin-e7a42460/`). Mod generic: ID-uri neconsecutive unice, duplicate respinse, testat. Comparație read-only livrată (`scripts/compareRgbAudits.ts`). Următor: diagnostic local low-fit.
