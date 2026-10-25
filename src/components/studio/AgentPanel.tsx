@@ -144,7 +144,10 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
               if (o.kind === "RECOLOR_SCENE" && o.color) {
                 return { kind: "RECOLOR_SCENE", color: o.color };
               }
-              if (o.kind === "SET_DURATION" && (o.holdSeconds !== null || o.deltaSeconds !== null)) {
+              if (
+                o.kind === "SET_DURATION" &&
+                (o.holdSeconds !== null || o.deltaSeconds !== null)
+              ) {
                 return {
                   kind: "SET_DURATION",
                   ...(o.holdSeconds !== null ? { holdSeconds: o.holdSeconds } : {}),
@@ -167,7 +170,9 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
         if (clarification) {
           say(clarification, source === "model" ? "model" : undefined);
         } else {
-          say(`${t("Nu am înțeles cererea.", "I did not understand the request.")} ${capabilitySummary(ro)}`);
+          say(
+            `${t("Nu am înțeles cererea.", "I did not understand the request.")} ${capabilitySummary(ro)}`,
+          );
         }
         return;
       }

@@ -460,7 +460,9 @@ export function clipDisplayName(project: ShowProject, clip: TimelineClip): strin
  * ambiguous with the candidate names, never guessed.
  */
 export function resolveSceneTarget(project: ShowProject, op: SelectSceneOp): SceneTargetResolution {
-  const ordered = [...project.timeline].sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+  const ordered = [...project.timeline].sort(
+    (a, b) => a.start - b.start || a.id.localeCompare(b.id),
+  );
   if (op.sceneIndex !== undefined) {
     const clip = ordered[op.sceneIndex - 1];
     if (!clip) return { ok: false, reason: "SCENE_NOT_FOUND" };

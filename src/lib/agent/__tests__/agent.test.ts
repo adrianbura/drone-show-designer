@@ -224,9 +224,8 @@ describe("validateAgentProject", () => {
 
 describe("capabilities registry", () => {
   it("lists every supported op kind and marks roadmap items unsupported", async () => {
-    const { AGENT_CAPABILITIES, SUPPORTED_CAPABILITIES, capabilityInstructions } = await import(
-      "../capabilities"
-    );
+    const { AGENT_CAPABILITIES, SUPPORTED_CAPABILITIES, capabilityInstructions } =
+      await import("../capabilities");
     const supported = SUPPORTED_CAPABILITIES.map((c) => c.kind).sort();
     expect(supported).toEqual(["RECOLOR_SCENE", "ROTATE_SCENE", "SELECT_SCENE", "SET_DURATION"]);
     // Roadmap items exist and are honestly marked unsupported.

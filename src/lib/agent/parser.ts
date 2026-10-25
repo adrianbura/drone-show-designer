@@ -144,7 +144,10 @@ function parseSelection(text: string): AgentOp | null {
     const n = Number(byIndex[1] ?? byIndex[2] ?? byIndex[3]);
     if (Number.isInteger(n) && n >= 1) return { kind: "SELECT_SCENE", sceneIndex: n };
   }
-  const byName = /(?:selecteaz[ăa]|select|alege|choose|deschide|open)\s+(?:scena|scene|the|clipul|clip)?\s*([a-zăâîșţț0-9 _-]{2,40})/i.exec(t);
+  const byName =
+    /(?:selecteaz[ăa]|select|alege|choose|deschide|open)\s+(?:scena|scene|the|clipul|clip)?\s*([a-zăâîșţț0-9 _-]{2,40})/i.exec(
+      t,
+    );
   if (byName) {
     const name = byName[1]!.trim();
     if (name && !/^\d+$/.test(name)) return { kind: "SELECT_SCENE", sceneName: name };
