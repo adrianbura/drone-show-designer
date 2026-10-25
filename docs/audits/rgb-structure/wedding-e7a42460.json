@@ -1,0 +1,2676 @@
+{
+  "schemaVersion": 1,
+  "algorithm": "rgb-structure-v1",
+  "summary": {
+    "archive": "wedding-sorin-frg-no-movement.zip",
+    "sha256": "e7a4246016b3aa175e020858a7cf9406f72c38c99f090ab9ada702e97cea558f",
+    "clocks": {
+      "positionSampleCount": 2000,
+      "positionRateRaw": 4000,
+      "positionRateHz": 4,
+      "positionDurationSeconds": 499.75,
+      "rgbSampleCount": 6000,
+      "rgbRateRaw": 12000,
+      "rgbRateHz": 12,
+      "rgbDurationSeconds": 499.9166666666667,
+      "playbackDurationSeconds": 499.9166666666667,
+      "endpointConvention": "duration = (sampleCount - 1) / rate — the timestamp of the LAST sample. Position and RGB clocks are independent, so the two durations may differ slightly; playback duration is the longer of the two."
+    },
+    "segments": 80,
+    "groups": {
+      "AMBIGUOUS": 71,
+      "MULTIPLE_GROUPS": 9
+    },
+    "temporal": {
+      "NONPERIODIC_OR_UNKNOWN": 70,
+      "PERIODIC_UNVALIDATED": 10
+    },
+    "reconstruction": {
+      "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN": 4,
+      "UNKNOWN": 76
+    },
+    "recipe": "UNKNOWN"
+  },
+  "segments": [
+    {
+      "id": "SEG-001",
+      "start": 0,
+      "end": 4.5,
+      "groups": "MULTIPLE_GROUPS",
+      "groupCount": 2,
+      "ambiguous": 0.3866666666666667,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 14.206543209876543,
+          "maxAbsError": 149,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 22.431234567901235,
+          "maxAbsError": 247,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 4.833456790123456,
+          "maxAbsError": 149,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-002",
+      "start": 4.25,
+      "end": 6,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.5533333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 117.23809523809524,
+          "maxAbsError": 149,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 34.613015873015875,
+          "maxAbsError": 228,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 61.51587301587302,
+          "maxAbsError": 149,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-003",
+      "start": 5.75,
+      "end": 28.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 116.72310134310135,
+          "maxAbsError": 162,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 105.53970695970696,
+          "maxAbsError": 241,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 116.72310134310135,
+          "maxAbsError": 162,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-004",
+      "start": 28.25,
+      "end": 33.75,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 81.61360269360269,
+          "maxAbsError": 234,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 74.71346801346802,
+          "maxAbsError": 232,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 81.61360269360269,
+          "maxAbsError": 234,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-005",
+      "start": 33.5,
+      "end": 35.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 14,
+      "ambiguous": 0.7066666666666667,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 51.64042328042328,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 30.677671957671958,
+          "maxAbsError": 203,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 38.254074074074076,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-006",
+      "start": 35,
+      "end": 39,
+      "groups": "AMBIGUOUS",
+      "groupCount": 20,
+      "ambiguous": 0.5066666666666666,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 49.92462962962963,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 33.49888888888889,
+          "maxAbsError": 152,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 28.58449074074074,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-007",
+      "start": 38.75,
+      "end": 40.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 20,
+      "ambiguous": 0.5066666666666666,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 50.0004938271605,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 26.635802469135804,
+          "maxAbsError": 155,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 28.74098765432099,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-008",
+      "start": 40,
+      "end": 45,
+      "groups": "AMBIGUOUS",
+      "groupCount": 20,
+      "ambiguous": 0.5066666666666666,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 49.86562962962963,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 33.40725925925926,
+          "maxAbsError": 153,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 28.55648148148148,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-009",
+      "start": 44.75,
+      "end": 46,
+      "groups": "AMBIGUOUS",
+      "groupCount": 20,
+      "ambiguous": 0.5066666666666666,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 50.69096296296296,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 24.054666666666666,
+          "maxAbsError": 155,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 28.766222222222222,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-010",
+      "start": 45.75,
+      "end": 51.75,
+      "groups": "AMBIGUOUS",
+      "groupCount": 20,
+      "ambiguous": 0.5066666666666666,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 49.83006172839506,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 33.17888888888889,
+          "maxAbsError": 151,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 28.565524691358025,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-011",
+      "start": 51.5,
+      "end": 52.75,
+      "groups": "AMBIGUOUS",
+      "groupCount": 20,
+      "ambiguous": 0.5066666666666666,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 50.78888888888889,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 24.03185185185185,
+          "maxAbsError": 155,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 28.77911111111111,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-012",
+      "start": 52.5,
+      "end": 58,
+      "groups": "AMBIGUOUS",
+      "groupCount": 20,
+      "ambiguous": 0.5066666666666666,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 49.826397306397304,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 33.203501683501685,
+          "maxAbsError": 153,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 28.555757575757575,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-013",
+      "start": 57.75,
+      "end": 59.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 20,
+      "ambiguous": 0.5066666666666666,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 50.4479012345679,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 26.67703703703704,
+          "maxAbsError": 155,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 28.58604938271605,
+          "maxAbsError": 178,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-014",
+      "start": 59,
+      "end": 61.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 53.99918518518518,
+          "maxAbsError": 185,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 52.114444444444445,
+          "maxAbsError": 204,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 53.99918518518518,
+          "maxAbsError": 185,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-015",
+      "start": 61.25,
+      "end": 75.5,
+      "groups": "MULTIPLE_GROUPS",
+      "groupCount": 30,
+      "ambiguous": 0,
+      "temporal": "PERIODIC_UNVALIDATED",
+      "period": 2.0833333333333335,
+      "heldOut": 1,
+      "waveR2": -0.025470031840852947,
+      "best": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 79.62982456140351,
+          "maxAbsError": 185,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 79.55867446393762,
+          "maxAbsError": 186,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 0,
+          "maxAbsError": 0,
+          "withinTolerance": true
+        }
+      ]
+    },
+    {
+      "id": "SEG-016",
+      "start": 75.25,
+      "end": 79.25,
+      "groups": "MULTIPLE_GROUPS",
+      "groupCount": 30,
+      "ambiguous": 0.3466666666666667,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 63.85787037037037,
+          "maxAbsError": 235,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 63.93296296296296,
+          "maxAbsError": 217,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 23.942870370370372,
+          "maxAbsError": 235,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-017",
+      "start": 79,
+      "end": 80.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 1,
+      "ambiguous": 0.6266666666666667,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 77.86385185185185,
+          "maxAbsError": 213,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 22.10948148148148,
+          "maxAbsError": 196,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 53.53081481481482,
+          "maxAbsError": 213,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-018",
+      "start": 80,
+      "end": 88.75,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 73.29684656084656,
+          "maxAbsError": 169,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 39.50419047619047,
+          "maxAbsError": 207,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 73.29684656084656,
+          "maxAbsError": 169,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-019",
+      "start": 88.5,
+      "end": 89.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 69.61555555555556,
+          "maxAbsError": 156,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 21.54925925925926,
+          "maxAbsError": 93,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 69.61555555555556,
+          "maxAbsError": 156,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-020",
+      "start": 89.25,
+      "end": 90.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 69.01,
+          "maxAbsError": 156,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 20.792962962962964,
+          "maxAbsError": 94,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 69.01,
+          "maxAbsError": 156,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-021",
+      "start": 90,
+      "end": 94.75,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 70.63699805068227,
+          "maxAbsError": 156,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 32.23653021442495,
+          "maxAbsError": 101,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 70.63699805068227,
+          "maxAbsError": 156,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-022",
+      "start": 94.5,
+      "end": 96,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 70.80148148148149,
+          "maxAbsError": 156,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 27.246172839506173,
+          "maxAbsError": 105,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 70.80148148148149,
+          "maxAbsError": 156,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-023",
+      "start": 95.75,
+      "end": 102.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 70.4140170940171,
+          "maxAbsError": 156,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 32.12398860398861,
+          "maxAbsError": 102,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 70.4140170940171,
+          "maxAbsError": 156,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-024",
+      "start": 102,
+      "end": 103.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 70.18355555555556,
+          "maxAbsError": 156,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 24.044,
+          "maxAbsError": 99,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 70.18355555555556,
+          "maxAbsError": 156,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-025",
+      "start": 103,
+      "end": 104,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 71.99148148148149,
+          "maxAbsError": 154,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 22.004444444444445,
+          "maxAbsError": 93,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 71.99148148148149,
+          "maxAbsError": 154,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-026",
+      "start": 103.75,
+      "end": 109.75,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 71.9141049382716,
+          "maxAbsError": 209,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 47.07780864197531,
+          "maxAbsError": 231,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 71.9141049382716,
+          "maxAbsError": 209,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-027",
+      "start": 109.5,
+      "end": 120.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "PERIODIC_UNVALIDATED",
+      "period": 0.9166666666666666,
+      "heldOut": null,
+      "waveR2": -0.11274743044700508,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 93.1970202020202,
+          "maxAbsError": 212,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 93.32008417508418,
+          "maxAbsError": 204,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 93.1970202020202,
+          "maxAbsError": 212,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-028",
+      "start": 120.25,
+      "end": 122.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 77.10055555555556,
+          "maxAbsError": 207,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 77.91740740740741,
+          "maxAbsError": 195,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 77.10055555555556,
+          "maxAbsError": 207,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-029",
+      "start": 122,
+      "end": 132.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 36.871996386630535,
+          "maxAbsError": 170,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 37.27700090334237,
+          "maxAbsError": 150,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 36.871996386630535,
+          "maxAbsError": 170,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-030",
+      "start": 132,
+      "end": 135.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 1,
+      "ambiguous": 0.98,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 36.45174603174603,
+          "maxAbsError": 147,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 35.755873015873014,
+          "maxAbsError": 150,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 35.617936507936506,
+          "maxAbsError": 147,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-031",
+      "start": 135.25,
+      "end": 145,
+      "groups": "AMBIGUOUS",
+      "groupCount": 1,
+      "ambiguous": 0.98,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 36.42396961063628,
+          "maxAbsError": 147,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 36.27952516619183,
+          "maxAbsError": 149,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 35.65154795821463,
+          "maxAbsError": 147,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-032",
+      "start": 144.75,
+      "end": 148,
+      "groups": "AMBIGUOUS",
+      "groupCount": 1,
+      "ambiguous": 0.98,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 36.37954415954416,
+          "maxAbsError": 147,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 35.23675213675214,
+          "maxAbsError": 153,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 35.508774928774926,
+          "maxAbsError": 147,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-033",
+      "start": 147.75,
+      "end": 153.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 39.966329966329965,
+          "maxAbsError": 235,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 51.99535353535354,
+          "maxAbsError": 207,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 39.966329966329965,
+          "maxAbsError": 235,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-034",
+      "start": 153,
+      "end": 166,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 47.68988603988604,
+          "maxAbsError": 241,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 45.75008547008547,
+          "maxAbsError": 250,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 47.68988603988604,
+          "maxAbsError": 241,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-035",
+      "start": 165.75,
+      "end": 167,
+      "groups": "AMBIGUOUS",
+      "groupCount": 1,
+      "ambiguous": 0.98,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 48.96651851851852,
+          "maxAbsError": 240,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 45.49362962962963,
+          "maxAbsError": 232,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 48.270074074074074,
+          "maxAbsError": 240,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-036",
+      "start": 166.75,
+      "end": 179,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 78.5469992441421,
+          "maxAbsError": 237,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 68.26459561602418,
+          "maxAbsError": 245,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 78.5469992441421,
+          "maxAbsError": 237,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-037",
+      "start": 178.75,
+      "end": 189.5,
+      "groups": "MULTIPLE_GROUPS",
+      "groupCount": 46,
+      "ambiguous": 0.07333333333333336,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 79.99732988802756,
+          "maxAbsError": 197,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 54.037416020671834,
+          "maxAbsError": 241,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 10.516210163652024,
+          "maxAbsError": 197,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-038",
+      "start": 189.25,
+      "end": 198.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 74.77037037037037,
+          "maxAbsError": 236,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 63.8191991991992,
+          "maxAbsError": 238,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 74.77037037037037,
+          "maxAbsError": 236,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-039",
+      "start": 198.25,
+      "end": 213.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "PERIODIC_UNVALIDATED",
+      "period": 1,
+      "heldOut": 0.7980393073626275,
+      "waveR2": -0.046988631511431844,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 31.96482088646023,
+          "maxAbsError": 243,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 29.726581663630842,
+          "maxAbsError": 248,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 31.96482088646023,
+          "maxAbsError": 243,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-040",
+      "start": 213.25,
+      "end": 241,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 49.650897564230895,
+          "maxAbsError": 234,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 51.417944611277946,
+          "maxAbsError": 230,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 49.650897564230895,
+          "maxAbsError": 234,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-041",
+      "start": 240.75,
+      "end": 251.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "PERIODIC_UNVALIDATED",
+      "period": 1,
+      "heldOut": 0.9627376519109029,
+      "waveR2": 0.12122768428888131,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 29.905254091300602,
+          "maxAbsError": 200,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 30.461447028423773,
+          "maxAbsError": 181,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 29.905254091300602,
+          "maxAbsError": 200,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-042",
+      "start": 251.25,
+      "end": 253,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 25.31100529100529,
+          "maxAbsError": 200,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 34.4589417989418,
+          "maxAbsError": 157,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 25.31100529100529,
+          "maxAbsError": 200,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-043",
+      "start": 252.75,
+      "end": 254.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 4,
+      "ambiguous": 0.7866666666666666,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 9.343703703703703,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 9.53111111111111,
+          "maxAbsError": 64,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 8.102222222222222,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-044",
+      "start": 254,
+      "end": 256,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 7.814259259259259,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 6.300185185185185,
+          "maxAbsError": 66,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 5.897037037037037,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-045",
+      "start": 255.75,
+      "end": 257,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 8.197777777777778,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 6.832592592592593,
+          "maxAbsError": 67,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 6.358370370370371,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-046",
+      "start": 256.75,
+      "end": 259.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 8.329851851851853,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 7.16925925925926,
+          "maxAbsError": 64,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 6.532222222222222,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-047",
+      "start": 259,
+      "end": 260.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 8.461925925925925,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 7.278962962962963,
+          "maxAbsError": 67,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 6.706074074074074,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-048",
+      "start": 260,
+      "end": 262,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 7.814259259259259,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 6.300185185185185,
+          "maxAbsError": 66,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 5.897037037037037,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-049",
+      "start": 261.75,
+      "end": 263.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 8.200529100529101,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 6.9677248677248675,
+          "maxAbsError": 65,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 6.3785185185185185,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-050",
+      "start": 263.25,
+      "end": 265,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 7.351640211640212,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 5.379047619047619,
+          "maxAbsError": 69,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 5.319153439153439,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-051",
+      "start": 264.75,
+      "end": 266.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 8.67358024691358,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 7.707901234567902,
+          "maxAbsError": 64,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 6.955679012345679,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-052",
+      "start": 266,
+      "end": 268.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 8.174074074074074,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 6.8790946502057615,
+          "maxAbsError": 66,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 6.3465020576131685,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-053",
+      "start": 268,
+      "end": 269,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 7.814259259259259,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 6.300185185185185,
+          "maxAbsError": 66,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 5.897037037037037,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-054",
+      "start": 268.75,
+      "end": 271.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 8.329851851851853,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 7.16925925925926,
+          "maxAbsError": 64,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 6.532222222222222,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-055",
+      "start": 271,
+      "end": 272,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 7.814259259259259,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 6.300185185185185,
+          "maxAbsError": 66,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 5.897037037037037,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-056",
+      "start": 271.75,
+      "end": 274,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 8.027325102880658,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 6.625761316872428,
+          "maxAbsError": 67,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 6.153333333333333,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-057",
+      "start": 273.75,
+      "end": 275.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 8.200529100529101,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 6.9677248677248675,
+          "maxAbsError": 65,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 6.3785185185185185,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-058",
+      "start": 275.25,
+      "end": 277,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 7.351640211640212,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 5.379047619047619,
+          "maxAbsError": 69,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 5.319153439153439,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-059",
+      "start": 276.75,
+      "end": 278.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6733333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 8.200529100529101,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 6.9677248677248675,
+          "maxAbsError": 65,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 6.3785185185185185,
+          "maxAbsError": 59,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-060",
+      "start": 278.25,
+      "end": 280.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 24.27135802469136,
+          "maxAbsError": 184,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 39.349053497942386,
+          "maxAbsError": 216,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 24.27135802469136,
+          "maxAbsError": 184,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-061",
+      "start": 280.25,
+      "end": 292.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "PERIODIC_UNVALIDATED",
+      "period": 1.25,
+      "heldOut": null,
+      "waveR2": 0.012109886276257975,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 58.799182098765435,
+          "maxAbsError": 185,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 58.766527777777775,
+          "maxAbsError": 190,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 58.799182098765435,
+          "maxAbsError": 185,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-062",
+      "start": 292,
+      "end": 322.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 39.61758187940006,
+          "maxAbsError": 235,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 52.73341291704928,
+          "maxAbsError": 240,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 39.61758187940006,
+          "maxAbsError": 235,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-063",
+      "start": 322,
+      "end": 331.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "PERIODIC_UNVALIDATED",
+      "period": 1,
+      "heldOut": 0.9834721876125502,
+      "waveR2": -0.2715623635712514,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 47.074561403508774,
+          "maxAbsError": 226,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 45.88703703703704,
+          "maxAbsError": 227,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 47.074561403508774,
+          "maxAbsError": 226,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-064",
+      "start": 331.25,
+      "end": 362,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 62.605414031918095,
+          "maxAbsError": 222,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 61.9632219211081,
+          "maxAbsError": 237,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 62.605414031918095,
+          "maxAbsError": 222,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-065",
+      "start": 361.75,
+      "end": 373.25,
+      "groups": "MULTIPLE_GROUPS",
+      "groupCount": 50,
+      "ambiguous": 0,
+      "temporal": "PERIODIC_UNVALIDATED",
+      "period": 0.4166666666666667,
+      "heldOut": 1.0000000000000002,
+      "waveR2": -0.23128160765891992,
+      "best": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 89.26004830917874,
+          "maxAbsError": 215,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 89.32140096618357,
+          "maxAbsError": 215,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 0,
+          "maxAbsError": 0,
+          "withinTolerance": true
+        }
+      ]
+    },
+    {
+      "id": "SEG-066",
+      "start": 373,
+      "end": 376.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "PERIODIC_UNVALIDATED",
+      "period": 0.4166666666666667,
+      "heldOut": 0.9925209217993884,
+      "waveR2": -1.5467739938013318,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 87.36341880341881,
+          "maxAbsError": 215,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 84.69190883190883,
+          "maxAbsError": 234,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 87.36341880341881,
+          "maxAbsError": 215,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-067",
+      "start": 376,
+      "end": 379,
+      "groups": "AMBIGUOUS",
+      "groupCount": 14,
+      "ambiguous": 0.5866666666666667,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 56.47061728395062,
+          "maxAbsError": 219,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 38.8220987654321,
+          "maxAbsError": 220,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 33.761234567901234,
+          "maxAbsError": 219,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-068",
+      "start": 378.75,
+      "end": 382.25,
+      "groups": "MULTIPLE_GROUPS",
+      "groupCount": 14,
+      "ambiguous": 0.3866666666666667,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 48.46597883597884,
+          "maxAbsError": 229,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 31.288730158730157,
+          "maxAbsError": 115,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 18.67851851851852,
+          "maxAbsError": 229,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-069",
+      "start": 382,
+      "end": 386,
+      "groups": "AMBIGUOUS",
+      "groupCount": 13,
+      "ambiguous": 0.5066666666666666,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 52.194722222222225,
+          "maxAbsError": 226,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 38.522777777777776,
+          "maxAbsError": 114,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 24.69972222222222,
+          "maxAbsError": 226,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-070",
+      "start": 385.75,
+      "end": 389,
+      "groups": "MULTIPLE_GROUPS",
+      "groupCount": 14,
+      "ambiguous": 0.3933333333333333,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 46.94045584045584,
+          "maxAbsError": 226,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 27.724444444444444,
+          "maxAbsError": 116,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 17.754188034188033,
+          "maxAbsError": 226,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-071",
+      "start": 388.75,
+      "end": 391.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 13,
+      "ambiguous": 0.5066666666666666,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 53.336363636363636,
+          "maxAbsError": 219,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 34.10902356902357,
+          "maxAbsError": 115,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 25.667946127946127,
+          "maxAbsError": 219,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-072",
+      "start": 391.25,
+      "end": 402.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 13,
+      "ambiguous": 0.5066666666666666,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 49.48104377104377,
+          "maxAbsError": 229,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 35.656363636363636,
+          "maxAbsError": 107,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 22.80345117845118,
+          "maxAbsError": 229,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-073",
+      "start": 402,
+      "end": 404.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 8,
+      "ambiguous": 0.7866666666666666,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 53.06007407407407,
+          "maxAbsError": 222,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 30.790296296296297,
+          "maxAbsError": 121,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 42.0882962962963,
+          "maxAbsError": 222,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-074",
+      "start": 404.25,
+      "end": 405.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 52.864296296296295,
+          "maxAbsError": 222,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 60.28311111111111,
+          "maxAbsError": 226,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 52.864296296296295,
+          "maxAbsError": 222,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-075",
+      "start": 405.25,
+      "end": 417.5,
+      "groups": "MULTIPLE_GROUPS",
+      "groupCount": 26,
+      "ambiguous": 0,
+      "temporal": "PERIODIC_UNVALIDATED",
+      "period": 1,
+      "heldOut": 0.9581514335381989,
+      "waveR2": -0.242395505661386,
+      "best": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 71.5341798941799,
+          "maxAbsError": 219,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 68.2153590325019,
+          "maxAbsError": 215,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 0,
+          "maxAbsError": 0,
+          "withinTolerance": true
+        }
+      ]
+    },
+    {
+      "id": "SEG-076",
+      "start": 417.25,
+      "end": 455.25,
+      "groups": "MULTIPLE_GROUPS",
+      "groupCount": 26,
+      "ambiguous": 0,
+      "temporal": "PERIODIC_UNVALIDATED",
+      "period": 2.0833333333333335,
+      "heldOut": 0.10291141735331791,
+      "waveR2": -0.2255249908542316,
+      "best": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 69.78544834307992,
+          "maxAbsError": 219,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 69.23863547758285,
+          "maxAbsError": 214,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 0,
+          "maxAbsError": 0,
+          "withinTolerance": true
+        }
+      ]
+    },
+    {
+      "id": "SEG-077",
+      "start": 455,
+      "end": 472.25,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 106.41813204508857,
+          "maxAbsError": 162,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 98.27217391304347,
+          "maxAbsError": 242,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 106.41813204508857,
+          "maxAbsError": 162,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-078",
+      "start": 472,
+      "end": 474.5,
+      "groups": "AMBIGUOUS",
+      "groupCount": 2,
+      "ambiguous": 0.6666666666666667,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 116.24666666666667,
+          "maxAbsError": 156,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 46.562222222222225,
+          "maxAbsError": 239,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 75.8,
+          "maxAbsError": 156,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-079",
+      "start": 474.25,
+      "end": 486.75,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 114.40862222222222,
+          "maxAbsError": 165,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 96.60302222222222,
+          "maxAbsError": 233,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 114.40862222222222,
+          "maxAbsError": 165,
+          "withinTolerance": false
+        }
+      ]
+    },
+    {
+      "id": "SEG-080",
+      "start": 486.5,
+      "end": 499.75,
+      "groups": "AMBIGUOUS",
+      "groupCount": 0,
+      "ambiguous": 1,
+      "temporal": "NONPERIODIC_OR_UNKNOWN",
+      "period": null,
+      "heldOut": null,
+      "waveR2": null,
+      "best": "UNKNOWN",
+      "models": [
+        {
+          "model": "FLEET_COLOR_PER_TICK",
+          "meanAbsError": 116.42025157232705,
+          "maxAbsError": 155,
+          "withinTolerance": false
+        },
+        {
+          "model": "STATIC_COLOR_PER_DRONE",
+          "meanAbsError": 96.67018867924529,
+          "maxAbsError": 244,
+          "withinTolerance": false
+        },
+        {
+          "model": "EXACT_GROUPS_PLUS_UNGROUPED_UNKNOWN",
+          "meanAbsError": 116.42025157232705,
+          "maxAbsError": 155,
+          "withinTolerance": false
+        }
+      ]
+    }
+  ]
+}
