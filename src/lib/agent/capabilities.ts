@@ -196,3 +196,39 @@ export function capabilityInstructions(): string {
   }).filter(Boolean);
   return `Supported operations (use ONLY these kinds; never invent others):\n${lines.join("\n")}`;
 }
+
+/**
+ * Runtime descriptors for the plan safety gate (ChatGPT contract, PR #6).
+ * Only mutation ops are gated; SELECT_SCENE is UI state and stays ungated.
+ * Wire normalization happens in agent.functions: model rgb triples become hex
+ * strings, and relative durations become absolute seconds before gating, so
+ * every gated plan carries exactly the declared arguments.
+ */
+export function toRuntimeCapabilities(): AgentCapability[] {
+  return [
+    {
+      id: "rotate_scene",
+      enabled: true,
+      requiresSelection: true,
+      requiresPreview: true,
+      reversible: true,
+      arguments: { axis: "string", degrees: "number" },
+    },
+    {
+      id: "recolor_scene",
+      enabled: true,
+      requiresSelection: true,
+      requiresPreview: true,
+      reversible: true,
+      arguments: { color: "string" },
+    },
+    {
+      id: "set_scene_duration",
+      enabled: true,
+      requiresSelection: true,
+      requiresPreview: true,
+      reversible: true,
+      arguments: { seconds: "number" },
+    },
+  ];
+}
