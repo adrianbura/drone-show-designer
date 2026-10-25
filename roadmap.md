@@ -72,6 +72,8 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
          condiționată; UNKNOWN pentru rețetă. 10 regresii sintetice. Salvarea reală: 150 drone,
          23 bindinguri, 5.841 ticks, 598 ms total / 93 ms maximum, fără mutarea sursei/raportului.
          Metrici disponibile în `lighting.spatial`, nu încă afișate; LED aprofundat rămâne deschis.
+         Final: 13 teste țintite, 89 downstream, 164 fișiere / 1432 passed / 1 skipped;
+         lint schimbări și diff-check curate; build automat OK. Typecheck/build manual neexecutate.
    - [ ] Audit per interval pe arhiva benchmark originală și diagnoză low-fit/multi-grup;
          apoi afișare localizată a metricilor și limitelor. Detalii/verificări finale în HANDOFF.md.
    - [x] Catalog inițial „pattern observat → capabilitate existentă → lipsă → criteriu de acceptare”

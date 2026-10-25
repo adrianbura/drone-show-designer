@@ -929,10 +929,18 @@ Dovezi reale read-only: script temporar `/tmp/essp-rgb/check-real.ts`, executat 
 23/23 LOW_OR_UNSTABLE_FIT, deci nu s-a pretins gradient unic. Raport/layer identice și 150/150
 fișiere ESSP reconstruite identice după analiză. Măsurare Bun unică, nu latență browser.
 
-Verificări intermediare: testele țintite 13/13; downstream 12 fișiere/87 teste; suita completă
-înaintea celor două cazuri suplimentare 164 fișiere/1430 passed/1 skipped (119,87 s).
-Rezultatele finale și comenzile sunt consemnate mai jos după verificarea finală.
-Typecheck și build manual nu sunt permise de harness; nu sunt declarate executate.
+Verificări finale executate:
+- `bunx vitest run src/lib/import/essp/native/__tests__/spatialRgb.test.ts src/lib/import/essp/native/__tests__/sceneEvidence.test.ts --maxWorkers=2`: 2 fișiere, 13 passed, 731 ms.
+- `bunx vitest run src/lib/import/essp/native/__tests__ src/lib/acceptance/__tests__/importedLightingAudit.test.ts src/lib/acceptance/__tests__/importedRgbAfterOpen.test.ts src/lib/acceptance/__tests__/esspProductionRoundTrip.test.ts src/lib/show/__tests__/integration/esspLightingExport.test.ts src/components/studio/__tests__/esspReferencePresentation.dom.test.tsx --maxWorkers=2`: 12 fișiere, 89 passed, 11,58 s.
+- `bunx vitest run --maxWorkers=2`: 164 fișiere, 1432 passed / 1 skipped, 131,27 s.
+- `bunx eslint src/lib/import/essp/native/spatialRgb.ts src/lib/import/essp/native/sceneEvidence.ts src/lib/import/essp/native/__tests__/spatialRgb.test.ts`: exit 0, 0 erori / avertismente.
+- `git diff --check` și `git diff 2a32f5d85b2c04913bfe550d615df4862c46dcd5 HEAD --check`: exit 0; diff final inspectat, numai cele 6 fișiere din acest increment. Arbore curat după salvarea automată.
+- Harness: ultimul semnal citit `build OK`, 2026-10-25T06:54:25Z. Typecheck și build manual nu sunt permise de harness; nu sunt declarate executate separat.
+
+Verificări intermediare au trecut și ele (downstream 87 înaintea ultimelor două regresii;
+prima suită completă 1430 passed / 1 skipped, 119,87 s). Logurile temporare sunt în `/tmp/essp-*.log`.
+Salvarea automată a produs commituri succesive, fără comenzi Git stateful; commitul documentației
+inițiale este `a9c0f7481a508ef31d4b9aa93d40458c1ef7d180`, iar această actualizare consemnează rezultatele finale.
 
 Limită: noile metrici sunt disponibile în dovezile scenei, nu încă afișate în panoul existent;
 UI nu s-a schimbat și nu s-a efectuat un test browser. Nu este reconstrucția completă a importului.
