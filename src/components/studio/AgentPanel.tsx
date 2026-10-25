@@ -127,11 +127,13 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       // Local deterministic parse first — free, instant, transparent.
       let ops: AgentOp[] = [];
       let source: "local" | "model" = "local";
+      let clarification: string | null = null;
       const local = parseAgentCommand(text);
       if (local.ok) {
         ops = local.ops;
       } else {
         const interpreted = await interpretAgentCommand({ data: { text } });
+        clarification = interpreted.clarification;
         if (interpreted.understood && interpreted.ops.length > 0) {
           source = interpreted.source;
           ops = interpreted.ops
@@ -142,26 +144,62 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
               if (o.kind === "RECOLOR_SCENE" && o.color) {
                 return { kind: "RECOLOR_SCENE", color: o.color };
               }
+              if (o.kind === "SET_DURATION" && (o.holdSeconds !== null || o.deltaSeconds !== null)) {
+                return {
+                  kind: "SET_DURATION",
+                  ...(o.holdSeconds !== null ? { holdSeconds: o.holdSeconds } : {}),
+                  ...(o.deltaSeconds !== null ? { deltaSeconds: o.deltaSeconds } : {}),
+                };
+              }
+              if (o.kind === "SELECT_SCENE" && (o.sceneIndex !== null || o.sceneName)) {
+                return {
+                  kind: "SELECT_SCENE",
+                  ...(o.sceneIndex !== null ? { sceneIndex: o.sceneIndex } : {}),
+                  ...(o.sceneName ? { sceneName: o.sceneName } : {}),
+                };
+              }
               return null;
             })
             .filter((o): o is AgentOp => o !== null);
         }
       }
       if (ops.length === 0) {
-        say(
-          t(
-            "Nu am înțeles cererea. Pot înclina/roti o scenă sau îi pot schimba culoarea, de ex. „înclină scena 20 de grade spre stânga și schimbă culoarea în auriu”.",
-            "I did not understand the request. I can tilt/rotate a scene or change its color, e.g. “tilt the scene 20 degrees left and recolor it gold”.",
-          ),
-        );
+        if (clarification) {
+          say(clarification, source === "model" ? "model" : undefined);
+        } else {
+          say(`${t("Nu am înțeles cererea.", "I did not understand the request.")} ${capabilitySummary(ro)}`);
+        }
         return;
       }
 
-      // Apply operations in sequence on a candidate copy; never touch the live project.
+      // Apply operations in sequence on a candidate copy; never touch the live
+      // project. SELECT_SCENE is UI state: it resolves immediately, updates the
+      // target for the operations that follow it, and is committed at the end.
       let candidate = project;
+      let targetClipId = selectedClipId;
+      let pendingSelect: string | null = null;
       const summaries: AgentOpSummary[] = [];
       for (const op of ops) {
-        const r = applyAgentOp(candidate, selectedClipId, op);
+        if (op.kind === "SELECT_SCENE") {
+          const target = resolveSceneTarget(candidate, op);
+          if (!target.ok) {
+            const label = FAILURE_LABELS[target.reason] ?? FAILURE_LABELS["SCENE_NOT_FOUND"]!;
+            const extra =
+              target.reason === "SCENE_AMBIGUOUS" && target.candidates
+                ? ` (${target.candidates.slice(0, 4).join(", ")})`
+                : "";
+            say(t(label[0], label[1]) + extra);
+            return;
+          }
+          targetClipId = target.clipId;
+          pendingSelect = target.clipId;
+          say(
+            t("Am selectat scena „{name}”.", "Selected scene “{name}”.", { name: target.clipName }),
+            source,
+          );
+          continue;
+        }
+        const r = applyAgentOp(candidate, targetClipId, op);
         if (!r.ok) {
           const label = FAILURE_LABELS[r.reason] ?? FAILURE_LABELS["INVALID_OP"]!;
           say(t(label[0], label[1]));
@@ -170,7 +208,9 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
         candidate = r.project;
         summaries.push(r.summary);
       }
-      const validation = validateAgentProject(candidate, selectedClipId!);
+      if (pendingSelect) selectClip(pendingSelect);
+      if (summaries.length === 0) return;
+      const validation = validateAgentProject(candidate, targetClipId!);
       if (!validation.ok) {
         for (const issue of validation.issues) {
           const label = ISSUE_LABELS[issue];
