@@ -25,9 +25,11 @@ import {
   type Quat,
 } from "../show/dynamic/math";
 import { sampleDynamicFormation } from "../show/dynamic/sampler";
+import { rippleClipTiming } from "../studio/timelineRipple";
+import { MIN_HOLD } from "../studio/timelineEdit";
 import type { RGB, ShowProject, TimelineClip, Vector3Tuple } from "../show/types";
 
-export type AgentOpKind = "ROTATE_SCENE" | "RECOLOR_SCENE";
+export type AgentOpKind = "ROTATE_SCENE" | "RECOLOR_SCENE" | "SET_DURATION" | "SELECT_SCENE";
 
 export interface RotateSceneOp {
   kind: "ROTATE_SCENE";
@@ -41,14 +43,33 @@ export interface RecolorSceneOp {
   color: RGB;
 }
 
-export type AgentOp = RotateSceneOp | RecolorSceneOp;
+export interface SetDurationOp {
+  kind: "SET_DURATION";
+  /** Absolute hold time in seconds, or… */
+  holdSeconds?: number;
+  /** …a signed change relative to the current hold. Exactly one is set. */
+  deltaSeconds?: number;
+}
+
+export interface SelectSceneOp {
+  kind: "SELECT_SCENE";
+  /** 1-based position in the timeline (as the operator sees it), or… */
+  sceneIndex?: number;
+  /** …a case-insensitive name fragment. Exactly one is set. */
+  sceneName?: string;
+}
+
+export type AgentOp = RotateSceneOp | RecolorSceneOp | SetDurationOp | SelectSceneOp;
 
 export type AgentOpFailure =
   | "NO_CLIP_SELECTED"
   | "CLIP_NOT_FOUND"
   | "PHASE_NOT_EDITABLE"
   | "MULTI_OBJECT_SCENE"
-  | "INVALID_OP";
+  | "INVALID_OP"
+  | "DURATION_BELOW_ANIMATION"
+  | "SCENE_NOT_FOUND"
+  | "SCENE_AMBIGUOUS";
 
 export type AgentOpResult =
   | { ok: true; project: ShowProject; summary: AgentOpSummary }
