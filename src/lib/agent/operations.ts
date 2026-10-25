@@ -85,6 +85,10 @@ export interface AgentOpSummary {
   altitudeAfter: readonly [number, number];
   /** True when the clip owns scene-scoped lighting effects that may override the new base color. */
   lightingMayOverride: boolean;
+  /** SET_DURATION only: hold time before/after and how many following clips shifted. */
+  durationBefore?: number;
+  durationAfter?: number;
+  followersShifted?: number;
 }
 
 const AXIS_INDEX = { X: 0, Y: 1, Z: 2 } as const;
