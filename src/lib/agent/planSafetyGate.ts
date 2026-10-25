@@ -44,13 +44,16 @@ export function checkAgentPlan(
   const checked: AgentOperation[] = [];
   for (let index = 0; index < operations.length; index += 1) {
     const operation: unknown = operations[index];
-    if (!isRecord(operation) || Object.keys(operation).some((key) => key !== "tool" && key !== "args")) {
+    if (
+      !isRecord(operation) ||
+      Object.keys(operation).some((key) => key !== "tool" && key !== "args")
+    ) {
       return { ok: false, reason: "Malformed operation", operationIndex: index };
     }
-    if (typeof operation.tool !== "string" || !isRecord(operation.args)) {
+    if (typeof operation["tool"] !== "string" || !isRecord(operation["args"])) {
       return { ok: false, reason: "Malformed tool or arguments", operationIndex: index };
     }
-    const capability = registry.get(operation.tool);
+    const capability = registry.get(operation["tool"]);
     if (!capability || !capability.enabled) {
       return { ok: false, reason: "Unsupported tool", operationIndex: index };
     }
@@ -58,12 +61,15 @@ export function checkAgentPlan(
       return { ok: false, reason: "Select a scene first", operationIndex: index };
     }
     const allowed = Object.keys(capability.arguments);
-    const actual = Object.keys(operation.args);
-    if (actual.length !== allowed.length || actual.some((key) => !allowed.includes(key) || FORBIDDEN_KEYS.has(key))) {
+    const actual = Object.keys(operation["args"]);
+    if (
+      actual.length !== allowed.length ||
+      actual.some((key) => !allowed.includes(key) || FORBIDDEN_KEYS.has(key))
+    ) {
       return { ok: false, reason: "Unexpected or missing arguments", operationIndex: index };
     }
     for (const [key, expected] of Object.entries(capability.arguments)) {
-      const value = operation.args[key];
+      const value = operation["args"][key];
       if (typeof value !== expected || (expected === "number" && !Number.isFinite(value))) {
         return { ok: false, reason: "Invalid argument type", operationIndex: index };
       }
@@ -71,7 +77,13 @@ export function checkAgentPlan(
         return { ok: false, reason: "Invalid string argument", operationIndex: index };
       }
     }
-    checked.push({ tool: operation.tool, args: { ...operation.args } });
+    checked.push({ tool: operation["tool"], args: { ...operation["args"] } });
   }
-  return { ok: true, operations: checked, requiresPreview: capabilities.some((c) => c.requiresPreview && checked.some((op) => op.tool === c.id)) };
+  return {
+    ok: true,
+    operations: checked,
+    requiresPreview: capabilities.some(
+      (c) => c.requiresPreview && checked.some((op) => op.tool === c.id),
+    ),
+  };
 }

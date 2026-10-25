@@ -37,7 +37,11 @@ describe("model plan safety gate integration", () => {
     const result = gateModelOps([op({ kind: "SET_DURATION", deltaSeconds: 5 })], "clip-1", 7.5);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.ops[0]).toMatchObject({ kind: "SET_DURATION", holdSeconds: 12.5, deltaSeconds: null });
+    expect(result.ops[0]).toMatchObject({
+      kind: "SET_DURATION",
+      holdSeconds: 12.5,
+      deltaSeconds: null,
+    });
   });
 
   it("refuses a relative duration when the current hold is unknown", () => {
@@ -51,7 +55,11 @@ describe("model plan safety gate integration", () => {
   });
 
   it("refuses malformed rotation ops before they reach the client", () => {
-    const result = gateModelOps([op({ kind: "ROTATE_SCENE", axis: "Z", degrees: null })], "clip-1", 8);
+    const result = gateModelOps(
+      [op({ kind: "ROTATE_SCENE", axis: "Z", degrees: null })],
+      "clip-1",
+      8,
+    );
     expect(result.ok).toBe(false);
   });
 
