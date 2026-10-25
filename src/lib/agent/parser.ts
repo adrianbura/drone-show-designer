@@ -123,7 +123,7 @@ function parseDuration(text: string): AgentOp | null {
   if (!m) return null;
   const value = Number(m[1]!.replace(",", "."));
   if (!Number.isFinite(value)) return null;
-  const aboutDuration = /ține|tine|dureaz|durat|stă |sta |hold|last|duration|lungim|lungeste|lungi/i.test(t);
+  const aboutDuration = /ține|tine|dureaz|durat|stă |sta |hold|last|duration|lung/i.test(t);
   if (!aboutDuration) return null;
   if (/prelung|extind|mai mult|lengthen|extend|longer|add|adaug/i.test(t)) {
     return { kind: "SET_DURATION", deltaSeconds: Math.abs(value) };
