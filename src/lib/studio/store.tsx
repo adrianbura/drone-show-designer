@@ -4898,6 +4898,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         const previous = projectRef.current;
         const next: ShowProject = {
           ...previous,
+          // The extracted timeline replaces the previous show: its title,
+          // markers and music sections described the OLD clips and must not
+          // survive as if they belonged to the imported show.
+          name: `Imported ESSP show — ${result.droneCount} drones`,
+          markers: [],
+          musicSections: [],
           droneCount: result.droneCount,
           formations: [...result.formations],
           timeline: [...result.timeline],

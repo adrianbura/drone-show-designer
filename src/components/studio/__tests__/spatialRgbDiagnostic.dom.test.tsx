@@ -12,6 +12,7 @@ import type { ReferenceClipBinding } from "@/lib/import/essp/native/types";
 const state = vi.hoisted(() => ({ studio: {} }));
 vi.mock("@/lib/studio/store", () => ({ useStudio: () => state.studio }));
 vi.mock("@/i18n", () => ({ useI18n: () => ({ language: "ro" }) }));
+vi.mock("../SaveExactScene", () => ({ default: () => null }));
 const binding: ReferenceClipBinding = {
   clipId: "scene",
   order: 1,

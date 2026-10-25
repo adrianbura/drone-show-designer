@@ -1171,3 +1171,13 @@ procesat sau modificat. Nu există un nou rezultat de audit real wedding-sorin.
 - Browser (Playwright, localhost): ADVANCED → Import `ESSP_8_12_mainv4_2f6001-2.zip` → Make editable → 36 clips, 150 drones; Inspector on imported takeoff shows "Near-identical groups … 2 windows of 5 s: 1 clear, 1 ambiguous … mean coverage 41.3%". Console: 1 external `ERR_CONNECTION_REFUSED`, no page errors. Not verified: selecting a later imported scene via automation (timeline clip not clickable by text).
 - Observed, not fixed: after importing ESSP over the bundled project, the title stays "A & B — Wedding Story" and A & B section labels remain above the timeline.
 - Python methodological audit of near-grouping is owned by the owner side, outside the repo.
+
+## 2026-10-25 — Imported scene → personal library (exact) — Lovable TS/UI
+
+- `native/sceneLibrary.ts`: `buildExactSceneAsset(show, binding)` → DYNAMIC_FORMATION asset, source ESSP_DERIVED, hold interval only (holdStart..end), EXACT_SAMPLED XYZ conversion, exact RGB bytes per point (`DynamicFormation.sampledColors`, source clock), provenance params (show hash, clip/segment, rates, fidelity, `effectRecipe: UNKNOWN`, `droneCountAdaptation: UNAVAILABLE_VALIDATION_PENDING`). TAKEOFF/LANDING and <0.5 s refused. Source arrays only read.
+- Lighting engine: during clip hold, exact sampled colour is the base colour for ACTIVE points of a dynamic formation with `sampledColors`; effects still stack on top; transition keeps previous behaviour.
+- UI: Inspector → Source scene → "Save exact scene to library" (EN/RO), explicit "drone count change unavailable — validation pending". Library `saveAsset`.
+- Title bug fixed: extraction sets name "Imported ESSP show — N drones" and clears old markers/music sections.
+- Tests: `sceneLibrary.test.ts` 3/3 (exact XYZ <1e-6 m, byte-exact RGB, provenance, source untouched, JSON library round-trip, independent editable copy, lighting base colour). Full suite: 1467 passed / 2 failed → one fixed (mock in spatialRgbDiagnostic test, now 7/7); the second not re-identified (earlier runs showed studio DOM timeouts under load). Typecheck clean, eslint 0 errors.
+- Browser: real `ESSP_8_12_mainv4_2f6001-2.zip` → Make editable → title "Imported ESSP show — 150 drones", music sections empty; Imported scene 13 → Save → "Saved to library: Imported scene 13 — 150 drones, trajectory deviation 4.0e-15 m". NOT browser-verified: inserting that asset from the library into the show and viewing its colours (covered only by unit test).
+- Open: drone-count adaptation (no validated mechanism); browser insertion check; full-suite rerun.

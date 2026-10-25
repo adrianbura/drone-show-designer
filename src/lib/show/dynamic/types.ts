@@ -96,6 +96,21 @@ export interface DynamicFormation {
   readonly groups: readonly MotionGroup[];
   readonly seed: number;
   readonly algorithmVersion: string;
+  /**
+   * Exact recorded per-point RGB (e.g. from an imported ESSP scene). Read by the
+   * lighting engine as the base colour during the clip hold; never an effect.
+   */
+  readonly sampledColors?: SampledPointColors;
+}
+
+export interface SampledPointColors {
+  readonly source: "ESSP_EXACT";
+  readonly rateHz: number;
+  readonly frameCount: number;
+  /** First source RGB frame (provenance only). */
+  readonly sourceStartFrame: number;
+  /** Flat RGB bytes, frameCount × 3, keyed by stable point id. */
+  readonly byPoint: Readonly<Record<string, readonly number[]>>;
 }
 
 /** Clip-level playback controls for a dynamic formation. */

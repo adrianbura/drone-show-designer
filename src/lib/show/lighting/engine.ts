@@ -34,7 +34,13 @@ import {
 } from "../participation";
 import { sceneForClip } from "../scene/migrate";
 import { activeClipAt } from "../timeline";
-import type { RGB, ShowProject, TimelineClip, Vector3Tuple } from "../types";
+import {
+  resolveDynamicFormation,
+  type RGB,
+  type ShowProject,
+  type TimelineClip,
+  type Vector3Tuple,
+} from "../types";
 import { blendContribution, evaluateLightingEffect, sortEffects } from "./evaluate";
 import { directionalField, radialField, resolveDirection, type SpatialField } from "./field";
 import {
@@ -78,7 +84,11 @@ export interface LightingSceneContext {
 /** Absolute show time an effect starts at, after applying its anchor. */
 export function resolveEffectStart(
   effect: LightingEffectInstance,
-  scene: { readonly sceneStart: number; readonly formationReady: number; readonly sceneEnd: number },
+  scene: {
+    readonly sceneStart: number;
+    readonly formationReady: number;
+    readonly sceneEnd: number;
+  },
 ): number {
   const offset = Number.isFinite(effect.start) ? effect.start : 0;
   switch (effect.anchor) {
@@ -168,7 +178,9 @@ export function lightingStatesAt(
   context: LightingSceneContext,
   t: number,
 ): DroneLightState[] {
-  const prepared = sortEffects(effects.filter((e) => e.enabled).map((e) => prepareEffect(e, context)));
+  const prepared = sortEffects(
+    effects.filter((e) => e.enabled).map((e) => prepareEffect(e, context)),
+  );
   const memberIndex = prepared.map((p) => new Set(p.members.map((m) => m.droneIndex)));
 
   return context.points.map((point) => {
@@ -182,7 +194,9 @@ export function lightingStatesAt(
       const entry = prepared[i]!;
       if (!memberIndex[i]!.has(point.droneIndex)) continue;
       const u = entry.field ? entry.field.valueAt(fieldPosition(entry.effect, point)) : 0;
-      const stageIndex = entry.stages.findIndex((ids) => !!point.motionGroupId && ids.includes(point.motionGroupId));
+      const stageIndex = entry.stages.findIndex(
+        (ids) => !!point.motionGroupId && ids.includes(point.motionGroupId),
+      );
       const contribution = evaluateLightingEffect(entry.effect, {
         t,
         start: entry.start,
@@ -207,7 +221,10 @@ export interface ProjectLightingInput {
 }
 
 /** Builds the lighting context of the clip governing show time `t`. */
-export function lightingContextAt(input: ProjectLightingInput, t: number): LightingSceneContext | null {
+export function lightingContextAt(
+  input: ProjectLightingInput,
+  t: number,
+): LightingSceneContext | null {
   const { project } = input;
   const clip: TimelineClip | undefined = activeClipAt(project, t);
   if (!clip) return null;
@@ -230,15 +247,46 @@ export function lightingContextAt(input: ProjectLightingInput, t: number): Light
     }
   }
 
+  // EXACT SAMPLED COLOURS (imported scenes): during the hold the recorded RGB
+  // of each formation point is the base colour; outside the hold the
+  // previous behaviour applies unchanged. Never an inferred effect.
+  const holdStart = clip.start + clip.transition;
+  const directDynamic = resolveDynamicFormation(project, clip);
+  const sampledFor = (instanceSource: unknown, pointId: string | undefined): RGB | null => {
+    if (!pointId || t < holdStart) return null;
+    const src = instanceSource as { kind?: string; dynamicFormationId?: string } | undefined;
+    const dynamic =
+      src?.kind === "DYNAMIC"
+        ? project.dynamicFormations?.find((d) => d.id === src.dynamicFormationId)
+        : directDynamic;
+    const colors = dynamic?.sampledColors;
+    if (!colors || colors.frameCount <= 0) return null;
+    const arr = colors.byPoint[pointId.slice(pointId.lastIndexOf("#") + 1)];
+    if (!arr) return null;
+    const local = (t - holdStart) * (clip.playbackRate ?? 1) + (clip.dynamicStartOffset ?? 0);
+    const f = Math.min(
+      colors.frameCount - 1,
+      Math.max(0, Math.floor(local * colors.rateHz + 1e-9)),
+    );
+    return [arr[f * 3]!, arr[f * 3 + 1]!, arr[f * 3 + 2]!];
+  };
+
   const points: LightingTargetPoint[] = [];
   for (let index = 0; index < project.droneCount; index++) {
     const participation = plan ? participationOf(plan, index) : undefined;
     const role = participation?.role ?? "ACTIVE_FORMATION";
     const groupId = participation?.groupId ?? null;
-    const instanceId = groupId ? (instanceByGroup.get(groupId) ?? null) : (scene.objects[0]?.id ?? null);
+    const instanceId = groupId
+      ? (instanceByGroup.get(groupId) ?? null)
+      : (scene.objects[0]?.id ?? null);
     const instance = scene.objects.find((o) => o.id === instanceId);
     const clipColor = lightColorAt(clip, index, project.droneCount, t);
-    const baseColor: RGB = instance?.lighting?.color ?? clipColor;
+    const baseColor: RGB =
+      (role === "ACTIVE_FORMATION"
+        ? sampledFor(instance?.source, participation?.formationPointId)
+        : null) ??
+      instance?.lighting?.color ??
+      clipColor;
     const reference = participation?.target ?? input.positions?.[index] ?? [0, 0, 0];
     points.push({
       droneIndex: index,
