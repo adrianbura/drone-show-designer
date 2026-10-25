@@ -17,6 +17,9 @@ export default function RgbStructureDiagnostic({
   const t = (r: string, e: string) => (ro ? r : e);
   if (!evidence) return null;
   const { groups, temporal, reconstruction } = evidence;
+  const near = evidence.nearGroups;
+  const nearWindows = near?.windows ?? [];
+  const nearCount = (st: string) => nearWindows.filter((w) => w.status === st).length;
   const groupText: Record<string, string> = {
     NO_RGB: t("Fără probe RGB.", "No RGB samples."),
     AMBIGUOUS: t(
@@ -75,6 +78,15 @@ export default function RgbStructureDiagnostic({
         {groups.groups.length > 0 &&
           `${t("Grupuri", "Groups")}: ${groups.groups.length}; ${t("cel mai mare", "largest")}: ${groups.groups[0]!.support}; ${t("ambiguu", "ambiguous")}: ${n((groups.ambiguousFraction ?? 0) * 100, 1)}%`}
       </p>
+      {near && nearWindows.length > 0 && (
+        <p data-testid="rgb-near-groups" className="break-words text-muted-foreground">
+          {t(
+            `Grupuri aproape identice (toleranță ≤${near.tolerance}, legătură completă, ≥${near.minSupport} drone) pe ${nearWindows.length} ferestre de ${near.windowSeconds} s: ${nearCount("MULTIPLE_GROUPS") + nearCount("SINGLE_GROUP")} clare, ${nearCount("AMBIGUOUS")} ambigue, ${nearCount("NO_GROUPS")} fără grupuri; acoperire medie ${n((near.meanGroupedFraction ?? 0) * 100, 1)}%.`,
+            `Near-identical groups (tolerance ≤${near.tolerance}, complete link, ≥${near.minSupport} drones) over ${nearWindows.length} windows of ${near.windowSeconds} s: ${nearCount("MULTIPLE_GROUPS") + nearCount("SINGLE_GROUP")} clear, ${nearCount("AMBIGUOUS")} ambiguous, ${nearCount("NO_GROUPS")} without groups; mean coverage ${n((near.meanGroupedFraction ?? 0) * 100, 1)}%.`,
+          )}
+          {near.truncated && t(" Analiză trunchiată.", " Analysis truncated.")}
+        </p>
+      )}
       <p data-testid="rgb-temporal" className="break-words text-muted-foreground">
         {temporalText[temporal.status]}
         {temporal.periodSeconds !== null &&
