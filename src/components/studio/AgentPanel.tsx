@@ -164,7 +164,15 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       if (local.ok) {
         ops = local.ops;
       } else {
-        const interpreted = await interpretAgentCommand({ data: { text } });
+        const interpreted = await interpretAgentCommand({
+          data: {
+            text,
+            context: {
+              selectedClipId,
+              currentHoldSeconds: selectedClip?.hold ?? null,
+            },
+          },
+        });
         clarification = interpreted.clarification;
         if (interpreted.understood && interpreted.ops.length > 0) {
           source = interpreted.source;
