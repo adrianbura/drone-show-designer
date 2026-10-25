@@ -505,6 +505,10 @@ export function applyAgentOp(
       return applyRecolor(project, resolved, op);
     case "SET_DURATION":
       return applySetDuration(project, resolved, op);
+    default:
+      // A kind outside the registry (e.g. hallucinated by a model) is refused,
+      // never executed.
+      return { ok: false, reason: "INVALID_OP" };
   }
 }
 

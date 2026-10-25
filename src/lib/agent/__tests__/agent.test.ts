@@ -457,7 +457,9 @@ describe("feature-request feedback", () => {
 
   it("records nothing for empty sanitized text and never throws without a browser", async () => {
     const { recordFeatureRequest } = await import("../feedback");
-    expect(recordFeatureRequest("https://a.b", "unsupported")).toBeNull();
+    expect(recordFeatureRequest("   ", "unsupported")).toBeNull();
+    // A URL-only request is kept as the sanitized placeholder, not the URL.
+    expect(recordFeatureRequest("https://a.b", "unsupported")?.text).toBe("[url]");
     const rec = recordFeatureRequest("vreau scalare", "unsupported");
     expect(rec?.text).toBe("vreau scalare");
     expect(rec?.reason).toBe("unsupported");
