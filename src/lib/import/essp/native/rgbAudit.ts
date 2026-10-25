@@ -21,6 +21,8 @@ export function isAppleDoubleEntry(name: string): boolean {
 export interface RgbAuditArchiveOptions {
   /** Required native clocks; defaults to the original benchmark (XYZ 8 Hz / RGB 12 Hz). */
   clocks?: { positionRateHz: number; rgbRateHz: number } | null;
+  /** Generic archives: any count of unique positive numeric IDs (gaps allowed). */
+  generic?: boolean;
 }
 
 export async function readRgbAuditArchive(
@@ -36,7 +38,15 @@ export async function readRgbAuditArchive(
     }),
   );
   const ids = entries.map(([name]) => numericSourceId(name));
-  if (
+  const generic = options.generic === true;
+  if (generic) {
+    if (
+      entries.length === 0 ||
+      new Set(ids).size !== entries.length ||
+      ids.some((id) => id === null || id < 1)
+    )
+      throw new Error("Generic audit requires unique positive numeric ESSP file IDs.");
+  } else if (
     entries.length !== 150 ||
     new Set(ids).size !== 150 ||
     ids.some((id) => id === null || id < 1 || id > 150)
@@ -45,7 +55,8 @@ export async function readRgbAuditArchive(
   const files = entries.map(([name, data]) => ({ name, bytes: data }));
   const show = await buildReferenceShow(files, { hashFiles: true });
   if (
-    show.drones.length !== 150 ||
+    show.drones.length !== entries.length ||
+    show.report.invalidFiles !== 0 ||
     !show.report.invariants.identicalPositionRate ||
     !show.report.invariants.identicalRgbRate ||
     (clocks !== null &&
@@ -73,7 +84,13 @@ export async function readRgbAuditArchive(
   );
   return {
     show,
-    provenance: { archiveName, archiveSha256: hash, fileCount: 150, files: fileEvidence },
+    provenance: {
+      archiveName,
+      archiveSha256: hash,
+      fileCount: entries.length,
+      sourceIds: [...ids].sort((a, b) => (a ?? 0) - (b ?? 0)),
+      files: fileEvidence,
+    },
   };
 }
 
