@@ -304,3 +304,23 @@ input[type="range"].studio-range::-webkit-slider-thumb {
     box-shadow: 0 0 0 14px transparent;
   }
 }
+
+/* AI AGENT LAUNCHER — a slow, subtle breathe so the entry point is findable
+   without competing with the show itself. Honors reduced-motion. */
+@keyframes agent-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--accent) 12%, transparent);
+  }
+}
+.agent-pulse {
+  animation: agent-breathe 3.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-pulse {
+    animation: none;
+  }
+}

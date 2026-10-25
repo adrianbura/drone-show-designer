@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ClientOnly } from "@tanstack/react-router";
+import { Bot } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
+import AgentPanel from "@/components/studio/AgentPanel";
 import Inspector from "@/components/studio/Inspector";
 import InspectorDock from "@/components/studio/InspectorDock";
 import LeftPanel from "@/components/studio/LeftPanel";
@@ -149,6 +151,20 @@ function StudioWorkspace() {
   const inspectorStacked = useInspectorStacked();
   const leftPanelStacked = useLeftPanelStacked();
   const mounts = workspaceMountPlan(inspectorStacked, leftPanelStacked);
+  const [agentOpen, setAgentOpen] = useState(false);
+
+  // Ctrl+K / Cmd+K toggles the direction agent from anywhere in the studio.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setAgentOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   if (!documentOpen) return <NoShowOpen />;
   return (
     <>
@@ -167,7 +183,20 @@ function StudioWorkspace() {
           <div className="pointer-events-none absolute left-4 top-4 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
             show frame · metres · +Y up
           </div>
+          {!agentOpen && (
+            <button
+              type="button"
+              onClick={() => setAgentOpen(true)}
+              className="chip-btn agent-pulse absolute right-4 top-4"
+              aria-label="Open AI agent (Ctrl+K)"
+              data-testid="agent-launcher"
+            >
+              <Bot className="size-3.5" />
+              Agent <kbd className="font-mono text-[9px] opacity-70">Ctrl+K</kbd>
+            </button>
+          )}
         </div>
+        {agentOpen && <AgentPanel onClose={() => setAgentOpen(false)} />}
         {mounts.dockedInspector && (
           <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-border bg-panel">
             {/* Highest-priority focus host: whenever this aside is visible it wins. */}

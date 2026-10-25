@@ -328,13 +328,23 @@ export default function LeftPanel() {
             </div>
           </section>
 
-          <SvgImportPanel />
+          {/* ADVANCED TOOLS — powerful but rare importers and labs collapse into
+              one section so the daily path (pick a formation, place it) stays
+              clean. Nothing is removed; everything is one click away. */}
+          <details className="panel-card" data-testid="advanced-tools">
+            <summary className="panel-title cursor-pointer select-none">
+              <Layers className="size-3.5" /> Advanced tools
+            </summary>
+            <div className="mt-3 space-y-5">
+              <SvgImportPanel />
 
-          <VisualLabPanel />
+              <VisualLabPanel />
 
-          <ImageDesignPanel />
+              <ImageDesignPanel />
 
-          <AiPanel />
+              <AiPanel />
+            </div>
+          </details>
 
           <section className="panel-card flex-1">
             <h2 className="panel-title">

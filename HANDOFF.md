@@ -1181,3 +1181,17 @@ procesat sau modificat. Nu există un nou rezultat de audit real wedding-sorin.
 - Tests: `sceneLibrary.test.ts` 3/3 (exact XYZ <1e-6 m, byte-exact RGB, provenance, source untouched, JSON library round-trip, independent editable copy, lighting base colour). Full suite: 1467 passed / 2 failed → one fixed (mock in spatialRgbDiagnostic test, now 7/7); the second not re-identified (earlier runs showed studio DOM timeouts under load). Typecheck clean, eslint 0 errors.
 - Browser: real `ESSP_8_12_mainv4_2f6001-2.zip` → Make editable → title "Imported ESSP show — 150 drones", music sections empty; Imported scene 13 → Save → "Saved to library: Imported scene 13 — 150 drones, trajectory deviation 4.0e-15 m". NOT browser-verified: inserting that asset from the library into the show and viewing its colours (covered only by unit test).
 - Open: drone-count adaptation (no validated mechanism); browser insertion check; full-suite rerun.
+
+## 2026-10-25 — AI AGENT (direction agent) — functional vertical slice
+
+**Scope delivered (Lovable, repo TS/UI):**
+- `src/lib/agent/operations.ts` — typed deterministic ops: ROTATE_SCENE (rigid rotation about scene centroid; dynamic clips = left-composed into the global transform track, static = rotated point cloud; shared formations/dynamics are cloned so other scenes and library assets stay untouched) and RECOLOR_SCENE (exact sampled RGB rescaled by luminance so pulses/fades survive; clip base color + solid effect).
+- `src/lib/agent/validate.ts` — pre-commit validator: non-finite geometry, flight area, min/max altitude. Refusals are shown, never applied.
+- `src/lib/agent/parser.ts` — deterministic RO/EN local parser (tilt/turn/lean + named/hex colors), works with NO API key; the user's example "inclina scena 20 grade spre stanga si schimba culoarea in auriu" is a test.
+- `src/lib/agent/agent.server.ts` + `agent.functions.ts` — model backend (Lovable AI Gateway, `openai/gpt-6-astra`, Responses API, strict JSON schema, streamText, key read inside handler). Local parser answers first; the model is only consulted when the local parser fails. Every answer is labelled local/model — no fake AI claims.
+- `src/components/studio/AgentPanel.tsx` — right chat panel (Ctrl+K or animated launcher button), selected-scene context, preview card (altitude before/after, lighting-override warning), Apply/Discard, Undo. Commit goes through `StudioContext.applyAgentProject` = ONE undoable revision.
+- Left nav simplified: rare importers/labs collapsed into an "Advanced tools" section; daily path stays clean.
+
+**Evidence:** 9/9 agent tests; full suite 170 files / 1478 passed / 1 skipped (`bun run test:run`); tsgo clean; eslint 0 errors on touched files; build OK. Model path verified live: "fa scena sa se lase pe partea dreapta cu 30 de grade si vopseste-o roz" → ROTATE Z +30 + RECOLOR [255,192,203]. Browser smoke on the real ESSP import: Ctrl+K opens panel, command parsed locally, preview showed altitude 21.2–52.3 → 16.8–68.5 m with lighting warning, Apply + Undo worked, zero page errors.
+
+**Limitations (explicit):** multi-object scenes refused; TAKEOFF/LANDING refused; no drone-count changes; no free-form generation (only tilt/turn/lean + recolor); model path needs `LOVABLE_API_KEY` (present in this workspace). 6 pre-existing tests time out ONLY under full-parallel `bunx vitest run` without the project timeout; they pass isolated and under `bun run test:run` (30 s timeout).

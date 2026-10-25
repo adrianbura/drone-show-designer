@@ -501,6 +501,8 @@ interface StudioContextValue {
   /** Gesture-level undo/redo of committed timeline edits. */
   undoTimeline: () => void;
   redoTimeline: () => void;
+  /** Installs an AI-agent-proposed, already validated project as one undo step. */
+  applyAgentProject: (next: ShowProject) => void;
   timelineHistoryDepth: { past: number; future: number };
   // Project-owned authoring annotations.
   markers: TimelineMarker[];
@@ -2279,6 +2281,21 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       reconcileSelectionRef.current(snapshot.project, restoredClip, previous);
     },
     [derivedAnalysisSetters],
+  );
+
+  /**
+   * AI AGENT COMMIT. The agent never mutates state itself: it proposes a
+   * complete validated project produced by typed deterministic operations
+   * (src/lib/agent), and this installs it as ONE undoable revision.
+   */
+  const applyAgentProject = useCallback(
+    (next: ShowProject) => {
+      pushSnapshot(projectRef.current);
+      projectRef.current = next;
+      setProject(next);
+      invalidateDerivedAnalysis(derivedAnalysisSetters);
+    },
+    [pushSnapshot, derivedAnalysisSetters],
   );
 
   const undoTimeline = useCallback(() => {
@@ -6743,6 +6760,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       fitTimeline,
       commitClipTiming,
       undoTimeline,
+      applyAgentProject,
       redoTimeline,
       timelineHistoryDepth,
       markers: project.markers ?? [],
@@ -7169,6 +7187,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       fitTimeline,
       commitClipTiming,
       undoTimeline,
+      applyAgentProject,
       redoTimeline,
       timelineHistoryDepth,
       addMarker,
