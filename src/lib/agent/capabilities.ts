@@ -10,6 +10,8 @@
  * Coverage rule: an action is "supported" only when it is wired end-to-end
  * (parser + model schema + deterministic operation + validator + undo).
  */
+import type { AgentCapability } from "@/lib/agent/planSafetyGate";
+
 export type AgentCapabilityKind =
   | "ROTATE_SCENE"
   | "RECOLOR_SCENE"
