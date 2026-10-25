@@ -139,8 +139,8 @@ describe("generic archive mode", () => {
       const bytes = buildSyntheticEssp({
         xyz: Array.from({ length: 5 }, () => [i * 100, 0, 3000]),
         rgb: Array.from({ length: 13 }, () => [10, 20, 30]),
-        positionRateHz: 4,
-      } as Parameters<typeof buildSyntheticEssp>[0]);
+        positionRateRaw: 4000,
+      });
       files[`show/${i}.essp`] = bytes;
       files[`__MACOSX/show/._${i}.essp`] = new Uint8Array([0, 5, 22, 7]);
     }
@@ -149,7 +149,7 @@ describe("generic archive mode", () => {
     const { show } = await readRgbAuditArchive(zip, "g.zip", { clocks: null });
     expect(show.drones.length).toBe(150);
     expect(zip).toEqual(before);
-    if (show.timing.positionRateHz !== 8)
-      await expect(readRgbAuditArchive(zip, "g.zip")).rejects.toThrow();
+    expect(show.timing.positionRateHz).toBe(4);
+    await expect(readRgbAuditArchive(zip, "g.zip")).rejects.toThrow();
   });
 });
