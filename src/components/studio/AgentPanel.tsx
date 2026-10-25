@@ -15,7 +15,13 @@ import { Bot, Check, Loader2, Send, Undo2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { interpretAgentCommand } from "@/lib/agent/agent.functions";
-import { applyAgentOp, type AgentOp, type AgentOpSummary } from "@/lib/agent/operations";
+import { capabilitySummary } from "@/lib/agent/capabilities";
+import {
+  applyAgentOp,
+  resolveSceneTarget,
+  type AgentOp,
+  type AgentOpSummary,
+} from "@/lib/agent/operations";
 import { parseAgentCommand } from "@/lib/agent/parser";
 import { validateAgentProject, type AgentValidationIssue } from "@/lib/agent/validate";
 import { useI18n } from "@/i18n";
