@@ -88,6 +88,13 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
          19 teste țintite, 83 downstream, 1445 passed / 1 skipped global; lint curat.
    - [ ] Diagnostic local/grup-condiționat cu suport și verificare held-out pentru cazuri
          low-fit; nu inventa efecte și nu relaxa pragurile globale. Detalii în HANDOFF.md.
+   - [ ] Audit separat `wedding-sorin-frg-no-movement.zip` — BLOCAT la 2026-10-25:
+         fișier absent din ambele mounturi user-uploads, `/tmp` și proiect; necesită reatașare.
+         SHA-256/structură/compatibilitate încă neverificate, niciun raport nou generat.
+         CLI curent cere 150 drone, 8/12 Hz și adaugă intervalele benchmark necondiționat;
+         înainte de audit verifică parserul și folosește intervale proprii pentru alt show,
+         fără să suprascrii/reprocesezi benchmark-ul. Reverificare: 19 teste passed, lint curat;
+         doar HANDOFF + roadmap modificate. Detalii și comenzi în HANDOFF.
    - [x] Catalog inițial „pattern observat → capabilitate existentă → lipsă → criteriu de acceptare”
          în `docs/ESSP_SHOW_BENCHMARK.md`.
    - [x] Confirmarea planului comun de prezentare: majoritatea imaginilor au pitch/tilt ~14–15°,
