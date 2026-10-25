@@ -389,6 +389,97 @@ function applyRecolor(
   };
 }
 
+/**
+ * Changes how long a scene holds. Uses the canonical ripple authority
+ * (src/lib/studio/timelineRipple.ts): following clips shift by the same delta
+ * and can never overlap, exactly as a manual resize in the timeline would.
+ */
+function applySetDuration(
+  project: ShowProject,
+  resolved: ResolvedClip,
+  op: SetDurationOp,
+): AgentOpResult {
+  const { clip } = resolved;
+  const current = clip.hold;
+  const requested =
+    op.holdSeconds !== undefined
+      ? op.holdSeconds
+      : op.deltaSeconds !== undefined
+        ? current + op.deltaSeconds
+        : NaN;
+  if (!Number.isFinite(requested)) return { ok: false, reason: "INVALID_OP" };
+
+  // A dynamic scene must hold at least one full animation cycle — the same
+  // floor the editor enforces when a dynamic formation is attached.
+  if (clip.dynamicFormationId) {
+    const dyn = project.dynamicFormations?.find((d) => d.id === clip.dynamicFormationId);
+    if (dyn && requested < dyn.duration - 1e-9) {
+      return { ok: false, reason: "DURATION_BELOW_ANIMATION" };
+    }
+  }
+  const hold = Math.max(MIN_HOLD, requested);
+  const result = rippleClipTiming(project.timeline, clip.id, { hold }, "RIPPLE");
+  const appliedClip = result.timeline.find((c) => c.id === clip.id)!;
+  return {
+    ok: true,
+    project: { ...project, timeline: result.timeline },
+    summary: {
+      clipId: clip.id,
+      clipName:
+        project.dynamicFormations?.find((d) => d.id === clip.dynamicFormationId)?.name ??
+        project.formations.find((f) => f.id === clip.formationId)?.name ??
+        clip.id,
+      kind: op.kind,
+      altitudeBefore: [0, 0],
+      altitudeAfter: [0, 0],
+      lightingMayOverride: false,
+      durationBefore: current,
+      durationAfter: appliedClip.hold,
+      followersShifted: result.changedClipIds.length - 1,
+    },
+  };
+}
+
+export type SceneTargetResolution =
+  | { ok: true; clipId: string; clipName: string }
+  | { ok: false; reason: "SCENE_NOT_FOUND" | "SCENE_AMBIGUOUS"; candidates?: string[] };
+
+/** Display name of a clip, as the operator sees it in the timeline. */
+export function clipDisplayName(project: ShowProject, clip: TimelineClip): string {
+  return (
+    project.dynamicFormations?.find((d) => d.id === clip.dynamicFormationId)?.name ??
+    project.formations.find((f) => f.id === clip.formationId)?.name ??
+    clip.id
+  );
+}
+
+/**
+ * Resolves a SELECT_SCENE target to a clip. Index is the 1-based position in
+ * the timeline's chronological order (what the operator sees). A name matches
+ * case-insensitively as a substring; more than one match is reported as
+ * ambiguous with the candidate names, never guessed.
+ */
+export function resolveSceneTarget(project: ShowProject, op: SelectSceneOp): SceneTargetResolution {
+  const ordered = [...project.timeline].sort((a, b) => a.start - b.start || a.id.localeCompare(b.id));
+  if (op.sceneIndex !== undefined) {
+    const clip = ordered[op.sceneIndex - 1];
+    if (!clip) return { ok: false, reason: "SCENE_NOT_FOUND" };
+    return { ok: true, clipId: clip.id, clipName: clipDisplayName(project, clip) };
+  }
+  const needle = (op.sceneName ?? "").trim().toLowerCase();
+  if (!needle) return { ok: false, reason: "SCENE_NOT_FOUND" };
+  const matches = ordered.filter((c) => clipDisplayName(project, c).toLowerCase().includes(needle));
+  if (matches.length === 0) return { ok: false, reason: "SCENE_NOT_FOUND" };
+  if (matches.length > 1) {
+    return {
+      ok: false,
+      reason: "SCENE_AMBIGUOUS",
+      candidates: matches.map((c) => clipDisplayName(project, c)),
+    };
+  }
+  return { ok: true, clipId: matches[0]!.id, clipName: clipDisplayName(project, matches[0]!) };
+}
+
 /** Applies one typed operation to a copy of the project. Never mutates `project`. */
 export function applyAgentOp(
   project: ShowProject,
@@ -398,6 +489,11 @@ export function applyAgentOp(
   if (!Number.isFinite((op as RotateSceneOp).degrees ?? 0) && op.kind === "ROTATE_SCENE") {
     return { ok: false, reason: "INVALID_OP" };
   }
+  if (op.kind === "SELECT_SCENE") {
+    // Selection is UI state, not a project edit; the panel resolves it through
+    // resolveSceneTarget and never commits a revision for it.
+    return { ok: false, reason: "INVALID_OP" };
+  }
   const resolved = resolveClip(project, clipId);
   if ("ok" in resolved) return resolved;
   switch (op.kind) {
@@ -405,6 +501,8 @@ export function applyAgentOp(
       return applyRotate(project, resolved, op);
     case "RECOLOR_SCENE":
       return applyRecolor(project, resolved, op);
+    case "SET_DURATION":
+      return applySetDuration(project, resolved, op);
   }
 }
 
