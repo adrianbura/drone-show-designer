@@ -33,8 +33,7 @@ const opSchema = z.object({
 export type ModelOp = z.infer<typeof opSchema>["ops"][number];
 
 export type ModelParseResult =
-  | { ok: true; ops: ModelOp[] }
-  | { ok: false; reason: "NO_API_KEY" | "MODEL_FAILED" };
+  { ok: true; ops: ModelOp[] } | { ok: false; reason: "NO_API_KEY" | "MODEL_FAILED" };
 
 const INSTRUCTIONS = `You translate a drone-show operator's request (Romanian or English) into typed scene edits for ONE selected scene.
 Axes: X = lean forward/back, Y = turn left/right, Z = tilt sideways. Sign conventions: tilt left = negative Z, tilt right = positive Z; turn left = positive Y, turn right = negative Y; lean forward = positive X, backward = negative X.

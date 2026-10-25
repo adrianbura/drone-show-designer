@@ -63,11 +63,7 @@ function parseColor(text: string): RGB | null {
   const hex = HEX_RE.exec(text);
   if (hex) {
     const h = hex[1]!;
-    return [
-      parseInt(h.slice(0, 2), 16),
-      parseInt(h.slice(2, 4), 16),
-      parseInt(h.slice(4, 6), 16),
-    ];
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
   }
   const words = text.toLowerCase().split(/[^a-zăâîșţț]+/i);
   for (const w of words) {

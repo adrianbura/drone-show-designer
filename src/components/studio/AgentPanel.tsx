@@ -35,17 +35,29 @@ type ChatEntry =
   | { role: "preview"; edit: PendingEdit };
 
 const ISSUE_LABELS: Record<AgentValidationIssue, [string, string]> = {
-  NON_FINITE_GEOMETRY: ["Geometrie invalidă (valori nenumerice).", "Invalid geometry (non-finite values)."],
+  NON_FINITE_GEOMETRY: [
+    "Geometrie invalidă (valori nenumerice).",
+    "Invalid geometry (non-finite values).",
+  ],
   OUTSIDE_FLIGHT_AREA: ["Iese din spațiul de zbor declarat.", "Leaves the declared flight area."],
   ALTITUDE_BELOW_MIN: ["Coboară sub altitudinea minimă.", "Drops below the minimum altitude."],
   ALTITUDE_ABOVE_MAX: ["Depășește altitudinea maximă.", "Exceeds the maximum altitude."],
 };
 
 const FAILURE_LABELS: Record<string, [string, string]> = {
-  NO_CLIP_SELECTED: ["Selectează mai întâi o scenă din cronologie.", "Select a scene in the timeline first."],
+  NO_CLIP_SELECTED: [
+    "Selectează mai întâi o scenă din cronologie.",
+    "Select a scene in the timeline first.",
+  ],
   CLIP_NOT_FOUND: ["Scena selectată nu mai există.", "The selected scene no longer exists."],
-  PHASE_NOT_EDITABLE: ["Decolarea și aterizarea nu se editează vizual.", "Takeoff and landing are not visually editable."],
-  MULTI_OBJECT_SCENE: ["Scenele cu mai multe obiecte nu sunt încă suportate de agent.", "Multi-object scenes are not supported by the agent yet."],
+  PHASE_NOT_EDITABLE: [
+    "Decolarea și aterizarea nu se editează vizual.",
+    "Takeoff and landing are not visually editable.",
+  ],
+  MULTI_OBJECT_SCENE: [
+    "Scenele cu mai multe obiecte nu sunt încă suportate de agent.",
+    "Multi-object scenes are not supported by the agent yet.",
+  ],
   INVALID_OP: ["Operația cerută nu este validă.", "The requested operation is not valid."],
 };
 
@@ -181,14 +193,24 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
           <Bot className="size-3.5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-foreground">{t("Agent de regie", "Direction agent")}</p>
-          <p className="truncate font-mono text-[10px] text-muted-foreground" data-testid="agent-context">
+          <p className="text-xs font-semibold text-foreground">
+            {t("Agent de regie", "Direction agent")}
+          </p>
+          <p
+            className="truncate font-mono text-[10px] text-muted-foreground"
+            data-testid="agent-context"
+          >
             {selectedName
               ? t("Scenă: {name}", "Scene: {name}", { name: selectedName })
               : t("Nicio scenă selectată", "No scene selected")}
           </p>
         </div>
-        <button type="button" onClick={onClose} className="mini-btn" aria-label={t("Închide agentul", "Close agent")}>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mini-btn"
+          aria-label={t("Închide agentul", "Close agent")}
+        >
           <X className="size-3.5" />
         </button>
       </header>
@@ -205,7 +227,10 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
         {entries.map((entry, i) => {
           if (entry.role === "user") {
             return (
-              <div key={i} className="ml-8 rounded-lg bg-accent/15 px-2.5 py-1.5 text-xs text-foreground">
+              <div
+                key={i}
+                className="ml-8 rounded-lg bg-accent/15 px-2.5 py-1.5 text-xs text-foreground"
+              >
                 {entry.text}
               </div>
             );
@@ -216,7 +241,9 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
                 <p className="px-1 text-xs leading-relaxed text-foreground">{entry.text}</p>
                 {entry.source && (
                   <p className="px-1 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-                    {entry.source === "model" ? t("răspuns model", "model answer") : t("răspuns local", "local answer")}
+                    {entry.source === "model"
+                      ? t("răspuns model", "model answer")
+                      : t("răspuns local", "local answer")}
                   </p>
                 )}
               </div>
@@ -224,7 +251,11 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
           }
           const { edit } = entry;
           return (
-            <div key={i} className="rounded-lg border border-accent/40 bg-accent/5 p-2.5" data-testid="agent-preview">
+            <div
+              key={i}
+              className="rounded-lg border border-accent/40 bg-accent/5 p-2.5"
+              data-testid="agent-preview"
+            >
               <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                 {t("Previzualizare modificare", "Change preview")} ·{" "}
                 {edit.source === "model" ? t("model", "model") : t("local", "local")}
@@ -243,7 +274,10 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
                         })}
                       </>
                     ) : (
-                      t("Recolorare scenă (animația de luminozitate se păstrează)", "Scene recolor (luminance animation preserved)")
+                      t(
+                        "Recolorare scenă (animația de luminozitate se păstrează)",
+                        "Scene recolor (luminance animation preserved)",
+                      )
                     )}
                     {s.lightingMayOverride && (
                       <span className="block text-[10px] text-warning">

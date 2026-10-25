@@ -45,7 +45,11 @@ function makeProject(overrides?: Partial<ShowProject>): ShowProject {
     formations: [],
     timeline: [],
     altitudes: { takeoff: 5, show: 40, landing: 0 },
-    versions: { schemaVersion: "1.0", trajectoryAlgorithmVersion: "0.1.0", formationAlgorithmVersion: "0.1.0" },
+    versions: {
+      schemaVersion: "1.0",
+      trajectoryAlgorithmVersion: "0.1.0",
+      formationAlgorithmVersion: "0.1.0",
+    },
     seed: 1,
     ...overrides,
   };

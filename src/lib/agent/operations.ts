@@ -132,10 +132,7 @@ interface ResolvedClip {
   clipIndex: number;
 }
 
-function resolveClip(
-  project: ShowProject,
-  clipId: string | null,
-): ResolvedClip | AgentOpResult {
+function resolveClip(project: ShowProject, clipId: string | null): ResolvedClip | AgentOpResult {
   if (!clipId) return { ok: false, reason: "NO_CLIP_SELECTED" };
   const clipIndex = project.timeline.findIndex((c) => c.id === clipId);
   const clip = project.timeline[clipIndex];
@@ -158,13 +155,28 @@ function ensurePrivateFormation(
   project: ShowProject,
   clip: TimelineClip,
   clipIndex: number,
-): { formations: ShowProject["formations"]; timeline: ShowProject["timeline"]; formationId: string } {
-  const shared = project.timeline.some((c) => c.formationId === clip.formationId && c.id !== clip.id);
+): {
+  formations: ShowProject["formations"];
+  timeline: ShowProject["timeline"];
+  formationId: string;
+} {
+  const shared = project.timeline.some(
+    (c) => c.formationId === clip.formationId && c.id !== clip.id,
+  );
   if (!shared) {
-    return { formations: project.formations, timeline: project.timeline, formationId: clip.formationId };
+    return {
+      formations: project.formations,
+      timeline: project.timeline,
+      formationId: clip.formationId,
+    };
   }
   const source = project.formations.find((f) => f.id === clip.formationId);
-  if (!source) return { formations: project.formations, timeline: project.timeline, formationId: clip.formationId };
+  if (!source)
+    return {
+      formations: project.formations,
+      timeline: project.timeline,
+      formationId: clip.formationId,
+    };
   const cloneId = `${clip.formationId}-agent-${clipIndex}`;
   const clone = { ...source, id: cloneId, name: `${source.name} (scene copy)` };
   const formations = [...project.formations.filter((f) => f.id !== cloneId), clone];
@@ -214,10 +226,7 @@ function applyRotate(
     if (!source) return { ok: false, reason: "CLIP_NOT_FOUND" };
     const c = centroid(source.points.map((p) => p.base));
     const pivot = source.pivot;
-    const offset = rotateByQuat(
-      [pivot[0] - c[0], pivot[1] - c[1], pivot[2] - c[2]],
-      q,
-    );
+    const offset = rotateByQuat([pivot[0] - c[0], pivot[1] - c[1], pivot[2] - c[2]], q);
     const bias: Vector3Tuple = [
       c[0] - pivot[0] + offset[0],
       c[1] - pivot[1] + offset[1],

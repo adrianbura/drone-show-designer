@@ -12,10 +12,7 @@ import { sampleDynamicFormation } from "../show/dynamic/sampler";
 import type { ShowProject, TimelineClip, Vector3Tuple } from "../show/types";
 
 export type AgentValidationIssue =
-  | "NON_FINITE_GEOMETRY"
-  | "OUTSIDE_FLIGHT_AREA"
-  | "ALTITUDE_BELOW_MIN"
-  | "ALTITUDE_ABOVE_MAX";
+  "NON_FINITE_GEOMETRY" | "OUTSIDE_FLIGHT_AREA" | "ALTITUDE_BELOW_MIN" | "ALTITUDE_ABOVE_MAX";
 
 export interface AgentValidationResult {
   ok: boolean;
@@ -45,10 +42,7 @@ function checkPoints(
 }
 
 /** Validates the geometry reachable from one clip in a candidate project. */
-export function validateAgentProject(
-  project: ShowProject,
-  clipId: string,
-): AgentValidationResult {
+export function validateAgentProject(project: ShowProject, clipId: string): AgentValidationResult {
   const issues = new Set<AgentValidationIssue>();
   const clip: TimelineClip | undefined = project.timeline.find((c) => c.id === clipId);
   if (clip) {
