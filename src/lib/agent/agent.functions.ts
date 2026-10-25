@@ -138,13 +138,9 @@ function gateModelOps(
     }
     return { ok: false, reason: `Unsupported operation kind: ${String(op.kind)}` };
   }
-  const check = checkAgentPlan(
-    { operations: plan.length > 0 ? plan : [{ tool: "__noop__", args: {} }] },
-    toRuntimeCapabilities(),
-    selectedClipId,
-  );
   // A selection-only plan has no mutations to gate.
   if (plan.length === 0) return { ok: true, ops: passthrough };
+  const check = checkAgentPlan({ operations: plan }, toRuntimeCapabilities(), selectedClipId);
   if (!check.ok) return { ok: false, reason: check.reason };
   // The gate validated the canonical envelope; emit the original typed ops
   // (zod-validated) with relative durations resolved to absolute seconds.
