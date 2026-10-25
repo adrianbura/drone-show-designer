@@ -194,10 +194,15 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       }
       if (ops.length === 0) {
         if (clarification) {
-          say(clarification, source === "model" ? "model" : undefined);
+          say(clarification, source === "model" ? "model" : undefined, {
+            text,
+            reason: "unsupported-or-ambiguous",
+          });
         } else {
           say(
             `${t("Nu am înțeles cererea.", "I did not understand the request.")} ${capabilitySummary(ro)}`,
+            undefined,
+            { text, reason: "not-understood" },
           );
         }
         return;
@@ -232,8 +237,14 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
         }
         const r = applyAgentOp(candidate, targetClipId, op);
         if (!r.ok) {
+          // Atomicity: a failed step aborts the WHOLE request — the candidate
+          // copy is discarded and the live project is never touched.
           const label = FAILURE_LABELS[r.reason] ?? FAILURE_LABELS["INVALID_OP"]!;
-          say(t(label[0], label[1]));
+          say(
+            `${t(label[0], label[1])} ${t("Nicio parte a cererii nu a fost aplicată.", "No part of the request was applied.")}`,
+            undefined,
+            { text, reason: r.reason },
+          );
           return;
         }
         candidate = r.project;
