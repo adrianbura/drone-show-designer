@@ -26,7 +26,7 @@ function frameRange(show: ReferenceShow, start: number, end: number): [number, n
 }
 const keyAt = (d: ReferenceDrone, i: number) =>
   i < d.rgbSampleCount
-    ? ((d.rgbSamples[i * 3]! << 16) | (d.rgbSamples[i * 3 + 1]! << 8) | d.rgbSamples[i * 3 + 2]!)
+    ? (d.rgbSamples[i * 3]! << 16) | (d.rgbSamples[i * 3 + 1]! << 8) | d.rgbSamples[i * 3 + 2]!
     : -1;
 const lumAt = (d: ReferenceDrone, i: number) =>
   (d.rgbSamples[i * 3]! + d.rgbSamples[i * 3 + 1]! + d.rgbSamples[i * 3 + 2]!) / 3;
@@ -36,7 +36,7 @@ function corr(a: number[], b: number[]): number | null {
   if (n < 3) return null;
   let ma = 0,
     mb = 0;
-  for (let i = 0; i < n; i++) (ma += a[i]!), (mb += b[i]!);
+  for (let i = 0; i < n; i++) ((ma += a[i]!), (mb += b[i]!));
   ma /= n;
   mb /= n;
   let sab = 0,
@@ -110,7 +110,13 @@ export function analyzeRgbGroups(show: ReferenceShow, binding: ReferenceClipBind
   const [a, b] = frameRange(show, binding.referenceStart, binding.referenceEnd);
   const drones = show.drones.filter((d) => d.rgbSampleCount >= b && b > a);
   if (!drones.length || b <= a)
-    return { status: "NO_RGB" as const, groups: [], ticks: 0, ambiguousFraction: null, meanSimultaneousSupported: null };
+    return {
+      status: "NO_RGB" as const,
+      groups: [],
+      ticks: 0,
+      ambiguousFraction: null,
+      meanSimultaneousSupported: null,
+    };
   // Exact full-interval signatures: drones in one group share every RGB tick.
   const bySig = new Map<string, number[]>();
   for (const d of drones) {
@@ -124,7 +130,12 @@ export function analyzeRgbGroups(show: ReferenceShow, binding: ReferenceClipBind
     .filter((ids) => ids.length >= MIN_GROUP)
     .map((ids) => ids.sort((x, y) => x - y))
     .sort((x, y) => y.length - x.length || x[0]! - y[0]!)
-    .map((ids, i) => ({ id: `G${i + 1}`, support: ids.length, supportFraction: ids.length / drones.length, droneIds: ids }));
+    .map((ids, i) => ({
+      id: `G${i + 1}`,
+      support: ids.length,
+      supportFraction: ids.length / drones.length,
+      droneIds: ids,
+    }));
   const grouped = groups.reduce((n, g) => n + g.support, 0);
   let simult = 0;
   for (let i = a; i < b; i++) {
@@ -151,11 +162,18 @@ export function analyzeRgbTemporal(show: ReferenceShow, binding: ReferenceClipBi
   const [a, b] = frameRange(show, binding.referenceStart, binding.referenceEnd);
   const rate = show.timing.rgbRateHz;
   const drones = show.drones.filter((d) => d.rgbSampleCount >= b && b > a);
-  const base = { periodSeconds: null as number | null, trainCorrelation: null as number | null, heldOutCorrelation: null as number | null, phaseCoherence: null as number | null, waveHeldOutR2: null as number | null };
+  const base = {
+    periodSeconds: null as number | null,
+    trainCorrelation: null as number | null,
+    heldOutCorrelation: null as number | null,
+    phaseCoherence: null as number | null,
+    waveHeldOutR2: null as number | null,
+  };
   if (!drones.length || b <= a) return { status: "NO_RGB" as const, ...base };
   if (b - a > RGB_STRUCTURE_MAX_TICKS) return { status: "TOO_LONG" as const, ...base };
   let constant = true;
-  for (const d of drones) for (let i = a + 1; i < b && constant; i++) if (keyAt(d, i) !== keyAt(d, a)) constant = false;
+  for (const d of drones)
+    for (let i = a + 1; i < b && constant; i++) if (keyAt(d, i) !== keyAt(d, a)) constant = false;
   if (constant) return { status: "STATIC" as const, ...base };
   const series = drones.map((d) => Array.from({ length: b - a }, (_, i) => lumAt(d, a + i)));
   const fleet = series[0]!.map((_, i) => series.reduce((s, x) => s + x[i]!, 0) / series.length);
@@ -165,12 +183,20 @@ export function analyzeRgbTemporal(show: ReferenceShow, binding: ReferenceClipBi
   const tooShort = !trainPer || half < 3 * trainPer.lag;
   // Per-drone periodicity (wave candidates when fleet mean cancels out).
   const droneTrain = trainPer ?? period(series[0]!.slice(0, half));
-  if (!droneTrain || half < 3 * droneTrain.lag) return { status: "NONPERIODIC_OR_UNKNOWN" as const, ...base };
+  if (!droneTrain || half < 3 * droneTrain.lag)
+    return { status: "NONPERIODIC_OR_UNKNOWN" as const, ...base };
   const lag = droneTrain.lag;
   const held = trainPer && !tooShort ? lagCorr(fleet.slice(half), lag) : null;
   const phase = series.map((s) => corr(s, fleet)).filter((v): v is number => v !== null);
-  const phaseCoherence = phase.length ? phase.sort((x, y) => x - y)[Math.floor(phase.length / 2)]! : null;
-  const out = { ...base, periodSeconds: lag / rate, trainCorrelation: droneTrain.r, heldOutCorrelation: held };
+  const phaseCoherence = phase.length
+    ? phase.sort((x, y) => x - y)[Math.floor(phase.length / 2)]!
+    : null;
+  const out = {
+    ...base,
+    periodSeconds: lag / rate,
+    trainCorrelation: droneTrain.r,
+    heldOutCorrelation: held,
+  };
   if (held !== null && held >= 0.7 && std(fleet) >= 8 && (phaseCoherence ?? 0) >= 0.9)
     return { status: "PULSATION_SUPPORTED" as const, ...out, phaseCoherence };
   // Wave: per-drone phase lag vs position, fit on even drones, validated on odd.
@@ -182,7 +208,7 @@ export function analyzeRgbTemporal(show: ReferenceShow, binding: ReferenceClipBi
       bl = 0;
     for (let l = 0; l < lag; l++) {
       const r = corr(ref.slice(0, ref.length - l), series[k]!.slice(l)) ?? -2;
-      if (r > best) (best = r), (bl = l);
+      if (r > best) ((best = r), (bl = l));
     }
     if (best < 0.8) continue;
     const p = rawPositionAt(drones[k]!, mid, show.timing.positionRateHz);
@@ -193,8 +219,16 @@ export function analyzeRgbTemporal(show: ReferenceShow, binding: ReferenceClipBi
   const train = pts.filter((_, i) => i % 2 === 0),
     test = pts.filter((_, i) => i % 2 === 1);
   if (train.length >= 12 && test.length >= 12) {
-    const f = fitLinear(train.map((p) => p.x), train.map((p) => p.lag));
-    const v = f ? r2(test.map((p) => f(p.x)), test.map((p) => p.lag)) : null;
+    const f = fitLinear(
+      train.map((p) => p.x),
+      train.map((p) => p.lag),
+    );
+    const v = f
+      ? r2(
+          test.map((p) => f(p.x)),
+          test.map((p) => p.lag),
+        )
+      : null;
     if (v !== null && v >= 0.8 && (phaseCoherence ?? 1) < 0.9)
       return { status: "WAVE_SUPPORTED" as const, ...out, phaseCoherence, waveHeldOutR2: v };
     return { status: "PERIODIC_UNVALIDATED" as const, ...out, phaseCoherence, waveHeldOutR2: v };
@@ -203,11 +237,21 @@ export function analyzeRgbTemporal(show: ReferenceShow, binding: ReferenceClipBi
 }
 
 /** Error of a candidate model against the exact source, on the RGB clock. */
-export function evaluateRgbReconstruction(show: ReferenceShow, binding: ReferenceClipBinding, tolerance = 2) {
+export function evaluateRgbReconstruction(
+  show: ReferenceShow,
+  binding: ReferenceClipBinding,
+  tolerance = 2,
+) {
   const [a, b] = frameRange(show, binding.referenceStart, binding.referenceEnd);
   const drones = show.drones.filter((d) => d.rgbSampleCount >= b && b > a);
   if (!drones.length || b <= a)
-    return { status: "NO_RGB" as const, reference: "EXACT_SOURCE" as const, tolerance, models: [], best: "UNKNOWN" as const };
+    return {
+      status: "NO_RGB" as const,
+      reference: "EXACT_SOURCE" as const,
+      tolerance,
+      models: [],
+      best: "UNKNOWN" as const,
+    };
   const ch = (d: ReferenceDrone, i: number, c: number) => d.rgbSamples[i * 3 + c]!;
   const score = (predict: (k: number, i: number, c: number) => number) => {
     let sum = 0,
@@ -236,7 +280,9 @@ export function evaluateRgbReconstruction(show: ReferenceShow, binding: Referenc
   const groups = analyzeRgbGroups(show, binding);
   const groupOf = new Map<number, number>();
   groups.groups.forEach((g, gi) => g.droneIds.forEach((id) => groupOf.set(id, gi)));
-  const leaders = groups.groups.map((g) => drones.find((d) => d.numericSourceId === g.droneIds[0])!);
+  const leaders = groups.groups.map((g) =>
+    drones.find((d) => d.numericSourceId === g.droneIds[0])!,
+  );
   const models = [
     { model: "FLEET_COLOR_PER_TICK" as const, ...score((_k, i, c) => tickMean[i - a]![c]!) },
     { model: "STATIC_COLOR_PER_DRONE" as const, ...score((k, _i, c) => droneMean[k]![c]!) },
