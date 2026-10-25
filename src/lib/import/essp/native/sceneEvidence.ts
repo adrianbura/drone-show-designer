@@ -3,6 +3,7 @@ import { sampleReferenceShow } from "../playback";
 import type { ReferenceShow } from "../types";
 import type { ReferenceClipBinding } from "./types";
 import { analyzeSpatialRgb } from "./spatialRgb";
+import { analyzeRgbStructure } from "./rgbStructure";
 
 export function sourceSceneEvidence(show: ReferenceShow, binding: ReferenceClipBinding) {
   const start = binding.referenceStart;
@@ -49,6 +50,7 @@ export function sourceSceneEvidence(show: ReferenceShow, binding: ReferenceClipB
       distinctColors: colors.size,
       darkFraction: rgbSamples ? dark / rgbSamples : null,
       spatial: analyzeSpatialRgb(show, binding),
+      structure: analyzeRgbStructure(show, binding),
       // ESSP contains the LED result, not authoring effect names/parameters.
       recipe: "UNKNOWN" as const,
     },
