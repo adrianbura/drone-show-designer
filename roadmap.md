@@ -251,4 +251,8 @@ această rulare.
 
 ## 15. AI AGENT — vertical slice funcțional (2026-10-25, Lovable)
 - TERMINAT: operații tipizate (rotire scenă statică/dinamică, recolorare cu păstrarea animației de luminozitate), validator pre-commit, parser local RO/EN fără cheie, backend model (Lovable AI Gateway, răspunsuri etichetate local/model), panou chat Ctrl+K cu preview/Aplică/Undo, nav stânga simplificată (Advanced tools pliabil). Teste 9/9, suită 1478 trecute, browser smoke pe ESSP real.
-- RĂMAS: scene multi-obiect, mai multe tipuri de operații (scalare, mutare, timing), memorie conversațională, inserarea din bibliotecă verificată în browser (pas automat picat anterior).
+- RĂMAS: scene multi-obiect, scalare/mutare/tranziții/lumini/inserare bibliotecă/număr drone (registrul le refuză onest), memorie conversațională, inserarea din bibliotecă verificată în browser.
+
+## 16. AI AGENT — registru de capabilități + durată + selectare (2026-10-25, Lovable)
+- TERMINAT: `capabilities.ts` (4 suportate / 6 roadmap refuzate onest, instrucțiunile modelului generate din registru), SET_DURATION prin autoritatea canonică ripple (fără suprapuneri, refuz sub durata animației), SELECT_SCENE după număr/nume cu ambiguitate raportată, clarificări de la model pentru cereri neclare sau nesuportate. Teste agent 20/20, suită completă 1489 trecute, browser smoke pe ESSP real (durată 7,5→12 s cu 32 scene decaleate, selectare, refuz onest al scalării prin model).
+- RĂMAS: următoarele capabilități din registru (scalare cu revalidare separare, mutare, tranziții, lumini, inserare bibliotecă, număr drone), memorie conversațională, acoperire măsurată pe parcurs.
