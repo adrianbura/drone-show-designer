@@ -17,6 +17,7 @@ const binding: ReferenceClipBinding = {
   order: 1,
   kind: "SCENE",
   sourceSegmentId: null,
+  sourceClassification: "STATIC_FORMATION",
   referenceStart: 0,
   referenceHoldStart: 0.5,
   referenceEnd: 1,
