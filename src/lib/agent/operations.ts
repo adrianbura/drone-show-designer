@@ -213,8 +213,9 @@ function applyRotate(
   op: RotateSceneOp,
 ): AgentOpResult {
   const { clip, clipIndex } = resolved;
-  const euler: Vector3Tuple = [0, 0, 0];
-  euler[AXIS_INDEX[op.axis]] = op.degrees as never;
+  const eulerArr: [number, number, number] = [0, 0, 0];
+  eulerArr[AXIS_INDEX[op.axis]] = op.degrees;
+  const euler: Vector3Tuple = eulerArr;
   const q = quatFromEulerDeg(euler);
   const lightingMayOverride = hasSceneLighting(project, clip.id);
 
@@ -308,7 +309,7 @@ function applyRecolor(
   if (targetMax <= 0) return { ok: false, reason: "INVALID_OP" };
   const lightingMayOverride = hasSceneLighting(project, clip.id);
 
-  let dynamicFormations = project.dynamicFormations;
+  let dynamicFormations = project.dynamicFormations ?? [];
   let name = "";
   if (clip.dynamicFormationId) {
     const priv = ensurePrivateDynamic(project, clip);
