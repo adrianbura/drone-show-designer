@@ -13,9 +13,27 @@ export interface RgbAuditInterval {
   origin: "BENCHMARK" | "FORENSICS" | "WINDOW" | "FULL_SHOW" | "SAVED_BINDING";
 }
 
-export async function readRgbAuditArchive(bytes: Uint8Array, archiveName: string) {
+/** macOS AppleDouble resource forks (`__MACOSX/…`, `._name`) are metadata, never drone files. */
+export function isAppleDoubleEntry(name: string): boolean {
+  return /(^|\/)__MACOSX\//.test(name) || (name.split("/").pop() ?? "").startsWith("._");
+}
+
+export interface RgbAuditArchiveOptions {
+  /** Required native clocks; defaults to the original benchmark (XYZ 8 Hz / RGB 12 Hz). */
+  clocks?: { positionRateHz: number; rgbRateHz: number } | null;
+}
+
+export async function readRgbAuditArchive(
+  bytes: Uint8Array,
+  archiveName: string,
+  options: RgbAuditArchiveOptions = {},
+) {
+  const clocks =
+    options.clocks === undefined ? { positionRateHz: 8, rgbRateHz: 12 } : options.clocks;
   const entries = Object.entries(
-    unzipSync(bytes, { filter: (entry) => /\.essp$/i.test(entry.name) }),
+    unzipSync(bytes, {
+      filter: (entry) => /\.essp$/i.test(entry.name) && !isAppleDoubleEntry(entry.name),
+    }),
   );
   const ids = entries.map(([name]) => numericSourceId(name));
   if (
@@ -30,11 +48,12 @@ export async function readRgbAuditArchive(bytes: Uint8Array, archiveName: string
     show.drones.length !== 150 ||
     !show.report.invariants.identicalPositionRate ||
     !show.report.invariants.identicalRgbRate ||
-    show.timing.positionRateHz !== 8 ||
-    show.timing.rgbRateHz !== 12
+    (clocks !== null &&
+      (show.timing.positionRateHz !== clocks.positionRateHz ||
+        show.timing.rgbRateHz !== clocks.rgbRateHz))
   )
     throw new Error(
-      "Benchmark audit requires 150 valid files and native XYZ 8 Hz / RGB 12 Hz clocks.",
+      "Audit requires 150 valid files with identical native clocks matching the expected rates.",
     );
   const hash = await sha256Hex(bytes);
   if (!hash) throw new Error("SHA-256 unavailable; provenance cannot be established.");

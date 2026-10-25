@@ -239,3 +239,5 @@ meniul rămâne deschis, 0 clipuri inserate; click stânga execută o dată; 3 s
 Enter pe `Paste` inserează exact 1 clip, un Undo îl elimină; meniul pe zona liberă a cronologiei se
 deschide. Suita completă: 159 fișiere / 1396 teste / 1 skipped, fără instabilitate Radix/JSDOM la
 această rulare.
+
+- [x] Audit RGB read-only `wedding-sorin-frg-no-movement.zip` (SHA `e7a42460…`, XYZ 4 Hz / RGB 12 Hz, AppleDouble exclus, mod `--generic`, raport `docs/audits/wedding-sorin-e7a42460/`). Următor: comparație intervale între cele două show-uri.

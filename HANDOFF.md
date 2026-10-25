@@ -1142,3 +1142,13 @@ Decizie conservatoare: numai documentele sunt corectate; modul generic rămâne 
 
 Verificările acestei corecții sunt consemnate în roadmap; benchmark-ul original nu a fost
 procesat sau modificat. Nu există un nou rezultat de audit real wedding-sorin.
+
+## Audit RGB a doua arhivă — wedding-sorin-frg-no-movement.zip (2026-10-25)
+- Arhiva accesibilă la `/mnt/user-uploads/`; SHA-256 verificat **înainte de decodare**: `e7a4246016b3aa175e020858a7cf9406f72c38c99f090ab9ada702e97cea558f` (2.251.837 B), identic după audit.
+- Inventar: 150 fișiere `.essp` reale, ID-uri 1–150 unice; 150 intrări AppleDouble `__MACOSX/._*` excluse (`isAppleDoubleEntry`).
+- Parser: 150/150 valide, ceasuri native XYZ **4 Hz** (2000 mostre) / RGB **12 Hz** (6000 mostre); round-trip byte-identic 150/150; nu este benchmark 8/12.
+- CLI: `bun scripts/auditEsspRgb.ts --generic <zip> <out> <sha>` — hash verificat înainte de decodare, fără intervale benchmark (0 aplicate), doar intervale forensice proprii (80) + ferestre 5 s (100) + full-show.
+- Raport nou: `docs/audits/wedding-sorin-e7a42460/rgb-audit.{json,md}`. Full-show: LOW_OR_UNSTABLE_FIT, 899700/900000 perechi, fracție întunecată 0,208. Rețetă UNKNOWN.
+- Neschimbate (sha256 -c OK): `docs/ESSP_SHOW_BENCHMARK.md`, `docs/audits/essp-original-rgb-0055f8ce.md`. Import experimental neactivat.
+- Teste: `rgbAudit.test.ts` + `spatialRgb.test.ts` 17/17; eslint pe fișierele schimbate curat.
+- Următorul pas: interpretarea comparativă a intervalelor (fără nume de efecte inventate).

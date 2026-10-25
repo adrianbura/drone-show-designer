@@ -131,3 +131,25 @@ describe("read-only interval RGB audit", () => {
     expect(result.show.timing.rgbRateHz).toBe(12);
   });
 });
+
+describe("generic archive mode", () => {
+  it("excludes AppleDouble entries and accepts non-benchmark clocks only when asked", async () => {
+    const files: Record<string, Uint8Array> = {};
+    for (let i = 1; i <= 150; i++) {
+      const bytes = buildSyntheticEssp({
+        xyz: Array.from({ length: 5 }, () => [i * 100, 0, 3000]),
+        rgb: Array.from({ length: 13 }, () => [10, 20, 30]),
+        positionRateRaw: 4000,
+      });
+      files[`show/${i}.essp`] = bytes;
+      files[`__MACOSX/show/._${i}.essp`] = new Uint8Array([0, 5, 22, 7]);
+    }
+    const zip = zipSync(files);
+    const before = zip.slice();
+    const { show } = await readRgbAuditArchive(zip, "g.zip", { clocks: null });
+    expect(show.drones.length).toBe(150);
+    expect(zip).toEqual(before);
+    expect(show.timing.positionRateHz).toBe(4);
+    await expect(readRgbAuditArchive(zip, "g.zip")).rejects.toThrow();
+  });
+});
