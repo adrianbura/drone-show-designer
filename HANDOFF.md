@@ -903,3 +903,48 @@ Fișiere: `native/sceneEvidence.ts`, `native/__tests__/sceneEvidence.test.ts`,
 - Dovezi de test existente de la Lovable pentru schimbările candidate: 1.422 teste trecute, 1 skipped; lint pe cele patru fișiere fără erori/avertismente. Acest asistent nu a putut executa testele local, iar pentru commitul de merge nu există statusuri GitHub Actions sau checks vizibile prin conector.
 - Nu este o livrare completă a obiectivului ESSP: importul experimental rămâne oprit implicit și nu s-a validat în browser reconstrucția tuturor scenelor, iluminării și tranzițiilor.
 - Următorul pas: continuă prioritatea 14 din roadmap printr-o etapă end-to-end de benchmark/audit vizual LED pentru show-ul ESSP real; măsoară sweep/gradient/sincronizare și leagă dovezile de capabilitățile existente și de teste. Nu activa importul experimental fără verificare de fidelitate.
+
+## Etapă RGB spațial — 2026-10-25
+
+Bază inspectată: HEAD `2a32f5d85b2c04913bfe550d615df4862c46dcd5`, descendent verificat al
+merge-ului `3851931554526e0e3aae9e0603a29c122aabb141`; arbore inițial curat. Nu s-a rescris Git.
+
+Livrat: `native/spatialRgb.ts`, analiză pură read-only integrată aditiv în
+`sourceSceneEvidence(...).lighting.spatial`. Evaluează fiecare tick RGB original din binding,
+cu XYZ interpolat pe ceasul pozițiilor; expune acoperirea, coerența liniară RGB, direcția/puterea
+gradientului numai când există suport, stabilitatea direcției, schimbarea câmpului și deriva
+aparentă condiționată. Planurile înclinate folosesc pseudoinversă minimum-norm, fără gradient
+inventat normal la plan. Uniform/nonlinear/multi-axial/insuficient rămân explicit fără direcție.
+Rețeta rămâne UNKNOWN; niciun efect nativ generat, nicio schemă/raport/layer sau sursă modificată.
+Definiții, praguri și limite: `docs/ESSP_SHOW_BENCHMARK.md`, secțiunea spatial RGB.
+
+Acceptare: teste sintetice deterministe pentru gradient cunoscut/mișcare XYZ 8 Hz vs RGB 12 Hz,
+plan înclinat, evoluția puterii, uniform temporal, culori neliniare necorelate, două axe RGB,
+canal neliniar slab ascuns de canal liniar puternic, păstrarea arrays/bytes/report/save-open,
+limite half-open/fractionale/endpoint, sursă absentă/flotă insuficientă. Sunt 10 teste noi.
+
+Dovezi reale read-only: script temporar `/tmp/essp-rgb/check-real.ts`, executat cu
+`NODE_PATH=/dev-server/node_modules bun /tmp/essp-rgb/check-real.ts`, pe salvarea ownerului:
+150 drone, toate cele 23 bindinguri salvate, 5.841 ticks RGB, 598 ms total, maximum 93 ms/binding.
+23/23 LOW_OR_UNSTABLE_FIT, deci nu s-a pretins gradient unic. Raport/layer identice și 150/150
+fișiere ESSP reconstruite identice după analiză. Măsurare Bun unică, nu latență browser.
+
+Verificări finale executate:
+- `bunx vitest run src/lib/import/essp/native/__tests__/spatialRgb.test.ts src/lib/import/essp/native/__tests__/sceneEvidence.test.ts --maxWorkers=2`: 2 fișiere, 13 passed, 731 ms.
+- `bunx vitest run src/lib/import/essp/native/__tests__ src/lib/acceptance/__tests__/importedLightingAudit.test.ts src/lib/acceptance/__tests__/importedRgbAfterOpen.test.ts src/lib/acceptance/__tests__/esspProductionRoundTrip.test.ts src/lib/show/__tests__/integration/esspLightingExport.test.ts src/components/studio/__tests__/esspReferencePresentation.dom.test.tsx --maxWorkers=2`: 12 fișiere, 89 passed, 11,58 s.
+- `bunx vitest run --maxWorkers=2`: 164 fișiere, 1432 passed / 1 skipped, 131,27 s.
+- `bunx eslint src/lib/import/essp/native/spatialRgb.ts src/lib/import/essp/native/sceneEvidence.ts src/lib/import/essp/native/__tests__/spatialRgb.test.ts`: exit 0, 0 erori / avertismente.
+- `git diff --check` și `git diff 2a32f5d85b2c04913bfe550d615df4862c46dcd5 HEAD --check`: exit 0; diff final inspectat, numai cele 6 fișiere din acest increment. Arbore curat după salvarea automată.
+- Harness: ultimul semnal citit `build OK`, 2026-10-25T06:54:25Z. Typecheck și build manual nu sunt permise de harness; nu sunt declarate executate separat.
+
+Verificări intermediare au trecut și ele (downstream 87 înaintea ultimelor două regresii;
+prima suită completă 1430 passed / 1 skipped, 119,87 s). Logurile temporare sunt în `/tmp/essp-*.log`.
+Salvarea automată a produs commituri succesive, fără comenzi Git stateful; commitul documentației
+inițiale este `a9c0f7481a508ef31d4b9aa93d40458c1ef7d180`, iar această actualizare consemnează rezultatele finale.
+
+Limită: noile metrici sunt disponibile în dovezile scenei, nu încă afișate în panoul existent;
+UI nu s-a schimbat și nu s-a efectuat un test browser. Nu este reconstrucția completă a importului.
+Experimentalul rămâne oprit implicit; motoarele canonice, AGENTS.md și datele benchmark rămân intacte.
+Următorul pas: audit trasabil al intervalelor din arhiva benchmark originală, inclusiv cazuri low-fit
+și multi-grup; apoi prezentare diagnostică localizată a acoperirii/necunoscutelor. Nu transforma
+deriva aparentă într-o rețetă și nu activa importul pe baza acestor fit-uri.

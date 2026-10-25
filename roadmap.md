@@ -67,6 +67,15 @@ referință. Nu copiem datele sau formatul proprietar; extragem principii generi
          (inventarul inițial confirmă 100+ culori simultane și evoluție continuă). Următorul pas
          executabil: audit măsurat al direcției/vitezei gradientelor și al sincronizării RGB cu XYZ,
          apoi mapare la capabilități și criterii de acceptare; importul experimental rămâne oprit.
+   - [x] Etapă read-only RGB spațial (2026-10-25): fit XYZ/RGB pe ceasul original RGB,
+         coerență liniară, direcție/putere numai cu suport stabil, schimbare și derivă aparentă
+         condiționată; UNKNOWN pentru rețetă. 10 regresii sintetice. Salvarea reală: 150 drone,
+         23 bindinguri, 5.841 ticks, 598 ms total / 93 ms maximum, fără mutarea sursei/raportului.
+         Metrici disponibile în `lighting.spatial`, nu încă afișate; LED aprofundat rămâne deschis.
+         Final: 13 teste țintite, 89 downstream, 164 fișiere / 1432 passed / 1 skipped;
+         lint schimbări și diff-check curate; build automat OK. Typecheck/build manual neexecutate.
+   - [ ] Audit per interval pe arhiva benchmark originală și diagnoză low-fit/multi-grup;
+         apoi afișare localizată a metricilor și limitelor. Detalii/verificări finale în HANDOFF.md.
    - [x] Catalog inițial „pattern observat → capabilitate existentă → lipsă → criteriu de acceptare”
          în `docs/ESSP_SHOW_BENCHMARK.md`.
    - [x] Confirmarea planului comun de prezentare: majoritatea imaginilor au pitch/tilt ~14–15°,
