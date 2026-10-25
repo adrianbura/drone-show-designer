@@ -157,7 +157,9 @@ describe("A2 — near-identical groups per 5 s window", () => {
     expect(w.contestedDrones).toBeGreaterThan(0);
   });
   it("windows are independent of scene boundaries", async () => {
-    const s = await show((d, _x, _y, f) => (f < 60 ? [50, 50, 50] : d < 18 ? [255, 0, 0] : [0, 255, 0]));
+    const s = await show((d, _x, _y, f) =>
+      f < 60 ? [50, 50, 50] : d < 18 ? [255, 0, 0] : [0, 255, 0],
+    );
     const n = analyzeRgbNearGroups(s, b20);
     expect(n.windows[0]!.status).toBe("SINGLE_GROUP");
     expect(n.windows[1]!.groups.map((g) => g.support)).toEqual([18, 18]);

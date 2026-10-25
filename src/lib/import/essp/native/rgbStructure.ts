@@ -373,7 +373,12 @@ export function analyzeRgbNearGroups(
       status: "NO_GROUPS" | "SINGLE_GROUP" | "MULTIPLE_GROUPS" | "AMBIGUOUS";
       groupedFraction: number;
       contestedDrones: number;
-      groups: Array<{ support: number; droneIds: number[]; maxPairDistance: number; exact: boolean }>;
+      groups: Array<{
+        support: number;
+        droneIds: number[];
+        maxPairDistance: number;
+        exact: boolean;
+      }>;
     }>,
     truncated: false,
     meanGroupedFraction: null as number | null,
