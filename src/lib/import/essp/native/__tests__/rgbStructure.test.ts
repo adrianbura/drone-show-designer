@@ -129,7 +129,7 @@ describe("C — reconstruction vs exact source", () => {
 describe("A2 — near-identical groups per 5 s window", () => {
   it("groups ±1-byte noise that exact grouping rejects", async () => {
     const s = await show((d, _x, _y, f) => {
-      const j = (d * d * 31 + f * 17 + d) % 5 === 0 ? 1 : 0;
+      const j = (f + d) % 36 === 0 ? 1 : 0;
       return d < 18 ? [200 + j, 10, 10] : [10, 10, 200 - j];
     });
     expect(analyzeRgbGroups(s, b20).status).toBe("AMBIGUOUS");
