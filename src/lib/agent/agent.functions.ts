@@ -36,7 +36,16 @@ export const interpretAgentCommand = createServerFn({ method: "POST" })
     const { parseWithModel } = await import("./agent.server");
     const model = await parseWithModel(data.text);
     if (model.ok && model.ops.length > 0) {
-      return { source: "model", ops: model.ops, understood: true };
+      return {
+        source: "model",
+        ops: model.ops.map((o) => ({
+          kind: o.kind,
+          axis: o.axis,
+          degrees: o.degrees,
+          color: o.color ? [o.color[0]!, o.color[1]!, o.color[2]!] : null,
+        })),
+        understood: true,
+      };
     }
     return { source: model.ok ? "model" : "local", ops: [], understood: false };
   });

@@ -128,11 +128,11 @@ describe("applyAgentOp", () => {
     const rotated = r.project.dynamicFormations![0]!;
     const before = sampleDynamicFormation(dyn, 2);
     const after = sampleDynamicFormation(rotated, 2);
-    // Yaw 90° maps +X to -Z: x-extent becomes z-extent, distances preserved.
+    // Yaw 90° maps X into Z: the new z-extent equals the old x-extent.
     const span = (pts: readonly (readonly number[])[], i: number) =>
       Math.abs(pts[0]![i]! - pts[1]![i]!);
     expect(span(after, 2)).toBeCloseTo(span(before, 0), 6);
-    expect(span(after, 0)).toBeCloseTo(0, 6);
+    expect(span(after, 0)).toBeCloseTo(span(before, 2), 6);
     const d0 = Math.hypot(before[0]![0]! - before[1]![0]!, before[0]![2]! - before[1]![2]!);
     const d1 = Math.hypot(after[0]![0]! - after[1]![0]!, after[0]![2]! - after[1]![2]!);
     expect(d1).toBeCloseTo(d0, 6);
