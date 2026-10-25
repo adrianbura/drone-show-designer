@@ -36,7 +36,10 @@ function corr(a: number[], b: number[]): number | null {
   if (n < 3) return null;
   let ma = 0,
     mb = 0;
-  for (let i = 0; i < n; i++) ((ma += a[i]!), (mb += b[i]!));
+  for (let i = 0; i < n; i++) {
+    ma += a[i]!;
+    mb += b[i]!;
+  }
   ma /= n;
   mb /= n;
   let sab = 0,
@@ -208,7 +211,10 @@ export function analyzeRgbTemporal(show: ReferenceShow, binding: ReferenceClipBi
       bl = 0;
     for (let l = 0; l < lag; l++) {
       const r = corr(ref.slice(0, ref.length - l), series[k]!.slice(l)) ?? -2;
-      if (r > best) ((best = r), (bl = l));
+      if (r > best) {
+        best = r;
+        bl = l;
+      }
     }
     if (best < 0.8) continue;
     const p = rawPositionAt(drones[k]!, mid, show.timing.positionRateHz);
