@@ -65,6 +65,15 @@ const FAILURE_LABELS: Record<string, [string, string]> = {
     "Multi-object scenes are not supported by the agent yet.",
   ],
   INVALID_OP: ["Operația cerută nu este validă.", "The requested operation is not valid."],
+  DURATION_BELOW_ANIMATION: [
+    "Durata nu poate fi mai scurtă decât animația scenei.",
+    "The duration cannot be shorter than the scene's animation.",
+  ],
+  SCENE_NOT_FOUND: ["Nu am găsit scena cerută.", "I could not find the requested scene."],
+  SCENE_AMBIGUOUS: [
+    "Mai multe scene se potrivesc — spune numărul exact din cronologie.",
+    "Several scenes match — give the exact timeline number.",
+  ],
 };
 
 export default function AgentPanel({ onClose }: { onClose: () => void }) {
@@ -76,8 +85,14 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       ? s.replace(/\{(\w+)\}/g, (m, name: string) => (name in values ? String(values[name]) : m))
       : s;
   };
-  const { project, selectedClipId, applyAgentProject, undoTimeline, timelineHistoryDepth } =
-    useStudio();
+  const {
+    project,
+    selectedClipId,
+    selectClip,
+    applyAgentProject,
+    undoTimeline,
+    timelineHistoryDepth,
+  } = useStudio();
   const [entries, setEntries] = useState<ChatEntry[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
