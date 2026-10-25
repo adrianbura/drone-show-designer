@@ -314,8 +314,140 @@ export function evaluateRgbReconstruction(
 export function analyzeRgbStructure(show: ReferenceShow, binding: ReferenceClipBinding) {
   return {
     groups: analyzeRgbGroups(show, binding),
+    nearGroups: analyzeRgbNearGroups(show, binding),
     temporal: analyzeRgbTemporal(show, binding),
     reconstruction: evaluateRgbReconstruction(show, binding),
     recipe: "UNKNOWN" as const,
   };
+}
+
+/** Near-identical grouping: max per-channel byte difference, inclusive. */
+export const RGB_NEAR_TOLERANCE = 2;
+export const RGB_NEAR_WINDOW_SECONDS = 5;
+const MAX_NEAR_WINDOWS = 240;
+
+/** Max |Δ| over every tick and channel in [a,b); early-exits above `cap`. */
+function rgbDistance(p: ReferenceDrone, q: ReferenceDrone, a: number, b: number, cap: number) {
+  let m = 0;
+  const ps = p.rgbSamples,
+    qs = q.rgbSamples;
+  for (let i = a * 3; i < b * 3; i++) {
+    const d = Math.abs(ps[i]! - qs[i]!);
+    if (d > m) {
+      m = d;
+      if (m > cap) return m;
+    }
+  }
+  return m;
+}
+
+/**
+ * Near-identical simultaneous RGB groups per fixed 5 s window, independent of
+ * scene boundaries. Complete-link: every pair inside a group differs by at most
+ * `tolerance` bytes on every channel and tick of the window (no chaining).
+ * Deterministic greedy seeding by ascending source id. A grouped drone that is
+ * also complete-link compatible with another reported group is counted as
+ * contested (membership ambiguity) instead of being silently resolved.
+ */
+export function analyzeRgbNearGroups(
+  show: ReferenceShow,
+  binding: ReferenceClipBinding,
+  options: { tolerance?: number; windowSeconds?: number } = {},
+) {
+  const tol = options.tolerance ?? RGB_NEAR_TOLERANCE;
+  const winS = options.windowSeconds ?? RGB_NEAR_WINDOW_SECONDS;
+  const rate = show.timing.rgbRateHz;
+  const [a, b] = frameRange(show, binding.referenceStart, binding.referenceEnd);
+  const drones = show.drones
+    .filter((d) => d.rgbSampleCount >= b && b > a)
+    .sort((x, y) => x.numericSourceId - y.numericSourceId);
+  const step = Math.max(1, Math.round(winS * rate));
+  const empty = {
+    tolerance: tol,
+    windowSeconds: winS,
+    linkage: "COMPLETE" as const,
+    minSupport: MIN_GROUP,
+    windows: [] as Array<{
+      start: number;
+      end: number;
+      status: "NO_GROUPS" | "SINGLE_GROUP" | "MULTIPLE_GROUPS" | "AMBIGUOUS";
+      groupedFraction: number;
+      contestedDrones: number;
+      groups: Array<{ support: number; droneIds: number[]; maxPairDistance: number; exact: boolean }>;
+    }>,
+    truncated: false,
+    meanGroupedFraction: null as number | null,
+  };
+  if (!drones.length || b <= a || !(rate > 0)) return empty;
+  let truncated = false;
+  for (let w0 = a; w0 < b; w0 += step) {
+    if (empty.windows.length >= MAX_NEAR_WINDOWS) {
+      truncated = true;
+      break;
+    }
+    const w1 = Math.min(b, w0 + step);
+    const used = new Uint8Array(drones.length);
+    const groups: Array<{ members: number[]; maxPair: number }> = [];
+    for (let s = 0; s < drones.length; s++) {
+      if (used[s]) continue;
+      const members = [s];
+      let maxPair = 0;
+      for (let c = s + 1; c < drones.length; c++) {
+        if (used[c]) continue;
+        let worst = 0;
+        for (const m of members) {
+          const d = rgbDistance(drones[c]!, drones[m]!, w0, w1, tol);
+          if (d > worst) worst = d;
+          if (worst > tol) break;
+        }
+        if (worst <= tol) {
+          members.push(c);
+          if (worst > maxPair) maxPair = worst;
+        }
+      }
+      if (members.length >= MIN_GROUP) {
+        for (const m of members) used[m] = 1;
+        groups.push({ members, maxPair });
+      }
+    }
+    let contested = 0;
+    groups.forEach((g, gi) => {
+      for (const m of g.members) {
+        const other = groups.some(
+          (h, hi) =>
+            hi !== gi &&
+            h.members.every((x) => rgbDistance(drones[m]!, drones[x]!, w0, w1, tol) <= tol),
+        );
+        if (other) contested++;
+      }
+    });
+    const grouped = groups.reduce((n, g) => n + g.members.length, 0);
+    const groupedFraction = grouped / drones.length;
+    empty.windows.push({
+      start: w0 / rate,
+      end: w1 / rate,
+      status:
+        groups.length === 0
+          ? "NO_GROUPS"
+          : groupedFraction < 0.5 || contested > 0
+            ? "AMBIGUOUS"
+            : groups.length === 1
+              ? "SINGLE_GROUP"
+              : "MULTIPLE_GROUPS",
+      groupedFraction,
+      contestedDrones: contested,
+      groups: groups
+        .map((g) => ({
+          support: g.members.length,
+          droneIds: g.members.map((m) => drones[m]!.numericSourceId),
+          maxPairDistance: g.maxPair,
+          exact: g.maxPair === 0,
+        }))
+        .sort((x, y) => y.support - x.support || x.droneIds[0]! - y.droneIds[0]!),
+    });
+  }
+  empty.truncated = truncated;
+  empty.meanGroupedFraction =
+    empty.windows.reduce((n, w) => n + w.groupedFraction, 0) / empty.windows.length;
+  return empty;
 }
