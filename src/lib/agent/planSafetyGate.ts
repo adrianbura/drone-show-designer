@@ -41,6 +41,19 @@ export function checkAgentPlan(
   if (!Array.isArray(operations) || operations.length === 0 || operations.length > maxOperations) {
     return { ok: false, reason: "Invalid operation count" };
   }
+  // Never let duplicate or malformed registry entries silently override permissions.
+  if (new Set(capabilities.map((capability) => capability.id)).size !== capabilities.length) {
+    return { ok: false, reason: "Duplicate capability identifier" };
+  }
+  for (const capability of capabilities) {
+    for (const [arg, bounds] of Object.entries(capability.numericBounds ?? {})) {
+      if (capability.arguments[arg] !== "number" ||
+          !Number.isFinite(bounds.min) || !Number.isFinite(bounds.max) ||
+          bounds.min > bounds.max) {
+        return { ok: false, reason: "Invalid capability numeric bounds" };
+      }
+    }
+  }
   const registry = new Map(capabilities.map((capability) => [capability.id, capability]));
   const checked: AgentOperation[] = [];
   // A multi-step preview must be fully reversible or handled by a separate workflow.
