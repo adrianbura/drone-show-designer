@@ -16,7 +16,7 @@ import type { ModelOp } from "./agent.server";
 export interface AgentInterpretation {
   source: "model" | "local";
   ops: {
-    kind: "ROTATE_SCENE" | "RECOLOR_SCENE" | "SET_DURATION" | "SELECT_SCENE";
+    kind: "ROTATE_SCENE" | "RECOLOR_SCENE" | "SET_DURATION" | "SELECT_SCENE" | "MOVE_SCENE" | "SCALE_SCENE";
     axis: "X" | "Y" | "Z" | null;
     degrees: number | null;
     color: [number, number, number] | null;
@@ -24,6 +24,8 @@ export interface AgentInterpretation {
     deltaSeconds: number | null;
     sceneIndex: number | null;
     sceneName: string | null;
+    offset: [number, number, number] | null;
+    factor: number | null;
   }[];
   understood: boolean;
   /** Model-supplied clarification for ambiguous/unsupported requests. */
@@ -136,6 +138,17 @@ export function gateModelOps(
       plan.push({ tool: "set_scene_duration", args: { seconds } });
       continue;
     }
+    if (op.kind === "MOVE_SCENE") {
+      if (!op.offset) return { ok: false, reason: "Malformed move: an [x,y,z] offset is required." };
+      const [x, y, z] = op.offset;
+      plan.push({ tool: "move_scene", args: { x, y, z } });
+      continue;
+    }
+    if (op.kind === "SCALE_SCENE") {
+      if (op.factor === null) return { ok: false, reason: "Malformed scale: a factor is required." };
+      plan.push({ tool: "scale_scene", args: { factor: op.factor } });
+      continue;
+    }
     return { ok: false, reason: `Unsupported operation kind: ${String(op.kind)}` };
   }
   // A selection-only plan has no mutations to gate.
@@ -165,7 +178,7 @@ export function gateModelOps(
 }
 
 function toWire(op: {
-  kind: "ROTATE_SCENE" | "RECOLOR_SCENE" | "SET_DURATION" | "SELECT_SCENE";
+  kind: "ROTATE_SCENE" | "RECOLOR_SCENE" | "SET_DURATION" | "SELECT_SCENE" | "MOVE_SCENE" | "SCALE_SCENE";
   axis?: "X" | "Y" | "Z" | null;
   degrees?: number | null;
   color?: readonly number[] | null;
@@ -173,6 +186,8 @@ function toWire(op: {
   deltaSeconds?: number | null;
   sceneIndex?: number | null;
   sceneName?: string | null;
+  offset?: readonly number[] | null;
+  factor?: number | null;
 }): AgentInterpretation["ops"][number] {
   return {
     kind: op.kind,
@@ -183,5 +198,7 @@ function toWire(op: {
     deltaSeconds: op.deltaSeconds ?? null,
     sceneIndex: op.sceneIndex ?? null,
     sceneName: op.sceneName ?? null,
+    offset: op.offset ? [op.offset[0]!, op.offset[1]!, op.offset[2]!] : null,
+    factor: op.factor ?? null,
   };
 }

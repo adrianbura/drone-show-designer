@@ -17,9 +17,9 @@ export type AgentCapabilityKind =
   | "RECOLOR_SCENE"
   | "SET_DURATION"
   | "SELECT_SCENE"
-  // --- Roadmap: declared, refused, never executed. ---
-  | "SCALE_SCENE"
   | "MOVE_SCENE"
+  | "SCALE_SCENE"
+  // --- Roadmap: declared, refused, never executed. ---
   | "EDIT_TRANSITION"
   | "EDIT_LIGHTING"
   | "INSERT_LIBRARY_SCENE"
@@ -98,29 +98,35 @@ export const AGENT_CAPABILITIES: readonly AgentCapability[] = [
       { ro: "selectează inima", en: "select the heart" },
     ],
   },
-  // --- Roadmap below: known, refused with an honest message, never faked. ---
-  {
-    kind: "SCALE_SCENE",
-    status: "unsupported",
-    name: { ro: "Scalare scenă", en: "Scale scene" },
-    description: {
-      ro: "Mărirea/micșorarea scenei — necesită revalidarea separării minime între drone.",
-      en: "Growing/shrinking a scene — needs minimum-separation revalidation.",
-    },
-    safety: { preview: false, validator: false, undo: false },
-    examples: [],
-  },
   {
     kind: "MOVE_SCENE",
-    status: "unsupported",
+    status: "supported",
     name: { ro: "Mutare scenă", en: "Move scene" },
     description: {
-      ro: "Mutarea scenei în alt loc din spațiul de zbor.",
-      en: "Relocating a scene inside the flight area.",
+      ro: "Mută rigid scena (inclusiv traiectoriile animate) cu un număr de metri; max 200 m pe axă.",
+      en: "Rigidly moves the scene (including animated trajectories) by metres; max 200 m per axis.",
     },
-    safety: { preview: false, validator: false, undo: false },
-    examples: [],
+    safety: { preview: true, validator: true, undo: true },
+    examples: [
+      { ro: "mută scena 10 metri în sus", en: "move the scene 10 metres up" },
+      { ro: "mută scena 5 m spre public", en: "move the scene 5 m toward the audience" },
+    ],
   },
+  {
+    kind: "SCALE_SCENE",
+    status: "supported",
+    name: { ro: "Scalare scenă", en: "Scale scene" },
+    description: {
+      ro: "Mărește/micșorează uniform scena în jurul centrului (×0,5–×2); refuză dacă dronele ajung sub separarea minimă.",
+      en: "Uniformly grows/shrinks the scene about its centre (×0.5–×2); refused if drones fall below minimum separation.",
+    },
+    safety: { preview: true, validator: true, undo: true },
+    examples: [
+      { ro: "mărește scena de 1,5 ori", en: "scale the scene up 1.5 times" },
+      { ro: "micșorează scena cu 20%", en: "shrink the scene by 20%" },
+    ],
+  },
+  // --- Roadmap below: known, refused with an honest message, never faked. ---
   {
     kind: "EDIT_TRANSITION",
     status: "unsupported",
@@ -192,6 +198,10 @@ export function capabilityInstructions(): string {
         return "- SET_DURATION: holdSeconds for an absolute hold time, or deltaSeconds to extend/shorten relative to the current hold. Exactly one of the two.";
       case "SELECT_SCENE":
         return "- SELECT_SCENE: sceneIndex (1-based position in the timeline) or sceneName (name fragment). Exactly one of the two.";
+      case "MOVE_SCENE":
+        return "- MOVE_SCENE: offset [x,y,z] in metres, each |v| <= 200. Audience view: right = +x, left = -x, up = +y, down = -y, toward the audience/closer = -z, away/farther = +z.";
+      case "SCALE_SCENE":
+        return "- SCALE_SCENE: factor between 0.5 and 2 (\"twice as big\" = 2, \"20% smaller\" = 0.8).";
       default:
         return "";
     }
@@ -231,6 +241,22 @@ export function toRuntimeCapabilities(): GateCapability[] {
       requiresPreview: true,
       reversible: true,
       arguments: { seconds: "number" },
+    },
+    {
+      id: "move_scene",
+      enabled: true,
+      requiresSelection: true,
+      requiresPreview: true,
+      reversible: true,
+      arguments: { x: "number", y: "number", z: "number" },
+    },
+    {
+      id: "scale_scene",
+      enabled: true,
+      requiresSelection: true,
+      requiresPreview: true,
+      reversible: true,
+      arguments: { factor: "number" },
     },
   ];
 }
