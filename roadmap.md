@@ -265,4 +265,16 @@ această rulare.
 - [x] Revizuire PR #6 (ChatGPT): `planSafetyGate.ts` fail-closed, 25 teste — calitate bună, integrat server-side pe calea modelului.
 - [x] Bug regex control-chars găsit și corectat local; recomandare de revizuire pentru branch-ul ChatGPT consemnată în HANDOFF.
 - [x] Normalizare plic plan (rgb→hex, durate relative→absolute prin context client), registry runtime din `capabilities.ts`, 8 teste de integrare, suita completă verde.
-- [ ] Următor: reconciliere git main ↔ preview Lovable (platforma face commit; branch-ul ChatGPT rămîne al lui), extindere capabilități (scalare/mutare/tranziții), verificare browser a refuzului prin poartă pe comandă reală de model.
+- [ ] Următor: reconciliere git main ↔ preview Lovable (platforma face commit; branch-ul ChatGPT rămîne al lui), extindere capabilități (~~scalare/mutare~~ livrate în 19; tranziții rămân), verificare browser a refuzului prin poartă pe comandă reală de model.
+
+## 19. AI AGENT — MOVE_SCENE + SCALE_SCENE + PR #6 reversibilitate (2026-11-10, Lovable)
+- [x] MOVE_SCENE: offset [x,y,z] m (perspectiva publicului: dreapta +X, sus +Y, spre public −Z), max 200 m/axă; static = punctele, dinamic = pista globală (fiecare tick, exact); RGB înregistrat neatins.
+- [x] SCALE_SCENE: factor uniform ×0,5–×2 în jurul centroidului; refuz SEPARATION_TOO_SMALL la micșorare sub `limits.minSeparation`; preview arată separarea înainte/după.
+- [x] Parser RO/EN, schemă model, registru runtime (`move_scene`, `scale_scene`), panou preview/Apply/Undo, etichete EN/RO de refuz.
+- [x] PR #6 commit 6ab742cd (plan multi-pas cu operație ireversibilă refuzat) integrat; revizie: verificarea mutată DUPĂ validarea per-operație ca operațiile necunoscute să-și păstreze indexul (altfel testul PR „refuses partial plans" pică).
+- [x] Teste: 74/74 agent; suita completă 1543/1 sărit (cu `--maxWorkers=4 --testTimeout=30000`; cu paralelism implicit 18 teste de UI expiră la 5 s — preexistent, sarcină CPU).
+- [x] Browser pe ESSP real: mutare +10 m (preview + Apply + Undo), scalare ×1,02 (preview + Apply + Undo), refuzuri reale corecte, model „push the formation higher by fifteen metres" → preview MODEL +15 m.
+- [ ] Validatorul refuză orice operație pe o scenă deja invalidă (ex. scena 11 ESSP sub altitudinea minimă 2 m) — de decis regula „nu agrava".
+- [ ] Show-ul ESSP importat are separare reală 2,39 m < minim proiect 2,5 m → orice micșorare refuzată; de decis dacă limita proiectului importat trebuie derivată din sursă.
+- [ ] Apply/Undo durează 25–50 s în browserul headless din sandbox (și la rotire, preexistent) — de măsurat pe hardware real.
+- [ ] Următor: EDIT_TRANSITION, INSERT_LIBRARY_SCENE, EDIT_LIGHTING.

@@ -12,6 +12,8 @@ function op(partial: Partial<ModelOp> & { kind: ModelOp["kind"] }): ModelOp {
     deltaSeconds: null,
     sceneIndex: null,
     sceneName: null,
+    offset: null,
+    factor: null,
     ...partial,
   };
 }

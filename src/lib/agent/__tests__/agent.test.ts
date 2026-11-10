@@ -227,12 +227,19 @@ describe("capabilities registry", () => {
     const { AGENT_CAPABILITIES, SUPPORTED_CAPABILITIES, capabilityInstructions } =
       await import("../capabilities");
     const supported = SUPPORTED_CAPABILITIES.map((c) => c.kind).sort();
-    expect(supported).toEqual(["RECOLOR_SCENE", "ROTATE_SCENE", "SELECT_SCENE", "SET_DURATION"]);
+    expect(supported).toEqual([
+      "MOVE_SCENE",
+      "RECOLOR_SCENE",
+      "ROTATE_SCENE",
+      "SCALE_SCENE",
+      "SELECT_SCENE",
+      "SET_DURATION",
+    ]);
     // Roadmap items exist and are honestly marked unsupported.
     const unsupported = AGENT_CAPABILITIES.filter((c) => c.status === "unsupported").map(
       (c) => c.kind,
     );
-    expect(unsupported).toContain("SCALE_SCENE");
+    expect(unsupported).toContain("EDIT_TRANSITION");
     expect(unsupported).toContain("CHANGE_DRONE_COUNT");
     // Model instructions mention only supported kinds.
     const instructions = capabilityInstructions();

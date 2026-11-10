@@ -25,7 +25,14 @@ const MODEL = "openai/gpt-6-astra";
 const opSchema = z.object({
   ops: z.array(
     z.object({
-      kind: z.enum(["ROTATE_SCENE", "RECOLOR_SCENE", "SET_DURATION", "SELECT_SCENE"]),
+      kind: z.enum([
+        "ROTATE_SCENE",
+        "RECOLOR_SCENE",
+        "SET_DURATION",
+        "SELECT_SCENE",
+        "MOVE_SCENE",
+        "SCALE_SCENE",
+      ]),
       axis: z.enum(["X", "Y", "Z"]).nullable(),
       degrees: z.number().nullable(),
       color: z.array(z.number()).length(3).nullable(),
@@ -33,6 +40,8 @@ const opSchema = z.object({
       deltaSeconds: z.number().nullable(),
       sceneIndex: z.number().nullable(),
       sceneName: z.string().nullable(),
+      offset: z.array(z.number()).length(3).nullable(),
+      factor: z.number().nullable(),
     }),
   ),
   /** Set when the request is ambiguous or asks for something unsupported. */
@@ -50,7 +59,7 @@ ${capabilityInstructions()}
 Rules:
 - Return ONLY operations the request clearly asks for. Unused fields must be null.
 - If the request is ambiguous, return the ops you are sure about and explain the ambiguity in "clarification" (in the user's language).
-- If the request asks for an unsupported action (scaling, moving, transitions, lighting effects, library insert, drone count), return an empty ops array and say in "clarification" that the action is not supported yet.
+- If the request asks for an unsupported action (transitions, lighting effects, library insert, drone count), return an empty ops array and say in "clarification" that the action is not supported yet.
 - If nothing is clear, return an empty ops array and a short "clarification" asking what to change.`;
 
 export async function parseWithModel(text: string): Promise<ModelParseResult> {

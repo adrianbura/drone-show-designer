@@ -80,6 +80,12 @@ export function checkAgentPlan(
     }
     checked.push({ tool: operation["tool"], args: { ...operation["args"] } });
   }
+  // PR #6 (6ab742cd): a multi-step preview must be fully reversible or handled
+  // by a separate workflow. Checked AFTER per-operation validation (Lovable
+  // revision) so unknown/malformed operations still report their exact index.
+  if (checked.length > 1 && checked.some((op) => registry.get(op.tool)?.reversible !== true)) {
+    return { ok: false, reason: "Multi-step plan contains irreversible operation" };
+  }
   return {
     ok: true,
     operations: checked,

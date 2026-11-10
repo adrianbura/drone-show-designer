@@ -78,6 +78,18 @@ const FAILURE_LABELS: Record<string, [string, string]> = {
     "The duration cannot be shorter than the scene's animation.",
   ],
   SCENE_NOT_FOUND: ["Nu am găsit scena cerută.", "I could not find the requested scene."],
+  SCALE_OUT_OF_RANGE: [
+    "Scalarea este permisă doar între ×0,5 și ×2.",
+    "Scaling is only allowed between ×0.5 and ×2.",
+  ],
+  MOVE_OUT_OF_RANGE: [
+    "Mutarea este limitată la 200 m pe fiecare axă.",
+    "Moving is limited to 200 m per axis.",
+  ],
+  SEPARATION_TOO_SMALL: [
+    "Micșorarea ar aduce dronele sub separarea minimă a proiectului.",
+    "Shrinking would bring drones below the project's minimum separation.",
+  ],
   SCENE_AMBIGUOUS: [
     "Mai multe scene se potrivesc — spune numărul exact din cronologie.",
     "Several scenes match — give the exact timeline number.",
@@ -193,6 +205,12 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
                   ...(o.holdSeconds !== null ? { holdSeconds: o.holdSeconds } : {}),
                   ...(o.deltaSeconds !== null ? { deltaSeconds: o.deltaSeconds } : {}),
                 };
+              }
+              if (o.kind === "MOVE_SCENE" && o.offset) {
+                return { kind: "MOVE_SCENE", offset: o.offset };
+              }
+              if (o.kind === "SCALE_SCENE" && o.factor !== null) {
+                return { kind: "SCALE_SCENE", factor: o.factor };
               }
               if (o.kind === "SELECT_SCENE" && (o.sceneIndex !== null || o.sceneName)) {
                 return {
@@ -410,6 +428,38 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
                           ` · ${t("{n} scene următoare decalează", "{n} following scenes shift", {
                             n: s.followersShifted ?? 0,
                           })}`}
+                      </>
+                    ) : s.kind === "MOVE_SCENE" ? (
+                      <>
+                        {t("Mutare scenă", "Scene move")} ·{" "}
+                        {t("x {x} m, y {y} m, z {z} m", "x {x} m, y {y} m, z {z} m", {
+                          x: (s.offset?.[0] ?? 0).toFixed(1),
+                          y: (s.offset?.[1] ?? 0).toFixed(1),
+                          z: (s.offset?.[2] ?? 0).toFixed(1),
+                        })}{" "}
+                        ·{" "}
+                        {t("altitudine {a}–{b} m → {c}–{d} m", "altitude {a}–{b} m → {c}–{d} m", {
+                          a: s.altitudeBefore[0].toFixed(1),
+                          b: s.altitudeBefore[1].toFixed(1),
+                          c: s.altitudeAfter[0].toFixed(1),
+                          d: s.altitudeAfter[1].toFixed(1),
+                        })}
+                      </>
+                    ) : s.kind === "SCALE_SCENE" ? (
+                      <>
+                        {t("Scalare scenă ×{k}", "Scene scale ×{k}", {
+                          k: (s.scaleFactor ?? 1).toFixed(2),
+                        })}{" "}
+                        ·{" "}
+                        {t("separare minimă {a} m → {b} m", "minimum separation {a} m → {b} m", {
+                          a: (s.separationBefore ?? 0).toFixed(2),
+                          b: (s.separationAfter ?? 0).toFixed(2),
+                        })}{" "}
+                        ·{" "}
+                        {t("altitudine {c}–{d} m", "altitude {c}–{d} m", {
+                          c: s.altitudeAfter[0].toFixed(1),
+                          d: s.altitudeAfter[1].toFixed(1),
+                        })}
                       </>
                     ) : s.kind === "ROTATE_SCENE" ? (
                       <>
