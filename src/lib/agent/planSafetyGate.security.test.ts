@@ -62,6 +62,17 @@ describe("AI plan security regression", () => {
     });
   });
 
+  it("rejects values beyond tool-specific numeric limits", () => {
+    const bounded: AgentCapability[] = [
+      { ...registry[0], numericBounds: { degrees: { min: -360, max: 360 } } },
+      registry[1],
+    ];
+    expect(checkAgentPlan({ operations: [{ tool: "rotate", args: { degrees: 9999 } }] }, bounded, "scene-1")).toMatchObject({
+      ok: false, reason: "Argument outside allowed range",
+    });
+    expect(checkAgentPlan({ operations: [{ tool: "rotate", args: { degrees: -20 } }] }, bounded, "scene-1")).toMatchObject({ ok: true });
+  });
+
   it("refuses selection-dependent commands without scene context", () => {
     expect(checkAgentPlan({ operations: [{ tool: "rotate", args: { degrees: 10 } }] }, registry, null).ok).toBe(false);
   });
