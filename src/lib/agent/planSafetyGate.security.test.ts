@@ -48,6 +48,20 @@ describe("AI plan security regression", () => {
   it("rejects a real newline control character", () => {
     expect(checkAgentPlan({ operations: [{ tool: "recolor", args: { color: "gold" + String.fromCharCode(10) + "unsafe" } }] }, registry, "scene-1").ok).toBe(false);
   });
+  it("rejects a multi-step plan containing an irreversible action", () => {
+    const withIrreversible: AgentCapability[] = [
+      ...registry,
+      { id: "publish", enabled: true, requiresSelection: false, requiresPreview: true, reversible: false, arguments: {} },
+    ];
+    expect(checkAgentPlan({ operations: [
+      { tool: "rotate", args: { degrees: 10 } },
+      { tool: "publish", args: {} },
+    ] }, withIrreversible, "scene-1")).toMatchObject({
+      ok: false,
+      reason: "Multi-step plan contains irreversible operation",
+    });
+  });
+
   it("refuses selection-dependent commands without scene context", () => {
     expect(checkAgentPlan({ operations: [{ tool: "rotate", args: { degrees: 10 } }] }, registry, null).ok).toBe(false);
   });
