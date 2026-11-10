@@ -85,8 +85,10 @@ function dyn(): DynamicFormation {
     sampledColors: {
       source: "ESSP_EXACT",
       rateHz: 12,
+      frameCount: 2,
+      sourceStartFrame: 0,
       byPoint: { A: [255, 0, 0, 128, 0, 0], B: [0, 255, 0, 0, 10, 0], C: [1, 2, 3, 4, 5, 6] },
-    } as DynamicFormation["sampledColors"],
+    },
   };
 }
 
@@ -133,7 +135,10 @@ describe("MOVE_SCENE", () => {
 
   it("moves every tick of a dynamic trajectory rigidly and keeps exact RGB", () => {
     const d = dyn();
-    const p = project({ dynamicFormations: [d], timeline: [clip("c1", { dynamicFormationId: "d1" })] });
+    const p = project({
+      dynamicFormations: [d],
+      timeline: [clip("c1", { dynamicFormationId: "d1" })],
+    });
     const r = applyAgentOp(p, "c1", { kind: "MOVE_SCENE", offset: [1, 5, 2] });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -179,7 +184,10 @@ describe("SCALE_SCENE", () => {
 
   it("scales every tick of a dynamic trajectory about the centroid exactly", () => {
     const d = dyn();
-    const p = project({ dynamicFormations: [d], timeline: [clip("c1", { dynamicFormationId: "d1" })] });
+    const p = project({
+      dynamicFormations: [d],
+      timeline: [clip("c1", { dynamicFormationId: "d1" })],
+    });
     const k = 1.5;
     const r = applyAgentOp(p, "c1", { kind: "SCALE_SCENE", factor: k });
     expect(r.ok).toBe(true);
@@ -229,7 +237,9 @@ describe("SCALE_SCENE", () => {
     const r = applyAgentOp(p, "c1", { kind: "SCALE_SCENE", factor: 1.5 });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.project.formations.find((f) => f.id === "f1")!.points).toEqual(p.formations[0]!.points);
+    expect(r.project.formations.find((f) => f.id === "f1")!.points).toEqual(
+      p.formations[0]!.points,
+    );
     expect(r.project.timeline.find((c) => c.id === "c1")!.formationId).not.toBe("f1");
   });
 });
@@ -257,7 +267,9 @@ describe("model plan gate — move/scale", () => {
     );
     expect(ok.ok && ok.ops.map((o) => o.kind)).toEqual(["MOVE_SCENE", "SCALE_SCENE"]);
     expect(gateModelOps([{ ...base, kind: "MOVE_SCENE" }], "c1", null).ok).toBe(false);
-    expect(gateModelOps([{ ...base, kind: "SCALE_SCENE", factor: NaN }], "c1", null).ok).toBe(false);
+    expect(gateModelOps([{ ...base, kind: "SCALE_SCENE", factor: NaN }], "c1", null).ok).toBe(
+      false,
+    );
     expect(gateModelOps([{ ...base, kind: "SCALE_SCENE", factor: 2 }], null, null).ok).toBe(false);
   });
 });

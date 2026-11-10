@@ -203,12 +203,15 @@ const WORD_FACTORS: [RegExp, number][] = [
 function parseScale(text: string): AgentOp | null {
   const t = text.toLowerCase();
   if (SECONDS_RE.test(t)) return null; // "mărește durata cu 5 secunde" is a duration.
-  const grow = /m[ăa]re[șs]te|m[ăa]rire|enlarge|bigger|larger|scale up|grow|scaleaz[ăa]|\bscale\b/.test(t);
+  const grow =
+    /m[ăa]re[șs]te|m[ăa]rire|enlarge|bigger|larger|scale up|grow|scaleaz[ăa]|\bscale\b/.test(t);
   const shrink = /mic[șs]oreaz|mic[șs]orare|shrink|smaller|scale down|reduce/.test(t);
   if (!grow && !shrink) return null;
   let factor: number | null = null;
   const pct = /(\d+(?:[.,]\d+)?)\s*%/.exec(t);
-  const times = /(?:de\s+)?(\d+(?:[.,]\d+)?)\s*(?:ori|times|x\b|×)|[x×]\s*(\d+(?:[.,]\d+)?)/.exec(t);
+  const times = /(?:de\s+)?(\d+(?:[.,]\d+)?)\s*(?:ori|times|x\b|×)|[x×]\s*(\d+(?:[.,]\d+)?)/.exec(
+    t,
+  );
   if (pct) {
     const p = Number(pct[1]!.replace(",", ".")) / 100;
     factor = shrink ? 1 - p : 1 + p;
@@ -244,7 +247,8 @@ export function parseAgentCommand(input: string): ParseResult {
   const scale = parseScale(text);
   // A move/scale sentence says "înainte"/"forward" as a DIRECTION, not a lean;
   // rotations are only read from it when a rotation verb is explicit.
-  const explicitRotation = /[îi]nclin|tilt|rote[șs]|rotire|rotate|turn|[îi]ntoarce|apleac|lean/i.test(text);
+  const explicitRotation =
+    /[îi]nclin|tilt|rote[șs]|rotire|rotate|turn|[îi]ntoarce|apleac|lean/i.test(text);
   if (!(move || scale) || explicitRotation) {
     for (const r of parseRotations(text)) {
       ops.push({ kind: "ROTATE_SCENE", axis: r.axis, degrees: r.degrees });

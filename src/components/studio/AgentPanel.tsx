@@ -451,14 +451,10 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
                           k: (s.scaleFactor ?? 1).toFixed(2),
                         })}{" "}
                         ·{" "}
-                        {t(
-                          "separare minimă {a} m → {b} m",
-                          "minimum separation {a} m → {b} m",
-                          {
-                            a: (s.separationBefore ?? 0).toFixed(2),
-                            b: (s.separationAfter ?? 0).toFixed(2),
-                          },
-                        )}{" "}
+                        {t("separare minimă {a} m → {b} m", "minimum separation {a} m → {b} m", {
+                          a: (s.separationBefore ?? 0).toFixed(2),
+                          b: (s.separationAfter ?? 0).toFixed(2),
+                        })}{" "}
                         ·{" "}
                         {t("altitudine {c}–{d} m", "altitude {c}–{d} m", {
                           c: s.altitudeAfter[0].toFixed(1),

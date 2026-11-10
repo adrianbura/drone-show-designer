@@ -30,12 +30,7 @@ import { MIN_HOLD } from "../studio/timelineEdit";
 import type { RGB, ShowProject, TimelineClip, Vector3Tuple } from "../show/types";
 
 export type AgentOpKind =
-  | "ROTATE_SCENE"
-  | "RECOLOR_SCENE"
-  | "SET_DURATION"
-  | "SELECT_SCENE"
-  | "MOVE_SCENE"
-  | "SCALE_SCENE";
+  "ROTATE_SCENE" | "RECOLOR_SCENE" | "SET_DURATION" | "SELECT_SCENE" | "MOVE_SCENE" | "SCALE_SCENE";
 
 export interface MoveSceneOp {
   kind: "MOVE_SCENE";
@@ -82,12 +77,7 @@ export interface SelectSceneOp {
 }
 
 export type AgentOp =
-  | RotateSceneOp
-  | RecolorSceneOp
-  | SetDurationOp
-  | SelectSceneOp
-  | MoveSceneOp
-  | ScaleSceneOp;
+  RotateSceneOp | RecolorSceneOp | SetDurationOp | SelectSceneOp | MoveSceneOp | ScaleSceneOp;
 
 export type AgentOpFailure =
   | "NO_CLIP_SELECTED"
@@ -609,18 +599,20 @@ function applyAffine(
 
 function applyMove(project: ShowProject, resolved: ResolvedClip, op: MoveSceneOp): AgentOpResult {
   const o = op.offset;
-  if (!Array.isArray(o) || o.length !== 3 || !o.every((v) => Number.isFinite(v))) {
+  if (o?.length !== 3 || !o.every((v) => Number.isFinite(v))) {
     return { ok: false, reason: "INVALID_OP" };
   }
   if (o.every((v) => v === 0)) return { ok: false, reason: "INVALID_OP" };
-  if (o.some((v) => Math.abs(v) > MOVE_MAX_METRES)) return { ok: false, reason: "MOVE_OUT_OF_RANGE" };
+  if (o.some((v) => Math.abs(v) > MOVE_MAX_METRES))
+    return { ok: false, reason: "MOVE_OUT_OF_RANGE" };
   return applyAffine(project, resolved, "MOVE_SCENE", 1, [o[0], o[1], o[2]]);
 }
 
 function applyScale(project: ShowProject, resolved: ResolvedClip, op: ScaleSceneOp): AgentOpResult {
   const k = op.factor;
   if (!Number.isFinite(k) || k <= 0 || k === 1) return { ok: false, reason: "INVALID_OP" };
-  if (k < SCALE_MIN - 1e-9 || k > SCALE_MAX + 1e-9) return { ok: false, reason: "SCALE_OUT_OF_RANGE" };
+  if (k < SCALE_MIN - 1e-9 || k > SCALE_MAX + 1e-9)
+    return { ok: false, reason: "SCALE_OUT_OF_RANGE" };
   return applyAffine(project, resolved, "SCALE_SCENE", k, [0, 0, 0]);
 }
 

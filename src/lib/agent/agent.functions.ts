@@ -16,7 +16,13 @@ import type { ModelOp } from "./agent.server";
 export interface AgentInterpretation {
   source: "model" | "local";
   ops: {
-    kind: "ROTATE_SCENE" | "RECOLOR_SCENE" | "SET_DURATION" | "SELECT_SCENE" | "MOVE_SCENE" | "SCALE_SCENE";
+    kind:
+      | "ROTATE_SCENE"
+      | "RECOLOR_SCENE"
+      | "SET_DURATION"
+      | "SELECT_SCENE"
+      | "MOVE_SCENE"
+      | "SCALE_SCENE";
     axis: "X" | "Y" | "Z" | null;
     degrees: number | null;
     color: [number, number, number] | null;
@@ -139,13 +145,15 @@ export function gateModelOps(
       continue;
     }
     if (op.kind === "MOVE_SCENE") {
-      if (!op.offset) return { ok: false, reason: "Malformed move: an [x,y,z] offset is required." };
+      if (!op.offset)
+        return { ok: false, reason: "Malformed move: an [x,y,z] offset is required." };
       const [x, y, z] = op.offset;
       plan.push({ tool: "move_scene", args: { x, y, z } });
       continue;
     }
     if (op.kind === "SCALE_SCENE") {
-      if (op.factor === null) return { ok: false, reason: "Malformed scale: a factor is required." };
+      if (op.factor === null)
+        return { ok: false, reason: "Malformed scale: a factor is required." };
       plan.push({ tool: "scale_scene", args: { factor: op.factor } });
       continue;
     }
@@ -178,7 +186,13 @@ export function gateModelOps(
 }
 
 function toWire(op: {
-  kind: "ROTATE_SCENE" | "RECOLOR_SCENE" | "SET_DURATION" | "SELECT_SCENE" | "MOVE_SCENE" | "SCALE_SCENE";
+  kind:
+    | "ROTATE_SCENE"
+    | "RECOLOR_SCENE"
+    | "SET_DURATION"
+    | "SELECT_SCENE"
+    | "MOVE_SCENE"
+    | "SCALE_SCENE";
   axis?: "X" | "Y" | "Z" | null;
   degrees?: number | null;
   color?: readonly number[] | null;

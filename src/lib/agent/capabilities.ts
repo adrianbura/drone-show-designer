@@ -201,7 +201,7 @@ export function capabilityInstructions(): string {
       case "MOVE_SCENE":
         return "- MOVE_SCENE: offset [x,y,z] in metres, each |v| <= 200. Audience view: right = +x, left = -x, up = +y, down = -y, toward the audience/closer = -z, away/farther = +z.";
       case "SCALE_SCENE":
-        return "- SCALE_SCENE: factor between 0.5 and 2 (\"twice as big\" = 2, \"20% smaller\" = 0.8).";
+        return '- SCALE_SCENE: factor between 0.5 and 2 ("twice as big" = 2, "20% smaller" = 0.8).';
       default:
         return "";
     }
