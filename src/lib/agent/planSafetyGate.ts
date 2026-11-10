@@ -9,6 +9,7 @@ export type AgentCapability = {
   requiresPreview: boolean;
   reversible: boolean;
   arguments: Record<string, "string" | "number" | "boolean">;
+  numericBounds?: Record<string, { min: number; max: number }>;
 };
 export type AgentOperation = { tool: string; args: Record<string, unknown> };
 export type AgentPlan = { operations: AgentOperation[] };
@@ -74,6 +75,10 @@ export function checkAgentPlan(
       const value = operation.args[key];
       if (typeof value !== expected || (expected === "number" && !Number.isFinite(value))) {
         return { ok: false, reason: "Invalid argument type", operationIndex: index };
+      }
+      const bounds = capability.numericBounds?.[key];
+      if (bounds && typeof value === "number" && (value < bounds.min || value > bounds.max)) {
+        return { ok: false, reason: "Argument outside allowed range", operationIndex: index };
       }
       if (typeof value === "string" && (value.length > 2048 || /[\u0000-\u001F]/.test(value))) {
         return { ok: false, reason: "Invalid string argument", operationIndex: index };
