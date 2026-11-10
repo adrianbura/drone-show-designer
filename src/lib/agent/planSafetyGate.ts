@@ -41,6 +41,17 @@ export function checkAgentPlan(
     return { ok: false, reason: "Invalid operation count" };
   }
   const registry = new Map(capabilities.map((capability) => [capability.id, capability]));
+  // PR #6 (6ab742cd): a multi-step preview must be fully reversible or handled
+  // by a separate workflow.
+  if (
+    operations.length > 1 &&
+    operations.some((item: unknown) => {
+      if (!isRecord(item) || typeof item["tool"] !== "string") return true;
+      return registry.get(item["tool"])?.reversible !== true;
+    })
+  ) {
+    return { ok: false, reason: "Multi-step plan contains irreversible operation" };
+  }
   const checked: AgentOperation[] = [];
   for (let index = 0; index < operations.length; index += 1) {
     const operation: unknown = operations[index];

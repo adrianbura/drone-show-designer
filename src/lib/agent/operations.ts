@@ -29,7 +29,29 @@ import { rippleClipTiming } from "../studio/timelineRipple";
 import { MIN_HOLD } from "../studio/timelineEdit";
 import type { RGB, ShowProject, TimelineClip, Vector3Tuple } from "../show/types";
 
-export type AgentOpKind = "ROTATE_SCENE" | "RECOLOR_SCENE" | "SET_DURATION" | "SELECT_SCENE";
+export type AgentOpKind =
+  | "ROTATE_SCENE"
+  | "RECOLOR_SCENE"
+  | "SET_DURATION"
+  | "SELECT_SCENE"
+  | "MOVE_SCENE"
+  | "SCALE_SCENE";
+
+export interface MoveSceneOp {
+  kind: "MOVE_SCENE";
+  /** Rigid offset in show-local metres: +X right (audience view), +Y up, −Z toward the audience. */
+  offset: Vector3Tuple;
+}
+
+export interface ScaleSceneOp {
+  kind: "SCALE_SCENE";
+  /** Uniform factor about the scene centroid, within [SCALE_MIN, SCALE_MAX]. */
+  factor: number;
+}
+
+export const SCALE_MIN = 0.5;
+export const SCALE_MAX = 2;
+export const MOVE_MAX_METRES = 200;
 
 export interface RotateSceneOp {
   kind: "ROTATE_SCENE";
@@ -59,7 +81,13 @@ export interface SelectSceneOp {
   sceneName?: string;
 }
 
-export type AgentOp = RotateSceneOp | RecolorSceneOp | SetDurationOp | SelectSceneOp;
+export type AgentOp =
+  | RotateSceneOp
+  | RecolorSceneOp
+  | SetDurationOp
+  | SelectSceneOp
+  | MoveSceneOp
+  | ScaleSceneOp;
 
 export type AgentOpFailure =
   | "NO_CLIP_SELECTED"
@@ -69,7 +97,10 @@ export type AgentOpFailure =
   | "INVALID_OP"
   | "DURATION_BELOW_ANIMATION"
   | "SCENE_NOT_FOUND"
-  | "SCENE_AMBIGUOUS";
+  | "SCENE_AMBIGUOUS"
+  | "SCALE_OUT_OF_RANGE"
+  | "MOVE_OUT_OF_RANGE"
+  | "SEPARATION_TOO_SMALL";
 
 export type AgentOpResult =
   | { ok: true; project: ShowProject; summary: AgentOpSummary }
@@ -89,6 +120,12 @@ export interface AgentOpSummary {
   durationBefore?: number;
   durationAfter?: number;
   followersShifted?: number;
+  /** MOVE_SCENE only: applied offset (m). */
+  offset?: Vector3Tuple;
+  /** SCALE_SCENE only: factor and minimum drone separation (m) before/after. */
+  scaleFactor?: number;
+  separationBefore?: number;
+  separationAfter?: number;
 }
 
 const AXIS_INDEX = { X: 0, Y: 1, Z: 2 } as const;
@@ -440,6 +477,153 @@ function applySetDuration(
   };
 }
 
+function minPairDistance(points: readonly Vector3Tuple[]): number {
+  let best = Infinity;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i]!;
+    for (let j = i + 1; j < points.length; j++) {
+      const b = points[j]!;
+      const d = (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+      if (d < best) best = d;
+    }
+  }
+  return Math.sqrt(best);
+}
+
+function dynamicMinSeparation(f: DynamicFormation): number {
+  let best = Infinity;
+  const steps = Math.max(4, Math.min(40, Math.ceil(f.duration * 2)));
+  for (let i = 0; i <= steps; i++) {
+    const d = minPairDistance(sampleDynamicFormation(f, (f.duration * i) / steps));
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+/**
+ * Rigid translation / uniform scale of one scene. Both are AFFINE maps
+ * x -> c + k(x - c) + d, applied exactly:
+ *  - static: to every point;
+ *  - dynamic: into the global transform track. With
+ *    P = pivot + T + R·S·v, the map gives T' = c + d − pivot + k(pivot + T − c)
+ *    and S' = k·S; linear keyframe interpolation commutes with the map, so the
+ *    WHOLE recorded trajectory (every tick) moves/scales, nothing is resampled.
+ *  Recorded RGB samples are untouched.
+ */
+function applyAffine(
+  project: ShowProject,
+  resolved: ResolvedClip,
+  kind: "MOVE_SCENE" | "SCALE_SCENE",
+  k: number,
+  d: Vector3Tuple,
+): AgentOpResult {
+  const { clip, clipIndex } = resolved;
+  const lightingMayOverride = hasSceneLighting(project, clip.id);
+  const minSep = project.limits.minSeparation;
+  const extra = (sepBefore: number, sepAfter: number): Partial<AgentOpSummary> =>
+    kind === "MOVE_SCENE"
+      ? { offset: d }
+      : { scaleFactor: k, separationBefore: sepBefore, separationAfter: sepAfter };
+
+  if (clip.dynamicFormationId) {
+    const priv = ensurePrivateDynamic(project, clip);
+    const source = priv.dynamicFormations.find((x) => x.id === priv.dynamicFormationId);
+    if (!source) return { ok: false, reason: "CLIP_NOT_FOUND" };
+    const c = centroid(source.points.map((p) => p.base));
+    const pv = source.pivot;
+    const mapT = (t: Vector3Tuple): Vector3Tuple => [
+      c[0] + d[0] - pv[0] + k * (pv[0] + t[0] - c[0]),
+      c[1] + d[1] - pv[1] + k * (pv[1] + t[1] - c[1]),
+      c[2] + d[2] - pv[2] + k * (pv[2] + t[2] - c[2]),
+    ];
+    const transform: TransformKeyframe[] =
+      source.transform.length === 0
+        ? [{ t: 0, translation: mapT([0, 0, 0]), rotation: [0, 0, 0], scale: [k, k, k] }]
+        : source.transform.map((key) => ({
+            ...key,
+            translation: mapT(key.translation),
+            scale: [key.scale[0] * k, key.scale[1] * k, key.scale[2] * k] as Vector3Tuple,
+          }));
+    const next: DynamicFormation = { ...source, transform };
+    let sepBefore = NaN;
+    let sepAfter = NaN;
+    if (kind === "SCALE_SCENE") {
+      sepBefore = dynamicMinSeparation(source);
+      sepAfter = sepBefore * k;
+      if (k < 1 && sepAfter < minSep - 1e-9) return { ok: false, reason: "SEPARATION_TOO_SMALL" };
+    }
+    const dynamicFormations = priv.dynamicFormations.map((x) => (x.id === next.id ? next : x));
+    const timeline = project.timeline.map((c2) =>
+      c2.id === clip.id ? { ...c2, dynamicFormationId: next.id } : c2,
+    );
+    return {
+      ok: true,
+      project: { ...project, dynamicFormations, timeline },
+      summary: {
+        clipId: clip.id,
+        clipName: source.name,
+        kind,
+        altitudeBefore: dynamicAltitudeRange(source),
+        altitudeAfter: dynamicAltitudeRange(next),
+        lightingMayOverride,
+        ...extra(sepBefore, sepAfter),
+      },
+    };
+  }
+
+  const priv = ensurePrivateFormation(project, clip, clipIndex);
+  const source = priv.formations.find((f) => f.id === priv.formationId);
+  if (!source) return { ok: false, reason: "CLIP_NOT_FOUND" };
+  const c = centroid(source.points);
+  const points = source.points.map(
+    (p) =>
+      [
+        c[0] + d[0] + k * (p[0] - c[0]),
+        c[1] + d[1] + k * (p[1] - c[1]),
+        c[2] + d[2] + k * (p[2] - c[2]),
+      ] as Vector3Tuple,
+  );
+  let sepBefore = NaN;
+  let sepAfter = NaN;
+  if (kind === "SCALE_SCENE") {
+    sepBefore = minPairDistance(source.points);
+    sepAfter = sepBefore * k;
+    if (k < 1 && sepAfter < minSep - 1e-9) return { ok: false, reason: "SEPARATION_TOO_SMALL" };
+  }
+  const nextF = { ...source, points };
+  const formations = priv.formations.map((f) => (f.id === nextF.id ? nextF : f));
+  return {
+    ok: true,
+    project: { ...project, formations, timeline: priv.timeline },
+    summary: {
+      clipId: clip.id,
+      clipName: source.name,
+      kind,
+      altitudeBefore: altitudeRange(source.points),
+      altitudeAfter: altitudeRange(points),
+      lightingMayOverride,
+      ...extra(sepBefore, sepAfter),
+    },
+  };
+}
+
+function applyMove(project: ShowProject, resolved: ResolvedClip, op: MoveSceneOp): AgentOpResult {
+  const o = op.offset;
+  if (!Array.isArray(o) || o.length !== 3 || !o.every((v) => Number.isFinite(v))) {
+    return { ok: false, reason: "INVALID_OP" };
+  }
+  if (o.every((v) => v === 0)) return { ok: false, reason: "INVALID_OP" };
+  if (o.some((v) => Math.abs(v) > MOVE_MAX_METRES)) return { ok: false, reason: "MOVE_OUT_OF_RANGE" };
+  return applyAffine(project, resolved, "MOVE_SCENE", 1, [o[0], o[1], o[2]]);
+}
+
+function applyScale(project: ShowProject, resolved: ResolvedClip, op: ScaleSceneOp): AgentOpResult {
+  const k = op.factor;
+  if (!Number.isFinite(k) || k <= 0 || k === 1) return { ok: false, reason: "INVALID_OP" };
+  if (k < SCALE_MIN - 1e-9 || k > SCALE_MAX + 1e-9) return { ok: false, reason: "SCALE_OUT_OF_RANGE" };
+  return applyAffine(project, resolved, "SCALE_SCENE", k, [0, 0, 0]);
+}
+
 export type SceneTargetResolution =
   | { ok: true; clipId: string; clipName: string }
   | { ok: false; reason: "SCENE_NOT_FOUND" | "SCENE_AMBIGUOUS"; candidates?: string[] };
@@ -505,6 +689,10 @@ export function applyAgentOp(
       return applyRecolor(project, resolved, op);
     case "SET_DURATION":
       return applySetDuration(project, resolved, op);
+    case "MOVE_SCENE":
+      return applyMove(project, resolved, op);
+    case "SCALE_SCENE":
+      return applyScale(project, resolved, op);
     default:
       // A kind outside the registry (e.g. hallucinated by a model) is refused,
       // never executed.
