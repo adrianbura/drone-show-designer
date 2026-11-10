@@ -73,6 +73,22 @@ describe("AI plan security regression", () => {
     expect(checkAgentPlan({ operations: [{ tool: "rotate", args: { degrees: -20 } }] }, bounded, "scene-1")).toMatchObject({ ok: true });
   });
 
+  it("rejects duplicate capability identifiers instead of letting later entries override", () => {
+    const duplicate = { ...registry[0], enabled: false };
+    expect(checkAgentPlan({ operations: [{ tool: "rotate", args: { degrees: 10 } }] }, [...registry, duplicate], "scene-1"))
+      .toMatchObject({ ok: false, reason: "Duplicate capability identifier" });
+  });
+
+  it.each([
+    { min: 100, max: 10 },
+    { min: Number.NaN, max: 10 },
+    { min: -10, max: Infinity },
+  ])("rejects malformed numeric bounds %j", (bounds) => {
+    const malformed: AgentCapability[] = [{ ...registry[0], numericBounds: { degrees: bounds } }, registry[1]];
+    expect(checkAgentPlan({ operations: [{ tool: "rotate", args: { degrees: 5 } }] }, malformed, "scene-1"))
+      .toMatchObject({ ok: false, reason: "Invalid capability numeric bounds" });
+  });
+
   it("refuses selection-dependent commands without scene context", () => {
     expect(checkAgentPlan({ operations: [{ tool: "rotate", args: { degrees: 10 } }] }, registry, null).ok).toBe(false);
   });
