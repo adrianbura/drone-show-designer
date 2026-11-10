@@ -40,6 +40,14 @@ describe("AI plan security regression", () => {
     expect(checkAgentPlan(plan, registry, "scene-1")).toMatchObject({ ok: true });
   });
 
+
+  it("accepts uppercase letters and digits in legitimate color labels", () => {
+    expect(checkAgentPlan({ operations: [{ tool: "recolor", args: { color: "RGB255 GOLD" } }] }, registry, "scene-1")).toMatchObject({ ok: true });
+  });
+
+  it("rejects a real newline control character", () => {
+    expect(checkAgentPlan({ operations: [{ tool: "recolor", args: { color: "gold" + String.fromCharCode(10) + "unsafe" } }] }, registry, "scene-1").ok).toBe(false);
+  });
   it("refuses selection-dependent commands without scene context", () => {
     expect(checkAgentPlan({ operations: [{ tool: "rotate", args: { degrees: 10 } }] }, registry, null).ok).toBe(false);
   });
