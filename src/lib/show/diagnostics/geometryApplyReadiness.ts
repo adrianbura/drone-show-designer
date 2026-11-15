@@ -32,7 +32,7 @@ export interface GeometryApplyReadinessInput {
   readonly limits?: { maxVelocity: number; maxAcceleration: number; maxJerk: number; minSeparation: number };
 }
 
-const STATUS_RANK: Record<string, number> = { PASS: 0, WARNING: 1, WARN: 1, FAIL: 2 };
+const STATUS_RANK: Record<string, number> = { PASS: 0, PASS_WITH_WARNINGS: 1, FAIL: 2 };
 
 export interface GeometryApplyReadinessReport {
   readonly status: GeometryApplyReadinessStatus;
