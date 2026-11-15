@@ -198,6 +198,13 @@ export default function Timeline({
     referenceShow,
     referencePlayback,
   } = useStudio();
+  // Same projection "Make editable" uses: the highlighted segments are exactly
+  // the scenes that become editable clips; others are dimmed context.
+  const displayedSceneIds = useMemo(
+    () =>
+      new Set(forensicsReport ? displayedSceneSegments(forensicsReport).map((x) => x.id) : []),
+    [forensicsReport],
+  );
   const { t, language } = useI18n();
   const comma = language === "ro";
   const trackRef = useRef<HTMLDivElement>(null);
