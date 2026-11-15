@@ -183,6 +183,14 @@ describe("group edit keeps the rest verbatim and round-trips", () => {
     expect(fullShow.splice?.ok).toBe(true);
   });
 
+  it("PROBE", () => {
+    const target = groupTarget();
+    const edit = applyAgentOpToGroup(fx.project, target.clipIds, { kind: "MOVE_SCENE", offset: [0, 0.03, 0] });
+    const rec = reconcileReferenceLayer(edit.project!, fx.layer, { assignmentStrategy: STRATEGY, transitionOverrides: {} });
+    const { plan } = analyzeFullShow(edit.project!, { sampleRate: RATE, assignmentStrategy: STRATEGY, reference: { show: fx.show, layer: rec.layer } });
+    const d = plan.trajectorySet.drones[3]!;
+    console.log("PROBE", d.samples.slice(0, 6).map((x) => [x.t, ...x.position.map((v) => +v.toFixed(2))]), plan.trajectorySet.startTime);
+  });
   // KNOWN BLOCKER (2026-11-15): after ANY promotion the composed full show
   // reports absurd TAKEOFF-hold velocities on the REFERENCE-owned takeoff clip,
   // so the real export gate refuses a mixed export. This test flips to failing
