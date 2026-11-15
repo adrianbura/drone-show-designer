@@ -1097,6 +1097,50 @@ export default function Inspector({
             />
           </section>
 
+          {project.safetyProfile?.source === "IMPORTED_SHOW" && (
+            <section className="panel-card" data-testid="imported-safety-profile">
+              <h2 className="panel-title">
+                <ShieldCheck className="size-3.5" /> Profile derived from imported show
+              </h2>
+              <p className="font-mono text-[10px] leading-relaxed text-warning">
+                {project.safetyProfile.note}
+              </p>
+              <table className="w-full font-mono text-[10px] text-muted-foreground">
+                <thead>
+                  <tr>
+                    <th className="text-left font-normal">Field</th>
+                    <th className="text-right font-normal">Measured</th>
+                    <th className="text-right font-normal">Applied</th>
+                  </tr>
+                </thead>
+                <tbody className="text-foreground">
+                  {(
+                    [
+                      ["Min separation (m)", project.safetyProfile.measured.minAirborneSeparation, project.limits.minSeparation],
+                      ["Min altitude (m)", project.safetyProfile.measured.minAirborneAltitude, project.limits.minAltitude],
+                      ["Max altitude (m)", project.safetyProfile.measured.maxAltitude, project.limits.maxAltitude],
+                      ["Max velocity (m/s)", project.safetyProfile.measured.maxVelocity, project.limits.maxVelocity],
+                      ["Max accel. (m/s²)", project.safetyProfile.measured.maxAcceleration, project.limits.maxAcceleration],
+                      ["Max jerk (m/s³)", project.safetyProfile.measured.maxJerk, project.limits.maxJerk],
+                      ["Max yaw rate (°/s)", project.safetyProfile.measured.maxYawRate, project.limits.maxYawRate],
+                    ] as const
+                  ).map(([label, measured, applied]) => (
+                    <tr key={label}>
+                      <td>{label}</td>
+                      <td className="text-right">{measured === null ? "unknown" : measured}</td>
+                      <td className="text-right">{applied}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="pt-1 font-mono text-[10px] leading-relaxed text-muted-foreground">
+                Area {project.area.width}×{project.area.depth}×{project.area.height} m. Edits to imported
+                scenes are refused only when they add new problems. Changing a global limit here can
+                promote imported clips to planner ownership.
+              </p>
+            </section>
+          )}
+
           <SitePanel />
 
           <section className="panel-card">

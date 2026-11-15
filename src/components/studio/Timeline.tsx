@@ -27,6 +27,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useI18n } from "@/i18n";
+import { displayedSceneSegments } from "@/lib/import/essp/native/extract";
 import { rgbToHex } from "@/lib/show/lights";
 import { markerTimes } from "@/lib/show/markers";
 import { describeTransitionDesign } from "@/lib/show/transition";
@@ -864,7 +865,9 @@ export default function Timeline({
                 ))}
 
               {/* Reference forensics segments (inferred, read-only overlay) */}
-              {forensicsReport?.segments.map((s) => (
+              {forensicsReport?.segments.map((s) => {
+                const isScene = displayedSceneIds.has(s.id);
+                return (
                 <button
                   key={`fx-${s.id}`}
                   onPointerDown={(e) => {
@@ -875,10 +878,14 @@ export default function Timeline({
                   aria-label={`${s.label}, ${s.classification}`}
                   className={`absolute bottom-3 h-1.5 rounded-sm opacity-70 hover:opacity-100 ${
                     FORENSIC_TINT[s.classification]
-                  } ${s.id === selectedForensicSegmentId ? "ring-1 ring-accent opacity-100" : ""}`}
+                  } ${s.id === selectedForensicSegmentId ? "ring-1 ring-accent opacity-100" : ""} ${
+                    isScene ? "" : "opacity-30"
+                  }`}
+                  data-displayed-scene={isScene ? "true" : undefined}
                   style={{ left: pct(s.startTime), width: widthPct(Math.max(0.2, s.duration)) }}
                 />
-              ))}
+                );
+              })}
 
               {/* Clips — body drags, edges resize transition / hold. */}
               {project.timeline.map((clip) => {
