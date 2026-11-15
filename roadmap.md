@@ -288,3 +288,13 @@ această rulare.
 - [x] Show-ul rămâne disponibil la cerere în „Samples / development" (registrul `SAMPLE_SHOWS`), cu fidelitate completă (planning + preferințe editor) prin `createFile` și stare UNSAVED — nu revendică un fișier pe disc.
 - [x] UI generalizat: câte un buton per mostră din registru, confirmarea de muncă nesalvată per mostră.
 - [x] Verificare browser: pornire goală („Untitled Show"), încărcare la cerere a show-ului wedding, zero erori de pagină. Suită completă 1545/1 sărit, build OK.
+
+## 22. Show importat editabil: profil derivat + „nu înrăutăți” (2026-11-15, Lovable)
+- [x] Timeline: segmentele forensice care devin clipuri (`displayedSceneSegments`) evidențiate; restul atenuate — aceeași proiecție ca extracția.
+- [x] `deriveImportedSafetyProfile` (pur, toate cadrele). Pe ESSP_8_12_mainv4_2f6001-2: 150 drone, 8 Hz; |x|≤49.83, |z|≤20.54, y≤88.3 m; separare minimă în aer 1.987 m → 1.95; altitudine minimă în aer 0.83 → 0.8; v 4.21 (rămâne 12), a 3.89 (rămâne 5), jerk 48.30 → 48.4 (zgomot de diferențiere la 8 Hz/cuantizare int16, dar măsurat); yaw necunoscut (90 implicit); arie rămâne 140×140×100; altitudini takeoff 8.445 / show 42.495. Calcul 2.3 s.
+- [x] Setat în `applyReferenceExtraction` înainte de reseed; card „Profile derived from imported show — NOT flight authorization” în Inspector.
+- [x] Porți relative: `evaluateGeometryApplyReadiness` (`importedDoNotWorsen`), `validateAgentProject(…, baseline)`, `applyAffine` (pragul de separare = min(limită, înainte)).
+- [x] Teste: importedReadiness (6), importedDoNotWorsen (6), importedProfile (2: profil sintetic; zero promovări, raport/bytes/redare identice). Suită 1559/1 sărit, tsgo OK.
+- [ ] Verificare browser Make editable → editare → Apply → Undo pe show-ul real (încă neexecutată).
+- [ ] Test dedicat Undo pentru extracție (codul păstrează un singur `pushSnapshot(previous)`, netestat direct).
+- [ ] Pas 3: semnătură conștientă de proprietar (limitele globale nu trebuie să promoveze clipurile REFERENCE). Pas 5: re-analiză incrementală în worker.

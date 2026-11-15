@@ -1265,3 +1265,9 @@ procesat sau modificat. Nu există un nou rezultat de audit real wedding-sorin.
 - `AGENTS.md`: regula veche „opened … on first load" înlocuită cu regula „never auto-opens; opt-in sample, UNSAVED".
 
 **Dovezi:** `tsgo -b --noEmit` curat; suită completă 1545 trecute / 1 sărit (`--maxWorkers=4 --testTimeout=30000`); build OK; test de gardă actualizat (numele „Wedding Story" permis DOAR în registrul de mostre + test nou care interzice referința la asset-ul bundled în afara registrului). Browser (Playwright): pornire curată („Untitled Show", 48 drone, fără wedding), butonul „Load A & B — Wedding Story" din Samples / development încarcă show-ul la cerere, zero erori de pagină.
+
+## 2026-11-15 — Show importat editabil (Faza A overlay + Faza B pașii 1–2, Lovable)
+- Fișiere: `native/safetyProfile.ts` (nou), `show/types.ts` (`ImportedSafetyProfile`, `ShowProject.safetyProfile?`), `store.tsx` (`applyReferenceExtraction`), `geometryApplyReadiness.ts`, `agent/validate.ts`, `agent/operations.ts`, `AgentPanel.tsx`, `TextFormationPanel.tsx`, `GeometryProposalPanel.tsx`, `Inspector.tsx`, `Timeline.tsx`.
+- Modul relativ se activează doar cu profil IMPORTED_SHOW; proiectele native rămân absolute. Diferență față de plan: nu verificăm separat dacă editul atinge un clip REFERENCE — profilul importat e condiția.
+- Numere reale: vezi roadmap §22. Verificat: `bunx vitest run --maxWorkers=4 --testTimeout=30000` → 178 fișiere, 1559 trecute/1 sărit; `tsgo -b --noEmit` curat.
+- Neverificat: fluxul în browser și Undo; schimbarea unei limite globale încă poate promova toate clipurile REFERENCE (pas 3).
