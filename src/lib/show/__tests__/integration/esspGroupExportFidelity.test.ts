@@ -134,7 +134,8 @@ describe("scene groups are a derived, lossless view", () => {
   });
 
   it("untouched import exports byte-identical ESSP files (count, headers, clocks, samples)", () => {
-    const { pkg } = exportOf(fx.project, fx.layer);
+    const { pkg, fullShow } = exportOf(fx.project, fx.layer);
+    console.log("UNTOUCHED", fullShow.status, fullShow.exportReadiness.status, fullShow.exportReadiness.blockers.slice(0,2));
     expect(pkg.ok).toBe(true);
     expect(pkg.files).toHaveLength(fx.files.length);
     pkg.files.forEach((file, i) => {
