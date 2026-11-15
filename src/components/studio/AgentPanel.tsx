@@ -284,7 +284,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       }
       if (pendingSelect) selectClip(pendingSelect);
       if (summaries.length === 0) return;
-      const validation = validateAgentProject(candidate, targetClipId!);
+      const validation = validateAgentProject(candidate, targetClipId!, project);
       if (!validation.ok) {
         for (const issue of validation.issues) {
           const label = ISSUE_LABELS[issue];
