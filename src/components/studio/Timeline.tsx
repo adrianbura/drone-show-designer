@@ -28,6 +28,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useI18n } from "@/i18n";
 import { displayedSceneSegments } from "@/lib/import/essp/native/extract";
+import { clipSceneGroups } from "@/lib/import/essp/native/sceneGroups";
 import { rgbToHex } from "@/lib/show/lights";
 import { markerTimes } from "@/lib/show/markers";
 import { describeTransitionDesign } from "@/lib/show/transition";
@@ -162,6 +163,7 @@ export default function Timeline({
     forensicsReport,
     selectedForensicSegmentId,
     selectForensicSegment,
+    referenceLayer,
     audioPeaks,
     audioAttached,
     audioMuted,
@@ -200,6 +202,12 @@ export default function Timeline({
   } = useStudio();
   // Same projection "Make editable" uses: the highlighted segments are exactly
   // the scenes that become editable clips; others are dimmed context.
+  // Derived scene groups (consecutive dynamic scenes): one bar per group,
+  // same projection the agent uses for group edits. Clips stay per segment.
+  const sceneGroups = useMemo(
+    () => (forensicsReport ? clipSceneGroups(forensicsReport, referenceLayer) : []),
+    [forensicsReport, referenceLayer],
+  );
   const displayedSceneIds = useMemo(
     () =>
       new Set(forensicsReport ? displayedSceneSegments(forensicsReport).map((x) => x.id) : []),
@@ -893,6 +901,29 @@ export default function Timeline({
                 />
                 );
               })}
+
+              {/* Scene groups: one bar per group of consecutive dynamic scenes. */}
+              {sceneGroups
+                .filter((g) => g.kind === "DYNAMIC" && g.clipIds.length > 1)
+                .map((g) => {
+                  const active = !!selectedClipId && g.clipIds.includes(selectedClipId);
+                  return (
+                    <button
+                      key={g.id}
+                      data-scene-group={g.id}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        selectClip(g.clipIds[0]!);
+                      }}
+                      title={`Dynamic group — ${g.clipIds.length} scenes (${g.start.toFixed(2)}–${g.end.toFixed(2)} s)`}
+                      aria-label={`Dynamic scene group, ${g.clipIds.length} scenes`}
+                      className={`absolute bottom-5 h-1.5 rounded-sm bg-accent opacity-60 hover:opacity-100 ${
+                        active ? "ring-1 ring-accent opacity-100" : ""
+                      }`}
+                      style={{ left: pct(g.start), width: widthPct(Math.max(0.2, g.end - g.start)) }}
+                    />
+                  );
+                })}
 
               {/* Clips — body drags, edges resize transition / hold. */}
               {project.timeline.map((clip) => {

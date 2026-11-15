@@ -10,7 +10,7 @@ const profile: ImportedSafetyProfile = {
   note: "n",
   measured: {
     maxAbsX: 0, maxAbsZ: 0, maxAltitude: 0, minAirborneAltitude: 0.8,
-    minAirborneSeparation: 1.987, maxVelocity: 0, maxAcceleration: 0, maxJerk: 0, maxYawRate: null,
+    minAirborneSeparation: 1.987, maxVelocity: 0, maxAcceleration: 0, maxJerk: 0, jerkReliable: false, maxYawRate: null,
   },
 };
 

@@ -1121,7 +1121,7 @@ export default function Inspector({
                       ["Max altitude (m)", project.safetyProfile.measured.maxAltitude, project.limits.maxAltitude],
                       ["Max velocity (m/s)", project.safetyProfile.measured.maxVelocity, project.limits.maxVelocity],
                       ["Max accel. (m/s²)", project.safetyProfile.measured.maxAcceleration, project.limits.maxAcceleration],
-                      ["Max jerk (m/s³)", project.safetyProfile.measured.maxJerk, project.limits.maxJerk],
+                      ["Max jerk (m/s³, measured value unreliable at source rate)", project.safetyProfile.measured.maxJerk, project.limits.maxJerk],
                       ["Max yaw rate (°/s)", project.safetyProfile.measured.maxYawRate, project.limits.maxYawRate],
                     ] as const
                   ).map(([label, measured, applied]) => (

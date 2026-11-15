@@ -298,3 +298,15 @@ această rulare.
 - [ ] Verificare browser Make editable → editare → Apply → Undo pe show-ul real (încă neexecutată).
 - [ ] Test dedicat Undo pentru extracție (codul păstrează un singur `pushSnapshot(previous)`, netestat direct).
 - [ ] Pas 3: semnătură conștientă de proprietar (limitele globale nu trebuie să promoveze clipurile REFERENCE). Pas 5: re-analiză incrementală în worker.
+
+## 23. Grupuri de scene dinamice + fidelitate export (2026-11-15, Lovable)
+- [x] `native/sceneGroups.ts`: grupuri derivate (dinamice consecutive; statice singure). Real: 119 scene → 78 grupuri (45 statice + 33 dinamice), cel mai mare 15 segmente. Regula de identitate (0,4 m) ar fi dat 118 — respinsă cu măsurători.
+- [x] Timeline: bară per grup dinamic (aceeași proiecție); click selectează grupul.
+- [x] Agent: mutare/rotire/scalare pe grupul clipului selectat, pivot comun, atomic, un Undo; validare per membru.
+- [x] Jerk: limita rămâne implicită (10); valoarea măsurată doar afișată ca nesigură.
+- [x] „Nu înrăutăți” doar pentru clipuri derivate din import (binding de referință); clipurile native rămân absolute.
+- [x] Export real needitat (`scripts/esspExportFidelity.ts`): 150/150 fișiere identice octet cu octet, PRESERVED_PAYLOAD, raport neschimbat.
+- [x] Teste: grupuri, export identic, salt la margini blocat de splice, promovare doar a grupului, editare grup (3). Suită 1567 trecute / 1 eșec așteptat / 1 sărit.
+- [ ] **BLOCAJ export mixt**: după orice promovare, raportul full-show indică viteze absurde (sute–mii m/s) pe decolarea REFERENCE, deși traiectoria compusă are maxim 2,56 m/s. Test `it.fails` în `esspGroupExportFidelity.test.ts`. Până la reparare, un show editat nu se poate exporta.
+- [ ] Marginile grupului: orice mutare > 5 cm sare la îmbinarea cu referința; lipsește replanificarea tranzițiilor de margine.
+- [ ] Verificare browser a barelor de grup și a editării pe grup.
