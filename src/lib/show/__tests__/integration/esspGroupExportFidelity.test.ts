@@ -187,6 +187,7 @@ describe("group edit keeps the rest verbatim and round-trips", () => {
     // Source RGB in the moved group's interval is still the recorded RGB track.
     const { plan, fullShow, pkg } = exportOf(edited, rec.layer);
     expect(fullShow.splice?.ok).toBe(true);
+    if (pkg.blockers.length) console.log("BLOCKERS", pkg.blockers, fullShow.status, fullShow.exportReadiness);
     expect(pkg.blockers).toEqual([]);
     expect(pkg.ok).toBe(true);
     expect(pkg.files).toHaveLength(DRONES);
