@@ -1253,3 +1253,15 @@ procesat sau modificat. Nu există un nou rezultat de audit real wedding-sorin.
 - Rezultat real: TAKEOFF + 119 SHOW + LANDING (era 36 clipuri). Traiectorii, octeți ESSP, raport și efecte neschimbate.
 - Verificat: test nou `displayedScenes.test.ts`; suita completă 1544 trecute / 1 sărit (`--maxWorkers=4 --testTimeout=60000`).
 - Neverificat: browser (timp Make editable/Undo cu 121 clipuri), editare pe scene de 1 s lipite (tranziție 0,001 s).
+
+## 2026-11-15 — Fără deschidere automată la pornire (Lovable)
+
+**Problemă raportată de owner:** „A & B — Wedding Story" se redeschidea la fiecare încărcare a aplicației. Cauza: un `useEffect` la montare în `store.tsx` făcea fetch pe JSON-ul bundled și îl adopta necondiționat (comentariul spunea „on first load", dar rulava la ORICE montare).
+
+**Rezolvare (opțiunea 2 a ownerului — niciodată automat):**
+- Efectul de auto-open și importul `weddingShowFileUrl` eliminate din `store.tsx`. Aplicația pornește cu proiectul gol implicit (`createDefaultProject`).
+- Show-ul rămâne disponibil la cerere: înregistrat în `SAMPLE_SHOWS` (`src/lib/show/stories/samples.ts`, id `story-a-and-b-wedding`) cu `createFile()` nou pe `SampleShowDescriptor` — plicul complet (planning + editor prefs) este adoptat prin `adoptProjectFile` cu stare `UNSAVED` extinsă (FILE | RECOVERED | UNSAVED), deci mostra nu revendică un fișier pe disc.
+- `Inspector.tsx`: secțiunea „Samples / development" listează acum toate mostrele din registru (Depth Stagger Demo + A & B — Wedding Story), cu confirmarea de muncă nesalvată per mostră (`sampleConfirmId`).
+- `AGENTS.md`: regula veche „opened … on first load" înlocuită cu regula „never auto-opens; opt-in sample, UNSAVED".
+
+**Dovezi:** de completat după typecheck/teste/browser în aceeași intervenție.
