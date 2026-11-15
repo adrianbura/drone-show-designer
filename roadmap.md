@@ -282,3 +282,9 @@ această rulare.
 ## 20. Clipuri editabile = scene afișate
 - TERMINAT: un clip per scenă afișată (119 pe show-ul real), test de granițe.
 - DESCHIS: verificare browser și performanță pentru 121 de clipuri; refuz corect la editarea scenelor de 1 s.
+
+## 21. Fără deschidere automată la pornire (2026-11-15, Lovable)
+- [x] Eliminat efectul care deschidea automat „A & B — Wedding Story" la fiecare încărcare; aplicația pornește cu proiectul gol implicit.
+- [x] Show-ul rămâne disponibil la cerere în „Samples / development" (registrul `SAMPLE_SHOWS`), cu fidelitate completă (planning + preferințe editor) prin `createFile` și stare UNSAVED — nu revendică un fișier pe disc.
+- [x] UI generalizat: câte un buton per mostră din registru, confirmarea de muncă nesalvată per mostră.
+- [ ] Verificare browser: pornire goală, încărcare la cerere a ambelor mostre.
