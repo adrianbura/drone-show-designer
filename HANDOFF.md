@@ -1271,3 +1271,9 @@ procesat sau modificat. Nu există un nou rezultat de audit real wedding-sorin.
 - Modul relativ se activează doar cu profil IMPORTED_SHOW; proiectele native rămân absolute. Diferență față de plan: nu verificăm separat dacă editul atinge un clip REFERENCE — profilul importat e condiția.
 - Numere reale: vezi roadmap §22. Verificat: `bunx vitest run --maxWorkers=4 --testTimeout=30000` → 178 fișiere, 1559 trecute/1 sărit; `tsgo -b --noEmit` curat.
 - Neverificat: fluxul în browser și Undo; schimbarea unei limite globale încă poate promova toate clipurile REFERENCE (pas 3).
+
+## 2026-11-15 — Grupuri de scene + fidelitate export (Lovable)
+- Nou: `native/sceneGroups.ts`, `applyAgentOpToGroup`/`clipWorldCentroid` + `pivot` opțional (rotate/scale) în `agent/operations.ts`, bare de grup în `Timeline.tsx`, editare pe grup în `AgentPanel.tsx`, `targetIsReferenceDerived` în readiness, `scripts/esspExportFidelity.ts`.
+- Real (`bun scripts/esspExportFidelity.ts <zip>`): 150 drone, 8/12 Hz, 121 clipuri, 78 grupuri (45/33), toate REFERENCE, export PRESERVED_PAYLOAD, 150/150 fișiere identice, raport neschimbat.
+- Verificat: `bunx vitest run --maxWorkers=4 --testTimeout=30000` → 180 fișiere, 1567 trecute, 1 eșec așteptat, 1 sărit; `tsgo -b --noEmit` curat.
+- Blocaj găsit: export mixt după promovare refuzat de viteze absurde raportate pe decolare (cauză neizolată; traiectoria compusă e corectă). Următorul pas: izolarea în `validateTrajectorySet`/compoziție.
