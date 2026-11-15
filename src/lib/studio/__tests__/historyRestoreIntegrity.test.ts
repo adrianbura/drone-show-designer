@@ -176,12 +176,28 @@ describe("legacy wedding story removal", () => {
     ];
     const offenders: string[] = [];
     const self = "historyRestoreIntegrity.test.ts";
+    // The bundled wedding show lives again as an OPT-IN registry sample; its
+    // display name is allowed ONLY in that registry, never anywhere else.
+    const registry = join("src", "lib", "show", "stories", "samples.ts");
     for (const file of sourceFiles("src")) {
       if (file.endsWith(self)) continue;
       const text = readFileSync(file, "utf8");
       for (const pattern of patterns) {
+        if (pattern === "Wedding Story" && file === registry) continue;
         if (text.includes(pattern)) offenders.push(`${file}: ${pattern}`);
       }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("never auto-opens the bundled wedding show at startup", () => {
+    const offenders: string[] = [];
+    const asset = "a-and-b-wedding-show-200-drones";
+    const registry = join("src", "lib", "show", "stories", "samples.ts");
+    const self = "historyRestoreIntegrity.test.ts";
+    for (const file of sourceFiles("src")) {
+      if (file === registry || file.endsWith(self)) continue;
+      if (readFileSync(file, "utf8").includes(asset)) offenders.push(file);
     }
     expect(offenders).toEqual([]);
   });

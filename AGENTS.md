@@ -11,7 +11,7 @@
 
 <!-- LOVABLE:END -->
 
-- The bundled A & B wedding project is opened through the canonical project parser/adoption boundary on first load, so its editable state matches a normal Open operation.
+- The app never auto-opens a show at startup; the bundled A & B wedding project is an opt-in sample (Samples / development) adopted through the canonical parser/adoption boundary with UNSAVED file state, so it never claims a file on disk.
 - The bundled A & B choreography uses per-image drone budgets with SMART_PREPARE and reserve lights OFF, because inactive drones must prepare the next visual invisibly rather than duplicate the current shape.
 - `HANDOFF.md` and `roadmap.md` are the canonical asynchronous channel between Lovable and ChatGPT: update both in the same intervention and commit for every material change; update `AGENTS.md` only when stable rules change, so project status does not become permanent instructions.
 - At the start of every new conversation, read `AGENTS.md`, then `HANDOFF.md`, then `roadmap.md`; inspect the latest commit, `git status`, `git diff`, and task-relevant code before acting, so decisions use repository evidence rather than memory.
