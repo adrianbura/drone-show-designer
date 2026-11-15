@@ -510,6 +510,11 @@ function applyAffine(
   const { clip, clipIndex } = resolved;
   const lightingMayOverride = hasSceneLighting(project, clip.id);
   const minSep = project.limits.minSeparation;
+  // Imported shows: "do not worsen" — a scene already below the profile
+  // minimum may not shrink further; native projects keep the absolute floor.
+  const imported = project.safetyProfile?.source === "IMPORTED_SHOW";
+  const floorSep = (before: number) =>
+    imported && Number.isFinite(before) ? Math.min(minSep, before) : minSep;
   const extra = (sepBefore: number, sepAfter: number): Partial<AgentOpSummary> =>
     kind === "MOVE_SCENE"
       ? { offset: d }
@@ -540,7 +545,7 @@ function applyAffine(
     if (kind === "SCALE_SCENE") {
       sepBefore = dynamicMinSeparation(source);
       sepAfter = sepBefore * k;
-      if (k < 1 && sepAfter < minSep - 1e-9) return { ok: false, reason: "SEPARATION_TOO_SMALL" };
+      if (k < 1 && sepAfter < floorSep(sepBefore) - 1e-9) return { ok: false, reason: "SEPARATION_TOO_SMALL" };
     }
     const dynamicFormations = priv.dynamicFormations.map((x) => (x.id === next.id ? next : x));
     const timeline = project.timeline.map((c2) =>
@@ -578,7 +583,7 @@ function applyAffine(
   if (kind === "SCALE_SCENE") {
     sepBefore = minPairDistance(source.points);
     sepAfter = sepBefore * k;
-    if (k < 1 && sepAfter < minSep - 1e-9) return { ok: false, reason: "SEPARATION_TOO_SMALL" };
+    if (k < 1 && sepAfter < floorSep(sepBefore) - 1e-9) return { ok: false, reason: "SEPARATION_TOO_SMALL" };
   }
   const nextF = { ...source, points };
   const formations = priv.formations.map((f) => (f.id === nextF.id ? nextF : f));

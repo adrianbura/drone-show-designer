@@ -21,7 +21,18 @@ export interface GeometryApplyReadinessInput {
    * promote previously REFERENCE-owned output to PLANNER ownership.
    */
   readonly importedPromotionAcknowledged?: boolean;
+  /**
+   * True only for projects carrying an IMPORTED_SHOW safety profile. Enables
+   * the "do not worsen" policy: pre-existing problems of the imported show do
+   * not block, only problems the proposal ADDS do. Native projects stay
+   * absolute and fail-closed.
+   */
+  readonly importedDoNotWorsen?: boolean;
+  /** Project limits used by the relative policy for v/a/j caps. */
+  readonly limits?: { maxVelocity: number; maxAcceleration: number; maxJerk: number; minSeparation: number };
 }
+
+const STATUS_RANK: Record<string, number> = { PASS: 0, PASS_WITH_WARNINGS: 1, FAIL: 2 };
 
 export interface GeometryApplyReadinessReport {
   readonly status: GeometryApplyReadinessStatus;
@@ -68,22 +79,63 @@ export function evaluateGeometryApplyReadiness(
     if (!trajectory.candidateGeometryExercisedByPlanner) {
       blockers.push("The proposed geometry was not exercised by planner-owned trajectory time.");
     }
-    if (!trajectory.canonicalProfilePass) {
-      blockers.push("The proposed show is blocked by the canonical full-show validation profile.");
-    }
-    if (trajectory.after.status === "FAIL") {
-      blockers.push("The proposed full show fails canonical validation.");
-    }
-    if (trajectory.after.exportReadiness === "BLOCKED") {
-      blockers.push("The proposed full show is not export-ready.");
-    }
-    if (trajectory.after.spliceOk === false) {
-      blockers.push("The proposed imported/planner splice is discontinuous.");
-    }
-    if (trajectory.after.blockingIssueCount > 0) {
-      blockers.push(
-        `The proposed full show has ${trajectory.after.blockingIssueCount} blocking issue(s).`,
-      );
+    if (input.importedDoNotWorsen) {
+      const { before, after, delta } = trajectory;
+      if ((STATUS_RANK[after.status] ?? 2) > (STATUS_RANK[before.status] ?? 2)) {
+        blockers.push("The proposal makes the imported show's validation status worse.");
+      }
+      if (after.exportReadiness === "BLOCKED" && before.exportReadiness !== "BLOCKED") {
+        blockers.push("The proposal makes the imported show not export-ready.");
+      }
+      if (after.spliceOk === false && before.spliceOk !== false) {
+        blockers.push("The proposed imported/planner splice is discontinuous.");
+      }
+      if (after.blockingIssueCount > before.blockingIssueCount) {
+        blockers.push(
+          `The proposal adds ${after.blockingIssueCount - before.blockingIssueCount} blocking issue(s) to the imported show.`,
+        );
+      }
+      if (delta.totalConflictCount > 0) {
+        blockers.push(`The proposal adds ${delta.totalConflictCount} conflict(s).`);
+      }
+      const lim = input.limits;
+      if (
+        delta.minimumDynamicSeparation < -1e-9 &&
+        (!lim || after.minimumDynamicSeparation < lim.minSeparation)
+      ) {
+        blockers.push("The proposal reduces minimum separation below the imported-show profile.");
+      }
+      if (lim) {
+        if (delta.maximumVelocity > 1e-9 && after.maximumVelocity > lim.maxVelocity)
+          blockers.push("The proposal raises maximum velocity above the imported-show profile.");
+        if (delta.maximumAcceleration > 1e-9 && after.maximumAcceleration > lim.maxAcceleration)
+          blockers.push("The proposal raises maximum acceleration above the imported-show profile.");
+        if (delta.maximumJerk > 1e-9 && after.maximumJerk > lim.maxJerk)
+          blockers.push("The proposal raises maximum jerk above the imported-show profile.");
+      }
+      if (blockers.length === 0 && after.blockingIssueCount > 0) {
+        warnings.push(
+          `The imported show already had ${before.blockingIssueCount} blocking issue(s); the proposal does not add any. Validated against the profile derived from the imported show — NOT flight authorization.`,
+        );
+      }
+    } else {
+      if (!trajectory.canonicalProfilePass) {
+        blockers.push("The proposed show is blocked by the canonical full-show validation profile.");
+      }
+      if (trajectory.after.status === "FAIL") {
+        blockers.push("The proposed full show fails canonical validation.");
+      }
+      if (trajectory.after.exportReadiness === "BLOCKED") {
+        blockers.push("The proposed full show is not export-ready.");
+      }
+      if (trajectory.after.spliceOk === false) {
+        blockers.push("The proposed imported/planner splice is discontinuous.");
+      }
+      if (trajectory.after.blockingIssueCount > 0) {
+        blockers.push(
+          `The proposed full show has ${trajectory.after.blockingIssueCount} blocking issue(s).`,
+        );
+      }
     }
 
     if (trajectory.after.exportReadiness === "READY_WITH_WARNINGS") {

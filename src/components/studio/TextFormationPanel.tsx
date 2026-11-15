@@ -367,8 +367,10 @@ export default function TextFormationPanel() {
         staticPreflight: current?.preflight ?? null,
         trajectory: current?.trajectory ?? null,
         importedPromotionAcknowledged: acknowledge,
+        importedDoNotWorsen: project.safetyProfile?.source === "IMPORTED_SHOW",
+        limits: project.limits,
       }),
-    [current, acknowledge],
+    [current, acknowledge, project.safetyProfile, project.limits],
   );
 
   const evaluate = async () => {

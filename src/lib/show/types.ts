@@ -112,6 +112,24 @@ export interface SafetyLimits {
   maxAltitude: number; // m
 }
 
+/** Source-measured envelope of an imported show (see native/safetyProfile). */
+export interface ImportedSafetyProfile {
+  source: "IMPORTED_SHOW";
+  note: string;
+  measured: {
+    maxAbsX: number;
+    maxAbsZ: number;
+    maxAltitude: number;
+    minAirborneAltitude: number | null;
+    minAirborneSeparation: number | null;
+    maxVelocity: number;
+    maxAcceleration: number;
+    maxJerk: number;
+    /** ESSP has no yaw channel. */
+    maxYawRate: null;
+  };
+}
+
 export interface ShowArea {
   width: number; // X, m
   depth: number; // Z, m
@@ -174,6 +192,12 @@ export interface ShowProject {
   formations: Formation[];
   timeline: TimelineClip[];
   altitudes: PhaseAltitudes;
+  /**
+   * Present only on projects produced by "Make editable" from an imported
+   * show: limits/area/altitudes were derived from the source. Enables the
+   * "do not worsen" edit gates. Never a flight authorization.
+   */
+  safetyProfile?: ImportedSafetyProfile;
   versions: ProjectVersions;
   /** Deterministic seed for every generator that needs pseudo-randomness. */
   seed: number;

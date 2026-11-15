@@ -240,8 +240,10 @@ export default function GeometryProposalPanel() {
         staticPreflight,
         trajectory,
         importedPromotionAcknowledged: acknowledgePromotion,
+        importedDoNotWorsen: project.safetyProfile?.source === "IMPORTED_SHOW",
+        limits: project.limits,
       }),
-    [staticPreflight, trajectory, acknowledgePromotion],
+    [staticPreflight, trajectory, acknowledgePromotion, project.safetyProfile, project.limits],
   );
 
   /**
