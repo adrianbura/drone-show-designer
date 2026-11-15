@@ -718,7 +718,7 @@ export interface AgentGroupOpResult {
   ok: boolean;
   project?: ShowProject;
   summaries?: AgentOpSummary[];
-  reason?: AgentFailureReason;
+  reason?: AgentOpFailure;
   failedClipId?: string;
 }
 
