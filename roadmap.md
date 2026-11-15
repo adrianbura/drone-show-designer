@@ -278,3 +278,7 @@ această rulare.
 - [ ] Show-ul ESSP importat are separare reală 2,39 m < minim proiect 2,5 m → orice micșorare refuzată; de decis dacă limita proiectului importat trebuie derivată din sursă.
 - [ ] Apply/Undo durează 25–50 s în browserul headless din sandbox (și la rotire, preexistent) — de măsurat pe hardware real.
 - [ ] Următor: EDIT_TRANSITION, INSERT_LIBRARY_SCENE, EDIT_LIGHTING.
+
+## 20. Clipuri editabile = scene afișate
+- TERMINAT: un clip per scenă afișată (119 pe show-ul real), test de granițe.
+- DESCHIS: verificare browser și performanță pentru 121 de clipuri; refuz corect la editarea scenelor de 1 s.

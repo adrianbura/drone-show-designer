@@ -1246,3 +1246,10 @@ procesat sau modificat. Nu există un nou rezultat de audit real wedding-sorin.
 **Dovezi:** `bunx vitest run src/lib/agent` 74/74; `bunx vitest run --maxWorkers=4 --testTimeout=30000` 174 fișiere, 1543 trecute / 1 sărit; `tsgo -b --noEmit` curat; eslint 0 erori pe fișierele atinse. Browser (Playwright, ESSP_8_12_mainv4_2f6001-2.zip → Make editable, scena 5 „Imported scene 4"): „mută scena 10 metri în sus" → preview altitudine 21,2–52,1 → 31,2–62,1 m → Apply → Undo; „mărește scena de 1,02 ori" → separare 2,39 → 2,44 m → Apply → Undo; ×1,05 refuzat OUTSIDE_FLIGHT_AREA (zona declarată 100×40 m, scena ajunge la |x| 49,8 m); „micșorează cu 10%" refuzat (separare reală 2,39 m < 2,5 m); „×0,4" refuzat SCALE_OUT_OF_RANGE; frază liberă EN rezolvată de model (MOVE +15 m, preview MODEL). Zero erori de pagină.
 
 **Limite:** scena 11 importată e deja sub altitudinea minimă → orice operație refuzată; Apply/Undo 25–50 s în headless sandbox (preexistent, și la rotire); viteza tranzițiilor spre/dinspre scena mutată nu e re-măsurată de agent — analiza full-show rămâne autoritatea.
+
+## 2026-11-15 — „Make editable” = scenele afișate
+- Cauza (măsurată pe `ESSP_8_12_mainv4_2f6001-2.zip`): `minSceneSeconds = 4` implicit elimina 85 din 119 scene → 34 clipuri SHOW; timpul lor devenea `transition` (până la 67 s).
+- Fix: `displayedSceneSegments(report)` în `native/extract.ts` = proiecția canonică (SCENE_CLASSES între decolare/aterizare, fără prag implicit, suprapuneri semi-deschise). Calea implicită o folosește; `groupVisualIdentity` neschimbat.
+- Rezultat real: TAKEOFF + 119 SHOW + LANDING (era 36 clipuri). Traiectorii, octeți ESSP, raport și efecte neschimbate.
+- Verificat: test nou `displayedScenes.test.ts`; suita completă 1544 trecute / 1 sărit (`--maxWorkers=4 --testTimeout=60000`).
+- Neverificat: browser (timp Make editable/Undo cu 121 clipuri), editare pe scene de 1 s lipite (tranziție 0,001 s).

@@ -111,6 +111,50 @@ const ANIMATED_CLASSES = new Set([
   "DYNAMIC_DEFORMATION",
 ]);
 
+/**
+ * Default extraction keeps every forensic scene segment: "Make editable" must
+ * yield one clip per scene the timeline displays, short pulses included.
+ */
+export const DEFAULT_MIN_SCENE_SECONDS = 0;
+
+function acceptNonOverlapping<T extends { endTime: number }>(candidates: readonly T[]): T[] {
+  let acceptedEnd = Number.NEGATIVE_INFINITY;
+  return candidates.filter((segment) => {
+    if (segment.endTime <= acceptedEnd + MIN_EXTRACTED_TRANSITION_SECONDS) return false;
+    acceptedEnd = segment.endTime;
+    return true;
+  });
+}
+
+/** True when a forensic segment is shown and extracted as an editable scene. */
+export function isDisplayedSceneSegment(
+  report: ReferenceForensicsReport,
+  segment: ReferenceSceneSegment,
+): boolean {
+  if (!SCENE_CLASSES.has(segment.classification)) return false;
+  if (report.takeoffInterval && segment.endTime <= report.takeoffInterval.endTime + 1e-6)
+    return false;
+  if (report.landingInterval && segment.startTime >= report.landingInterval.startTime - 1e-6)
+    return false;
+  return true;
+}
+
+/**
+ * Canonical scene projection shared by the timeline overlay and extraction.
+ * Each returned segment becomes exactly one SHOW clip whose span ends at the
+ * segment end and starts at max(segment start, previous scene end).
+ */
+export function displayedSceneSegments(
+  report: ReferenceForensicsReport,
+  minSceneSeconds = DEFAULT_MIN_SCENE_SECONDS,
+): ReferenceSceneSegment[] {
+  return acceptNonOverlapping(
+    report.segments
+      .filter((s) => isDisplayedSceneSegment(report, s) && s.duration >= minSceneSeconds)
+      .sort((a, b) => a.startTime - b.startTime),
+  );
+}
+
 /** Structural deep copy of plain extracted data (history must not alias). */
 function deepCopy<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -180,7 +224,7 @@ export function extractReferenceTimeline(
   report: ReferenceForensicsReport,
   options: ReferenceExtractionOptions = {},
 ): ReferenceExtractionResult {
-  const minSceneSeconds = options.minSceneSeconds ?? 4;
+  const minSceneSeconds = options.minSceneSeconds ?? DEFAULT_MIN_SCENE_SECONDS;
   const animate = options.animateMotionScenes ?? true;
   const importLighting = options.importLighting ?? true;
   const decompose = options.decomposeScenes ?? true;
@@ -189,29 +233,10 @@ export function extractReferenceTimeline(
   if (droneCount === 0) {
     throw new ReferenceLayerError("NO_REFERENCE_SHOW", "The imported show has no drones.");
   }
-  let acceptedEnd = Number.NEGATIVE_INFINITY;
   const sourceSequence = options.groupVisualIdentity ? sequenceFromReferenceShow(show) : null;
-  const candidates = sourceSequence
-    ? visualSceneSegments(sourceSequence, report, minSceneSeconds)
-    : report.segments
-        .filter((segment) => {
-          if (!SCENE_CLASSES.has(segment.classification) || segment.duration < minSceneSeconds)
-            return false;
-          if (report.takeoffInterval && segment.endTime <= report.takeoffInterval.endTime + 1e-6)
-            return false;
-          if (
-            report.landingInterval &&
-            segment.startTime >= report.landingInterval.startTime - 1e-6
-          )
-            return false;
-          return true;
-        })
-        .sort((a, b) => a.startTime - b.startTime);
-  const scenes = candidates.filter((segment) => {
-    if (segment.endTime <= acceptedEnd + MIN_EXTRACTED_TRANSITION_SECONDS) return false;
-    acceptedEnd = segment.endTime;
-    return true;
-  });
+  const scenes = sourceSequence
+    ? acceptNonOverlapping(visualSceneSegments(sourceSequence, report, minSceneSeconds))
+    : displayedSceneSegments(report, minSceneSeconds);
   if (scenes.length === 0) {
     throw new ReferenceLayerError(
       "NO_SCENES",
