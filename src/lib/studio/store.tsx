@@ -1963,6 +1963,18 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     (sampleId: string) => {
       const sample = findSampleShow(sampleId);
       if (!sample) return false;
+      const file = sample.createFile?.();
+      if (file) {
+        // Full-fidelity sample: planning state and editor preferences travel
+        // with the envelope, but the file state stays UNSAVED — a bundled
+        // sample must never claim a file on disk.
+        adoptProjectFileRef.current?.(
+          file,
+          suggestedProjectFileName(file.project.name),
+          "UNSAVED",
+        );
+        return true;
+      }
       loadShowProject(sample.create());
       return true;
     },
@@ -5520,7 +5532,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     | ((
         file: ProjectFile,
         fileName: string,
-        fileState?: "FILE" | "RECOVERED",
+        fileState?: "FILE" | "RECOVERED" | "UNSAVED",
       ) => AdoptProjectOutcome)
     | null
   >(null);
@@ -5529,7 +5541,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     (
       file: ProjectFile,
       fileName: string,
-      fileState: "FILE" | "RECOVERED" = "FILE",
+      fileState: "FILE" | "RECOVERED" | "UNSAVED" = "FILE",
     ): AdoptProjectOutcome =>
       adoptProject(file.project, fileName, {
         ...(file.planning ? { planning: file.planning } : {}),
