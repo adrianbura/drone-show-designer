@@ -39,7 +39,7 @@ import { onWorkspaceSectionRequest, type WorkspaceSectionId } from "@/lib/studio
 
 import { useEffect, useRef, useState } from "react";
 
-import { DEPTH_STAGGER_DEMO_ID } from "@/lib/show/stories/depthStaggerDemo";
+import { SAMPLE_SHOWS } from "@/lib/show/stories/samples";
 import { requiresUnsavedConfirmation, unsavedWorkPrompt } from "@/lib/studio/unsavedWorkGuard";
 
 import { authorityLabel, buildProductionStatus } from "@/lib/studio/productionStatus";
@@ -338,7 +338,7 @@ export default function Inspector({
     return () => window.clearTimeout(t);
   }, [pendingFocus, group]);
 
-  const [sampleConfirm, setSampleConfirm] = useState(false);
+  const [sampleConfirmId, setSampleConfirmId] = useState<string | null>(null);
   const {
     project,
     plan,
@@ -1341,7 +1341,7 @@ export default function Inspector({
             <p className="pb-1 text-[10px] leading-relaxed text-muted-foreground">
               Development and diagnostics fixtures. Loading one replaces the open document.
             </p>
-            {sampleConfirm ? (
+            {sampleConfirmId ? (
               <div
                 className="space-y-1.5 rounded border border-warning/60 p-2"
                 data-testid="samples-unsaved-confirm"
@@ -1355,8 +1355,9 @@ export default function Inspector({
                     className="chip-btn"
                     data-testid="samples-confirm-continue"
                     onClick={() => {
-                      setSampleConfirm(false);
-                      loadSampleShow(DEPTH_STAGGER_DEMO_ID);
+                      const id = sampleConfirmId;
+                      setSampleConfirmId(null);
+                      loadSampleShow(id);
                     }}
                   >
                     {unsavedWorkPrompt("LOAD_SAMPLE").continueLabel}
@@ -1365,27 +1366,33 @@ export default function Inspector({
                     type="button"
                     className="chip-btn"
                     data-testid="samples-confirm-cancel"
-                    onClick={() => setSampleConfirm(false)}
+                    onClick={() => setSampleConfirmId(null)}
                   >
                     Cancel
                   </button>
                 </div>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  if (requiresUnsavedConfirmation("LOAD_SAMPLE", { projectDirty })) {
-                    setSampleConfirm(true);
-                    return;
-                  }
-                  loadSampleShow(DEPTH_STAGGER_DEMO_ID);
-                }}
-                data-testid="samples-depth-stagger-demo"
-                className="chip-btn w-full justify-center"
-              >
-                Load Depth Stagger Demo
-              </button>
+              <div className="flex flex-col gap-1.5">
+                {SAMPLE_SHOWS.map((sample) => (
+                  <button
+                    key={sample.id}
+                    type="button"
+                    onClick={() => {
+                      if (requiresUnsavedConfirmation("LOAD_SAMPLE", { projectDirty })) {
+                        setSampleConfirmId(sample.id);
+                        return;
+                      }
+                      loadSampleShow(sample.id);
+                    }}
+                    data-testid={`samples-load-${sample.id}`}
+                    className="chip-btn w-full justify-center"
+                    title={sample.description}
+                  >
+                    Load {sample.name}
+                  </button>
+                ))}
+              </div>
             )}
           </section>
 
