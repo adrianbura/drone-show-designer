@@ -194,8 +194,9 @@ describe("legacy wedding story removal", () => {
     const offenders: string[] = [];
     const asset = "a-and-b-wedding-show-200-drones";
     const registry = join("src", "lib", "show", "stories", "samples.ts");
+    const self = "historyRestoreIntegrity.test.ts";
     for (const file of sourceFiles("src")) {
-      if (file === registry) continue;
+      if (file === registry || file.endsWith(self)) continue;
       if (readFileSync(file, "utf8").includes(asset)) offenders.push(file);
     }
     expect(offenders).toEqual([]);
