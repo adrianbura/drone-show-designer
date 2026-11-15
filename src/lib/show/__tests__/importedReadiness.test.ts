@@ -62,6 +62,7 @@ describe("imported do-not-worsen readiness", () => {
       staticPreflight: staticOk,
       trajectory: traj(),
       importedDoNotWorsen: true,
+      targetIsReferenceDerived: true,
       limits,
     });
     expect(r.canApply).toBe(true);
@@ -71,6 +72,7 @@ describe("imported do-not-worsen readiness", () => {
       staticPreflight: staticOk,
       trajectory: traj({ blockingIssueCount: 3 }),
       importedDoNotWorsen: true,
+      targetIsReferenceDerived: true,
       limits,
     });
     expect(r.canApply).toBe(false);
@@ -80,6 +82,7 @@ describe("imported do-not-worsen readiness", () => {
       staticPreflight: staticOk,
       trajectory: traj({ totalConflictCount: 4 }),
       importedDoNotWorsen: true,
+      targetIsReferenceDerived: true,
       limits,
     });
     expect(r.canApply).toBe(false);
@@ -88,6 +91,16 @@ describe("imported do-not-worsen readiness", () => {
     const r = evaluateGeometryApplyReadiness({
       staticPreflight: staticOk,
       trajectory: traj({ minimumDynamicSeparation: 1.9 }),
+      importedDoNotWorsen: true,
+      targetIsReferenceDerived: true,
+      limits,
+    });
+    expect(r.canApply).toBe(false);
+  });
+  it("a native clip inside an imported project stays absolute", () => {
+    const r = evaluateGeometryApplyReadiness({
+      staticPreflight: staticOk,
+      trajectory: traj(),
       importedDoNotWorsen: true,
       limits,
     });
@@ -102,6 +115,7 @@ describe("imported do-not-worsen readiness", () => {
       staticPreflight: staticOk,
       trajectory: null,
       importedDoNotWorsen: true,
+      targetIsReferenceDerived: true,
       limits,
     });
     expect(r.canApply).toBe(false);
