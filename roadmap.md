@@ -287,4 +287,4 @@ această rulare.
 - [x] Eliminat efectul care deschidea automat „A & B — Wedding Story" la fiecare încărcare; aplicația pornește cu proiectul gol implicit.
 - [x] Show-ul rămâne disponibil la cerere în „Samples / development" (registrul `SAMPLE_SHOWS`), cu fidelitate completă (planning + preferințe editor) prin `createFile` și stare UNSAVED — nu revendică un fișier pe disc.
 - [x] UI generalizat: câte un buton per mostră din registru, confirmarea de muncă nesalvată per mostră.
-- [ ] Verificare browser: pornire goală, încărcare la cerere a ambelor mostre.
+- [x] Verificare browser: pornire goală („Untitled Show"), încărcare la cerere a show-ului wedding, zero erori de pagină. Suită completă 1545/1 sărit, build OK.
