@@ -189,7 +189,13 @@ describe("group edit keeps the rest verbatim and round-trips", () => {
     const rec = reconcileReferenceLayer(edit.project!, fx.layer, { assignmentStrategy: STRATEGY, transitionOverrides: {} });
     const { plan } = analyzeFullShow(edit.project!, { sampleRate: RATE, assignmentStrategy: STRATEGY, reference: { show: fx.show, layer: rec.layer } });
     const d = plan.trajectorySet.drones[3]!;
-    console.log("PROBE", d.samples.slice(0, 6).map((x) => [x.t, ...x.position.map((v) => +v.toFixed(2))]), plan.trajectorySet.startTime);
+    let best = { v: 0, k: 0 };
+    for (let k = 1; k < d.samples.length; k++) {
+      const a = d.samples[k - 1]!, b = d.samples[k]!;
+      const v = Math.hypot(b.position[0] - a.position[0], b.position[1] - a.position[1], b.position[2] - a.position[2]) / Math.max(1e-9, b.t - a.t);
+      if (v > best.v) best = { v, k };
+    }
+    console.log("PROBE", best, d.samples.slice(best.k - 2, best.k + 2).map((x) => [x.t, ...x.position.map((v) => +v.toFixed(2))]), edit.project!.timeline.map((c) => [c.id, c.phase, c.start, c.transition, c.hold]).slice(0, 3));
   });
   // KNOWN BLOCKER (2026-11-15): after ANY promotion the composed full show
   // reports absurd TAKEOFF-hold velocities on the REFERENCE-owned takeoff clip,
