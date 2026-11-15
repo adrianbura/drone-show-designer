@@ -144,16 +144,34 @@ describe("scene groups are a derived, lossless view", () => {
   });
 });
 
+function groupTarget() {
+  const groups = clipSceneGroups(fx.report, fx.layer);
+  return (
+    groups.find((g) => g.kind === "DYNAMIC" && g.clipIds.length > 1) ??
+    groups.find((g) => g.kind === "DYNAMIC")!
+  );
+}
+
 describe("group edit keeps the rest verbatim and round-trips", () => {
+  it("a visible jump at the group edges is caught by the real splice gate and blocks export", () => {
+    const target = groupTarget();
+    const edit = applyAgentOpToGroup(fx.project, target.clipIds, { kind: "MOVE_SCENE", offset: [0, 0.4, 0] });
+    expect(edit.ok).toBe(true);
+    const rec = reconcileReferenceLayer(edit.project!, fx.layer, {
+      assignmentStrategy: STRATEGY,
+      transitionOverrides: {},
+    });
+    const { fullShow, pkg } = exportOf(edit.project!, rec.layer);
+    expect(fullShow.splice?.ok).toBe(false);
+    expect(pkg.ok).toBe(false);
+  });
+
   it("only group clips are promoted, splice continuous, re-import matches the editor", async () => {
-    const groups = clipSceneGroups(fx.report, fx.layer);
-    const target =
-      groups.find((g) => g.kind === "DYNAMIC" && g.clipIds.length > 1) ??
-      groups.find((g) => g.kind === "DYNAMIC");
-    expect(target).toBeTruthy();
-    const edit = applyAgentOpToGroup(fx.project, target!.clipIds, {
+    const target = groupTarget();
+    // Below the 5 cm splice tolerance: a continuous handover.
+    const edit = applyAgentOpToGroup(fx.project, target.clipIds, {
       kind: "MOVE_SCENE",
-      offset: [0, 0.4, 0],
+      offset: [0, 0.03, 0],
     });
     expect(edit.ok).toBe(true);
     const edited = edit.project!;
@@ -162,18 +180,15 @@ describe("group edit keeps the rest verbatim and round-trips", () => {
       transitionOverrides: {},
     });
     const promoted = new Set(rec.promotions.map((p) => p.clipId));
-    expect([...promoted].sort()).toEqual([...target!.clipIds].sort());
+    expect([...promoted].sort()).toEqual([...target.clipIds].sort());
     for (const b of rec.layer.bindings) {
-      expect(b.owner).toBe(target!.clipIds.includes(b.clipId) ? "PLANNER" : "REFERENCE");
+      expect(b.owner).toBe(target.clipIds.includes(b.clipId) ? "PLANNER" : "REFERENCE");
     }
     // Source RGB in the moved group's interval is still the recorded RGB track.
     const { plan, fullShow, pkg } = exportOf(edited, rec.layer);
-    expect(fullShow.splice?.ok ?? true).toBe(true);
-    if (!pkg.ok) {
-      // Export refusal must come from the real full-show gate, never from grouping.
-      expect(pkg.blockers.length).toBeGreaterThan(0);
-      return;
-    }
+    expect(fullShow.splice?.ok).toBe(true);
+    expect(pkg.blockers).toEqual([]);
+    expect(pkg.ok).toBe(true);
     expect(pkg.files).toHaveLength(DRONES);
     const back = await buildReferenceShow(pkg.files.map((f) => ({ name: f.name, bytes: f.bytes })));
     expect(back.drones).toHaveLength(DRONES);
