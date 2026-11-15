@@ -129,7 +129,9 @@ export function deriveImportedSafetyProfile(
   const limits: SafetyLimits = {
     maxVelocity: Math.max(DEFAULT_LIMITS.maxVelocity, r(ceilTo(maxV, 0.1))),
     maxAcceleration: Math.max(DEFAULT_LIMITS.maxAcceleration, r(ceilTo(maxA, 0.1))),
-    maxJerk: Math.max(DEFAULT_LIMITS.maxJerk, r(ceilTo(maxJ, 0.1))),
+    // Jerk from 8 Hz int16 third differences is quantisation-dominated; keep the
+    // default and only REPORT the measured value (see measured.jerkReliable).
+    maxJerk: DEFAULT_LIMITS.maxJerk,
     // ESSP carries no yaw channel: the default stays, measured value unknown.
     maxYawRate: DEFAULT_LIMITS.maxYawRate,
     minSeparation: Number.isFinite(minSep)
@@ -162,6 +164,7 @@ export function deriveImportedSafetyProfile(
         maxVelocity: r(maxV),
         maxAcceleration: r(maxA),
         maxJerk: r(maxJ),
+        jerkReliable: false,
         maxYawRate: null,
       },
     },

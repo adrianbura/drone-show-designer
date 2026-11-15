@@ -28,6 +28,8 @@ export interface GeometryApplyReadinessInput {
    * absolute and fail-closed.
    */
   readonly importedDoNotWorsen?: boolean;
+  /** Caller-proven: the edited clip has a reference binding (already promoted or not). */
+  readonly targetIsReferenceDerived?: boolean;
   /** Project limits used by the relative policy for v/a/j caps. */
   readonly limits?: { maxVelocity: number; maxAcceleration: number; maxJerk: number; minSeparation: number };
 }
@@ -79,7 +81,12 @@ export function evaluateGeometryApplyReadiness(
     if (!trajectory.candidateGeometryExercisedByPlanner) {
       blockers.push("The proposed geometry was not exercised by planner-owned trajectory time.");
     }
-    if (input.importedDoNotWorsen) {
+    // Relative only when the proposal touches imported (REFERENCE-derived)
+    // output: it promotes reference clips, or the caller states the target is
+    // reference-derived. Native clips inside an imported project stay absolute.
+    const touchesReference =
+      trajectory.newlyPromotedClipIds.length > 0 || input.targetIsReferenceDerived === true;
+    if (input.importedDoNotWorsen && touchesReference) {
       const { before, after, delta } = trajectory;
       if ((STATUS_RANK[after.status] ?? 2) > (STATUS_RANK[before.status] ?? 2)) {
         blockers.push("The proposal makes the imported show's validation status worse.");

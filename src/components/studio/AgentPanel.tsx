@@ -12,13 +12,14 @@
  * answer is labelled "local" or "model".
  */
 import { Bot, Check, Loader2, Send, Undo2, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { interpretAgentCommand } from "@/lib/agent/agent.functions";
 import { capabilitySummary } from "@/lib/agent/capabilities";
 import { recordFeatureRequest } from "@/lib/agent/feedback";
 import {
   applyAgentOp,
+  applyAgentOpToGroup,
   resolveSceneTarget,
   type AgentOp,
   type AgentOpSummary,
@@ -320,7 +321,12 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       if (pendingSelect) selectClip(pendingSelect);
       if (summaries.length === 0) return;
       const validated = groupClipIds.length > 0 ? [...new Set(groupClipIds)] : [targetClipId!];
-      const results = validated.map((id) => validateAgentProject(candidate, id, project));
+      // "Do not worsen" applies only to clips derived from the imported show
+      // (a reference binding exists); native clips stay absolute.
+      const referenceDerived = new Set(referenceLayer?.bindings.map((b) => b.clipId) ?? []);
+      const results = validated.map((id) =>
+        validateAgentProject(candidate, id, referenceDerived.has(id) ? project : undefined),
+      );
       const validation = {
         ok: results.every((v) => v.ok),
         issues: [...new Set(results.flatMap((v) => v.issues))],

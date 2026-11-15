@@ -125,6 +125,8 @@ export interface ImportedSafetyProfile {
     maxVelocity: number;
     maxAcceleration: number;
     maxJerk: number;
+    /** False: third differences of the quantised source are noise-dominated. */
+    jerkReliable: boolean;
     /** ESSP has no yaw channel. */
     maxYawRate: null;
   };
