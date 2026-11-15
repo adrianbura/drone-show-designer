@@ -42,6 +42,8 @@ export interface ScaleSceneOp {
   kind: "SCALE_SCENE";
   /** Uniform factor about the scene centroid, within [SCALE_MIN, SCALE_MAX]. */
   factor: number;
+  /** Optional world-space pivot (group edits share one pivot). Default: scene centroid. */
+  pivot?: Vector3Tuple;
 }
 
 export const SCALE_MIN = 0.5;
@@ -53,6 +55,8 @@ export interface RotateSceneOp {
   /** Signed degrees about the show-frame axis (X lean, Y turn, Z tilt). */
   axis: "X" | "Y" | "Z";
   degrees: number;
+  /** Optional world-space pivot (group edits share one pivot). Default: scene centroid. */
+  pivot?: Vector3Tuple;
 }
 
 export interface RecolorSceneOp {
@@ -277,7 +281,7 @@ function applyRotate(
     const priv = ensurePrivateDynamic(project, clip);
     const source = priv.dynamicFormations.find((d) => d.id === priv.dynamicFormationId);
     if (!source) return { ok: false, reason: "CLIP_NOT_FOUND" };
-    const c = centroid(source.points.map((p) => p.base));
+    const c = op.pivot ?? centroid(source.points.map((p) => p.base));
     const pivot = source.pivot;
     const offset = rotateByQuat([pivot[0] - c[0], pivot[1] - c[1], pivot[2] - c[2]], q);
     const bias: Vector3Tuple = [
@@ -324,7 +328,7 @@ function applyRotate(
   const priv = ensurePrivateFormation(project, clip, clipIndex);
   const source = priv.formations.find((f) => f.id === priv.formationId);
   if (!source) return { ok: false, reason: "CLIP_NOT_FOUND" };
-  const c = centroid(source.points);
+  const c = op.pivot ?? centroid(source.points);
   const points = source.points.map((p) => {
     const r = rotateByQuat([p[0] - c[0], p[1] - c[1], p[2] - c[2]], q);
     return [c[0] + r[0], c[1] + r[1], c[2] + r[2]] as Vector3Tuple;
@@ -506,6 +510,7 @@ function applyAffine(
   kind: "MOVE_SCENE" | "SCALE_SCENE",
   k: number,
   d: Vector3Tuple,
+  pivotOverride?: Vector3Tuple,
 ): AgentOpResult {
   const { clip, clipIndex } = resolved;
   const lightingMayOverride = hasSceneLighting(project, clip.id);
@@ -524,7 +529,7 @@ function applyAffine(
     const priv = ensurePrivateDynamic(project, clip);
     const source = priv.dynamicFormations.find((x) => x.id === priv.dynamicFormationId);
     if (!source) return { ok: false, reason: "CLIP_NOT_FOUND" };
-    const c = centroid(source.points.map((p) => p.base));
+    const c = pivotOverride ?? centroid(source.points.map((p) => p.base));
     const pv = source.pivot;
     const mapT = (t: Vector3Tuple): Vector3Tuple => [
       c[0] + d[0] - pv[0] + k * (pv[0] + t[0] - c[0]),
@@ -569,7 +574,7 @@ function applyAffine(
   const priv = ensurePrivateFormation(project, clip, clipIndex);
   const source = priv.formations.find((f) => f.id === priv.formationId);
   if (!source) return { ok: false, reason: "CLIP_NOT_FOUND" };
-  const c = centroid(source.points);
+  const c = pivotOverride ?? centroid(source.points);
   const points = source.points.map(
     (p) =>
       [
@@ -618,7 +623,7 @@ function applyScale(project: ShowProject, resolved: ResolvedClip, op: ScaleScene
   if (!Number.isFinite(k) || k <= 0 || k === 1) return { ok: false, reason: "INVALID_OP" };
   if (k < SCALE_MIN - 1e-9 || k > SCALE_MAX + 1e-9)
     return { ok: false, reason: "SCALE_OUT_OF_RANGE" };
-  return applyAffine(project, resolved, "SCALE_SCENE", k, [0, 0, 0]);
+  return applyAffine(project, resolved, "SCALE_SCENE", k, [0, 0, 0], op.pivot);
 }
 
 export type SceneTargetResolution =
@@ -695,6 +700,58 @@ export function applyAgentOp(
       // never executed.
       return { ok: false, reason: "INVALID_OP" };
   }
+}
+
+/** World-space centroid of a clip at its first sample (static points / dynamic t=0). */
+export function clipWorldCentroid(project: ShowProject, clipId: string): Vector3Tuple | null {
+  const clip = project.timeline.find((c) => c.id === clipId);
+  if (!clip) return null;
+  if (clip.dynamicFormationId) {
+    const f = project.dynamicFormations?.find((d) => d.id === clip.dynamicFormationId);
+    return f ? centroid(sampleDynamicFormation(f, 0)) : null;
+  }
+  const f = project.formations.find((x) => x.id === clip.formationId);
+  return f ? centroid(f.points) : null;
+}
+
+export interface AgentGroupOpResult {
+  ok: boolean;
+  project?: ShowProject;
+  summaries?: AgentOpSummary[];
+  reason?: AgentFailureReason;
+  failedClipId?: string;
+}
+
+/**
+ * SCENE GROUP EDIT. Applies ONE geometric operation to every member clip of a
+ * derived scene group with a SHARED world pivot (mean of member centroids), so
+ * internal boundaries between members stay continuous: every member receives
+ * the identical affine map. Atomic: any member failure discards the whole
+ * candidate. Clips and reference bindings stay per segment.
+ */
+export function applyAgentOpToGroup(
+  project: ShowProject,
+  clipIds: readonly string[],
+  op: AgentOp,
+): AgentGroupOpResult {
+  if (clipIds.length === 0) return { ok: false, reason: "CLIP_NOT_FOUND" };
+  let pivot: Vector3Tuple | undefined;
+  if (op.kind === "ROTATE_SCENE" || op.kind === "SCALE_SCENE") {
+    const cs = clipIds.map((id) => clipWorldCentroid(project, id));
+    if (cs.some((c) => !c)) return { ok: false, reason: "CLIP_NOT_FOUND" };
+    pivot = centroid(cs as Vector3Tuple[]);
+  }
+  const shared: AgentOp =
+    op.kind === "ROTATE_SCENE" || op.kind === "SCALE_SCENE" ? ({ ...op, pivot } as AgentOp) : op;
+  let candidate = project;
+  const summaries: AgentOpSummary[] = [];
+  for (const id of clipIds) {
+    const r = applyAgentOp(candidate, id, shared);
+    if (!r.ok) return { ok: false, reason: r.reason, failedClipId: id };
+    candidate = r.project;
+    summaries.push(r.summary);
+  }
+  return { ok: true, project: candidate, summaries };
 }
 
 /** Kept for tests: quaternion composition used by the rotation operation. */
