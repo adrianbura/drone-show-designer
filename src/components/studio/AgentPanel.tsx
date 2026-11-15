@@ -25,6 +25,7 @@ import {
 } from "@/lib/agent/operations";
 import { parseAgentCommand } from "@/lib/agent/parser";
 import { validateAgentProject, type AgentValidationIssue } from "@/lib/agent/validate";
+import { clipSceneGroups, groupOfClip } from "@/lib/import/essp/native/sceneGroups";
 import { useI18n } from "@/i18n";
 import { useStudio } from "@/lib/studio/store";
 import type { ShowProject } from "@/lib/show/types";
@@ -112,7 +113,13 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
     applyAgentProject,
     undoTimeline,
     timelineHistoryDepth,
+    forensicsReport,
+    referenceLayer,
   } = useStudio();
+  const sceneGroups = useMemo(
+    () => (forensicsReport ? clipSceneGroups(forensicsReport, referenceLayer) : []),
+    [forensicsReport, referenceLayer],
+  );
   const [entries, setEntries] = useState<ChatEntry[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -247,6 +254,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       let targetClipId = selectedClipId;
       let pendingSelect: string | null = null;
       const summaries: AgentOpSummary[] = [];
+      const groupClipIds: string[] = [];
       for (const op of ops) {
         if (op.kind === "SELECT_SCENE") {
           const target = resolveSceneTarget(candidate, op);
@@ -267,6 +275,33 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
           );
           continue;
         }
+        const group =
+          op.kind === "ROTATE_SCENE" || op.kind === "MOVE_SCENE" || op.kind === "SCALE_SCENE"
+            ? groupOfClip(sceneGroups, targetClipId)
+            : null;
+        if (group) {
+          const g = applyAgentOpToGroup(candidate, group.clipIds, op);
+          if (!g.ok) {
+            const label = FAILURE_LABELS[g.reason ?? "INVALID_OP"] ?? FAILURE_LABELS["INVALID_OP"]!;
+            say(
+              `${t(label[0], label[1])} ${t("Nicio parte a cererii nu a fost aplicată.", "No part of the request was applied.")}`,
+              undefined,
+              { text, reason: g.reason ?? "INVALID_OP" },
+            );
+            return;
+          }
+          say(
+            t(
+              "Aplic pe tot grupul dinamic: {n} scene, același pivot.",
+              "Applying to the whole dynamic group: {n} scenes, shared pivot.",
+              { n: String(group.clipIds.length) },
+            ),
+          );
+          candidate = g.project!;
+          summaries.push(...g.summaries!);
+          groupClipIds.push(...group.clipIds);
+          continue;
+        }
         const r = applyAgentOp(candidate, targetClipId, op);
         if (!r.ok) {
           // Atomicity: a failed step aborts the WHOLE request — the candidate
@@ -284,7 +319,12 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       }
       if (pendingSelect) selectClip(pendingSelect);
       if (summaries.length === 0) return;
-      const validation = validateAgentProject(candidate, targetClipId!, project);
+      const validated = groupClipIds.length > 0 ? [...new Set(groupClipIds)] : [targetClipId!];
+      const results = validated.map((id) => validateAgentProject(candidate, id, project));
+      const validation = {
+        ok: results.every((v) => v.ok),
+        issues: [...new Set(results.flatMap((v) => v.issues))],
+      };
       if (!validation.ok) {
         for (const issue of validation.issues) {
           const label = ISSUE_LABELS[issue];
