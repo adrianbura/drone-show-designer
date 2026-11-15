@@ -183,22 +183,10 @@ describe("group edit keeps the rest verbatim and round-trips", () => {
     expect(fullShow.splice?.ok).toBe(true);
   });
 
-  it("PROBE", () => {
-    const target = groupTarget();
-    const edit = applyAgentOpToGroup(fx.project, target.clipIds, { kind: "MOVE_SCENE", offset: [0, 0.03, 0] });
-    const rec = reconcileReferenceLayer(edit.project!, fx.layer, { assignmentStrategy: STRATEGY, transitionOverrides: {} });
-    const { plan } = analyzeFullShow(edit.project!, { sampleRate: RATE, assignmentStrategy: STRATEGY, reference: { show: fx.show, layer: rec.layer } });
-    const d = plan.trajectorySet.drones[3]!;
-    let best = { v: 0, k: 0 };
-    for (let k = 1; k < d.samples.length; k++) {
-      const a = d.samples[k - 1]!, b = d.samples[k]!;
-      const v = Math.hypot(b.position[0] - a.position[0], b.position[1] - a.position[1], b.position[2] - a.position[2]) / Math.max(1e-9, b.t - a.t);
-      if (v > best.v) best = { v, k };
-    }
-    console.log("PROBE", best, d.samples.slice(best.k - 2, best.k + 2).map((x) => [x.t, ...x.position.map((v) => +v.toFixed(2))]), edit.project!.timeline.map((c) => [c.id, c.phase, c.start, c.transition, c.hold]).slice(0, 3));
-  });
-  // KNOWN BLOCKER (2026-11-15): after ANY promotion the composed full show
-  // reports absurd TAKEOFF-hold velocities on the REFERENCE-owned takeoff clip,
+  // KNOWN BLOCKER (2026-11-15): after a promotion the full-show report lists
+  // absurd TAKEOFF-hold velocities (hundreds to thousands of m/s) on the
+  // REFERENCE-owned takeoff clip, while the composed trajectory's own max step
+  // is 2.56 m/s for the same drone — cause not yet isolated (validator path),
   // so the real export gate refuses a mixed export. This test flips to failing
   // (it.fails) the moment that is fixed; then turn it into a normal it().
   it.fails("KNOWN BLOCKER — mixed export round trip after a group edit", async () => {
