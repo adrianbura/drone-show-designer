@@ -1264,4 +1264,4 @@ procesat sau modificat. Nu există un nou rezultat de audit real wedding-sorin.
 - `Inspector.tsx`: secțiunea „Samples / development" listează acum toate mostrele din registru (Depth Stagger Demo + A & B — Wedding Story), cu confirmarea de muncă nesalvată per mostră (`sampleConfirmId`).
 - `AGENTS.md`: regula veche „opened … on first load" înlocuită cu regula „never auto-opens; opt-in sample, UNSAVED".
 
-**Dovezi:** de completat după typecheck/teste/browser în aceeași intervenție.
+**Dovezi:** `tsgo -b --noEmit` curat; suită completă 1545 trecute / 1 sărit (`--maxWorkers=4 --testTimeout=30000`); build OK; test de gardă actualizat (numele „Wedding Story" permis DOAR în registrul de mostre + test nou care interzice referința la asset-ul bundled în afara registrului). Browser (Playwright): pornire curată („Untitled Show", 48 drone, fără wedding), butonul „Load A & B — Wedding Story" din Samples / development încarcă show-ul la cerere, zero erori de pagină.
