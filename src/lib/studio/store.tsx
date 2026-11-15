@@ -5,6 +5,7 @@
  * planning maths lives in this file or above it; everything here is delegation
  * plus memoisation of pure engine calls.
  */
+import { deriveImportedSafetyProfile } from "@/lib/import/essp/native/safetyProfile";
 import {
   createContext,
   useCallback,
@@ -4924,8 +4925,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       try {
         const result = extractReferenceTimeline(show, report);
         const previous = projectRef.current;
+        // Judge the imported show against its OWN measured envelope, set
+        // BEFORE signatures are reseeded so extraction promotes nothing.
+        const derived = deriveImportedSafetyProfile(show, report);
         const next: ShowProject = {
           ...previous,
+          area: derived.area,
+          altitudes: derived.altitudes,
+          limits: derived.limits,
+          safetyProfile: derived.profile,
           // The extracted timeline replaces the previous show: its title,
           // markers and music sections described the OLD clips and must not
           // survive as if they belonged to the imported show.

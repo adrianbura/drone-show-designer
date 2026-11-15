@@ -127,9 +127,9 @@ export function deriveImportedSafetyProfile(
     height: Math.max(DEFAULT_AREA.height, ceilTo(maxY + 5, 1)),
   };
   const limits: SafetyLimits = {
-    maxVelocity: Math.max(DEFAULT_LIMITS.maxVelocity, ceilTo(maxV, 0.1)),
-    maxAcceleration: Math.max(DEFAULT_LIMITS.maxAcceleration, ceilTo(maxA, 0.1)),
-    maxJerk: Math.max(DEFAULT_LIMITS.maxJerk, ceilTo(maxJ, 0.1)),
+    maxVelocity: Math.max(DEFAULT_LIMITS.maxVelocity, r(ceilTo(maxV, 0.1))),
+    maxAcceleration: Math.max(DEFAULT_LIMITS.maxAcceleration, r(ceilTo(maxA, 0.1))),
+    maxJerk: Math.max(DEFAULT_LIMITS.maxJerk, r(ceilTo(maxJ, 0.1))),
     // ESSP carries no yaw channel: the default stays, measured value unknown.
     maxYawRate: DEFAULT_LIMITS.maxYawRate,
     minSeparation: Number.isFinite(minSep)
