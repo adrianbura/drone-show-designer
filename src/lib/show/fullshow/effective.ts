@@ -176,15 +176,18 @@ export function sampleEffectiveTrajectorySet(
   const startTime = reference ? alignedStartTime(options.startTime, rate) : options.startTime;
   const sourceIntervals=reference ? resolveReferenceIntervals(reference.layer) : [];
   const tail=sourceIntervals.at(-1);
+  const ownershipGrid=new Map<number,{interval:ResolvedReferenceInterval|undefined;handover:boolean}>();
   const sourceSample=(index:number,t:number):TrajectorySample|undefined=>{
     if(!reference)return undefined;
     const drone=reference.show.drones[index];if(!drone)return undefined;
-    const interval=ownerAt(sourceIntervals,t);
+    let ownership=ownershipGrid.get(t);
+    if(!ownership){ownership={interval:ownerAt(sourceIntervals,t),handover:sourceIntervals.some((right,i)=>i>0 && right.owner!==sourceIntervals[i-1]?.owner && Math.abs(right.start-t)<1e-6)};ownershipGrid.set(t,ownership);}
+    const interval=ownership.interval;
     const motion=interval?.owner==="PLANNER" && reference.layer.motionEdits?.some(e=>e.clipIds.includes(interval.clipId));
     // Keep the raw planner at ownership handovers unless a tapered source edit
     // supplies its own exact boundary anchor; splice validation must not compare
     // the source with itself for an ordinary promoted interval.
-    const handover=sourceIntervals.some((right,i)=>i>0 && right.owner!==sourceIntervals[i-1]?.owner && Math.abs(right.start-t)<1e-6);
+    const handover=ownership.handover;
     const recorded=interval?.owner==="REFERENCE" || (tail?.owner==="REFERENCE" && t>=tail.end && t<=reference.show.timing.positionDurationSeconds);
     if((!recorded&&!motion)||(handover&&!motion))return undefined;
     return {t,...(motion?taperedKinematics(drone,t,reference.show.timing,reference.layer.motionEdits??[]):referenceKinematicsAt(drone,t,reference.show.timing)),yaw:0,yawRate:0};
