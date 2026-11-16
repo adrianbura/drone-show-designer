@@ -329,3 +329,12 @@ această rulare.
 - [ ] Six real MOVE/ROTATE/SCALE dynamic/static exports and round trips; infeasible refusal; untouched 150/150.
 - [ ] Real browser export-button path, full suite, automatic type/build evidence; standalone tsgo prohibited by harness.
 - [ ] Append final evidence to CONTINUATION/HANDOFF/roadmap, including Stage 2 unfinished work.
+
+### Stage 5 — realistic magnitudes (2026-11-16)
+- [x] Stage-4 failing tests fixed (2) — full suite 1594/1 skipped.
+- [x] Magnitude sweep script + table (docs/CONTINUATION.md); adaptive ramp; feasible-max refusal RO/EN.
+- [x] Plain-words taper explanation in Agent + Inspector; preview summary shows real values.
+- [x] Stacking rules + tests; save→open→export round trip (unit).
+- [x] Browser real archive: agent move/rotate/scale → Apply → validation → real download → Undo (n=3); Inspector path; downloads byte-identical to CLI.
+- [ ] Apply/Undo ≤5 s (now 13–28 s) — windowed worker re-analysis (P02) still open.
+- [ ] Pixel comparison Timeline/3D vs export; browser save/open dialog path.
