@@ -174,10 +174,22 @@ export function sampleEffectiveTrajectorySet(
     ? effectiveSampleRate(requested, reference.layer.positionRateHz)
     : requested;
   const startTime = reference ? alignedStartTime(options.startTime, rate) : options.startTime;
+  const sourceIntervals=reference ? resolveReferenceIntervals(reference.layer) : [];
+  const tail=sourceIntervals.at(-1);
+  const sourceSample=(index:number,t:number):TrajectorySample|undefined=>{
+    if(!reference)return undefined;
+    const drone=reference.show.drones[index];if(!drone)return undefined;
+    const interval=ownerAt(sourceIntervals,t);
+    const motion=interval?.owner==="PLANNER" && reference.layer.motionEdits?.some(e=>e.clipIds.includes(interval.clipId));
+    const recorded=interval?.owner==="REFERENCE" || (tail?.owner==="REFERENCE" && t>=tail.end && t<=reference.show.timing.positionDurationSeconds);
+    if(!recorded&&!motion)return undefined;
+    return {t,...(motion?taperedKinematics(drone,t,reference.show.timing,reference.layer.motionEdits??[]):referenceKinematicsAt(drone,t,reference.show.timing)),yaw:0,yawRate:0};
+  };
   const plannerSet = sampleTrajectorySet(plan, {
     sampleRate: rate,
     startTime,
     duration: Math.max(0, options.endTime - startTime),
+    ...(reference ? {sampleOverride:sourceSample} : {}),
   });
   if (!reference) return plannerOnly(plannerSet, requested);
 
@@ -212,7 +224,7 @@ export function sampleEffectiveTrajectorySet(
         plannerSampleCount++;
         return {
           t: sample.t,
-          ...taperedKinematics(source, sample.t, show.timing, layer.motionEdits),
+          position: sample.position, velocity:sample.velocity, acceleration:sample.acceleration,jerk:sample.jerk,
           yaw: 0,
           yawRate: 0,
         };
@@ -234,7 +246,7 @@ export function sampleEffectiveTrajectorySet(
         return sample;
       }
       referenceSampleCount += 1;
-      const k9 = referenceKinematicsAt(source, sample.t, show.timing);
+      const k9 = sample;
       return {
         t: sample.t,
         position: k9.position,

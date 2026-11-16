@@ -219,6 +219,8 @@ function parseScale(text: string): AgentOp | null {
     const n = Number((times[1] ?? times[2])!.replace(",", "."));
     if (n > 0) factor = shrink && n > 1 ? 1 / n : n;
   } else {
+    const explicit=/\bscale\s+(?:scene\s+|it\s+)?(?:by\s+|to\s+)?(\d+(?:[.,]\d+)?)\s*$/.exec(t);
+    if(explicit?.[1])factor=Number(explicit[1].replace(",","."));
     for (const [re, n] of WORD_FACTORS) {
       if (re.test(t)) {
         factor = shrink && n > 1 ? 1 / n : n;
