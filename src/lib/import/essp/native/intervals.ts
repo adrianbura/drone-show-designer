@@ -16,7 +16,7 @@
  * necessary transition boundary" — one interval, never a whole-show rebuild.
  */
 import type { ShowProject } from "../../../show/types";
-import { clipOutputSignature, type ClipSignatureContext } from "./signature";
+import { clipOutputSignature, legacyClipOutputSignature, type ClipSignatureContext } from "./signature";
 import {
   type ReferenceClipBinding,
   type ReferenceIntervalOwner,
@@ -174,8 +174,10 @@ export function reconcileReferenceLayer(
 ): ReferenceLayerReconciliation {
   const requests: { clipId: string; reason: ReferencePromotion["reason"]; signature?: string }[] = [];
   const removed: string[] = [];
+  const migrated = new Map<string, string>();
   for (const binding of layer.bindings) {
-    const signature = clipOutputSignature(project, binding.clipId, context);
+    const ownerContext = { ...context, owner: binding.owner };
+    const signature = clipOutputSignature(project, binding.clipId, ownerContext);
     if (signature === null) {
       removed.push(binding.clipId);
       if (binding.owner === "REFERENCE") {
@@ -184,10 +186,19 @@ export function reconcileReferenceLayer(
       continue;
     }
     if (signature !== binding.signature) {
+      if (legacyClipOutputSignature(project, binding.clipId, context) === binding.signature) {
+        migrated.set(binding.clipId, signature);
+        continue;
+      }
       requests.push({ clipId: binding.clipId, reason: "OUTPUT_SIGNATURE_CHANGED", signature });
     }
   }
-  const promoted = promoteReferenceClips(layer, requests, now);
+  const seeded = migrated.size ? {
+    ...layer,
+    bindings: layer.bindings.map((b) => ({ ...b, signature: migrated.get(b.clipId) ?? b.signature })),
+  } : layer;
+  const result = promoteReferenceClips(seeded, requests, now);
+  const promoted = { ...result, changed: result.changed || migrated.size > 0 };
   if (removed.length === 0) return promoted;
   const bindings = promoted.layer.bindings.filter((b) => !removed.includes(b.clipId));
   return {
@@ -204,7 +215,7 @@ export function reseedReferenceSignatures(
   context: ClipSignatureContext,
 ): ReferenceTrajectoryLayer {
   const bindings = layer.bindings.map((binding) => {
-    const signature = clipOutputSignature(project, binding.clipId, context);
+    const signature = clipOutputSignature(project, binding.clipId, { ...context, owner: binding.owner });
     return signature === null ? binding : { ...binding, signature };
   });
   return { ...layer, bindings };
