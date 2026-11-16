@@ -15,11 +15,12 @@ import { sampleReferenceShow } from "../../playback";
 
 const ctx = { assignmentStrategy: "nearestNeighbor" as const, transitionOverrides: {} };
 async function importedFixture() {
-  return importArchiveFixture(Array.from({length:4},(_,i)=>{
+  return importArchiveFixture(Array.from({length:6},(_,i)=>{
     const xyz=Array.from({length:481},(_,f)=>{
       const t=f/8,u=t<15?Math.min(1,t/15):t>45?Math.max(0,(60-t)/15):1;
       const s=u*u*u*(10+u*(-15+6*u));
-      return [(i%2)*600-300,Math.floor(i/2)*600-300,Math.round(2500*s)];
+      const drift=t<20?0:t<30?(t-20)*50:500;
+      return [(i%3)*400-400+drift,Math.floor(i/3)*400,Math.round(3000*s)];
     });
     const bytes=buildSyntheticEssp({xyz,rgb:Array.from({length:721},()=>[100,50,200])});
     return {name:`${i+1}.essp`,bytes};
