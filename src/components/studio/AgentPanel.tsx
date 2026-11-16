@@ -431,7 +431,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       }
       setEntries((e) => [
         ...e,
-        { role: "preview", edit: { ops, source, candidate, summaries, transaction } },
+        { role: "preview", edit: { ops, source, candidate, summaries, ...(transaction ? {transaction} : {}) } },
       ]);
     } finally {
       setBusy(false);

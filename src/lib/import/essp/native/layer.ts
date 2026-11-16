@@ -276,7 +276,7 @@ export function migrateReferenceLayer(raw: unknown): ReferenceTrajectoryLayer {
           !Array.isArray(e.clipIds) ||
           !e.clipIds.length ||
           e.clipIds.some(
-            (id) => !c.bindings?.some((b) => b.clipId === id && b.owner === "PLANNER"),
+            (id: string) => !c.bindings?.some((b) => b.clipId === id && b.owner === "PLANNER"),
           ) ||
           ![e.start, e.end, e.rampSeconds, e.guardSeconds, ...(e.pivot ?? [])].every(
             Number.isFinite,

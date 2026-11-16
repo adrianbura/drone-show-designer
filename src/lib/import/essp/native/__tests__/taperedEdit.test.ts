@@ -18,7 +18,7 @@ describe("tapered imported edit transaction", () => {
     "preserves edges, neighbours, RGB and round trip for %s",
     async (kind) => {
       const { project, show, layer } = await importedFixture();
-      const binding = layer.bindings.find((b) => b.kind === "SCENE");
+      const binding = layer.bindings.find((b) => b.kind === "SCENE" && b.sourceClassification === "STATIC_FORMATION");
       if (!binding) throw new Error("fixture needs scene");
       const before = JSON.stringify({ project, layer });
       const op =
