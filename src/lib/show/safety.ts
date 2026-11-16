@@ -108,27 +108,50 @@ const dist = (a: Vector3Tuple, b: Vector3Tuple) => Math.hypot(a[0] - b[0], a[1] 
 /** Uniform spatial hash: candidate pairs within one cell radius. */
 export function neighbourPairs(positions: readonly Vector3Tuple[], cell: number): [number, number][] {
   const size = Math.max(0.05, cell);
-  const buckets = new Map<string, number[]>();
-  const key = (p: Vector3Tuple) =>
-    `${Math.floor(p[0] / size)}:${Math.floor(p[1] / size)}:${Math.floor(p[2] / size)}`;
+  // Numeric nested keys avoid allocating 27 strings per drone per frame.
+  // Visit each occupied cell once and each neighbouring cell pair once.
+  const buckets = new Map<number, Map<number, Map<number, number[]>>>();
+  const occupied: { x: number; y: number; z: number; indices: number[] }[] = [];
   positions.forEach((p, i) => {
-    const k = key(p);
-    const arr = buckets.get(k);
-    if (arr) arr.push(i);
-    else buckets.set(k, [i]);
+    const x = Math.floor(p[0] / size);
+    const y = Math.floor(p[1] / size);
+    const z = Math.floor(p[2] / size);
+    let ys = buckets.get(x);
+    if (!ys) { ys = new Map(); buckets.set(x, ys); }
+    let zs = ys.get(y);
+    if (!zs) { zs = new Map(); ys.set(y, zs); }
+    let indices = zs.get(z);
+    if (!indices) { indices = []; zs.set(z, indices); occupied.push({ x, y, z, indices }); }
+    indices.push(i);
   });
   const pairs: [number, number][] = [];
-  positions.forEach((p, i) => {
-    const cx = Math.floor(p[0] / size);
-    const cy = Math.floor(p[1] / size);
-    const cz = Math.floor(p[2] / size);
-    for (let dx = -1; dx <= 1; dx++)
-      for (let dy = -1; dy <= 1; dy++)
-        for (let dz = -1; dz <= 1; dz++)
-          for (const j of buckets.get(`${cx + dx}:${cy + dy}:${cz + dz}`) ?? []) {
-            if (j > i) pairs.push([i, j]);
+  for (const { x, y, z, indices } of occupied) {
+    for (let a = 0; a < indices.length; a++) {
+      const i = indices[a];
+      if (i === undefined) continue;
+      for (let b = a + 1; b < indices.length; b++) {
+        const j = indices[b];
+        if (j !== undefined) pairs.push([i, j]);
+      }
+    }
+    for (let dx = 0; dx <= 1; dx++) {
+      const ys = buckets.get(x + dx);
+      if (!ys) continue;
+      for (let dy = -1; dy <= 1; dy++) {
+        if (dx === 0 && dy < 0) continue;
+        const zs = ys.get(y + dy);
+        if (!zs) continue;
+        for (let dz = -1; dz <= 1; dz++) {
+          if (dx === 0 && dy === 0 && dz <= 0) continue;
+          const neighbours = zs.get(z + dz);
+          if (!neighbours) continue;
+          for (const i of indices) for (const j of neighbours) {
+            pairs.push(i < j ? [i, j] : [j, i]);
           }
-  });
+        }
+      }
+    }
+  }
   return pairs;
 }
 
