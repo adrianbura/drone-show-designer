@@ -16,7 +16,11 @@
  * necessary transition boundary" — one interval, never a whole-show rebuild.
  */
 import type { ShowProject } from "../../../show/types";
-import { clipOutputSignature, legacyClipOutputSignature, type ClipSignatureContext } from "./signature";
+import {
+  clipOutputSignature,
+  legacyClipOutputSignature,
+  type ClipSignatureContext,
+} from "./signature";
 import {
   type ReferenceClipBinding,
   type ReferenceIntervalOwner,
@@ -28,7 +32,9 @@ import {
 } from "./types";
 
 function sortedBindings(layer: ReferenceTrajectoryLayer): ReferenceClipBinding[] {
-  return [...layer.bindings].sort((a, b) => a.order - b.order || a.referenceStart - b.referenceStart);
+  return [...layer.bindings].sort(
+    (a, b) => a.order - b.order || a.referenceStart - b.referenceStart,
+  );
 }
 
 const both = (a: ReferenceIntervalOwner, b: ReferenceIntervalOwner): ReferenceIntervalOwner =>
@@ -172,7 +178,8 @@ export function reconcileReferenceLayer(
   context: ClipSignatureContext,
   now = new Date().toISOString(),
 ): ReferenceLayerReconciliation {
-  const requests: { clipId: string; reason: ReferencePromotion["reason"]; signature?: string }[] = [];
+  const requests: { clipId: string; reason: ReferencePromotion["reason"]; signature?: string }[] =
+    [];
   const removed: string[] = [];
   const migrated = new Map<string, string>();
   for (const binding of layer.bindings) {
@@ -193,10 +200,15 @@ export function reconcileReferenceLayer(
       requests.push({ clipId: binding.clipId, reason: "OUTPUT_SIGNATURE_CHANGED", signature });
     }
   }
-  const seeded = migrated.size ? {
-    ...layer,
-    bindings: layer.bindings.map((b) => ({ ...b, signature: migrated.get(b.clipId) ?? b.signature })),
-  } : layer;
+  const seeded = migrated.size
+    ? {
+        ...layer,
+        bindings: layer.bindings.map((b) => ({
+          ...b,
+          signature: migrated.get(b.clipId) ?? b.signature,
+        })),
+      }
+    : layer;
   const result = promoteReferenceClips(seeded, requests, now);
   const promoted = { ...result, changed: result.changed || migrated.size > 0 };
   if (removed.length === 0) return promoted;
@@ -215,7 +227,10 @@ export function reseedReferenceSignatures(
   context: ClipSignatureContext,
 ): ReferenceTrajectoryLayer {
   const bindings = layer.bindings.map((binding) => {
-    const signature = clipOutputSignature(project, binding.clipId, { ...context, owner: binding.owner });
+    const signature = clipOutputSignature(project, binding.clipId, {
+      ...context,
+      owner: binding.owner,
+    });
     return signature === null ? binding : { ...binding, signature };
   });
   return { ...layer, bindings };
