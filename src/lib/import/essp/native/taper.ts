@@ -10,6 +10,8 @@ export interface TaperedMotionEdit {
   readonly start: number;
   readonly end: number;
   readonly rampSeconds: number;
+  /** Source derivative stencil stays entirely unchanged outside the edit. */
+  readonly guardSeconds: number;
   readonly pivot: Vector3Tuple;
   readonly offset?: Vector3Tuple;
   readonly axis?: "X" | "Y" | "Z";
@@ -19,8 +21,9 @@ export interface TaperedMotionEdit {
 
 /** Quintic rise/fall with zero added velocity/acceleration at both edges. */
 export function taperWeight(time: number, edit: TaperedMotionEdit): number {
-  if (time <= edit.start || time >= edit.end) return 0;
-  const u = Math.min(1, (time-edit.start)/edit.rampSeconds, (edit.end-time)/edit.rampSeconds);
+  const start=edit.start+edit.guardSeconds, end=edit.end-edit.guardSeconds;
+  if (time <= start || time >= end) return 0;
+  const u = Math.min(1, (time-start)/edit.rampSeconds, (end-time)/edit.rampSeconds);
   return u*u*u*(10+u*(-15+6*u));
 }
 

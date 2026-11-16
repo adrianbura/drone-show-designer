@@ -110,6 +110,8 @@ export interface ReferenceExtractedSceneSnapshot {
 }
 
 export interface ReferenceTrajectoryLayer {
+  /** Authored source-relative motion only; immutable archive/report are unchanged. */
+  readonly motionEdits?: readonly import("./taper").TaperedMotionEdit[];
   readonly kind: typeof REFERENCE_LAYER_KIND;
   readonly schemaVersion: number;
   readonly importedAt: string;

@@ -21,6 +21,7 @@
  */
 import { resolveReferenceIntervals } from "../../import/essp/native/intervals";
 import { referenceKinematicsAt } from "../../import/essp/native/derivatives";
+import { taperedKinematics } from "../../import/essp/native/taper";
 import {
   SPLICE_TOLERANCE_METERS,
   type ReferenceIntervalOwner,
@@ -202,6 +203,11 @@ export function sampleEffectiveTrajectorySet(
       return drone;
     }
     const samples: TrajectorySample[] = drone.samples.map((sample, k) => {
+      const interval=ownerAt(intervals,sample.t);
+      if (interval?.owner === "PLANNER" && layer.motionEdits?.some(e => e.clipIds.includes(interval.clipId))) {
+        plannerSampleCount++;
+        return { t:sample.t,...taperedKinematics(source,sample.t,show.timing,layer.motionEdits),yaw:0,yawRate:0 };
+      }
       if (!referenceOwned[k]) {
         plannerSampleCount += 1;
         // At an exact REFERENCE -> PLANNER ownership boundary the generic
@@ -282,6 +288,12 @@ export function sampleEffectiveTrajectorySet(
     positionTolerance,
     velocityTolerance,
     (time, side) => {
+      const adjacent=intervals.find(i => i.owner === "PLANNER" &&
+        Math.abs((side === "left" ? i.end : i.start)-time)<=1e-6 &&
+        layer.motionEdits?.some(e => e.clipIds.includes(i.clipId)));
+      if (adjacent && layer.motionEdits) return show.drones.map(d => ({
+        t:time,...taperedKinematics(d,time,show.timing,layer.motionEdits??[]),yaw:0,yawRate:0,
+      }));
       const constrained = plan.schedules.some((schedule) =>
         schedule.segments.some(
           (segment) =>
