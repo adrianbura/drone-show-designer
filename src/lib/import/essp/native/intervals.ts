@@ -54,8 +54,10 @@ export function resolveReferenceIntervals(
         kind: "TRANSITION",
         start: binding.referenceStart,
         end: binding.referenceHoldStart,
-        owner: previous && !layer.motionEdits?.some(e => e.clipIds.includes(previous.clipId))
-          ? both(binding.owner, previous.owner) : binding.owner,
+        owner:
+          previous && !layer.motionEdits?.some((e) => e.clipIds.includes(previous.clipId))
+            ? both(binding.owner, previous.owner)
+            : binding.owner,
         clipKind: binding.kind,
       });
     }

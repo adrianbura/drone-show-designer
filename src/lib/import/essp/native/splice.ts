@@ -40,9 +40,7 @@ export function referenceFleetSamples(
     const drone = show.drones[i];
     if (!drone) {
       const fallback = planned[i];
-      out.push(
-        fallback ?? { position: [0, 0, 0] as Vector3Tuple, color: [0, 0, 0] as RGB },
-      );
+      out.push(fallback ?? { position: [0, 0, 0] as Vector3Tuple, color: [0, 0, 0] as RGB });
       continue;
     }
     const sample = sampleReferenceDrone(drone, time, show.timing);
@@ -66,11 +64,17 @@ export function splicedSamplesAt(
     return { samples: [...planned], owner: "PLANNER", clipId: null };
   }
   const interval = intervalAtTime(layer, time);
-  if (interval && layer.motionEdits?.some(e => e.clipIds.includes(interval.clipId))) {
-    return { samples: planned.map((s,i) => {
-      const d=show.drones[i];
-      return d ? {...s,...taperedKinematics(d,time,show.timing,layer.motionEdits??[])} : s;
-    }), owner: "PLANNER", clipId: interval.clipId };
+  if (interval && layer.motionEdits?.some((e) => e.clipIds.includes(interval.clipId))) {
+    return {
+      samples: planned.map((s, i) => {
+        const d = show.drones[i];
+        return d
+          ? { ...s, ...taperedKinematics(d, time, show.timing, layer.motionEdits ?? []) }
+          : s;
+      }),
+      owner: "PLANNER",
+      clipId: interval.clipId,
+    };
   }
   if (!interval || interval.owner !== "REFERENCE") {
     return { samples: [...planned], owner: "PLANNER", clipId: interval?.clipId ?? null };
@@ -161,11 +165,16 @@ export function splicedTrajectorySamples<
 ): { samples: T[]; owner: "REFERENCE" | "PLANNER" } {
   if (!show || !layer) return { samples: [...planned], owner: "PLANNER" };
   const interval = intervalAtTime(layer, time);
-  if (interval && layer.motionEdits?.some(e => e.clipIds.includes(interval.clipId))) {
-    return { samples: planned.map((s,i) => {
-      const d=show.drones[i];
-      return d ? {...s,...taperedKinematics(d,time,show.timing,layer.motionEdits??[])} : s;
-    }), owner: "PLANNER" };
+  if (interval && layer.motionEdits?.some((e) => e.clipIds.includes(interval.clipId))) {
+    return {
+      samples: planned.map((s, i) => {
+        const d = show.drones[i];
+        return d
+          ? { ...s, ...taperedKinematics(d, time, show.timing, layer.motionEdits ?? []) }
+          : s;
+      }),
+      owner: "PLANNER",
+    };
   }
   if (!interval || interval.owner !== "REFERENCE") {
     return { samples: [...planned], owner: "PLANNER" };
@@ -209,13 +218,21 @@ export function referenceColorsAt(
   const interval = intervalAtTime(layer, time);
   // A geometric promotion of the predecessor owns this transition's XYZ,
   // not the untouched successor's recorded RGB track.
-  const recordedTransition = interval?.kind === "TRANSITION" &&
-    layer.bindings.some(binding => binding.clipId === interval.clipId && binding.owner === "REFERENCE");
+  const recordedTransition =
+    interval?.kind === "TRANSITION" &&
+    layer.bindings.some(
+      (binding) => binding.clipId === interval.clipId && binding.owner === "REFERENCE",
+    );
   const last = [...layer.bindings].sort((a, b) => a.order - b.order).at(-1);
-  const recordedTail = !interval && last?.owner === "REFERENCE" &&
-    time >= last.referenceEnd && time <= show.timing.playbackDurationSeconds;
-  const motionOnly = interval && layer.motionEdits?.some(e => e.clipIds.includes(interval.clipId));
-  if (interval?.owner !== "REFERENCE" && !recordedTransition && !recordedTail && !motionOnly) return null;
+  const recordedTail =
+    !interval &&
+    last?.owner === "REFERENCE" &&
+    time >= last.referenceEnd &&
+    time <= show.timing.playbackDurationSeconds;
+  const motionOnly =
+    interval && layer.motionEdits?.some((e) => e.clipIds.includes(interval.clipId));
+  if (interval?.owner !== "REFERENCE" && !recordedTransition && !recordedTail && !motionOnly)
+    return null;
   return referenceLightStates(show, time, fleetSize).map((s) => [s.r, s.g, s.b] as RGB);
 }
 
