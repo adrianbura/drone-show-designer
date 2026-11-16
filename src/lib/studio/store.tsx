@@ -1574,6 +1574,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   } | null>(null);
 
   // Pure engine pipeline: formations -> assignment -> planning -> sampling -> safety.
+  const engineCache=useRef<Array<{project:ShowProject;layer:ReferenceTrajectoryLayer|null;show:ReferenceShow|null;strategy:typeof assignmentStrategy;overrides:typeof transitionOverrides;rate:number;effective:ReturnType<typeof sampleEffectiveTrajectorySet>;safety:ReturnType<typeof validateShow>}>>([]);
   const plan = useMemo(
     () => buildShowPlan(project, { assignmentStrategy, transitionOverrides }),
     [project, assignmentStrategy, transitionOverrides],
@@ -1585,8 +1586,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * actually flies rather than a planner-only approximation.
    */
   const effective = useMemo(
-    () =>
-      sampleEffectiveTrajectorySet(plan, {
+    () => {
+      const cached=engineCache.current.find(c=>c.project===project&&c.layer===referenceLayer&&c.show===referenceLayerShow&&c.strategy===assignmentStrategy&&c.overrides===transitionOverrides&&c.rate===sampleRate);
+      if(cached)return cached.effective;
+      return sampleEffectiveTrajectorySet(plan, {
         sampleRate,
         startTime: plan.startTime ?? 0,
         endTime: plan.duration,
@@ -1594,13 +1597,20 @@ export function StudioProvider({ children }: { children: ReactNode }) {
           referenceLayer && referenceLayerShow
             ? { layer: referenceLayer, show: referenceLayerShow }
             : null,
-      }),
+      });
+    },
     [plan, sampleRate, referenceLayer, referenceLayerShow],
   );
   const trajectorySet = effective.set;
   const effectiveAuthority = effective.authority;
   const safety = useMemo(
-    () => validateShow(project, trajectorySet, plan.drones),
+    () => {
+      const cached=engineCache.current.find(c=>c.effective===effective&&c.project===project);
+      if(cached)return cached.safety;
+      const result=validateShow(project,trajectorySet,plan.drones);
+      engineCache.current=[{project,layer:referenceLayer,show:referenceLayerShow,strategy:assignmentStrategy,overrides:transitionOverrides,rate:sampleRate,effective,safety:result},...engineCache.current].slice(0,2);
+      return result;
+    },
     [project, trajectorySet, plan.drones],
   );
   const beatGrid = useMemo(() => buildBeatGrid(project.audio), [project.audio]);
