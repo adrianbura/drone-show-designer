@@ -1,13 +1,13 @@
 /** Local-only reproducible analysis/memory benchmark; no browser/flight claims. */
 import { performance } from "node:perf_hooks";
-import { createDefaultProject } from "../src/lib/show/defaultProject";
+import { createDemoProject } from "../src/lib/show/defaultProject";
 import { dynamicFromFormation, applyPreset } from "../src/lib/show/dynamic";
 import { buildShowPlan } from "../src/lib/show/trajectory/schedule";
 import { sampleTrajectorySet } from "../src/lib/show/trajectory/sampler";
 import { validateShow } from "../src/lib/show/safety";
 
 for (const count of [150, 300, 500]) {
-  const base = createDefaultProject(count);
+  const base = createDemoProject(count);
   const formation = base.formations[0];
   const clip = base.timeline.find((c) => c.phase === "SHOW" || !c.phase);
   if (!formation || !clip) throw new Error("Benchmark requires formation and SHOW");

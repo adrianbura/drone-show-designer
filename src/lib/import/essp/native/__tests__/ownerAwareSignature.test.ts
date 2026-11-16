@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { importedFixture as makeImportedFixture } from "@/lib/acceptance/__tests__/support/productionFixtures";
 import { reconcileReferenceLayer, reseedReferenceSignatures } from "../intervals";
 import { clipOutputSignature, legacyClipOutputSignature } from "../signature";
+import { applyAgentOp } from "@/lib/agent/operations";
 
 const context = { assignmentStrategy: "hungarian", transitionOverrides: {} };
 
@@ -34,6 +35,25 @@ describe("owner-aware signature", () => {
         ctx,
       ),
     );
+  });
+  it("moving one clip promotes only that clip, and Undo restores the original evidence", async () => {
+    const { project, layer: original } = await makeImportedFixture();
+    const layer = reseedReferenceSignatures(project, original, context);
+    const clip = project.timeline.find((c) => c.phase === "SHOW");
+    if (!clip) throw new Error("fixture needs SHOW");
+    const moved = applyAgentOp(project, clip.id, { kind: "MOVE_SCENE", offset: [0, 0.03, 0] });
+    if (!moved.ok || !moved.project) throw new Error("move refused");
+    expect(reconcileReferenceLayer(moved.project, layer, context).promotions.map(p => p.clipId)).toEqual([clip.id]);
+    expect(reconcileReferenceLayer(project, layer, context).promotions).toEqual([]);
+  });
+  it("legacy migration does not hide a first timing edit", async () => {
+    const { project, layer } = await makeImportedFixture();
+    const legacy = { ...layer, bindings: layer.bindings.map(b => ({ ...b,
+      signature: legacyClipOutputSignature(project, b.clipId, context) ?? "missing" })) };
+    const clip = project.timeline[0];
+    if (!clip) throw new Error("fixture needs clip");
+    const next = { ...project, timeline: project.timeline.map(c => c.id === clip.id ? { ...c, hold: c.hold+1 } : c) };
+    expect(reconcileReferenceLayer(next, legacy, context).promotions.map(p => p.clipId)).toEqual([clip.id]);
   });
   it.each(["start", "color", "count"])("promotes real %s output edits", async (kind) => {
     const fixture = await makeImportedFixture();
