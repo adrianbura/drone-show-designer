@@ -24,6 +24,8 @@ export const DEFAULT_SAMPLE_RATE = 10;
 export const SUPPORTED_SAMPLE_RATES = [10, 20, 25, 50, 100] as const;
 
 export interface SampleOptions {
+  /** Effective-authority fast path; undefined still evaluates the planner. */
+  sampleOverride?: (droneIndex: number, time: number) => TrajectorySample | undefined;
   sampleRate?: number;
   /** Overrides the sampled SPAN in seconds (defaults to the plan duration). */
   duration?: number;
@@ -34,7 +36,10 @@ export interface SampleOptions {
   startTime?: number;
 }
 
-export function sampleTrajectorySet(plan: SamplablePlan, options: SampleOptions = {}): TrajectorySet {
+export function sampleTrajectorySet(
+  plan: SamplablePlan,
+  options: SampleOptions = {},
+): TrajectorySet {
   const sampleRate = options.sampleRate ?? DEFAULT_SAMPLE_RATE;
   if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
     throw new Error(`Invalid sampleRate: ${sampleRate}`);
@@ -49,7 +54,7 @@ export function sampleTrajectorySet(plan: SamplablePlan, options: SampleOptions 
     for (let k = 0; k < stepCount; k++) {
       // t derived from the index (no accumulation) to avoid float drift.
       const t = startTime + k / sampleRate;
-      samples[k] = sampleScheduleAt(schedule, home, t);
+      samples[k] = options.sampleOverride?.(i, t) ?? sampleScheduleAt(schedule, home, t);
     }
     return { droneId: schedule.droneId, samples };
   });

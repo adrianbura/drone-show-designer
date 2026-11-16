@@ -116,7 +116,9 @@ export function prepareImportedEdit(
       ok: false,
       reason: `EDIT_TIME_BUDGET_EXCEEDED: v=${maxVelocity.toFixed(3)}/${project.limits.maxVelocity}, a=${maxAcceleration.toFixed(3)}/${project.limits.maxAcceleration}`,
     };
-  const next = { ...project };
+  // Geometry lives in the layer; preserve project identity for unchanged
+  // authoring topology instead of recomputing unrelated scene diagnostics.
+  const next = project;
   const promoted = promoteReferenceClips(
     layer,
     clipIds.map((clipId) => ({ clipId, reason: "MANUAL" as const })),

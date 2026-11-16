@@ -8,18 +8,18 @@ import RgbStructureDiagnostic from "./RgbStructureDiagnostic";
 import SaveExactScene from "./SaveExactScene";
 
 export default function SourceScenePanel() {
-  const { referenceLayer, selectedClipId } = useStudio();
+  const { referenceLayer, selectedClipId, fullShowAnalysisOptions } = useStudio();
   const { language } = useI18n();
   const ro = language === "ro";
   const canvas = useRef<HTMLCanvasElement>(null);
   const show = useMemo(() => {
     if (!referenceLayer) return null;
     try {
-      return referenceShowFromLayer(referenceLayer);
+      return fullShowAnalysisOptions.reference?.show ?? referenceShowFromLayer(referenceLayer);
     } catch {
       return null;
     }
-  }, [referenceLayer]);
+  }, [referenceLayer?.drones, fullShowAnalysisOptions.reference?.show]);
   const binding = referenceLayer?.bindings.find((entry) => entry.clipId === selectedClipId);
   const evidence = useMemo(
     () => (show && binding ? sourceSceneEvidence(show, binding) : null),
