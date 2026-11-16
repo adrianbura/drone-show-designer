@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import FullShowPanel from "./FullShowPanel";
+import ImportedTransformPanel from "./ImportedTransformPanel";
 import ShowReadinessPanel from "./ShowReadinessPanel";
 import ShowSetupPanel from "./ShowSetupPanel";
 import TransitionDesignPanel from "./TransitionDesignPanel";
@@ -740,6 +741,7 @@ export default function Inspector({
                 )}
                 <NumberRow
                   label="Start"
+                  
                   value={clip.start}
                   unit="s"
                   onChange={(v) => patchClip(clip.id, { start: Math.max(0, v) })}
