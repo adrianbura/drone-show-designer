@@ -111,3 +111,35 @@ Requested order: P04 → P02 → P06 → P03, without intermediate approvals. Im
 **P02 fresh baseline:** real owner archive, Chromium/SwiftShader sandbox, 1280×1800, first dynamic group MOVE +0.03 m; click-to-two-animation-frames Apply 72.58765 s, Undo 49.68705 s, n=1 (not median/p95). Both include synchronous render pipeline costs. No speedup or window/full equivalence is claimed yet.
 
 **Open:** P02 incremental worker + full-export coverage, P06 complete rotate/scale/export browser evidence, P03 150/300/500 profiling. Existing P01/P05 real edited-export blocker remains independent of signature/performance work. No source safety limit relaxed.
+
+## Stage 5 — realistic edit magnitudes (2026-11-16, Lovable)
+
+Data/machine: owner archive `ESSP_8_12_mainv4_2f6001.zip` (150 drones, 8 Hz XYZ / 12 Hz RGB), Lovable sandbox, Bun CLI; browser = Playwright Chromium (SwiftShader), 1280×1800.
+
+**Housekeeping first.** The 2 Stage-4 failures were fixed: `SourceScenePanel` crashed when analysis options were absent (optional chaining); the lighting acceptance test asserted that `plannerSet` is pure planner on every frame, which Stage 4's REFERENCE short-circuit intentionally breaks. The test now compares the planner's own sampling before/after promotion and asserts `plannerSet` is pure on planner-owned frames; `FullShowPlan.plannerTrajectorySet` doc updated. No gate touched.
+
+**Decision — adaptive ramp (`RAMP_FRACTIONS = [1/4, 1/3, 0.4, 1/2]` of the usable span).** The shortest ramp whose kinematics fit the derived limits is chosen (longest held pose); 1/2 means no hold (pure smooth bump). Added velocity scales ~1/ramp, acceleration ~1/ramp², so this alone raises the static-scene maximum ~3.8×. Edges stay exact (same quintic + 2-sample guard). Refusals now carry `feasible` (bisection on the same kinematic budget at the longest ramp) shown in RO/EN as "max feasible move ≈ X m"; the full canonical gate still applies afterwards and can be stricter (area/altitude/separation).
+
+**Sweep** (`bun scripts/esspEditMagnitudeSweep.ts <zip>`; each max = largest value passing the FULL gate: `analyzeFullShow` + `buildEsspExportPackage`, derived profile, nothing relaxed; bisection on the kinematic pre-check then confirmed/bisected on the full gate; caps: move 50 m, rotate 180°, scale 0.5–2):
+
+| Target | Duration | Ramp (1/4 → chosen) | Move X / Y / Z max | Rotate Y max | Scale up / down | Limiting |
+|---|---|---|---|---|---|---|
+| Dynamic 2-scene group 7.5–28.75 s — before | 21.25 s | 5.19 s fixed | 14.2 / 14.4 / 17.1 m | 23.7° | ×1.319 / ×0.562 | acceleration |
+| same — after | 21.25 s | 5.19→≤10.38 s | 32.8 (area) / 50 cap / 50 cap | 77.7° (velocity) | ×1.772 (accel) / ×0.5 cap | area / velocity / accel |
+| Static scene 31.25 s — before | 2.5 s visual (edit span 4.5 s) | 1.125 s fixed | 0.68 / 0.48 / 0.69 m | 1.04° | ×1.018 / ×0.982 | acceleration |
+| same — after | idem | up to 2.25 s | 2.11 / 1.82 / 2.91 m | 4.04° | ×1.046 / ×0.925 | acceleration |
+| Shortest group 42.25 s | 1 s | — | refused | refused | refused | INSUFFICIENT_EDIT_TIME (span ≤ 0.25 s after guards) |
+| Longest static 453.75 s — before | 43.25 s | 11.6 s | X step-down result invalid (old script) / 36.2 / 50 cap | 82.8° | ×1.342 / ×0.5 cap | full gate (area/altitude), velocity |
+| same — after | idem | idem (1/4 fits) | 20.3 (area) / 39.1 (altitude) / 50 cap | 164.9° (velocity) | ×1.387 (area) / ×0.5 cap | area / altitude / velocity |
+
+Realistic designer values (after): dynamic group and longest scene accept all of move 1 m / 5 m, move X 1 m, rotate 5° / 20°, scale 0.9 / 1.2. Static 2.5 s scene accepts move 1 m (Y or X); refuses move 5 m, rotate 5°, scale 0.9 (acceleration) and rotate 20°, scale 1.2 (velocity/acceleration) — a 4.5 s window cannot fly drones out and back that far within 5 m/s². Before: the static scene refused all seven. The 1 s scene is too short for any smooth edit.
+
+**Stacking (tested, `stage5Edits.test.ts`).** Second edit on the identical interval: allowed for same and different op; pivot = centroid of the current effective pose (rotate-after-move turns the moved shape in place); move+move offsets add; full gate re-runs. Partial overlap (group then one of its scenes): refused `OVERLAPPING_EDIT_INTERVAL`. Two adjacent scenes in sequence: both accepted, shared edge kinematics exact, export allowed. Save→open (JSON + `migrateReferenceLayer`)→export: byte-identical to live export.
+
+**CLI acceptance (`bun scripts/esspExportFidelity.ts <zip> --edit`, realistic magnitudes):** untouched 150/150 byte-identical, report unchanged; dynamic group move 1 m / rotate 5° / scale 1.1 and static scene move 1 m / rotate 3° / scale 1.04 → export allowed, splice ok, peak accel 3.89–4.71 m/s² (limit 5), XYZ outside edit 0 diffs, RGB 0 diffs, worst re-import vs effective 4.7–8.4 mm (int16 quantization), timing equal; 200 m move refused.
+
+**Browser (Playwright, real archive, n=3 edits in one session):** import → Make editable → first group bar → agent "move the scene 1 m up" / "rotate the scene 5 degrees" / "scale scene 1.1" → preview 14.0 / 15.9 / 11.5 s → Apply (settled 23.5 / 23.0 / 20.7 s) → Validate & export → Run validation (21.6 / 14.9 / 13.3 s) → Ready with warnings → real download of the ZIP → Undo (settled 20.0 / 28.0 / 24.7 s). The preview did not stall in this run (Stage 4 waited on analysis; no stuck state reproduced, so no fix claimed). `bun scripts/esspCompareDownload.ts src.zip download.zip '<op>'`: all three downloads 150/150 files byte-identical to the CLI pipeline, 150 drones, timing equal, XYZ outside edit 0, RGB 0. Agent refusal "move the scene 100 m up" → "max feasible move ≈ 53.52 m" in 0.4 s. Inspector path: move 1 m preview 11.6 s (explanation shown), Apply 14.9 s, ownership MIXED (4 planner-owned intervals), Undo 13.4 s. Screenshots: `docs/audits/stage5/`.
+
+**Bug fixed:** the agent change preview for imported edits showed "x 0.0 m, y 0.0 m … altitude 0.0–0.0" (placeholder summary). It now shows the real op, interval, ramp and measured peak velocity/acceleration once per group.
+
+**NOT verified:** Timeline/3D visual equality was not pixel-compared (the viewport reads the same effective sampler; exported = effective proven numerically); save/open was tested in unit tests, not via the browser file dialog; Apply/Undo remain 13–28 s (target ≤5 s unmet; windowed worker re-analysis still not implemented); standalone `tsgo -b --noEmit` not run (harness typecheck/build ran: build OK). The first full-suite run under concurrent browser load had 2 transient failures; two subsequent runs were fully green.

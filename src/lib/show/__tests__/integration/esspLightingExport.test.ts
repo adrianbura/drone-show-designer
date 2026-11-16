@@ -31,6 +31,7 @@ import {
 import type { ReferenceTrajectoryLayer } from "../../../import/essp/native/types";
 import type { ReferenceShow } from "../../../import/essp/types";
 import { buildShowPlan } from "../../trajectory/schedule";
+import { sampleTrajectorySet } from "../../trajectory/sampler";
 import { sampleEffectiveTrajectorySet } from "../../fullshow/effective";
 import { analyzeFullShow } from "../../fullshow";
 import { evaluateExportEligibility } from "../../../adapters/exportEligibility";
@@ -388,9 +389,22 @@ describe("ESSP acceptance — lighting-only authoring", () => {
     const after = pipeline(edited, show, reconciled.layer);
     // The PLANNER geometry itself is identical: promotion changes which
     // authority is read, not what the planner computes.
-    expect(after.effective.plannerSet.drones[0]!.samples.map((s) => s.position)).toEqual(
-      before.effective.plannerSet.drones[0]!.samples.map((s) => s.position),
-    );
+    // plannerSet short-circuits REFERENCE-owned frames with source samples
+    // (Stage 4 perf), so the planner's own computation is compared directly.
+    const pure = (r: typeof after) =>
+      sampleTrajectorySet(r.plan, {
+        sampleRate: SAMPLE_RATE,
+        startTime: r.plan.startTime ?? 0,
+        duration: r.plan.duration - (r.plan.startTime ?? 0),
+      }).drones[0]!.samples.map((s) => s.position);
+    expect(pure(after)).toEqual(pure(before));
+    // On frames the plannerFrames layer reads from the planner, plannerSet is pure.
+    const plannerFrames = new Set(framesOwnedBy(reconciled.layer, frameTimes(after.set), "PLANNER"));
+    const pureAfter = pure(after);
+    after.effective.plannerSet.drones[0]!.samples.forEach((s, k) => {
+      if (plannerFrames.has(k) && k > 0 && !plannerFrames.has(k - 1)) return; // handover uses right-hand sample
+      if (plannerFrames.has(k)) expect(s.position).toEqual(pureAfter[k]);
+    });
 
     // Positional deviation caused by switching authority is REPORTED, not
     // silently called a geometry edit.

@@ -1,11 +1,10 @@
 import type { AgentOp } from "../../../agent/operations";
 import type { ShowProject, Vector3Tuple } from "../../../show/types";
-import { sampleReferenceShow } from "../playback";
 import type { ReferenceShow } from "../types";
 import { promoteReferenceClips, reseedReferenceSignatures } from "./intervals";
 import type { ClipSignatureContext } from "./signature";
 import type { ReferenceTrajectoryLayer } from "./types";
-import { taperedKinematics, type TaperedMotionEdit } from "./taper";
+import { taperedKinematics, taperedPosition, type TaperedMotionEdit } from "./taper";
 
 export interface ImportedEditTransaction {
   readonly project: ShowProject;
@@ -17,6 +16,26 @@ export interface ImportedEditTransaction {
   readonly maxAcceleration: number;
 }
 
+/** Largest feasible magnitude of the same op/direction (kinematic budget only). */
+export interface FeasibleEditHint {
+  readonly kind: TaperedMotionEdit["kind"];
+  /** Metres of offset (MOVE), degrees (ROTATE) or factor (SCALE). */
+  readonly magnitude: number;
+  readonly rampSeconds: number;
+}
+
+export type ImportedEditResult =
+  | { ok: true; transaction: ImportedEditTransaction }
+  | { ok: false; reason: string; feasible?: FeasibleEditHint };
+
+/**
+ * Ramp policy (Stage 5, measured on the real archive): the shortest ramp of
+ * RAMP_FRACTIONS x (usable span) whose kinematics fit the derived limits.
+ * Short ramps keep the new pose held longest; longer ramps lower the added
+ * velocity (~1/ramp) and acceleration (~1/ramp^2). 0.5 = no hold (pure bump).
+ */
+export const RAMP_FRACTIONS = [0.25, 1 / 3, 0.4, 0.5] as const;
+
 /** Atomic preparation only; callers must still run the full canonical gate. */
 export function prepareImportedEdit(
   project: ShowProject,
@@ -25,7 +44,7 @@ export function prepareImportedEdit(
   clipIds: readonly string[],
   op: AgentOp,
   context: ClipSignatureContext,
-): { ok: true; transaction: ImportedEditTransaction } | { ok: false; reason: string } {
+): ImportedEditResult {
   if (!clipIds.length || !["MOVE_SCENE", "ROTATE_SCENE", "SCALE_SCENE"].includes(op.kind))
     return { ok: false, reason: "UNSUPPORTED_IMPORTED_EDIT" };
   const bindings = clipIds.map((id) => layer.bindings.find((b) => b.clipId === id));
@@ -60,9 +79,12 @@ export function prepareImportedEdit(
   const guard = 2 / show.timing.positionRateHz;
   const span = end - start - 2 * guard;
   if (span <= 0.25) return { ok: false, reason: "INSUFFICIENT_EDIT_TIME" };
-  const samples = sampleReferenceShow(show, (start + end) / 2);
+  // Pivot = centroid of the CURRENT effective pose (prior stacked edits
+  // included), so "rotate after move" turns the moved shape in place.
+  const mid = (start + end) / 2;
+  const samples = show.drones.map((d) => taperedPosition(d, mid, show.timing, layer.motionEdits ?? []));
   const pivot: Vector3Tuple = [0, 1, 2].map(
-    (axis) => samples.reduce((sum, s) => sum + (s.position[axis] ?? 0), 0) / samples.length,
+    (axis) => samples.reduce((sum, p) => sum + (p[axis] ?? 0), 0) / samples.length,
   ) as [number, number, number];
   const edit: TaperedMotionEdit = {
     kind: op.kind as TaperedMotionEdit["kind"],
@@ -94,28 +116,86 @@ export function prepareImportedEdit(
     (!Number.isFinite(op.factor) || op.factor < 0.5 || op.factor > 2)
   )
     return { ok: false, reason: "INVALID_SCALE" };
-  const edits = [...(layer.motionEdits ?? []), edit];
   const ordered = [...known].sort((a, b) => a.order - b.order);
   if (ordered.some((b, i) => i > 0 && b.order !== (ordered[i - 1]?.order ?? 0) + 1))
     return { ok: false, reason: "NON_CONSECUTIVE_EDIT_TARGET" };
-  let maxVelocity = 0,
-    maxAcceleration = 0;
-  for (
-    let f = Math.floor(start * show.timing.positionRateHz);
-    f <= Math.ceil(end * show.timing.positionRateHz);
-    f++
-  ) {
-    for (const drone of show.drones) {
-      const k = taperedKinematics(drone, f / show.timing.positionRateHz, show.timing, edits);
-      maxVelocity = Math.max(maxVelocity, Math.hypot(...k.velocity));
-      maxAcceleration = Math.max(maxAcceleration, Math.hypot(...k.acceleration));
+  const prior = layer.motionEdits ?? [];
+  // Stacking: a later edit on an overlapping-but-different interval would
+  // put one taper's ramp inside another's hold; refuse instead of guessing.
+  if (
+    prior.some(
+      (e) =>
+        e.start < end - 1e-9 &&
+        e.end > start + 1e-9 &&
+        (Math.abs(e.start - start) > 1e-9 || Math.abs(e.end - end) > 1e-9),
+    )
+  )
+    return { ok: false, reason: "OVERLAPPING_EDIT_INTERVAL" };
+  const budget = (candidate: TaperedMotionEdit) => {
+    const edits = [...prior, candidate];
+    let maxVelocity = 0,
+      maxAcceleration = 0;
+    for (
+      let f = Math.floor(start * show.timing.positionRateHz);
+      f <= Math.ceil(end * show.timing.positionRateHz);
+      f++
+    ) {
+      for (const drone of show.drones) {
+        const k = taperedKinematics(drone, f / show.timing.positionRateHz, show.timing, edits);
+        maxVelocity = Math.max(maxVelocity, Math.hypot(...k.velocity));
+        maxAcceleration = Math.max(maxAcceleration, Math.hypot(...k.acceleration));
+      }
+    }
+    return {
+      maxVelocity,
+      maxAcceleration,
+      fits:
+        maxVelocity <= project.limits.maxVelocity &&
+        maxAcceleration <= project.limits.maxAcceleration,
+    };
+  };
+  let chosen: { edit: TaperedMotionEdit; maxVelocity: number; maxAcceleration: number } | null =
+    null;
+  let last = { maxVelocity: 0, maxAcceleration: 0 };
+  for (const fraction of RAMP_FRACTIONS) {
+    const candidate = { ...edit, rampSeconds: span * fraction };
+    const b = budget(candidate);
+    last = b;
+    if (b.fits) {
+      chosen = { edit: candidate, ...b };
+      break;
     }
   }
-  if (maxVelocity > project.limits.maxVelocity || maxAcceleration > project.limits.maxAcceleration)
+  if (!chosen) {
+    const longest = { ...edit, rampSeconds: span * RAMP_FRACTIONS[RAMP_FRACTIONS.length - 1]! };
+    const at = (m: number): TaperedMotionEdit =>
+      edit.kind === "MOVE_SCENE"
+        ? { ...longest, offset: (edit.offset ?? [0, 0, 0]).map((v) => v * m) as unknown as Vector3Tuple }
+        : edit.kind === "ROTATE_SCENE"
+          ? { ...longest, degrees: (edit.degrees ?? 0) * m }
+          : { ...longest, factor: 1 + ((edit.factor ?? 1) - 1) * m };
+    let lo = 0,
+      hi = 1;
+    for (let i = 0; i < 10; i++) {
+      const mid = (lo + hi) / 2;
+      if (budget(at(mid)).fits) lo = mid;
+      else hi = mid;
+    }
+    const best = at(lo);
+    const magnitude =
+      edit.kind === "MOVE_SCENE"
+        ? Math.hypot(...(best.offset ?? [0, 0, 0]))
+        : edit.kind === "ROTATE_SCENE"
+          ? Math.abs(best.degrees ?? 0)
+          : (best.factor ?? 1);
     return {
       ok: false,
-      reason: `EDIT_TIME_BUDGET_EXCEEDED: v=${maxVelocity.toFixed(3)}/${project.limits.maxVelocity}, a=${maxAcceleration.toFixed(3)}/${project.limits.maxAcceleration}`,
+      reason: `EDIT_TIME_BUDGET_EXCEEDED: v=${last.maxVelocity.toFixed(3)}/${project.limits.maxVelocity}, a=${last.maxAcceleration.toFixed(3)}/${project.limits.maxAcceleration}`,
+      feasible: { kind: edit.kind, magnitude, rampSeconds: longest.rampSeconds },
     };
+  }
+  const { maxVelocity, maxAcceleration } = chosen;
+  const edits = [...prior, chosen.edit];
   // Geometry lives in the layer; preserve project identity for unchanged
   // authoring topology instead of recomputing unrelated scene diagnostics.
   const next = project;
@@ -131,7 +211,7 @@ export function prepareImportedEdit(
       layer: nextLayer,
       baselineProject: project,
       baselineLayer: layer,
-      edit,
+      edit: chosen.edit,
       maxVelocity,
       maxAcceleration,
     },

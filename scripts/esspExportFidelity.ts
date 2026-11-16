@@ -102,13 +102,22 @@ if (process.argv.includes("--edit")) {
     targets.find((g) => g.kind === "DYNAMIC" && g.clipIds.length > 1),
     targets.find((g) => g.kind === "STATIC"),
   ];
-  const ops: AgentOp[] = [
-    { kind: "MOVE_SCENE", offset: [0, 0.03, 0] },
-    { kind: "ROTATE_SCENE", axis: "Y", degrees: 0.1 },
-    { kind: "SCALE_SCENE", factor: 1.001 },
-  ];
+  // Stage 5: realistic magnitudes (dynamic 21 s group / static 2.5 s scene),
+  // each inside the measured feasible maximum of scripts/esspEditMagnitudeSweep.ts.
+  const opsFor = (kind: string | undefined): AgentOp[] =>
+    kind === "STATIC"
+      ? [
+          { kind: "MOVE_SCENE", offset: [0, 1, 0] },
+          { kind: "ROTATE_SCENE", axis: "Y", degrees: 3 },
+          { kind: "SCALE_SCENE", factor: 1.04 },
+        ]
+      : [
+          { kind: "MOVE_SCENE", offset: [0, 1, 0] },
+          { kind: "ROTATE_SCENE", axis: "Y", degrees: 5 },
+          { kind: "SCALE_SCENE", factor: 1.1 },
+        ];
   for (const target of selected)
-    for (const op of ops) {
+    for (const op of opsFor(target?.kind)) {
       if (!target) throw new Error("Required dynamic/static target missing");
       const prepared = prepareImportedEdit(project, show, layer, target.clipIds, op, ctx);
       if (!prepared.ok) throw new Error(prepared.reason);
@@ -189,7 +198,8 @@ if (process.argv.includes("--edit")) {
       console.log(
         JSON.stringify(
           {
-            op: op.kind,
+            op,
+            rampSeconds: tx.edit.rampSeconds,
             editGroup: target,
             promoted: rec.promotions.length,
             exportOk: exported.ok,
