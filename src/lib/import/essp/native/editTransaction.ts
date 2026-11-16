@@ -170,7 +170,7 @@ export function prepareImportedEdit(
     const longest = { ...edit, rampSeconds: span * RAMP_FRACTIONS[RAMP_FRACTIONS.length - 1]! };
     const at = (m: number): TaperedMotionEdit =>
       edit.kind === "MOVE_SCENE"
-        ? { ...longest, offset: (edit.offset ?? [0, 0, 0]).map((v) => v * m) as Vector3Tuple }
+        ? { ...longest, offset: (edit.offset ?? [0, 0, 0]).map((v) => v * m) as unknown as Vector3Tuple }
         : edit.kind === "ROTATE_SCENE"
           ? { ...longest, degrees: (edit.degrees ?? 0) * m }
           : { ...longest, factor: 1 + ((edit.factor ?? 1) - 1) * m };
