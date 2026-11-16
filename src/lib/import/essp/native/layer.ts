@@ -7,7 +7,12 @@
  * clocks — no resampling, no requantisation, no derived approximation.
  */
 import { parseEssp } from "../codec";
-import { ESSP_COORDINATE_SCALE, DEFAULT_ESSP_AXIS_MAPPING, ESSP_AXIS_MAPPING_DOC, esspToStudio } from "../coordinates";
+import {
+  ESSP_COORDINATE_SCALE,
+  DEFAULT_ESSP_AXIS_MAPPING,
+  ESSP_AXIS_MAPPING_DOC,
+  esspToStudio,
+} from "../coordinates";
 import { referenceShowHash } from "../forensics/adapter";
 import { assembleReferenceShow } from "../reference";
 import {
@@ -58,7 +63,6 @@ function sanitizeExtractedScenes(raw: unknown): ReferenceExtractedSceneSnapshot[
   }
   return out;
 }
-
 
 /* ------------------------------------------------------------------ base64 */
 
@@ -188,10 +192,7 @@ export function referenceShowFromLayer(layer: ReferenceTrajectoryLayer): Referen
       rgbSamples: parsed.rgb,
       positionSampleCount: parsed.positionSampleCount,
       rgbSampleCount: parsed.rgbSampleCount,
-      launchPosition: esspToStudio(
-        [s[0] ?? 0, s[1] ?? 0, s[2] ?? 0],
-        DEFAULT_ESSP_AXIS_MAPPING,
-      ),
+      launchPosition: esspToStudio([s[0] ?? 0, s[1] ?? 0, s[2] ?? 0], DEFAULT_ESSP_AXIS_MAPPING),
       header: parsed.header,
     });
     parsedFiles.push(parsed);
@@ -253,12 +254,46 @@ export function migrateReferenceLayer(raw: unknown): ReferenceTrajectoryLayer {
       typeof d.fileBase64 !== "string" ||
       d.fileBase64.length === 0
     ) {
-      throw new ReferenceLayerError("MALFORMED_LAYER", "A reference layer drone payload is malformed.");
+      throw new ReferenceLayerError(
+        "MALFORMED_LAYER",
+        "A reference layer drone payload is malformed.",
+      );
     }
   }
   if (!Array.isArray(c.bindings) || !c.bindings.every(isBinding)) {
-    throw new ReferenceLayerError("MALFORMED_LAYER", "Reference layer clip bindings are malformed.");
+    throw new ReferenceLayerError(
+      "MALFORMED_LAYER",
+      "Reference layer clip bindings are malformed.",
+    );
   }
+  if (
+    c.motionEdits !== undefined &&
+    (!Array.isArray(c.motionEdits) ||
+      c.motionEdits.some(
+        (e) =>
+          !e ||
+          !["MOVE_SCENE", "ROTATE_SCENE", "SCALE_SCENE"].includes(e.kind) ||
+          !Array.isArray(e.clipIds) ||
+          !e.clipIds.length ||
+          e.clipIds.some(
+            (id: string) => !c.bindings?.some((b) => b.clipId === id && b.owner === "PLANNER"),
+          ) ||
+          ![e.start, e.end, e.rampSeconds, e.guardSeconds, ...(e.pivot ?? [])].every(
+            Number.isFinite,
+          ) ||
+          e.end <= e.start ||
+          e.rampSeconds <= 0 ||
+          e.guardSeconds < 2 / (c.positionRateHz ?? 8) ||
+          e.rampSeconds * 2 + e.guardSeconds * 2 > e.end - e.start ||
+          e.pivot?.length !== 3 ||
+          (e.kind === "MOVE_SCENE" &&
+            (e.offset?.length !== 3 || !e.offset.every(Number.isFinite))) ||
+          (e.kind === "ROTATE_SCENE" &&
+            (!Number.isFinite(e.degrees) || !["X", "Y", "Z"].includes(e.axis ?? ""))) ||
+          (e.kind === "SCALE_SCENE" && (!Number.isFinite(e.factor) || (e.factor ?? 0) <= 0)),
+      ))
+  )
+    throw new ReferenceLayerError("MALFORMED_LAYER", "Invalid tapered motion edits.");
   for (const key of [
     "positionRateHz",
     "rgbRateHz",
@@ -296,6 +331,9 @@ export function migrateReferenceLayer(raw: unknown): ReferenceTrajectoryLayer {
       fileBase64: d.fileBase64,
     })),
     bindings: c.bindings.map((b) => ({ ...b })),
+    ...(c.motionEdits
+      ? { motionEdits: c.motionEdits.map((e) => ({ ...e, clipIds: [...e.clipIds] })) }
+      : {}),
     ...(() => {
       const extractedScenes = sanitizeExtractedScenes(c.extractedScenes);
       return extractedScenes.length > 0 ? { extractedScenes } : {};

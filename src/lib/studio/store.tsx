@@ -502,7 +502,7 @@ interface StudioContextValue {
   undoTimeline: () => void;
   redoTimeline: () => void;
   /** Installs an AI-agent-proposed, already validated project as one undo step. */
-  applyAgentProject: (next: ShowProject) => void;
+  applyAgentProject: (next: ShowProject, transaction?: import("../import/essp/native/editTransaction").ImportedEditTransaction) => boolean;
   timelineHistoryDepth: { past: number; future: number };
   // Project-owned authoring annotations.
   markers: TimelineMarker[];
@@ -1851,7 +1851,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const samplesAtTime = useCallback(
     (t: number) => {
       const plannerSamples = samplesAt(motionPreviewPlan ?? plan, t);
-      if (isPlannerSceneEditPreview(referenceLayer, t, selectedClipId, sceneSelectionState.ids)) {
+      if (!referenceLayer?.motionEdits?.length && isPlannerSceneEditPreview(referenceLayer, t, selectedClipId, sceneSelectionState.ids)) {
         return plannerSamples;
       }
       return splicedTrajectorySamples(referenceLayerShow, referenceLayer, t, plannerSamples)
@@ -2301,12 +2301,16 @@ export function StudioProvider({ children }: { children: ReactNode }) {
    * (src/lib/agent), and this installs it as ONE undoable revision.
    */
   const applyAgentProject = useCallback(
-    (next: ShowProject) => {
+    (next: ShowProject, transaction?: import("../import/essp/native/editTransaction").ImportedEditTransaction) => {
+      if (transaction && (projectRef.current !== transaction.baselineProject || referenceLayerRef.current !== transaction.baselineLayer)) return false;
       pushSnapshot(projectRef.current);
       // Install ownership with geometry; the promotion effect must not cause
       // a second synchronous whole-show sampling and safety pass.
       const currentLayer = referenceLayerRef.current;
-      if (currentLayer) {
+      if (transaction) {
+        referenceLayerRef.current = transaction.layer;
+        setReferenceLayer(transaction.layer);
+      } else if (currentLayer) {
         const reconciled = reconcileReferenceLayer(next, currentLayer, {
           assignmentStrategy,
           transitionOverrides: transitionOverridesRef.current,
@@ -2319,6 +2323,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       projectRef.current = next;
       setProject(next);
       invalidateDerivedAnalysis(derivedAnalysisSetters);
+      return true;
     },
     [pushSnapshot, derivedAnalysisSetters, assignmentStrategy],
   );
@@ -6705,7 +6710,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       if (
         referenceLayerShow &&
         referenceLayer &&
-        intervalAtTime(referenceLayer, t)?.owner === "REFERENCE"
+          (intervalAtTime(referenceLayer, t)?.owner === "REFERENCE" || referenceLayer.motionEdits?.some(e=>e.clipIds.includes(intervalAtTime(referenceLayer,t)?.clipId??"")))
       ) {
         return referenceLightStates(referenceLayerShow, t, project.droneCount);
       }

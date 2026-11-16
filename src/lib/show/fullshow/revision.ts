@@ -122,6 +122,7 @@ export function computeAnalysisRevision(project: ShowProject, inputs: RevisionIn
         round(layer.rgbRateHz),
         round(layer.metersPerUnit),
         fnv1a(JSON.stringify(layer.axisMapping)),
+        fnv1a(JSON.stringify(layer.motionEdits ?? [])),
         fnv1a(
           [...layer.bindings]
             .sort((a, b) => a.order - b.order || a.clipId.localeCompare(b.clipId))

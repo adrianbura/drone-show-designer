@@ -54,7 +54,10 @@ export function resolveReferenceIntervals(
         kind: "TRANSITION",
         start: binding.referenceStart,
         end: binding.referenceHoldStart,
-        owner: previous ? both(binding.owner, previous.owner) : binding.owner,
+        owner:
+          previous && !layer.motionEdits?.some((e) => e.clipIds.includes(previous.clipId))
+            ? both(binding.owner, previous.owner)
+            : binding.owner,
         clipKind: binding.kind,
       });
     }
@@ -142,7 +145,7 @@ export function promoteReferenceClips(
   now = new Date().toISOString(),
 ): ReferenceLayerReconciliation {
   const promotions: ReferencePromotion[] = [];
-  let bindings = layer.bindings.map((b) => ({ ...b }));
+  const bindings = layer.bindings.map((b) => ({ ...b }));
   let changed = false;
   for (const request of requests) {
     const target = bindings.find((b) => b.clipId === request.clipId);

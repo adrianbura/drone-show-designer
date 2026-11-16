@@ -187,7 +187,7 @@ function StudioWorkspace() {
             <button
               type="button"
               onClick={() => setAgentOpen(true)}
-              className="chip-btn agent-pulse absolute right-4 top-4"
+              className="chip-btn agent-pulse absolute right-4 top-16 z-10"
               aria-label="Open AI agent (Ctrl+K)"
               data-testid="agent-launcher"
             >

@@ -379,7 +379,7 @@ function sampleShow(input: SampleInput): {
   const effective = sampleEffectiveTrajectorySet(plan, {
     sampleRate: positionRateHz,
     startTime,
-    endTime: startTime + duration,
+    endTime: reference ? Math.max(startTime + duration, reference.show.timing.positionDurationSeconds) : startTime + duration,
     ...(reference ? { reference } : {}),
   });
   const set = effective.set;

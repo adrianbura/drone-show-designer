@@ -30,8 +30,14 @@ import { clipSceneGroups, groupOfClip } from "@/lib/import/essp/native/sceneGrou
 import { useI18n } from "@/i18n";
 import { useStudio } from "@/lib/studio/store";
 import type { ShowProject } from "@/lib/show/types";
+import {
+  prepareImportedEdit,
+  type ImportedEditTransaction,
+} from "@/lib/import/essp/native/editTransaction";
+import { startFullShowAnalysis } from "@/lib/studio/fullShowAnalysis";
 
 interface PendingEdit {
+  transaction?: ImportedEditTransaction;
   ops: AgentOp[];
   source: "local" | "model";
   candidate: ShowProject;
@@ -116,6 +122,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
     timelineHistoryDepth,
     forensicsReport,
     referenceLayer,
+    fullShowAnalysisOptions,
   } = useStudio();
   const sceneGroups = useMemo(
     () => (forensicsReport ? clipSceneGroups(forensicsReport, referenceLayer) : []),
@@ -256,6 +263,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
       let pendingSelect: string | null = null;
       const summaries: AgentOpSummary[] = [];
       const groupClipIds: string[] = [];
+      let transaction: ImportedEditTransaction | undefined;
       for (const op of ops) {
         if (op.kind === "SELECT_SCENE") {
           const target = resolveSceneTarget(candidate, op);
@@ -280,6 +288,87 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
           op.kind === "ROTATE_SCENE" || op.kind === "MOVE_SCENE" || op.kind === "SCALE_SCENE"
             ? groupOfClip(sceneGroups, targetClipId)
             : null;
+        const reference = fullShowAnalysisOptions.reference;
+        if (
+          reference &&
+          targetClipId &&
+          ["MOVE_SCENE", "ROTATE_SCENE", "SCALE_SCENE"].includes(op.kind)
+        ) {
+          if (transaction || ops.filter((o) => o.kind !== "SELECT_SCENE").length !== 1) {
+            say(
+              t(
+                "Trimite o singură transformare pentru fiecare previzualizare.",
+                "Send one transform per preview.",
+              ),
+            );
+            return;
+          }
+          const prepared = prepareImportedEdit(
+            project,
+            reference.show,
+            reference.layer,
+            group?.clipIds ?? [targetClipId],
+            op,
+            {
+              assignmentStrategy: fullShowAnalysisOptions.assignmentStrategy ?? "nearestNeighbor",
+              transitionOverrides: fullShowAnalysisOptions.transitionOverrides ?? {},
+            },
+          );
+          if (!prepared.ok) {
+            say(prepared.reason);
+            return;
+          }
+          transaction = prepared.transaction;
+          const report = await startFullShowAnalysis(
+            {
+              project: transaction.project,
+              options: {
+                ...fullShowAnalysisOptions,
+                reference: { show: reference.show, layer: transaction.layer },
+              },
+            },
+            () => undefined,
+          ).promise;
+          if (report.exportReadiness.status === "BLOCKED" || report.splice?.ok === false) {
+            say(
+              t("Modificare refuzată: ", "Edit refused: ") +
+                report.errors
+                  .slice(0, 3)
+                  .map((e) => e.message)
+                  .join("; "),
+            );
+            return;
+          }
+          candidate = transaction.project;
+          const ids = group?.clipIds ?? [targetClipId];
+          for (const id of ids)
+            summaries.push({
+              clipId: id,
+              clipName: id,
+              kind: op.kind,
+              altitudeBefore: [0, 0],
+              altitudeAfter: [0, 0],
+              lightingMayOverride: false,
+            });
+          groupClipIds.push(...ids);
+          say(
+            t(
+              "Margini fixe · intensitate completă în mijloc · RGB original.",
+              "Fixed edges · full transform at centre · original RGB.",
+            ),
+            source,
+          );
+          continue;
+        }
+        if (transaction) {
+          say(
+            t(
+              "Combinarea cu alte editări nu este încă disponibilă.",
+              "Combining with other edits is not available yet.",
+            ),
+          );
+          return;
+        }
         if (group) {
           const g = applyAgentOpToGroup(candidate, group.clipIds, op);
           if (!g.ok) {
@@ -340,7 +429,13 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
         }
         return;
       }
-      setEntries((e) => [...e, { role: "preview", edit: { ops, source, candidate, summaries } }]);
+      setEntries((e) => [
+        ...e,
+        {
+          role: "preview",
+          edit: { ops, source, candidate, summaries, ...(transaction ? { transaction } : {}) },
+        },
+      ]);
     } finally {
       setBusy(false);
       inputRef.current?.focus();
@@ -349,7 +444,12 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
 
   const apply = useCallback(
     (edit: PendingEdit) => {
-      applyAgentProject(edit.candidate);
+      if (!applyAgentProject(edit.candidate, edit.transaction)) {
+        say(
+          t("Previzualizare expirată; trimite din nou comanda.", "Preview is stale; submit again."),
+        );
+        return;
+      }
       setEntries((e) => e.filter((x) => !(x.role === "preview" && x.edit === edit)));
       say(
         t(
@@ -491,6 +591,8 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
                           d: s.altitudeAfter[1].toFixed(1),
                         })}
                       </>
+                    ) : edit.transaction ? (
+                      <>{s.kind} · {t("margini fixe, RGB original", "fixed edges, original RGB")}</>
                     ) : s.kind === "SCALE_SCENE" ? (
                       <>
                         {t("Scalare scenă ×{k}", "Scene scale ×{k}", {

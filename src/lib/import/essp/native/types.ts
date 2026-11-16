@@ -60,10 +60,7 @@ export type ReferenceIntervalKind = "TRANSITION" | "HOLD";
 export type ReferenceClipKind = "TAKEOFF" | "SCENE" | "LANDING";
 
 export type PromotionReason =
-  | "OUTPUT_SIGNATURE_CHANGED"
-  | "CLIP_REMOVED"
-  | "SPLICE_WIDENED"
-  | "MANUAL";
+  "OUTPUT_SIGNATURE_CHANGED" | "CLIP_REMOVED" | "SPLICE_WIDENED" | "MANUAL";
 
 /** Per-drone verbatim ESSP bytes (base64 of the exact original file). */
 export interface ReferenceLayerDrone {
@@ -110,6 +107,8 @@ export interface ReferenceExtractedSceneSnapshot {
 }
 
 export interface ReferenceTrajectoryLayer {
+  /** Authored source-relative motion only; immutable archive/report are unchanged. */
+  readonly motionEdits?: readonly import("./taper").TaperedMotionEdit[];
   readonly kind: typeof REFERENCE_LAYER_KIND;
   readonly schemaVersion: number;
   readonly importedAt: string;
@@ -259,16 +258,16 @@ export interface ReferenceExtractionResult {
 }
 
 export type ReferenceLayerErrorCode =
-  | "NO_REFERENCE_SHOW"
-  | "NO_FORENSICS_REPORT"
-  | "NO_SCENES"
-  | "MALFORMED_LAYER"
-  | "SHOW_MISMATCH";
+  "NO_REFERENCE_SHOW" | "NO_FORENSICS_REPORT" | "NO_SCENES" | "MALFORMED_LAYER" | "SHOW_MISMATCH";
 
 export class ReferenceLayerError extends Error {
   readonly code: ReferenceLayerErrorCode;
   readonly details: Record<string, unknown>;
-  constructor(code: ReferenceLayerErrorCode, message: string, details: Record<string, unknown> = {}) {
+  constructor(
+    code: ReferenceLayerErrorCode,
+    message: string,
+    details: Record<string, unknown> = {},
+  ) {
     super(message);
     this.name = "ReferenceLayerError";
     this.code = code;

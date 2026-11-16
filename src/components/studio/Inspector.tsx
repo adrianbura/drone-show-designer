@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import FullShowPanel from "./FullShowPanel";
+import ImportedTransformPanel from "./ImportedTransformPanel";
 import ShowReadinessPanel from "./ShowReadinessPanel";
 import ShowSetupPanel from "./ShowSetupPanel";
 import TransitionDesignPanel from "./TransitionDesignPanel";
@@ -738,6 +739,7 @@ export default function Inspector({
                     returns every drone to its assigned home pad at ground level.
                   </p>
                 )}
+                <ImportedTransformPanel />
                 <NumberRow
                   label="Start"
                   value={clip.start}
