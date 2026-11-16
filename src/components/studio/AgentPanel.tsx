@@ -342,7 +342,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
           }
           candidate = transaction.project;
           const ids = group?.clipIds ?? [targetClipId];
-          for (const id of ids)
+          for (const id of ids.slice(0, 1))
             summaries.push({
               clipId: id,
               clipName: id,
