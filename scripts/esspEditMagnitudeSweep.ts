@@ -76,23 +76,52 @@ function fullGate(clipIds: readonly string[], op: AgentOp): Verdict {
   const first = JSON.stringify(pkg.blockers[0] ?? analyzed.report.splice ?? "unknown");
   return { ok: false, limit: classify(first), detail: first.slice(0, 160) };
 }
-/** Largest magnitude m in (0, hi] passing gate(m); exponential then bisection. */
-function largest(gate: (m: number) => Verdict, lo: number, hi: number, iters: number) {
-  let best = 0, failLimit = "none (cap)";
-  let probe = lo;
+function cheapGate(clipIds: readonly string[], op: AgentOp): Verdict {
+  const prepared = prepareImportedEdit(project, show, layer, clipIds, op, ctx);
+  if (prepared.ok) return { ok: true, limit: "-" };
+  const r = prepared.reason;
+  const v = /v=([\d.]+)\/([\d.]+)/.exec(r),
+    a = /a=([\d.]+)\/([\d.]+)/.exec(r);
+  const limit =
+    v && Number(v[1]) > Number(v[2])
+      ? "velocity"
+      : a && Number(a[1]) > Number(a[2])
+        ? "acceleration"
+        : classify(r);
+  return { ok: false, limit, detail: r };
+}
+/**
+ * Bisection on the kinematic pre-check (the same check prepareImportedEdit
+ * runs), then the FULL canonical gate confirms; on refusal step down x0.85.
+ */
+function largest(make: (m: number) => AgentOp, clipIds: readonly string[], lo: number, hi: number) {
+  let best = 0,
+    limit = "cap",
+    probe = lo;
   for (;;) {
-    const v = gate(probe);
-    if (!v.ok) { failLimit = v.limit; hi = probe; break; }
+    const v = cheapGate(clipIds, make(probe));
+    if (!v.ok) {
+      limit = v.limit;
+      hi = probe;
+      break;
+    }
     best = probe;
-    if (probe >= hi) return { best, limit: "cap" };
+    if (probe >= hi) break;
     probe = Math.min(hi, probe * 2);
   }
-  for (let i = 0; i < iters; i++) {
-    const mid = (best + hi) / 2;
-    const v = gate(mid);
-    if (v.ok) best = mid; else { hi = mid; failLimit = v.limit; }
+  if (limit !== "cap")
+    for (let i = 0; i < 12; i++) {
+      const mid = (best + hi) / 2;
+      if (cheapGate(clipIds, make(mid)).ok) best = mid;
+      else hi = mid;
+    }
+  for (let i = 0; i < 4 && best > 0; i++) {
+    const v = fullGate(clipIds, make(best));
+    if (v.ok) return { best, limit };
+    limit = v.limit;
+    best *= 0.85;
   }
-  return { best, limit: failLimit };
+  return { best: 0, limit };
 }
 
 const groups = clipSceneGroups(report, layer);
@@ -104,8 +133,6 @@ const pick = [
   { name: "shortest group", g: [...groups].sort((a, b) => dur(a) - dur(b))[0] },
   { name: "longest group", g: [...groups].sort((a, b) => dur(b) - dur(a))[0] },
 ];
-const quick = process.argv.includes("--quick");
-const iters = quick ? 3 : 5;
 const rows: unknown[] = [];
 for (const { name, g } of pick) {
   if (!g) continue;
@@ -115,14 +142,14 @@ for (const { name, g } of pick) {
   const row: Record<string, unknown> = { target: name, kind: g.kind, start: g.start, durationS: +dur(g).toFixed(3), clips: g.clipIds.length, rampS: +ramp.toFixed(3), guardS: guard };
   const t0 = performance.now();
   for (const axis of [0, 1, 2] as const) {
-    const r = largest((m) => fullGate(g.clipIds, { kind: "MOVE_SCENE", offset: [0, 1, 2].map((i) => (i === axis ? m : 0)) as [number, number, number] }), 0.05, 50, iters);
+    const r = largest((m) => ({ kind: "MOVE_SCENE", offset: [0, 1, 2].map((i) => (i === axis ? m : 0)) as [number, number, number] }), g.clipIds, 0.05, 50);
     row[`move${"XYZ"[axis]}_m`] = { max: +r.best.toFixed(3), limit: r.limit };
   }
-  const rot = largest((m) => fullGate(g.clipIds, { kind: "ROTATE_SCENE", axis: "Y", degrees: m }), 0.25, 180, iters);
+  const rot = largest((m) => ({ kind: "ROTATE_SCENE", axis: "Y", degrees: m }), g.clipIds, 0.25, 180);
   row.rotateY_deg = { max: +rot.best.toFixed(2), limit: rot.limit };
-  const up = largest((m) => fullGate(g.clipIds, { kind: "SCALE_SCENE", factor: 1 + m }), 0.005, 1, iters);
+  const up = largest((m) => ({ kind: "SCALE_SCENE", factor: 1 + m }), g.clipIds, 0.005, 1);
   row.scaleUp = { max: +(1 + up.best).toFixed(4), limit: up.limit };
-  const down = largest((m) => fullGate(g.clipIds, { kind: "SCALE_SCENE", factor: 1 - m }), 0.005, 0.5, iters);
+  const down = largest((m) => ({ kind: "SCALE_SCENE", factor: 1 - m }), g.clipIds, 0.005, 0.5);
   row.scaleDown = { min: +(1 - down.best).toFixed(4), limit: down.limit };
   const realistic: Record<string, string> = {};
   for (const [label, op] of [
@@ -134,7 +161,8 @@ for (const { name, g } of pick) {
     ["scale 0.9", { kind: "SCALE_SCENE", factor: 0.9 }],
     ["scale 1.2", { kind: "SCALE_SCENE", factor: 1.2 }],
   ] as [string, AgentOp][]) {
-    const v = fullGate(g.clipIds, op);
+    const c = cheapGate(g.clipIds, op);
+    const v = c.ok ? fullGate(g.clipIds, op) : c;
     realistic[label] = v.ok ? "ACCEPTED" : `REFUSED (${v.limit})`;
   }
   row.realistic = realistic;
