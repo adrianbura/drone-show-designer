@@ -77,7 +77,10 @@ function fullGate(clipIds: readonly string[], op: AgentOp): Verdict {
   const analyzed = analyzeFullShow(tx.project, { ...ctx, sampleRate: show.timing.positionRateHz, reference: { show, layer: tx.layer } });
   const pkg = buildEsspExportPackage({ project: tx.project, plan: buildShowPlan(tx.project, ctx), reference: { show, layer: tx.layer }, fullShow: analyzed.report, fullShowStale: false });
   if (pkg.ok && analyzed.report.splice?.ok !== false) return { ok: true, limit: "-" };
-  const first = JSON.stringify(pkg.blockers[0] ?? analyzed.report.splice ?? "unknown");
+  const err = analyzed.report.errors[0] as { code?: string; message?: string } | undefined;
+  const first = err
+    ? `${err.code ?? ""} ${err.message ?? ""}`
+    : JSON.stringify(pkg.blockers[0] ?? analyzed.report.splice ?? "unknown");
   return { ok: false, limit: classify(first), detail: first.slice(0, 160) };
 }
 function cheapGate(clipIds: readonly string[], op: AgentOp): Verdict {
