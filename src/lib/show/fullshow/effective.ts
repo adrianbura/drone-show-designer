@@ -183,6 +183,7 @@ export function sampleEffectiveTrajectorySet(
 
   const { show, layer } = reference;
   const intervals = resolveReferenceIntervals(layer);
+  const lastInterval=intervals.at(-1);
   const positionTolerance = options.positionToleranceMeters ?? SPLICE_TOLERANCE_METERS;
   const velocityTolerance = options.velocityToleranceMps ?? SPLICE_VELOCITY_TOLERANCE_MPS;
 
@@ -191,7 +192,7 @@ export function sampleEffectiveTrajectorySet(
   const referenceOwned: boolean[] = new Array(frameCount);
   for (let k = 0; k < frameCount; k += 1) {
     const t = startTime + k / rate;
-    referenceOwned[k] = ownerAt(intervals, t)?.owner === "REFERENCE";
+    referenceOwned[k] = ownerAt(intervals, t)?.owner === "REFERENCE" || (lastInterval?.owner === "REFERENCE" && t>=lastInterval.end && t<=show.timing.positionDurationSeconds);
   }
 
   let referenceSampleCount = 0;
