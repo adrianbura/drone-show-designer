@@ -30,6 +30,7 @@ import { clipSceneGroups, groupOfClip } from "@/lib/import/essp/native/sceneGrou
 import { useI18n } from "@/i18n";
 import { useStudio } from "@/lib/studio/store";
 import type { ShowProject } from "@/lib/show/types";
+import { importedEditRefusal, taperedEditExplanation } from "@/lib/import/essp/native/editCopy";
 import {
   prepareImportedEdit,
   type ImportedEditTransaction,
@@ -315,7 +316,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
             },
           );
           if (!prepared.ok) {
-            say(prepared.reason);
+            say(importedEditRefusal(prepared, language === "ro" ? "ro" : "en"));
             return;
           }
           transaction = prepared.transaction;
@@ -351,13 +352,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
               lightingMayOverride: false,
             });
           groupClipIds.push(...ids);
-          say(
-            t(
-              "Margini fixe · intensitate completă în mijloc · RGB original.",
-              "Fixed edges · full transform at centre · original RGB.",
-            ),
-            source,
-          );
+          say(taperedEditExplanation(transaction, language === "ro" ? "ro" : "en"), source);
           continue;
         }
         if (transaction) {

@@ -7,6 +7,7 @@ import {
   prepareImportedEdit,
   type ImportedEditTransaction,
 } from "@/lib/import/essp/native/editTransaction";
+import { importedEditRefusal, taperedEditExplanation } from "@/lib/import/essp/native/editCopy";
 import { clipSceneGroups, groupOfClip } from "@/lib/import/essp/native/sceneGroups";
 import { startFullShowAnalysis } from "@/lib/studio/fullShowAnalysis";
 import type { AgentOp } from "@/lib/agent/operations";
@@ -61,7 +62,7 @@ export default function ImportedTransformPanel() {
         },
       );
       if (!result.ok) {
-        setMessage(result.reason);
+        setMessage(importedEditRefusal(result, ro ? "ro" : "en"));
         return;
       }
       const tx = result.transaction;
@@ -94,7 +95,9 @@ export default function ImportedTransformPanel() {
   return (
     <section className="space-y-2" data-testid="imported-transform">
       <p className="text-xs text-muted-foreground">
-        {ro ? "Margini fixe · RGB original" : "Fixed edges · original RGB"}
+        {ro
+          ? "Editare lină: noua poziție e menținută în mijlocul scenei; începutul și sfârșitul revin la original, deci scenele vecine nu se schimbă. RGB original."
+          : "Smooth edit: the new pose is held in the middle of the scene; its start and end blend back to the original, so neighbouring scenes do not change. Original RGB."}
       </p>
       <div className="flex gap-1">
         {[
@@ -138,6 +141,11 @@ export default function ImportedTransformPanel() {
       <Button size="sm" variant="outline" disabled={busy} onClick={() => void preview()}>
         {busy ? (ro ? "Verificare…" : "Checking…") : ro ? "Previzualizare" : "Preview"}
       </Button>
+      {pending && (
+        <p className="text-xs text-muted-foreground" data-testid="tapered-explanation">
+          {taperedEditExplanation(pending, ro ? "ro" : "en")}
+        </p>
+      )}
       {pending && (
         <Button
           size="sm"
