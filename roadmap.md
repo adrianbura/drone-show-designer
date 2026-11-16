@@ -322,3 +322,10 @@ această rulare.
 - [ ] P02: measured browser baseline on real archive: Apply 72.58765 s, Undo 49.68705 s (n=1, Chromium/SwiftShader, 1280×1800). Incremental worker validation and full/export coverage separation pending.
 - [ ] P06: complete browser MOVE/ROTATE/SCALE/export checks and screenshots.
 - [ ] P03: profile 150/300/500 render, analysis, memory and fix measured bottlenecks.
+
+### Stage 3 — authorized real edited export
+- [ ] Measure A boundary taper versus B own-budget edges on real source XYZ; C only if both fail.
+- [ ] Shared atomic Agent/Inspector transaction, immutable source + recorded RGB, one Undo.
+- [ ] Six real MOVE/ROTATE/SCALE dynamic/static exports and round trips; infeasible refusal; untouched 150/150.
+- [ ] Real browser export-button path, full suite, automatic type/build evidence; standalone tsgo prohibited by harness.
+- [ ] Append final evidence to CONTINUATION/HANDOFF/roadmap, including Stage 2 unfinished work.
