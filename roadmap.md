@@ -316,3 +316,9 @@ această rulare.
 - [x] Suită `bunx vitest run --maxWorkers=4 --testTimeout=30000`: 180 fișiere, 1568 trecute / 1 sărit, niciun eșec așteptat. Verificarea automată tipuri/build: build OK 05:45:40 UTC; `tsgo -b --noEmit` separat nu a fost executat (harness-ul gestionează verificările). Commit-uri gestionate de platformă, fără comenzi Git stateful.
 
 - [x] 2026-11-16 docs-only: [continuation entry point](docs/CONTINUATION.md), root CLAUDE.md and [P01–P10 reusable prompts](docs/prompts/README.md) added after committed implementation abbdb108. Existing evidence preserved; no source edits/profiling. P01/P05 real edited export is still the first open correctness package; main sync and exactly one automatic docs commit remain to be confirmed by the platform.
+
+### Stage 2 — 2026-11-16 (owner-authorized order)
+- [x] P04: versioned owner-aware signatures, exact-evidence legacy migration; global envelope/strategy changes leave REFERENCE ownership intact. Targeted 17/17; full suite 1574 passed / 1 skipped; real untouched 150/150 identical. Automatic type/build check only; standalone tsgo prohibited by harness. Platform controls commits.
+- [ ] P02: measured browser baseline on real archive: Apply 72.58765 s, Undo 49.68705 s (n=1, Chromium/SwiftShader, 1280×1800). Incremental worker validation and full/export coverage separation pending.
+- [ ] P06: complete browser MOVE/ROTATE/SCALE/export checks and screenshots.
+- [ ] P03: profile 150/300/500 render, analysis, memory and fix measured bottlenecks.

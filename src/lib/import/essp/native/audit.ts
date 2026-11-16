@@ -532,9 +532,7 @@ function syntheticInstances(clip: TimelineClip): readonly SceneFormationInstance
         ? {
             animation: {
               ...(clip.playbackRate != null ? { playbackRate: clip.playbackRate } : {}),
-              ...(clip.dynamicStartOffset != null
-                ? { startOffset: clip.dynamicStartOffset }
-                : {}),
+              ...(clip.dynamicStartOffset != null ? { startOffset: clip.dynamicStartOffset } : {}),
             },
           }
         : {}),
@@ -740,7 +738,9 @@ function buildOwnership(
   input: AuditReferenceClipInput,
 ): AuditOwnership {
   const context = input.signatureContext ?? null;
-  const currentSignature = context ? clipOutputSignature(project, clip.id, context) : null;
+  const currentSignature = context && binding
+    ? clipOutputSignature(project, clip.id, { ...context, owner: binding.owner })
+    : null;
   const intervals = layer
     ? resolveReferenceIntervals(layer).filter(
         (i) =>
@@ -755,8 +755,7 @@ function buildOwnership(
     bindingOwner: binding?.owner ?? null,
     recordedSignature: binding?.signature ?? null,
     currentSignature,
-    signatureMatches:
-      binding && currentSignature ? binding.signature === currentSignature : null,
+    signatureMatches: binding && currentSignature ? binding.signature === currentSignature : null,
     promotedAt: binding?.promotedAt ?? null,
     promotionReason: binding?.promotionReason ?? null,
     snapshotAvailable: snapshot !== null,

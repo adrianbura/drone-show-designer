@@ -28,3 +28,4 @@
 - Scene groups (consecutive dynamic displayed scenes) are a derived view from one projection shared by Timeline and agent; clips, reference bindings and signatures stay per forensic segment, so grouping can never change export, splices or ownership.
 - Imported fleet-indexed geometry keeps identity assignment and its extracted transition clock in the scheduler; legacy decorative transition arcs must not be added, because those change promoted flight output rather than preserve source motion.
 - XYZ transition ownership does not transfer an untouched successor's recorded RGB ownership; preserve its RGB and the original RGB tail independently of position intervals.
+- Clip signatures use the recorded owner: REFERENCE ignores planner-only envelope/strategy inputs, PLANNER tracks them; legacy migration requires an exact unchanged v1 match so migration cannot hide an edit.

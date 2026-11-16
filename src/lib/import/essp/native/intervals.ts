@@ -16,7 +16,11 @@
  * necessary transition boundary" — one interval, never a whole-show rebuild.
  */
 import type { ShowProject } from "../../../show/types";
-import { clipOutputSignature, type ClipSignatureContext } from "./signature";
+import {
+  clipOutputSignature,
+  legacyClipOutputSignature,
+  type ClipSignatureContext,
+} from "./signature";
 import {
   type ReferenceClipBinding,
   type ReferenceIntervalOwner,
@@ -28,7 +32,9 @@ import {
 } from "./types";
 
 function sortedBindings(layer: ReferenceTrajectoryLayer): ReferenceClipBinding[] {
-  return [...layer.bindings].sort((a, b) => a.order - b.order || a.referenceStart - b.referenceStart);
+  return [...layer.bindings].sort(
+    (a, b) => a.order - b.order || a.referenceStart - b.referenceStart,
+  );
 }
 
 const both = (a: ReferenceIntervalOwner, b: ReferenceIntervalOwner): ReferenceIntervalOwner =>
@@ -137,15 +143,20 @@ export function promoteReferenceClips(
 ): ReferenceLayerReconciliation {
   const promotions: ReferencePromotion[] = [];
   let bindings = layer.bindings.map((b) => ({ ...b }));
+  let changed = false;
   for (const request of requests) {
     const target = bindings.find((b) => b.clipId === request.clipId);
     if (!target || target.owner === "PLANNER") {
       // Already planner-owned: refresh the signature so the same edit is not
       // reported again, but do not emit a duplicate promotion.
-      if (target && request.signature) target.signature = request.signature;
+      if (target && request.signature && target.signature !== request.signature) {
+        target.signature = request.signature;
+        changed = true;
+      }
       continue;
     }
     target.owner = "PLANNER";
+    changed = true;
     target.promotedAt = now;
     target.promotionReason = request.reason;
     if (request.signature) target.signature = request.signature;
@@ -157,7 +168,7 @@ export function promoteReferenceClips(
       affectedClipIds: affected.clipIds,
     });
   }
-  if (promotions.length === 0) return { layer, promotions: [], changed: false };
+  if (!changed) return { layer, promotions: [], changed: false };
   return { layer: { ...layer, bindings }, promotions, changed: true };
 }
 
@@ -172,10 +183,13 @@ export function reconcileReferenceLayer(
   context: ClipSignatureContext,
   now = new Date().toISOString(),
 ): ReferenceLayerReconciliation {
-  const requests: { clipId: string; reason: ReferencePromotion["reason"]; signature?: string }[] = [];
+  const requests: { clipId: string; reason: ReferencePromotion["reason"]; signature?: string }[] =
+    [];
   const removed: string[] = [];
+  const migrated = new Map<string, string>();
   for (const binding of layer.bindings) {
-    const signature = clipOutputSignature(project, binding.clipId, context);
+    const ownerContext = { ...context, owner: binding.owner };
+    const signature = clipOutputSignature(project, binding.clipId, ownerContext);
     if (signature === null) {
       removed.push(binding.clipId);
       if (binding.owner === "REFERENCE") {
@@ -184,10 +198,32 @@ export function reconcileReferenceLayer(
       continue;
     }
     if (signature !== binding.signature) {
-      requests.push({ clipId: binding.clipId, reason: "OUTPUT_SIGNATURE_CHANGED", signature });
+      if (legacyClipOutputSignature(project, binding.clipId, context) === binding.signature) {
+        migrated.set(binding.clipId, signature);
+        continue;
+      }
+      const plannerSignature = clipOutputSignature(project, binding.clipId, {
+        ...context,
+        owner: "PLANNER",
+      });
+      requests.push({
+        clipId: binding.clipId,
+        reason: "OUTPUT_SIGNATURE_CHANGED",
+        signature: plannerSignature ?? signature,
+      });
     }
   }
-  const promoted = promoteReferenceClips(layer, requests, now);
+  const seeded = migrated.size
+    ? {
+        ...layer,
+        bindings: layer.bindings.map((b) => ({
+          ...b,
+          signature: migrated.get(b.clipId) ?? b.signature,
+        })),
+      }
+    : layer;
+  const result = promoteReferenceClips(seeded, requests, now);
+  const promoted = { ...result, changed: result.changed || migrated.size > 0 };
   if (removed.length === 0) return promoted;
   const bindings = promoted.layer.bindings.filter((b) => !removed.includes(b.clipId));
   return {
@@ -204,7 +240,10 @@ export function reseedReferenceSignatures(
   context: ClipSignatureContext,
 ): ReferenceTrajectoryLayer {
   const bindings = layer.bindings.map((binding) => {
-    const signature = clipOutputSignature(project, binding.clipId, context);
+    const signature = clipOutputSignature(project, binding.clipId, {
+      ...context,
+      owner: binding.owner,
+    });
     return signature === null ? binding : { ...binding, signature };
   });
   return { ...layer, bindings };

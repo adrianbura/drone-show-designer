@@ -101,3 +101,13 @@ Use the existing tsgo binary or arrange the project's compatible toolchain befor
 - **Repository verified:** the real ESSP ZIP is not tracked. The owner must supply their local `ESSP_8_12_mainv4_2f6001-2.zip`; sandbox upload paths and temporary scripts/screenshots do not survive new environments.
 - **Repository verified:** tracked Python caches exist under `simulation_bridge`; package name is generic (`tanstack_start_ts`). P10 handles them later; this docs task changes neither.
 - Exactly one commit per prompt is the desired collaboration unit; Lovable platform commits are automatic, so report actual commit IDs/count and uncertainty rather than forcing history edits.
+
+## Stage 2 live continuation — 2026-11-16
+
+Requested order: P04 → P02 → P06 → P03, without intermediate approvals. Implementation and docs commits were present at entry (`abbdb10`, `5c66f4d`); platform manages new commits, so per-item commit timing/main sync cannot be forced.
+
+**P04 verified:** recorded-owner v2 signatures omit only planner envelope/altitudes/strategy for REFERENCE; all real-output dependencies remain. PLANNER signatures keep these dependencies. Exact unchanged legacy-v1 evidence permits migration; edited legacy state fails closed. Files: native `signature.ts`, `intervals.ts`, `audit.ts`, new `ownerAwareSignature.test.ts`, manual promotion in `store.tsx`. Targeted 17/17; full suite 1574 passed / 1 skipped (181 files). Real untouched CLI: 150/150 identical, report unchanged. Standalone `tsgo -b --noEmit` not executed (harness restriction); automatic checks are reported separately. Real edited export not established.
+
+**P02 fresh baseline:** real owner archive, Chromium/SwiftShader sandbox, 1280×1800, first dynamic group MOVE +0.03 m; click-to-two-animation-frames Apply 72.58765 s, Undo 49.68705 s, n=1 (not median/p95). Both include synchronous render pipeline costs. No speedup or window/full equivalence is claimed yet.
+
+**Open:** P02 incremental worker + full-export coverage, P06 complete rotate/scale/export browser evidence, P03 150/300/500 profiling. Existing P01/P05 real edited-export blocker remains independent of signature/performance work. No source safety limit relaxed.

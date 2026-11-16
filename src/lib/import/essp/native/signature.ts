@@ -41,6 +41,8 @@ import { dynamicFormationSignature } from "../conversion/convert";
 export interface ClipSignatureContext {
   readonly assignmentStrategy: string;
   readonly transitionOverrides: Readonly<Record<string, ClipTransitionOverride>>;
+  /** Recorded owner, never inferred from the candidate edit. */
+  readonly owner?: "REFERENCE" | "PLANNER";
 }
 
 function q(value: number): string {
@@ -118,11 +120,30 @@ export function clipOutputSignature(
   clipId: string,
   context: ClipSignatureContext,
 ): string | null {
+  return signature(project, clipId, context, false);
+}
+
+/** Exact v1 comparison permits migration only against unchanged evidence. */
+export function legacyClipOutputSignature(
+  project: ShowProject,
+  clipId: string,
+  context: ClipSignatureContext,
+): string | null {
+  return signature(project, clipId, context, true);
+}
+
+function signature(
+  project: ShowProject,
+  clipId: string,
+  context: ClipSignatureContext,
+  legacy: boolean,
+): string | null {
   const clip = project.timeline.find((c) => c.id === clipId);
   if (!clip) return null;
+  const planner = legacy || context.owner === "PLANNER";
   const dynamic = resolveDynamicFormation(project, clip);
   const parts = [
-    "v1",
+    legacy ? "v1" : "v2",
     clipPhase(clip),
     q(clip.start),
     q(clip.transition),
@@ -135,20 +156,25 @@ export function clipOutputSignature(
     project.droneCount,
     geometrySignature(project, clip),
     dynamic ? dynamicFormationSignature(dynamic) : "-",
-    q(project.limits.maxVelocity),
-    q(project.limits.maxAcceleration),
-    q(project.limits.maxJerk),
-    q(project.limits.maxYawRate),
-    q(project.limits.minSeparation),
-    q(project.limits.minAltitude),
-    q(project.limits.maxAltitude),
-    q(project.altitudes.takeoff),
-    q(project.altitudes.show),
-    q(project.altitudes.landing),
+    ...(planner
+      ? [
+          q(project.limits.maxVelocity),
+          q(project.limits.maxAcceleration),
+          q(project.limits.maxJerk),
+          q(project.limits.maxYawRate),
+          q(project.limits.minSeparation),
+          q(project.limits.minAltitude),
+          q(project.limits.maxAltitude),
+          q(project.altitudes.takeoff),
+          q(project.altitudes.show),
+          q(project.altitudes.landing),
+        ]
+      : []),
     project.preShow?.enabled ? "preshow" : "no-preshow",
-    context.assignmentStrategy,
+    ...(planner ? [context.assignmentStrategy] : []),
     participationSignature(project, clipId),
     lightingSignature(project, clipId),
   ];
-  return fnv1a(parts.join("|"));
+  const hash = fnv1a(parts.join("|"));
+  return legacy ? hash : `${planner ? "planner" : "reference"}-v2:${hash}`;
 }
