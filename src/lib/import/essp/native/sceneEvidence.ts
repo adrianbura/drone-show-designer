@@ -6,9 +6,14 @@ import { analyzeSpatialRgb } from "./spatialRgb";
 import { analyzeRgbStructure } from "./rgbStructure";
 
 export function sourceSceneEvidence(show: ReferenceShow, binding: ReferenceClipBinding) {
-  const key=JSON.stringify([binding.referenceStart,binding.referenceHoldStart,binding.referenceEnd,binding.sourceClassification]);
-  const cached=evidenceCache.get(show)?.get(key);
-  if(cached)return {...cached,owner:binding.owner};
+  const key = JSON.stringify([
+    binding.referenceStart,
+    binding.referenceHoldStart,
+    binding.referenceEnd,
+    binding.sourceClassification,
+  ]);
+  const cached = evidenceCache.get(show)?.get(key);
+  if (cached) return { ...cached, owner: binding.owner };
   const start = binding.referenceStart;
   const hold = binding.referenceHoldStart;
   const end = binding.referenceEnd;
@@ -61,10 +66,35 @@ export function sourceSceneEvidence(show: ReferenceShow, binding: ReferenceClipB
     boundary: "INFERRED" as const,
     owner: binding.owner,
   };
-  let entries=evidenceCache.get(show);if(!entries){entries=new Map();evidenceCache.set(show,entries);}
-  if(entries.size>=8)entries.delete(entries.keys().next().value??"");
-  entries.set(key,evidence);
+  let entries = evidenceCache.get(show);
+  if (!entries) {
+    entries = new Map();
+    evidenceCache.set(show, entries);
+  }
+  if (entries.size >= 8) entries.delete(entries.keys().next().value ?? "");
+  entries.set(key, evidence);
   return evidence;
 }
-type SceneEvidence={start:number;hold:number;end:number;previewTime:number;transitionSeconds:number;preview:ReturnType<typeof sampleReferenceShow>;motion:string;lighting:{status:"OBSERVED_RGB"|"NO_RGB_SAMPLES";rgbSamples:number;changes:number;distinctColors:number;darkFraction:number|null;spatial:ReturnType<typeof analyzeSpatialRgb>;structure:ReturnType<typeof analyzeRgbStructure>;recipe:"UNKNOWN"};semanticImage:"UNKNOWN";boundary:"INFERRED";owner:ReferenceClipBinding["owner"]};
-const evidenceCache=new WeakMap<ReferenceShow,Map<string,SceneEvidence>>();
+type SceneEvidence = {
+  start: number;
+  hold: number;
+  end: number;
+  previewTime: number;
+  transitionSeconds: number;
+  preview: ReturnType<typeof sampleReferenceShow>;
+  motion: string;
+  lighting: {
+    status: "OBSERVED_RGB" | "NO_RGB_SAMPLES";
+    rgbSamples: number;
+    changes: number;
+    distinctColors: number;
+    darkFraction: number | null;
+    spatial: ReturnType<typeof analyzeSpatialRgb>;
+    structure: ReturnType<typeof analyzeRgbStructure>;
+    recipe: "UNKNOWN";
+  };
+  semanticImage: "UNKNOWN";
+  boundary: "INFERRED";
+  owner: ReferenceClipBinding["owner"];
+};
+const evidenceCache = new WeakMap<ReferenceShow, Map<string, SceneEvidence>>();

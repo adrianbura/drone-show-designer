@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
-it("parses an explicit bare scale factor used by the real browser flow",()=>{
-  expect(parseAgentCommand("scale scene 1.001")).toMatchObject({ok:true,ops:[{kind:"SCALE_SCENE",factor:1.001}]});
+it("parses an explicit bare scale factor used by the real browser flow", () => {
+  expect(parseAgentCommand("scale scene 1.001")).toMatchObject({
+    ok: true,
+    ops: [{ kind: "SCALE_SCENE", factor: 1.001 }],
+  });
 });
 
 import { applyAgentOp } from "../operations";
