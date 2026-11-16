@@ -54,6 +54,10 @@ type Verdict = { ok: boolean; limit: string; detail?: string };
 function classify(text: string): string {
   const t = text.toLowerCase();
   if (t.includes("splice")) return "splice";
+  if (t.includes("blocked")) {
+    const m = /blocked[^:]*:\s*([^"]{0,80})/i.exec(text);
+    return `full-show: ${m?.[1] ?? text.slice(0, 80)}`;
+  }
   if (t.includes("separation") || t.includes("collision")) return "separation";
   if (t.includes("acceler") || t.includes("a=")) return "acceleration";
   if (t.includes("velocity") || t.includes("speed") || t.includes("v=")) return "velocity";
@@ -115,13 +119,20 @@ function largest(make: (m: number) => AgentOp, clipIds: readonly string[], lo: n
       if (cheapGate(clipIds, make(mid)).ok) best = mid;
       else hi = mid;
     }
-  for (let i = 0; i < 4 && best > 0; i++) {
-    const v = fullGate(clipIds, make(best));
-    if (v.ok) return { best, limit };
-    limit = v.limit;
-    best *= 0.85;
+  if (best <= 0) return { best: 0, limit };
+  const top = fullGate(clipIds, make(best));
+  if (top.ok) return { best, limit };
+  // Kinematics fit but the FULL gate refuses: bisect on the full gate.
+  limit = top.limit;
+  let ok = 0,
+    bad = best;
+  for (let i = 0; i < 5; i++) {
+    const mid = (ok + bad) / 2;
+    const v = fullGate(clipIds, make(mid));
+    if (v.ok) ok = mid;
+    else bad = mid;
   }
-  return { best: 0, limit };
+  return { best: ok, limit };
 }
 
 const groups = clipSceneGroups(report, layer);
