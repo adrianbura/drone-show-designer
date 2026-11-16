@@ -38,6 +38,8 @@ export function prepareImportedEdit(
   if (op.kind==="ROTATE_SCENE" && !Number.isFinite(op.degrees)) return {ok:false,reason:"INVALID_ROTATION"};
   if (op.kind==="SCALE_SCENE" && (!Number.isFinite(op.factor) || op.factor<0.5 || op.factor>2)) return {ok:false,reason:"INVALID_SCALE"};
   const edits=[...(layer.motionEdits??[]),edit];
+  const ordered=[...known].sort((a,b)=>a.order-b.order);
+  if (ordered.some((b,i)=>i>0 && b.order!==(ordered[i-1]?.order??0)+1)) return {ok:false,reason:"NON_CONSECUTIVE_EDIT_TARGET"};
   let maxVelocity=0,maxAcceleration=0;
   for (let f=Math.floor(start*show.timing.positionRateHz);f<=Math.ceil(end*show.timing.positionRateHz);f++) {
     for (const drone of show.drones) {

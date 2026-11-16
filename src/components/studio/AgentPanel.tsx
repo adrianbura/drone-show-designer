@@ -287,7 +287,7 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
             : null;
         const reference=fullShowAnalysisOptions.reference;
         if (reference && targetClipId && ["MOVE_SCENE","ROTATE_SCENE","SCALE_SCENE"].includes(op.kind)) {
-          if (transaction) {
+          if (transaction || ops.filter(o => o.kind!=="SELECT_SCENE").length !== 1) {
             say(t("Trimite o singură transformare pentru fiecare previzualizare.", "Send one transform per preview."));
             return;
           }

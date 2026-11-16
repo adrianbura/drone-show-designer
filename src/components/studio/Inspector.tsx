@@ -739,9 +739,9 @@ export default function Inspector({
                     returns every drone to its assigned home pad at ground level.
                   </p>
                 )}
+                <ImportedTransformPanel />
                 <NumberRow
                   label="Start"
-                  
                   value={clip.start}
                   unit="s"
                   onChange={(v) => patchClip(clip.id, { start: Math.max(0, v) })}
