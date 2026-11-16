@@ -39,11 +39,22 @@ export function prepareImportedEdit(
   )
     return { ok: false, reason: "REFERENCE_BASELINE_REQUIRED" };
   const known = bindings.filter((b) => b !== undefined);
-  if (show.drones.length!==project.droneCount || show.timing.positionRateHz!==layer.positionRateHz) return {ok:false,reason:"REFERENCE_FLEET_CLOCK_MISMATCH"};
-  if (known.some(b=>{
-    const c=project.timeline.find(c=>c.id===b.clipId);
-    return !c || Math.abs(c.start-b.referenceStart)>1e-6 || Math.abs(c.start+c.transition+c.hold-b.referenceEnd)>1e-6;
-  })) return {ok:false,reason:"REFERENCE_TIMING_REQUIRED"};
+  if (
+    show.drones.length !== project.droneCount ||
+    show.timing.positionRateHz !== layer.positionRateHz
+  )
+    return { ok: false, reason: "REFERENCE_FLEET_CLOCK_MISMATCH" };
+  if (
+    known.some((b) => {
+      const c = project.timeline.find((c) => c.id === b.clipId);
+      return (
+        !c ||
+        Math.abs(c.start - b.referenceStart) > 1e-6 ||
+        Math.abs(c.start + c.transition + c.hold - b.referenceEnd) > 1e-6
+      );
+    })
+  )
+    return { ok: false, reason: "REFERENCE_TIMING_REQUIRED" };
   const start = Math.min(...known.map((b) => b.referenceStart)),
     end = Math.max(...known.map((b) => b.referenceEnd));
   const guard = 2 / show.timing.positionRateHz;

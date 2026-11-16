@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { importedFixture as acceptanceFixture, importArchiveFixture } from "@/lib/acceptance/__tests__/support/productionFixtures";
+import {
+  importedFixture as acceptanceFixture,
+  importArchiveFixture,
+} from "@/lib/acceptance/__tests__/support/productionFixtures";
 import { buildSyntheticEssp } from "../../codec";
 import { prepareImportedEdit } from "../editTransaction";
 import { taperedKinematics, taperWeight } from "../taper";
@@ -15,23 +18,31 @@ import { sampleReferenceShow } from "../../playback";
 
 const ctx = { assignmentStrategy: "nearestNeighbor" as const, transitionOverrides: {} };
 async function importedFixture() {
-  return importArchiveFixture(Array.from({length:6},(_,i)=>{
-    const xyz=Array.from({length:481},(_,f)=>{
-      const t=f/8,u=t<15?Math.min(1,t/15):t>45?Math.max(0,(60-t)/15):1;
-      const s=u*u*u*(10+u*(-15+6*u));
-      const drift=t<20?0:t<30?(t-20)*50:500;
-      return [(i%3)*400-400+drift,Math.floor(i/3)*400,Math.round(3000*s)];
-    });
-    const bytes=buildSyntheticEssp({xyz,rgb:Array.from({length:721},()=>[100,50,200])});
-    return {name:`${i+1}.essp`,bytes};
-  }));
+  return importArchiveFixture(
+    Array.from({ length: 6 }, (_, i) => {
+      const xyz = Array.from({ length: 481 }, (_, f) => {
+        const t = f / 8,
+          u = t < 15 ? Math.min(1, t / 15) : t > 45 ? Math.max(0, (60 - t) / 15) : 1;
+        const s = u * u * u * (10 + u * (-15 + 6 * u));
+        const drift = t < 20 ? 0 : t < 30 ? (t - 20) * 50 : 500;
+        return [(i % 3) * 400 - 400 + drift, Math.floor(i / 3) * 400, Math.round(3000 * s)];
+      });
+      const bytes = buildSyntheticEssp({
+        xyz,
+        rgb: Array.from({ length: 721 }, () => [100, 50, 200]),
+      });
+      return { name: `${i + 1}.essp`, bytes };
+    }),
+  );
 }
 describe("tapered imported edit transaction", () => {
   it.each(["MOVE_SCENE", "ROTATE_SCENE", "SCALE_SCENE"] as const)(
     "preserves edges, neighbours, RGB and round trip for %s",
     async (kind) => {
       const { project, show, layer } = await importedFixture();
-      const binding = layer.bindings.find((b) => b.kind === "SCENE" && b.sourceClassification === "STATIC_FORMATION");
+      const binding = layer.bindings.find(
+        (b) => b.kind === "SCENE" && b.sourceClassification === "STATIC_FORMATION",
+      );
       if (!binding) throw new Error("fixture needs scene");
       const before = JSON.stringify({ project, layer });
       const op =

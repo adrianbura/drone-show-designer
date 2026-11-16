@@ -97,60 +97,143 @@ console.log(
 
 // Optional real-archive edit probe; never writes back to the imported archive.
 if (process.argv.includes("--edit")) {
-  const targets=clipSceneGroups(report,layer);
-  const selected=[targets.find(g=>g.kind==="DYNAMIC"&&g.clipIds.length>1),targets.find(g=>g.kind==="STATIC")];
-  const ops:AgentOp[]=[{kind:"MOVE_SCENE",offset:[0,0.03,0]},{kind:"ROTATE_SCENE",axis:"Y",degrees:0.1},{kind:"SCALE_SCENE",factor:1.001}];
-  for(const target of selected) for(const op of ops) {
-  if (!target) throw new Error("Required dynamic/static target missing");
-  const prepared=prepareImportedEdit(project,show,layer,target.clipIds,op,ctx);
-  if(!prepared.ok)throw new Error(prepared.reason);
-  const tx=prepared.transaction,edited=tx.project;
-  const rec={layer:tx.layer,promotions:tx.layer.bindings.filter(b=>b.owner==="PLANNER")};
-  const analyzed = analyzeFullShow(edited, { ...ctx, sampleRate: show.timing.positionRateHz, reference: { show, layer: rec.layer } });
-  const editedPlan = buildShowPlan(edited, ctx);
-  const exported = buildEsspExportPackage({ project: edited, plan: editedPlan, reference: { show, layer: rec.layer }, fullShow: analyzed.report, fullShowStale: false });
-  let worstPosition = 0;
-  let rgbMismatchesOutside = 0;
-  let roundTrip = null;
-  let xyzMismatchesOutside=0,changedXyzValues=0,rgbMismatchesTotal=0;
-  if (exported.ok) {
-    const back = await buildReferenceShow(exported.files.map(f => ({ name: f.name, bytes: f.bytes })));
-    const effective = sampleEffectiveTrajectorySet(editedPlan, { sampleRate: show.timing.positionRateHz, startTime: 0, endTime: show.timing.positionDurationSeconds, reference: { show, layer: rec.layer } }).set;
-    for (let f = 0; f < show.timing.positionSampleCount; f++) {
-      const samples = sampleReferenceShow(back, f / show.timing.positionRateHz);
-      samples.forEach((s, i) => {
-        const expected = effective.drones[i]?.samples[f]?.position;
-        if (!expected) throw new Error("Missing effective sample");
-        worstPosition = Math.max(worstPosition, Math.hypot(...s.position.map((v, axis) => v - (expected[axis] ?? 0))));
-        const source=show.drones[i],drone=back.drones[i];
-        if(!source||!drone)throw new Error("Missing drone");
-        for(let axis=0;axis<3;axis++)if(source.positionSamples[f*3+axis]!==drone.positionSamples[f*3+axis]){
-          changedXyzValues++;
-          const t=f/show.timing.positionRateHz;
-          if(t<tx.edit.start||t>=tx.edit.end)xyzMismatchesOutside++;
-        }
+  const targets = clipSceneGroups(report, layer);
+  const selected = [
+    targets.find((g) => g.kind === "DYNAMIC" && g.clipIds.length > 1),
+    targets.find((g) => g.kind === "STATIC"),
+  ];
+  const ops: AgentOp[] = [
+    { kind: "MOVE_SCENE", offset: [0, 0.03, 0] },
+    { kind: "ROTATE_SCENE", axis: "Y", degrees: 0.1 },
+    { kind: "SCALE_SCENE", factor: 1.001 },
+  ];
+  for (const target of selected)
+    for (const op of ops) {
+      if (!target) throw new Error("Required dynamic/static target missing");
+      const prepared = prepareImportedEdit(project, show, layer, target.clipIds, op, ctx);
+      if (!prepared.ok) throw new Error(prepared.reason);
+      const tx = prepared.transaction,
+        edited = tx.project;
+      const rec = {
+        layer: tx.layer,
+        promotions: tx.layer.bindings.filter((b) => b.owner === "PLANNER"),
+      };
+      const analyzed = analyzeFullShow(edited, {
+        ...ctx,
+        sampleRate: show.timing.positionRateHz,
+        reference: { show, layer: rec.layer },
       });
-    }
-    for (let f = 0; f < show.timing.rgbSampleCount; f++) {
-      const t = f / show.timing.rgbRateHz;
-      back.drones.forEach((d, i) => {
-        const source = show.drones[i];
-        if (!source) throw new Error("Missing source drone");
-        for (let axis = 0; axis < 3; axis++) if (d.rgbSamples[f * 3 + axis] !== source.rgbSamples[f * 3 + axis]) {
-          rgbMismatchesTotal++;
-          if(t<tx.edit.start||t>=tx.edit.end)rgbMismatchesOutside++;
-        }
+      const editedPlan = buildShowPlan(edited, ctx);
+      const exported = buildEsspExportPackage({
+        project: edited,
+        plan: editedPlan,
+        reference: { show, layer: rec.layer },
+        fullShow: analyzed.report,
+        fullShowStale: false,
       });
+      let worstPosition = 0;
+      let rgbMismatchesOutside = 0;
+      let roundTrip = null;
+      let xyzMismatchesOutside = 0,
+        changedXyzValues = 0,
+        rgbMismatchesTotal = 0;
+      if (exported.ok) {
+        const back = await buildReferenceShow(
+          exported.files.map((f) => ({ name: f.name, bytes: f.bytes })),
+        );
+        const effective = sampleEffectiveTrajectorySet(editedPlan, {
+          sampleRate: show.timing.positionRateHz,
+          startTime: 0,
+          endTime: show.timing.positionDurationSeconds,
+          reference: { show, layer: rec.layer },
+        }).set;
+        for (let f = 0; f < show.timing.positionSampleCount; f++) {
+          const samples = sampleReferenceShow(back, f / show.timing.positionRateHz);
+          samples.forEach((s, i) => {
+            const expected = effective.drones[i]?.samples[f]?.position;
+            if (!expected) throw new Error("Missing effective sample");
+            worstPosition = Math.max(
+              worstPosition,
+              Math.hypot(...s.position.map((v, axis) => v - (expected[axis] ?? 0))),
+            );
+            const source = show.drones[i],
+              drone = back.drones[i];
+            if (!source || !drone) throw new Error("Missing drone");
+            for (let axis = 0; axis < 3; axis++)
+              if (source.positionSamples[f * 3 + axis] !== drone.positionSamples[f * 3 + axis]) {
+                changedXyzValues++;
+                const t = f / show.timing.positionRateHz;
+                if (t < tx.edit.start || t >= tx.edit.end) xyzMismatchesOutside++;
+              }
+          });
+        }
+        for (let f = 0; f < show.timing.rgbSampleCount; f++) {
+          const t = f / show.timing.rgbRateHz;
+          back.drones.forEach((d, i) => {
+            const source = show.drones[i];
+            if (!source) throw new Error("Missing source drone");
+            for (let axis = 0; axis < 3; axis++)
+              if (d.rgbSamples[f * 3 + axis] !== source.rgbSamples[f * 3 + axis]) {
+                rgbMismatchesTotal++;
+                if (t < tx.edit.start || t >= tx.edit.end) rgbMismatchesOutside++;
+              }
+          });
+        }
+        roundTrip = {
+          drones: back.drones.length,
+          timing: back.timing,
+          worstPositionMeters: worstPosition,
+          rgbMismatchesOutside,
+        };
+      }
+      console.log(
+        JSON.stringify(
+          {
+            op: op.kind,
+            editGroup: target,
+            promoted: rec.promotions.length,
+            exportOk: exported.ok,
+            splice: analyzed.report.splice,
+            maxVelocity: analyzed.report.metrics.maximumVelocity,
+            maxAcceleration: analyzed.report.metrics.maximumAcceleration,
+            xyzMismatchesOutside,
+            changedXyzValues,
+            rgbMismatchesTotal,
+            roundTrip,
+            reportUnchanged: JSON.stringify(report) === reportBefore,
+          },
+          null,
+          1,
+        ),
+      );
+      if (
+        !exported.ok ||
+        !analyzed.report.splice?.ok ||
+        !roundTrip ||
+        worstPosition > 0.009 ||
+        xyzMismatchesOutside ||
+        rgbMismatchesTotal ||
+        !changedXyzValues ||
+        backTimingMismatch(roundTrip.timing, show.timing) ||
+        JSON.stringify(report) !== reportBefore
+      )
+        throw new Error("Edited export acceptance failed");
     }
-    roundTrip = { drones: back.drones.length, timing: back.timing, worstPositionMeters: worstPosition, rgbMismatchesOutside };
-  }
-  console.log(JSON.stringify({op:op.kind,editGroup:target,promoted:rec.promotions.length,exportOk:exported.ok,splice:analyzed.report.splice,maxVelocity:analyzed.report.metrics.maximumVelocity,maxAcceleration:analyzed.report.metrics.maximumAcceleration,xyzMismatchesOutside,changedXyzValues,rgbMismatchesTotal,roundTrip,reportUnchanged:JSON.stringify(report)===reportBefore},null,1));
-  if(!exported.ok||!analyzed.report.splice?.ok||!roundTrip||worstPosition>0.009||xyzMismatchesOutside||rgbMismatchesTotal||!changedXyzValues||backTimingMismatch(roundTrip.timing,show.timing)||JSON.stringify(report)!==reportBefore)throw new Error("Edited export acceptance failed");
-  }
-  const target=selected[0];if(!target)throw new Error("target");
-  const impossible=prepareImportedEdit(project,show,layer,target.clipIds,{kind:"MOVE_SCENE",offset:[0,200,0]},ctx);
-  if(impossible.ok)throw new Error("Infeasible edit incorrectly accepted");
-  console.log(JSON.stringify({infeasibleRefused:true,reason:impossible.reason}));
+  const target = selected[0];
+  if (!target) throw new Error("target");
+  const impossible = prepareImportedEdit(
+    project,
+    show,
+    layer,
+    target.clipIds,
+    { kind: "MOVE_SCENE", offset: [0, 200, 0] },
+    ctx,
+  );
+  if (impossible.ok) throw new Error("Infeasible edit incorrectly accepted");
+  console.log(JSON.stringify({ infeasibleRefused: true, reason: impossible.reason }));
 }
-function backTimingMismatch(a:typeof show.timing,b:typeof show.timing){return JSON.stringify(a)!==JSON.stringify(b);}
-if(!pkg.ok||identical!==150||JSON.stringify(report)!==reportBefore)throw new Error("Untouched fidelity failed");
+function backTimingMismatch(a: typeof show.timing, b: typeof show.timing) {
+  return JSON.stringify(a) !== JSON.stringify(b);
+}
+if (!pkg.ok || identical !== 150 || JSON.stringify(report) !== reportBefore)
+  throw new Error("Untouched fidelity failed");
