@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { importedFixture } from "@/lib/acceptance/__tests__/support/productionFixtures";
+import { importedFixture as acceptanceFixture, importArchiveFixture } from "@/lib/acceptance/__tests__/support/productionFixtures";
+import { buildSyntheticEssp } from "../../codec";
 import { prepareImportedEdit } from "../editTransaction";
 import { taperedKinematics, taperWeight } from "../taper";
 import { migrateReferenceLayer } from "../layer";
@@ -13,6 +14,17 @@ import { splicedTrajectorySamples } from "../splice";
 import { sampleReferenceShow } from "../../playback";
 
 const ctx = { assignmentStrategy: "nearestNeighbor" as const, transitionOverrides: {} };
+async function importedFixture() {
+  return importArchiveFixture(Array.from({length:4},(_,i)=>{
+    const xyz=Array.from({length:481},(_,f)=>{
+      const t=f/8,u=t<15?Math.min(1,t/15):t>45?Math.max(0,(60-t)/15):1;
+      const s=u*u*u*(10+u*(-15+6*u));
+      return [(i%2)*600-300,Math.floor(i/2)*600-300,Math.round(2500*s)];
+    });
+    const bytes=buildSyntheticEssp({xyz,rgb:Array.from({length:721},()=>[100,50,200])});
+    return {name:`${i+1}.essp`,bytes};
+  }));
+}
 describe("tapered imported edit transaction", () => {
   it.each(["MOVE_SCENE", "ROTATE_SCENE", "SCALE_SCENE"] as const)(
     "preserves edges, neighbours, RGB and round trip for %s",
@@ -102,7 +114,7 @@ describe("tapered imported edit transaction", () => {
     },
   );
   it("refuses an infeasible offset without modifying source/history", async () => {
-    const { project, show, layer } = await importedFixture();
+    const { project, show, layer } = await acceptanceFixture();
     const b = layer.bindings.find((b) => b.kind === "SCENE");
     if (!b) throw new Error("scene");
     const result = prepareImportedEdit(
