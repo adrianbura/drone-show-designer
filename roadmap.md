@@ -300,6 +300,7 @@ această rulare.
 - [ ] Pas 3: semnătură conștientă de proprietar (limitele globale nu trebuie să promoveze clipurile REFERENCE). Pas 5: re-analiză incrementală în worker.
 
 ## 23. Grupuri de scene dinamice + fidelitate export (2026-11-15, Lovable)
+- [x] 2026-11-16: cauza sintetică izolată și reparată; test normal de round-trip verde; investigație reală și browser Apply/Undo executate. Obiectivul exportului real editat rămâne DESCHIS (racorduri/accelerații).
 - [x] `native/sceneGroups.ts`: grupuri derivate (dinamice consecutive; statice singure). Real: 119 scene → 78 grupuri (45 statice + 33 dinamice), cel mai mare 15 segmente. Regula de identitate (0,4 m) ar fi dat 118 — respinsă cu măsurători.
 - [x] Timeline: bară per grup dinamic (aceeași proiecție); click selectează grupul.
 - [x] Agent: mutare/rotire/scalare pe grupul clipului selectat, pivot comun, atomic, un Undo; validare per membru.
@@ -307,6 +308,9 @@ această rulare.
 - [x] „Nu înrăutăți” doar pentru clipuri derivate din import (binding de referință); clipurile native rămân absolute.
 - [x] Export real needitat (`scripts/esspExportFidelity.ts`): 150/150 fișiere identice octet cu octet, PRESERVED_PAYLOAD, raport neschimbat.
 - [x] Teste: grupuri, export identic, salt la margini blocat de splice, promovare doar a grupului, editare grup (3). Suită 1567 trecute / 1 eșec așteptat / 1 sărit.
-- [ ] **BLOCAJ export mixt**: după orice promovare, raportul full-show indică viteze absurde (sute–mii m/s) pe decolarea REFERENCE, deși traiectoria compusă are maxim 2,56 m/s. Test `it.fails` în `esspGroupExportFidelity.test.ts`. Până la reparare, un show editat nu se poate exporta.
-- [ ] Marginile grupului: orice mutare > 5 cm sare la îmbinarea cu referința; lipsește replanificarea tranzițiilor de margine.
-- [ ] Verificare browser a barelor de grup și a editării pe grup.
+- [x] Viteza 7382,7 m/s: arc vertical legacy 23,5 m / 0,01 s, eșantionat pe partea dreaptă la 23,75 s; contextul raportului numea greșit hold TAKEOFF din stânga. Nu era cm/m și validatorul citea deja setul efectiv. Arcul exclus pentru geometrie importată; identitatea dronelor păstrată; clamp 0,01→0,001 pentru clipurile importate.
+- [x] `it.fails` înlocuit cu test normal: export/reimport sintetic complet pe ceasul XYZ (<0,02 m), RGB exact în afara grupului inclusiv tranziție vecină/coada RGB, rate/count/durată identice. Saltul nereplanificat de 0,4 m rămâne refuzat.
+- [ ] Marginile grupului (Task 2 NEIMPLEMENTAT, deliberat fără jumătăți de remediu): este necesar un adaptor group-aware de pregătire atomică proiect+overrides+ownership, ancore XYZ/v la ambele margini, verificare intervale interne și fezabilitate pentru tranziții de 1 ms; nici retiming, nici promovare vecini, nici limite lărgite nu au fost introduse.
+- [x] Browser real: Make editable → 121 clipuri, 8 bare pentru grupurile multi-segment; click grup → preview pe 2 membri, Apply → MIXED/PLANNER, un Undo → REFERENCE. Screenshot-uri inspectate. Exportul din UI după editare NU verificat.
+- [x] Real CLI needitat: 150/150 identice, 8/12 Hz, 78 grupuri. Edit +0,03 m pe grup 7,5–28,75 s: 2 promovări, export refuzat legitim; splice 0,0022 m / 2,1883 m/s intrare și 1,2171 m / 2,0463 m/s ieșire; max v 5,2261 m/s, max a 516,1526 m/s². Raport sursă neschimbat. Round-trip real editat nu poate fi executat cât gate-ul refuză.
+- [x] Suită `bunx vitest run --maxWorkers=4 --testTimeout=30000`: 180 fișiere, 1568 trecute / 1 sărit, niciun eșec așteptat. Verificarea automată tipuri/build: build OK 05:45:40 UTC; `tsgo -b --noEmit` separat nu a fost executat (harness-ul gestionează verificările). Commit-uri gestionate de platformă, fără comenzi Git stateful.

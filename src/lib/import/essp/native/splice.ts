@@ -193,7 +193,15 @@ export function referenceColorsAt(
   fleetSize: number,
 ): RGB[] | null {
   if (!show || !layer) return null;
-  if (intervalAtTime(layer, time)?.owner !== "REFERENCE") return null;
+  const interval = intervalAtTime(layer, time);
+  // A geometric promotion of the predecessor owns this transition's XYZ,
+  // not the untouched successor's recorded RGB track.
+  const recordedTransition = interval?.kind === "TRANSITION" &&
+    layer.bindings.some(binding => binding.clipId === interval.clipId && binding.owner === "REFERENCE");
+  const last = [...layer.bindings].sort((a, b) => a.order - b.order).at(-1);
+  const recordedTail = !interval && last?.owner === "REFERENCE" &&
+    time >= last.referenceEnd && time <= show.timing.playbackDurationSeconds;
+  if (interval?.owner !== "REFERENCE" && !recordedTransition && !recordedTail) return null;
   return referenceLightStates(show, time, fleetSize).map((s) => [s.r, s.g, s.b] as RGB);
 }
 

@@ -278,6 +278,9 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
      */
     const geometry = resolveClipGeometry(project, clip, { home });
     const formation = geometry.formation;
+    // Imported point order is drone identity; never add legacy lane arcs or
+    // inflate the extracted transition clock when it becomes planner-owned.
+    const importedGeometry = formation?.params["source"] === "ESSP_IMPORTED_SHOW";
     for (const problem of geometry.problems) {
       errors.push(
         new TrajectoryPlanningError("INVALID_FORMATION", problem.message, {
@@ -420,7 +423,7 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
       // total distance) pad assignment is used. On straight-line descents this
       // removes the path crossings that an index-identity mapping produces.
       const strategy = getAssignmentStrategy(
-        phase === "LANDING" ? "optimalDistance" : showStrategy,
+        importedGeometry ? "identity" : phase === "LANDING" ? "optimalDistance" : showStrategy,
       );
       clipAssignments = strategy.assign({ source: current, target: rawTarget, drones });
       strategyId = strategy.id;
@@ -433,7 +436,7 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
     });
     const target = applyAssignment(clipAssignments, rawTarget);
 
-    const transition = Math.max(0.01, clip.transition);
+    const transition = Math.max(importedGeometry ? 0.001 : 0.01, clip.transition);
     for (const drone of drones) {
       const i = drone.index;
       const from = override?.boundarySourcePositions?.[i] ?? current[i] ?? drone.homePosition;
@@ -456,7 +459,7 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
           ...(override?.boundaryTargetVelocities?.[i]
             ? { endVelocity: override.boundaryTargetVelocities[i] }
             : {}),
-          duration: Math.max(0.01, transition - startOffset),
+          duration: Math.max(importedGeometry ? 0.001 : 0.01, transition - startOffset),
           maxVelocity: project.limits.maxVelocity,
           maxAcceleration: project.limits.maxAcceleration,
           maxJerk: project.limits.maxJerk,
@@ -465,7 +468,7 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
           // Optimised clips use explicit lane offsets instead of the legacy
           // index-derived layering arc.
           verticalArc:
-            phase === "SHOW" && !override
+            phase === "SHOW" && !override && !importedGeometry
               ? clampArc(arcForDrone(i), from[1], to[1], project.limits.maxAltitude)
               : 0,
         });

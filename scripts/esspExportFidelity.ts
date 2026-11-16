@@ -18,6 +18,11 @@ import { analyzeFullShow } from "../src/lib/show/fullshow";
 import { buildShowPlan } from "../src/lib/show/trajectory/schedule";
 import { createDefaultProject } from "../src/lib/show/defaultProject";
 import type { ShowProject } from "../src/lib/show/types";
+import { applyAgentOpToGroup } from "../src/lib/agent/operations";
+import { clipSceneGroups } from "../src/lib/import/essp/native/sceneGroups";
+import { reconcileReferenceLayer } from "../src/lib/import/essp/native/intervals";
+import { sampleEffectiveTrajectorySet } from "../src/lib/show/fullshow/effective";
+import { sampleReferenceShow } from "../src/lib/import/essp/playback";
 
 const zip = process.argv[2];
 if (!zip) throw new Error("Usage: bun scripts/esspExportFidelity.ts archive.zip");
@@ -87,3 +92,42 @@ console.log(
     1,
   ),
 );
+
+// Optional real-archive edit probe; never writes back to the imported archive.
+if (process.argv.includes("--edit")) {
+  const target = clipSceneGroups(report, layer).find(g => g.kind === "DYNAMIC" && g.clipIds.length > 1);
+  if (!target) throw new Error("No multi-segment dynamic group");
+  const edit = applyAgentOpToGroup(project, target.clipIds, { kind: "MOVE_SCENE", offset: [0, 0.03, 0] });
+  if (!edit.ok || !edit.project) throw new Error(JSON.stringify(edit));
+  const edited = edit.project;
+  const rec = reconcileReferenceLayer(edited, layer, ctx);
+  const analyzed = analyzeFullShow(edited, { ...ctx, sampleRate: show.timing.positionRateHz, reference: { show, layer: rec.layer } });
+  const editedPlan = buildShowPlan(edited, ctx);
+  const exported = buildEsspExportPackage({ project: edited, plan: editedPlan, reference: { show, layer: rec.layer }, fullShow: analyzed.report, fullShowStale: false });
+  let worstPosition = 0;
+  let rgbMismatchesOutside = 0;
+  let roundTrip = null;
+  if (exported.ok) {
+    const back = await buildReferenceShow(exported.files.map(f => ({ name: f.name, bytes: f.bytes })));
+    const effective = sampleEffectiveTrajectorySet(editedPlan, { sampleRate: show.timing.positionRateHz, startTime: 0, endTime: show.timing.positionDurationSeconds, reference: { show, layer: rec.layer } }).set;
+    for (let f = 0; f < show.timing.positionSampleCount; f++) {
+      const samples = sampleReferenceShow(back, f / show.timing.positionRateHz);
+      samples.forEach((s, i) => {
+        const expected = effective.drones[i]?.samples[f]?.position;
+        if (!expected) throw new Error("Missing effective sample");
+        worstPosition = Math.max(worstPosition, Math.hypot(...s.position.map((v, axis) => v - (expected[axis] ?? 0))));
+      });
+    }
+    for (let f = 0; f < show.timing.rgbSampleCount; f++) {
+      const t = f / show.timing.rgbRateHz;
+      if (t >= target.start && t < target.end) continue;
+      back.drones.forEach((d, i) => {
+        const source = show.drones[i];
+        if (!source) throw new Error("Missing source drone");
+        for (let axis = 0; axis < 3; axis++) if (d.rgbSamples[f * 3 + axis] !== source.rgbSamples[f * 3 + axis]) rgbMismatchesOutside++;
+      });
+    }
+    roundTrip = { drones: back.drones.length, timing: back.timing, worstPositionMeters: worstPosition, rgbMismatchesOutside };
+  }
+  console.log(JSON.stringify({ editGroup: target, promoted: rec.promotions.length, exportOk: exported.ok, splice: analyzed.report.splice, maxVelocity: analyzed.report.metrics.maximumVelocity, maxAcceleration: analyzed.report.metrics.maximumAcceleration, errors: analyzed.report.errors.slice(0, 12), roundTrip, reportUnchanged: JSON.stringify(report) === reportBefore }, null, 1));
+}

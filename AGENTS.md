@@ -26,3 +26,5 @@
 - "Make editable" sets area/altitudes/limits from a pure source-measured `safetyProfile` before reseeding signatures; derived limits never exceed what the source flies nor tighten defaults, so extraction promotes nothing and the profile is never a flight authorization.
 - Edit gates are absolute and fail-closed, except on projects with an IMPORTED_SHOW profile and before/baseline evidence, where they refuse only NEW problems ("do not worsen"), so pre-existing imported defects do not freeze editing.
 - Scene groups (consecutive dynamic displayed scenes) are a derived view from one projection shared by Timeline and agent; clips, reference bindings and signatures stay per forensic segment, so grouping can never change export, splices or ownership.
+- Imported fleet-indexed geometry keeps identity assignment and its extracted transition clock in the scheduler; legacy decorative transition arcs must not be added, because those change promoted flight output rather than preserve source motion.
+- XYZ transition ownership does not transfer an untouched successor's recorded RGB ownership; preserve its RGB and the original RGB tail independently of position intervals.
