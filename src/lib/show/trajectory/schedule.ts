@@ -278,7 +278,9 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
      */
     const geometry = resolveClipGeometry(project, clip, { home });
     const formation = geometry.formation;
-    const importedGeometry = formation?.params.source === "ESSP_IMPORTED_SHOW";
+    // Imported point order is drone identity; never add legacy lane arcs or
+    // inflate the extracted transition clock when it becomes planner-owned.
+    const importedGeometry = formation?.params["source"] === "ESSP_IMPORTED_SHOW";
     for (const problem of geometry.problems) {
       errors.push(
         new TrajectoryPlanningError("INVALID_FORMATION", problem.message, {
