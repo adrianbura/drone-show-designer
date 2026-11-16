@@ -103,10 +103,14 @@ export interface SafetyReport {
 
 const AIRBORNE_ALTITUDE = 0.5;
 
-const dist = (a: Vector3Tuple, b: Vector3Tuple) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+const dist = (a: Vector3Tuple, b: Vector3Tuple) =>
+  Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
 /** Uniform spatial hash: candidate pairs within one cell radius. */
-export function neighbourPairs(positions: readonly Vector3Tuple[], cell: number): [number, number][] {
+export function neighbourPairs(
+  positions: readonly Vector3Tuple[],
+  cell: number,
+): [number, number][] {
   const size = Math.max(0.05, cell);
   // Numeric nested keys avoid allocating 27 strings per drone per frame.
   // Visit each occupied cell once and each neighbouring cell pair once.
@@ -117,11 +121,21 @@ export function neighbourPairs(positions: readonly Vector3Tuple[], cell: number)
     const y = Math.floor(p[1] / size);
     const z = Math.floor(p[2] / size);
     let ys = buckets.get(x);
-    if (!ys) { ys = new Map(); buckets.set(x, ys); }
+    if (!ys) {
+      ys = new Map();
+      buckets.set(x, ys);
+    }
     let zs = ys.get(y);
-    if (!zs) { zs = new Map(); ys.set(y, zs); }
+    if (!zs) {
+      zs = new Map();
+      ys.set(y, zs);
+    }
     let indices = zs.get(z);
-    if (!indices) { indices = []; zs.set(z, indices); occupied.push({ x, y, z, indices }); }
+    if (!indices) {
+      indices = [];
+      zs.set(z, indices);
+      occupied.push({ x, y, z, indices });
+    }
     indices.push(i);
   });
   const pairs: [number, number][] = [];
@@ -145,9 +159,10 @@ export function neighbourPairs(positions: readonly Vector3Tuple[], cell: number)
           if (dx === 0 && dy === 0 && dz <= 0) continue;
           const neighbours = zs.get(z + dz);
           if (!neighbours) continue;
-          for (const i of indices) for (const j of neighbours) {
-            pairs.push(i < j ? [i, j] : [j, i]);
-          }
+          for (const i of indices)
+            for (const j of neighbours) {
+              pairs.push(i < j ? [i, j] : [j, i]);
+            }
         }
       }
     }
@@ -197,7 +212,8 @@ export interface ValidateOptions {
 
 export function validateTrajectorySet(set: TrajectorySet, options: ValidateOptions): SafetyReport {
   const { limits, area } = options;
-  const idOf = (i: number) => options.drones?.[i]?.id ?? set.drones[i]?.droneId ?? droneIdForIndex(i);
+  const idOf = (i: number) =>
+    options.drones?.[i]?.id ?? set.drones[i]?.droneId ?? droneIdForIndex(i);
 
   const issues: SafetyIssue[] = [];
   const seen = new Set<string>();
@@ -301,7 +317,10 @@ export function validateTrajectorySet(set: TrajectorySet, options: ValidateOptio
         report.issues++;
       }
 
-      if (Math.abs(s.position[0]) > area.width / 2 + 0.01 || Math.abs(s.position[2]) > area.depth / 2 + 0.01) {
+      if (
+        Math.abs(s.position[0]) > area.width / 2 + 0.01 ||
+        Math.abs(s.position[2]) > area.depth / 2 + 0.01
+      ) {
         metrics.boundaryViolations++;
         push({
           id: `area-${i}`,
@@ -471,7 +490,9 @@ export function validateTrajectorySet(set: TrajectorySet, options: ValidateOptio
       minAltitude: finiteMin(metrics.minAltitude),
     },
     droneReports: droneReports.map((r) => ({ ...r, minAltitude: finiteMin(r.minAltitude) })),
-    pairReports: [...pairWorst.values()].sort((a, b) => a.minSeparation - b.minSeparation).slice(0, 100),
+    pairReports: [...pairWorst.values()]
+      .sort((a, b) => a.minSeparation - b.minSeparation)
+      .slice(0, 100),
     frames,
     sampleRate: set.sampleRate,
     worst: {
