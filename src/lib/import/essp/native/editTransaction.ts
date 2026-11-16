@@ -1,11 +1,10 @@
 import type { AgentOp } from "../../../agent/operations";
 import type { ShowProject, Vector3Tuple } from "../../../show/types";
-import { sampleReferenceShow } from "../playback";
 import type { ReferenceShow } from "../types";
 import { promoteReferenceClips, reseedReferenceSignatures } from "./intervals";
 import type { ClipSignatureContext } from "./signature";
 import type { ReferenceTrajectoryLayer } from "./types";
-import { taperedKinematics, type TaperedMotionEdit } from "./taper";
+import { taperedKinematics, taperedPosition, type TaperedMotionEdit } from "./taper";
 
 export interface ImportedEditTransaction {
   readonly project: ShowProject;
@@ -80,9 +79,12 @@ export function prepareImportedEdit(
   const guard = 2 / show.timing.positionRateHz;
   const span = end - start - 2 * guard;
   if (span <= 0.25) return { ok: false, reason: "INSUFFICIENT_EDIT_TIME" };
-  const samples = sampleReferenceShow(show, (start + end) / 2);
+  // Pivot = centroid of the CURRENT effective pose (prior stacked edits
+  // included), so "rotate after move" turns the moved shape in place.
+  const mid = (start + end) / 2;
+  const samples = show.drones.map((d) => taperedPosition(d, mid, show.timing, layer.motionEdits ?? []));
   const pivot: Vector3Tuple = [0, 1, 2].map(
-    (axis) => samples.reduce((sum, s) => sum + (s.position[axis] ?? 0), 0) / samples.length,
+    (axis) => samples.reduce((sum, p) => sum + (p[axis] ?? 0), 0) / samples.length,
   ) as [number, number, number];
   const edit: TaperedMotionEdit = {
     kind: op.kind as TaperedMotionEdit["kind"],
