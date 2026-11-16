@@ -181,8 +181,12 @@ export function sampleEffectiveTrajectorySet(
     const drone=reference.show.drones[index];if(!drone)return undefined;
     const interval=ownerAt(sourceIntervals,t);
     const motion=interval?.owner==="PLANNER" && reference.layer.motionEdits?.some(e=>e.clipIds.includes(interval.clipId));
+    // Keep the raw planner at ownership handovers unless a tapered source edit
+    // supplies its own exact boundary anchor; splice validation must not compare
+    // the source with itself for an ordinary promoted interval.
+    const handover=sourceIntervals.some((right,i)=>i>0 && right.owner!==sourceIntervals[i-1]?.owner && Math.abs(right.start-t)<1e-6);
     const recorded=interval?.owner==="REFERENCE" || (tail?.owner==="REFERENCE" && t>=tail.end && t<=reference.show.timing.positionDurationSeconds);
-    if(!recorded&&!motion)return undefined;
+    if((!recorded&&!motion)||(handover&&!motion))return undefined;
     return {t,...(motion?taperedKinematics(drone,t,reference.show.timing,reference.layer.motionEdits??[]):referenceKinematicsAt(drone,t,reference.show.timing)),yaw:0,yawRate:0};
   };
   const plannerSet = sampleTrajectorySet(plan, {
@@ -246,7 +250,7 @@ export function sampleEffectiveTrajectorySet(
         return sample;
       }
       referenceSampleCount += 1;
-      const k9 = sample;
+      const k9 = sourceSample(index,sample.t) ?? referenceKinematicsAt(source,sample.t,show.timing);
       return {
         t: sample.t,
         position: k9.position,
