@@ -738,7 +738,7 @@ function buildOwnership(
   input: AuditReferenceClipInput,
 ): AuditOwnership {
   const context = input.signatureContext ?? null;
-  const currentSignature = context
+  const currentSignature = context && binding
     ? clipOutputSignature(project, clip.id, { ...context, owner: binding.owner })
     : null;
   const intervals = layer
