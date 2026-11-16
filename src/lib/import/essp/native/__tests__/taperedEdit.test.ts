@@ -102,12 +102,7 @@ describe("tapered imported edit transaction", () => {
       for (let f = 0; f < show.timing.positionSampleCount; f++) {
         const t = f / 8,
           actual = sampleReferenceShow(back, t);
-        const live = splicedTrajectorySamples(
-          show,
-          tx.layer,
-          t,
-          set.drones.map((d) => d.samples[f]).filter((s) => s !== undefined),
-        ).samples;
+        const live = set.drones.map((d) => d.samples[f]);
         actual.forEach((s, i) => {
           const expected = live[i]?.position;
           if (!expected) throw new Error("missing sample");

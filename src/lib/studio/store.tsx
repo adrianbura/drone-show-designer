@@ -6710,7 +6710,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       if (
         referenceLayerShow &&
         referenceLayer &&
-        intervalAtTime(referenceLayer, t)?.owner === "REFERENCE"
+          (intervalAtTime(referenceLayer, t)?.owner === "REFERENCE" || referenceLayer.motionEdits?.some(e=>e.clipIds.includes(intervalAtTime(referenceLayer,t)?.clipId??"")))
       ) {
         return referenceLightStates(referenceLayerShow, t, project.droneCount);
       }
