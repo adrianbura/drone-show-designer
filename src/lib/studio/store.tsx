@@ -2303,11 +2303,24 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const applyAgentProject = useCallback(
     (next: ShowProject) => {
       pushSnapshot(projectRef.current);
+      // Install ownership with geometry; the promotion effect must not cause
+      // a second synchronous whole-show sampling and safety pass.
+      const currentLayer = referenceLayerRef.current;
+      if (currentLayer) {
+        const reconciled = reconcileReferenceLayer(next, currentLayer, {
+          assignmentStrategy,
+          transitionOverrides: transitionOverridesRef.current,
+        });
+        if (reconciled.changed) {
+          referenceLayerRef.current = reconciled.layer;
+          setReferenceLayer(reconciled.layer);
+        }
+      }
       projectRef.current = next;
       setProject(next);
       invalidateDerivedAnalysis(derivedAnalysisSetters);
     },
-    [pushSnapshot, derivedAnalysisSetters],
+    [pushSnapshot, derivedAnalysisSetters, assignmentStrategy],
   );
 
   const undoTimeline = useCallback(() => {

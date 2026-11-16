@@ -143,15 +143,20 @@ export function promoteReferenceClips(
 ): ReferenceLayerReconciliation {
   const promotions: ReferencePromotion[] = [];
   let bindings = layer.bindings.map((b) => ({ ...b }));
+  let changed = false;
   for (const request of requests) {
     const target = bindings.find((b) => b.clipId === request.clipId);
     if (!target || target.owner === "PLANNER") {
       // Already planner-owned: refresh the signature so the same edit is not
       // reported again, but do not emit a duplicate promotion.
-      if (target && request.signature) target.signature = request.signature;
+      if (target && request.signature && target.signature !== request.signature) {
+        target.signature = request.signature;
+        changed = true;
+      }
       continue;
     }
     target.owner = "PLANNER";
+    changed = true;
     target.promotedAt = now;
     target.promotionReason = request.reason;
     if (request.signature) target.signature = request.signature;
@@ -163,7 +168,7 @@ export function promoteReferenceClips(
       affectedClipIds: affected.clipIds,
     });
   }
-  if (promotions.length === 0) return { layer, promotions: [], changed: false };
+  if (!changed) return { layer, promotions: [], changed: false };
   return { layer: { ...layer, bindings }, promotions, changed: true };
 }
 
@@ -197,7 +202,10 @@ export function reconcileReferenceLayer(
         migrated.set(binding.clipId, signature);
         continue;
       }
-      requests.push({ clipId: binding.clipId, reason: "OUTPUT_SIGNATURE_CHANGED", signature });
+      const plannerSignature = clipOutputSignature(project, binding.clipId, {
+        ...context, owner: "PLANNER",
+      });
+      requests.push({ clipId: binding.clipId, reason: "OUTPUT_SIGNATURE_CHANGED", signature: plannerSignature ?? signature });
     }
   }
   const seeded = migrated.size

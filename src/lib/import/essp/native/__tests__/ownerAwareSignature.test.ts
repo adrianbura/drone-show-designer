@@ -46,6 +46,13 @@ describe("owner-aware signature", () => {
     expect(
       reconcileReferenceLayer(moved.project, layer, context).promotions.map((p) => p.clipId),
     ).toEqual([clip.id]);
+    const promoted = reconcileReferenceLayer(moved.project, layer, context).layer;
+    expect(reconcileReferenceLayer(moved.project, promoted, context).changed).toBe(false);
+    const changedLimits = { ...moved.project, limits: { ...moved.project.limits, maxVelocity: 20 } };
+    const refreshed = reconcileReferenceLayer(changedLimits, promoted, context);
+    expect(refreshed.changed).toBe(true);
+    expect(refreshed.promotions).toEqual([]);
+    expect(reconcileReferenceLayer(changedLimits, refreshed.layer, context).changed).toBe(false);
     expect(reconcileReferenceLayer(project, layer, context).promotions).toEqual([]);
   });
   it("legacy migration does not hide a first timing edit", async () => {
