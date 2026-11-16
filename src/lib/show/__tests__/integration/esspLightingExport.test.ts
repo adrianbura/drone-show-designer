@@ -398,12 +398,12 @@ describe("ESSP acceptance — lighting-only authoring", () => {
         duration: r.plan.duration - (r.plan.startTime ?? 0),
       }).drones[0]!.samples.map((s) => s.position);
     expect(pure(after)).toEqual(pure(before));
-    // On frames the promoted layer reads from the planner, plannerSet is pure.
-    const promoted = new Set(framesOwnedBy(reconciled.layer, frameTimes(after.set), "PLANNER"));
+    // On frames the plannerFrames layer reads from the planner, plannerSet is pure.
+    const plannerFrames = new Set(framesOwnedBy(reconciled.layer, frameTimes(after.set), "PLANNER"));
     const pureAfter = pure(after);
     after.effective.plannerSet.drones[0]!.samples.forEach((s, k) => {
-      if (promoted.has(k) && k > 0 && !promoted.has(k - 1)) return; // handover uses right-hand sample
-      if (promoted.has(k)) expect(s.position).toEqual(pureAfter[k]);
+      if (plannerFrames.has(k) && k > 0 && !plannerFrames.has(k - 1)) return; // handover uses right-hand sample
+      if (plannerFrames.has(k)) expect(s.position).toEqual(pureAfter[k]);
     });
 
     // Positional deviation caused by switching authority is REPORTED, not
