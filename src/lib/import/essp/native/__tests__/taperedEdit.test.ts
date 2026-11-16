@@ -96,7 +96,7 @@ describe("tapered imported edit transaction", () => {
       const set = sampleEffectiveTrajectorySet(plan, {
         sampleRate: 8,
         startTime: 0,
-        endTime: plan.duration,
+        endTime: show.timing.positionDurationSeconds,
         reference: { show, layer: tx.layer },
       }).set;
       for (let f = 0; f < show.timing.positionSampleCount; f++) {
