@@ -5174,6 +5174,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       const signature = clipOutputSignature(projectRef.current, clipId, {
         assignmentStrategy,
         transitionOverrides: transitionOverridesRef.current,
+        owner: "PLANNER",
       });
       const result = promoteReferenceClips(layer, [
         { clipId, reason: "MANUAL", ...(signature ? { signature } : {}) },
