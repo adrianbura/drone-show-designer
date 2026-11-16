@@ -591,6 +591,8 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
                           d: s.altitudeAfter[1].toFixed(1),
                         })}
                       </>
+                    ) : edit.transaction ? (
+                      <>{s.kind} · {t("margini fixe, RGB original", "fixed edges, original RGB")}</>
                     ) : s.kind === "SCALE_SCENE" ? (
                       <>
                         {t("Scalare scenă ×{k}", "Scene scale ×{k}", {
