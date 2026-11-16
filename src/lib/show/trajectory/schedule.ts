@@ -465,7 +465,7 @@ export function buildShowPlan(project: ShowProject, options: BuildShowPlanOption
           // Optimised clips use explicit lane offsets instead of the legacy
           // index-derived layering arc.
           verticalArc:
-            phase === "SHOW" && !override
+            phase === "SHOW" && !override && formation?.params.source !== "ESSP_IMPORTED_SHOW"
               ? clampArc(arcForDrone(i), from[1], to[1], project.limits.maxAltitude)
               : 0,
         });

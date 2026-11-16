@@ -183,12 +183,9 @@ describe("group edit keeps the rest verbatim and round-trips", () => {
     expect(fullShow.splice?.ok).toBe(true);
   });
 
-  // KNOWN BLOCKER (2026-11-15): after a promotion the full-show report lists
-  // absurd TAKEOFF-hold velocities (hundreds to thousands of m/s) on the
-  // REFERENCE-owned takeoff clip, while the composed trajectory's own max step
-  // is 2.56 m/s for the same drone — cause not yet isolated (validator path),
-  // so the real export gate refuses a mixed export. This test flips to failing
-  // (it.fails) the moment that is fixed; then turn it into a normal it().
+  // Regression: the right-hand SHOW transition formerly added a 23.5 m
+  // legacy vertical arc in 0.01 s, reporting 7382.7 m/s at its start.
+  // This is planner motion, not a reference TAKEOFF coordinate/unit error.
   it("mixed export round trip after a group edit", async () => {
     const target = groupTarget();
     // Below the 5 cm splice tolerance: a continuous handover.
@@ -210,13 +207,16 @@ describe("group edit keeps the rest verbatim and round-trips", () => {
     // Source RGB in the moved group's interval is still the recorded RGB track.
     const { plan, fullShow, pkg } = exportOf(edited, rec.layer);
     expect(fullShow.splice?.ok).toBe(true);
-    expect(fullShow.splice?.ok).toBe(true);
+    expect(fullShow.metrics.maximumVelocity).toBeLessThan(3);
     expect(pkg.ok, JSON.stringify({ blockers: pkg.blockers, errors: fullShow.errors })).toBe(true);
     expect(pkg.files).toHaveLength(DRONES);
     const back = await buildReferenceShow(pkg.files.map((f) => ({ name: f.name, bytes: f.bytes })));
     expect(back.drones).toHaveLength(DRONES);
     expect(back.timing.positionRateHz).toBe(fx.show.timing.positionRateHz);
     expect(back.timing.rgbRateHz).toBe(fx.show.timing.rgbRateHz);
+    expect(back.timing.positionSampleCount).toBe(fx.show.timing.positionSampleCount);
+    expect(back.timing.rgbSampleCount).toBe(fx.show.timing.rgbSampleCount);
+    expect(back.timing.playbackDurationSeconds).toBe(fx.show.timing.playbackDurationSeconds);
     const eff = sampleEffectiveTrajectorySet(plan, {
       sampleRate: back.timing.positionRateHz,
       startTime: 0,
@@ -225,7 +225,7 @@ describe("group edit keeps the rest verbatim and round-trips", () => {
     }).set;
     const frames = eff.drones[0]!.samples.length;
     let worst = 0;
-    for (let f = 0; f < frames; f += 3) {
+    for (let f = 0; f < frames; f += 1) {
       const t = eff.drones[0]!.samples[f]!.t;
       const got = sampleReferenceShow(back, t);
       eff.drones.forEach((d, i) => {
@@ -237,9 +237,11 @@ describe("group edit keeps the rest verbatim and round-trips", () => {
     // int16 centimetre quantisation of the writer.
     expect(worst).toBeLessThan(0.02);
     // Outside the edited group, exported RGB is the recorded source RGB.
-    const outside = rec.layer.bindings.filter((b) => b.owner === "REFERENCE" && b.kind === "SCENE");
-    for (const b of outside) {
-      const t = (b.referenceHoldStart + b.referenceEnd) / 2;
+    const editedStart = Math.min(...target.clipIds.map(id => rec.layer.bindings.find(b => b.clipId === id)?.referenceStart ?? Infinity));
+    const editedEnd = Math.max(...target.clipIds.map(id => rec.layer.bindings.find(b => b.clipId === id)?.referenceEnd ?? -Infinity));
+    for (let f = 0; f < back.timing.rgbSampleCount; f++) {
+      const t = f / RGB_RATE;
+      if (t >= editedStart && t < editedEnd) continue;
       for (let i = 0; i < DRONES; i++) {
         expect(colorAt(back.drones[i]!, t, back.timing.rgbRateHz)).toEqual(
           colorAt(fx.show.drones[i]!, t, fx.show.timing.rgbRateHz),
