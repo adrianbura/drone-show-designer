@@ -54,3 +54,18 @@ export function importedEditRefusal(
   const hit = map[result.reason];
   return hit ? hit[lang === "ro" ? 0 : 1] : result.reason;
 }
+
+/** One-line factual summary: what, how much, ramp, and the measured peaks. */
+export function taperedEditSummary(tx: ImportedEditTransaction, lang: Lang): string {
+  const e = tx.edit;
+  const what =
+    e.kind === "MOVE_SCENE"
+      ? `${lang === "ro" ? "Mutare" : "Move"} x ${(e.offset?.[0] ?? 0).toFixed(2)} m, y ${(e.offset?.[1] ?? 0).toFixed(2)} m, z ${(e.offset?.[2] ?? 0).toFixed(2)} m`
+      : e.kind === "ROTATE_SCENE"
+        ? `${lang === "ro" ? "Rotire" : "Rotation"} ${e.axis ?? "Y"} ${(e.degrees ?? 0).toFixed(1)}°`
+        : `${lang === "ro" ? "Scalare" : "Scale"} ×${(e.factor ?? 1).toFixed(3)}`;
+  const span = `${e.start.toFixed(2)}–${e.end.toFixed(2)} s`;
+  return lang === "ro"
+    ? `${what} · scena ${span} · rampă ${e.rampSeconds.toFixed(2)} s · viteză max ${tx.maxVelocity.toFixed(2)} m/s · accelerație max ${tx.maxAcceleration.toFixed(2)} m/s²`
+    : `${what} · scene ${span} · ramp ${e.rampSeconds.toFixed(2)} s · peak velocity ${tx.maxVelocity.toFixed(2)} m/s · peak acceleration ${tx.maxAcceleration.toFixed(2)} m/s²`;
+}

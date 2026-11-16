@@ -30,7 +30,7 @@ import { clipSceneGroups, groupOfClip } from "@/lib/import/essp/native/sceneGrou
 import { useI18n } from "@/i18n";
 import { useStudio } from "@/lib/studio/store";
 import type { ShowProject } from "@/lib/show/types";
-import { importedEditRefusal, taperedEditExplanation } from "@/lib/import/essp/native/editCopy";
+import { importedEditRefusal, taperedEditExplanation, taperedEditSummary } from "@/lib/import/essp/native/editCopy";
 import {
   prepareImportedEdit,
   type ImportedEditTransaction,
@@ -558,7 +558,11 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
               <ul className="mt-1 space-y-1 text-xs text-foreground">
                 {edit.summaries.map((s, j) => (
                   <li key={j}>
-                    {s.kind === "SET_DURATION" ? (
+                    {edit.transaction ? (
+                      <span data-testid="agent-tapered-summary">
+                        {taperedEditSummary(edit.transaction, language === "ro" ? "ro" : "en")}
+                      </span>
+                    ) : s.kind === "SET_DURATION" ? (
                       <>
                         {t("Durata scenei", "Scene duration")} ·{" "}
                         {t("{a} s → {b} s", "{a} s → {b} s", {
@@ -586,8 +590,6 @@ export default function AgentPanel({ onClose }: { onClose: () => void }) {
                           d: s.altitudeAfter[1].toFixed(1),
                         })}
                       </>
-                    ) : edit.transaction ? (
-                      <>{s.kind} · {t("margini fixe, RGB original", "fixed edges, original RGB")}</>
                     ) : s.kind === "SCALE_SCENE" ? (
                       <>
                         {t("Scalare scenă ×{k}", "Scene scale ×{k}", {
