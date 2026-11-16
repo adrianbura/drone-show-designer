@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeImportedFixture } from "../../../../../acceptance/__tests__/support/productionFixtures";
+import { importedFixture as makeImportedFixture } from "@/lib/acceptance/__tests__/support/productionFixtures";
 import { reconcileReferenceLayer, reseedReferenceSignatures } from "../intervals";
 import { clipOutputSignature, legacyClipOutputSignature } from "../signature";
 
