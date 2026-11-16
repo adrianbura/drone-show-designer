@@ -70,7 +70,7 @@ export function splicedSamplesAt(
     return { samples: planned.map((s,i) => {
       const d=show.drones[i];
       return d ? {...s,...taperedKinematics(d,time,show.timing,layer.motionEdits??[])} : s;
-    }), owner: "PLANNER" };
+    }), owner: "PLANNER", clipId: interval.clipId };
   }
   if (!interval || interval.owner !== "REFERENCE") {
     return { samples: [...planned], owner: "PLANNER", clipId: interval?.clipId ?? null };
@@ -161,6 +161,12 @@ export function splicedTrajectorySamples<
 ): { samples: T[]; owner: "REFERENCE" | "PLANNER" } {
   if (!show || !layer) return { samples: [...planned], owner: "PLANNER" };
   const interval = intervalAtTime(layer, time);
+  if (interval && layer.motionEdits?.some(e => e.clipIds.includes(interval.clipId))) {
+    return { samples: planned.map((s,i) => {
+      const d=show.drones[i];
+      return d ? {...s,...taperedKinematics(d,time,show.timing,layer.motionEdits??[])} : s;
+    }), owner: "PLANNER" };
+  }
   if (!interval || interval.owner !== "REFERENCE") {
     return { samples: [...planned], owner: "PLANNER" };
   }
