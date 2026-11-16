@@ -300,6 +300,7 @@ această rulare.
 - [ ] Pas 3: semnătură conștientă de proprietar (limitele globale nu trebuie să promoveze clipurile REFERENCE). Pas 5: re-analiză incrementală în worker.
 
 ## 23. Grupuri de scene dinamice + fidelitate export (2026-11-15, Lovable)
+- [ ] 2026-11-16: reparare cauză export mixt, verificare reală + sintetică; apoi racordare sigură sau blocaj explicit; round-trip, suită completă, tsgo, browser.
 - [x] `native/sceneGroups.ts`: grupuri derivate (dinamice consecutive; statice singure). Real: 119 scene → 78 grupuri (45 statice + 33 dinamice), cel mai mare 15 segmente. Regula de identitate (0,4 m) ar fi dat 118 — respinsă cu măsurători.
 - [x] Timeline: bară per grup dinamic (aceeași proiecție); click selectează grupul.
 - [x] Agent: mutare/rotire/scalare pe grupul clipului selectat, pivot comun, atomic, un Undo; validare per membru.

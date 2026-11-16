@@ -189,7 +189,7 @@ describe("group edit keeps the rest verbatim and round-trips", () => {
   // is 2.56 m/s for the same drone — cause not yet isolated (validator path),
   // so the real export gate refuses a mixed export. This test flips to failing
   // (it.fails) the moment that is fixed; then turn it into a normal it().
-  it.fails("KNOWN BLOCKER — mixed export round trip after a group edit", async () => {
+  it("mixed export round trip after a group edit", async () => {
     const target = groupTarget();
     // Below the 5 cm splice tolerance: a continuous handover.
     const edit = applyAgentOpToGroup(fx.project, target.clipIds, {
@@ -211,7 +211,7 @@ describe("group edit keeps the rest verbatim and round-trips", () => {
     const { plan, fullShow, pkg } = exportOf(edited, rec.layer);
     expect(fullShow.splice?.ok).toBe(true);
     expect(fullShow.splice?.ok).toBe(true);
-    expect(pkg.ok).toBe(true);
+    expect(pkg.ok, JSON.stringify({ blockers: pkg.blockers, errors: fullShow.errors })).toBe(true);
     expect(pkg.files).toHaveLength(DRONES);
     const back = await buildReferenceShow(pkg.files.map((f) => ({ name: f.name, bytes: f.bytes })));
     expect(back.drones).toHaveLength(DRONES);
