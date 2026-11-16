@@ -48,7 +48,10 @@ describe("owner-aware signature", () => {
     ).toEqual([clip.id]);
     const promoted = reconcileReferenceLayer(moved.project, layer, context).layer;
     expect(reconcileReferenceLayer(moved.project, promoted, context).changed).toBe(false);
-    const changedLimits = { ...moved.project, limits: { ...moved.project.limits, maxVelocity: 20 } };
+    const changedLimits = {
+      ...moved.project,
+      limits: { ...moved.project.limits, maxVelocity: 20 },
+    };
     const refreshed = reconcileReferenceLayer(changedLimits, promoted, context);
     expect(refreshed.changed).toBe(true);
     expect(refreshed.promotions).toEqual([]);

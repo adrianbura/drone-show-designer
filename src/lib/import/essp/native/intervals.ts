@@ -203,9 +203,14 @@ export function reconcileReferenceLayer(
         continue;
       }
       const plannerSignature = clipOutputSignature(project, binding.clipId, {
-        ...context, owner: "PLANNER",
+        ...context,
+        owner: "PLANNER",
       });
-      requests.push({ clipId: binding.clipId, reason: "OUTPUT_SIGNATURE_CHANGED", signature: plannerSignature ?? signature });
+      requests.push({
+        clipId: binding.clipId,
+        reason: "OUTPUT_SIGNATURE_CHANGED",
+        signature: plannerSignature ?? signature,
+      });
     }
   }
   const seeded = migrated.size
