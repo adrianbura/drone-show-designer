@@ -157,7 +157,11 @@ export interface FullShowPlan {
    * validation, metric, simulation and export reads exactly this set.
    */
   readonly trajectorySet: TrajectorySet;
-  /** The pure planner output on the same grid (diagnostics and splice checks). */
+  /**
+   * Planner output on the same grid. REFERENCE-owned non-handover frames are
+   * short-circuited with source samples (planner is never read there), so it is
+   * pure planner only on planner-owned frames and ownership handovers.
+   */
   readonly plannerTrajectorySet: TrajectorySet;
   /** Which authority produced which part of `trajectorySet`. */
   readonly effectiveAuthority: EffectiveTrajectoryAuthority;

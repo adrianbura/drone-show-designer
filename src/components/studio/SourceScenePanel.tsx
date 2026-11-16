@@ -15,11 +15,11 @@ export default function SourceScenePanel() {
   const show = useMemo(() => {
     if (!referenceLayer) return null;
     try {
-      return fullShowAnalysisOptions.reference?.show ?? referenceShowFromLayer(referenceLayer);
+      return fullShowAnalysisOptions?.reference?.show ?? referenceShowFromLayer(referenceLayer);
     } catch {
       return null;
     }
-  }, [referenceLayer?.drones, fullShowAnalysisOptions.reference?.show]);
+  }, [referenceLayer?.drones, fullShowAnalysisOptions?.reference?.show]);
   const binding = referenceLayer?.bindings.find((entry) => entry.clipId === selectedClipId);
   const evidence = useMemo(
     () => (show && binding ? sourceSceneEvidence(show, binding) : null),

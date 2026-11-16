@@ -388,9 +388,16 @@ describe("ESSP acceptance — lighting-only authoring", () => {
     const after = pipeline(edited, show, reconciled.layer);
     // The PLANNER geometry itself is identical: promotion changes which
     // authority is read, not what the planner computes.
-    expect(after.effective.plannerSet.drones[0]!.samples.map((s) => s.position)).toEqual(
-      before.effective.plannerSet.drones[0]!.samples.map((s) => s.position),
-    );
+    // plannerSet short-circuits REFERENCE-owned frames with source samples
+    // (perf, Stage 4), so compare only frames planner-owned in BOTH layers.
+    const ownedBefore = new Set(frameTimes(before.set).filter((t) => !framesOwnedBy(layer, [t], "REFERENCE").length));
+    const ownedAfter = new Set(frameTimes(after.set).filter((t) => !framesOwnedBy(reconciled.layer, [t], "REFERENCE").length));
+    const pick = (r: typeof after) =>
+      r.effective.plannerSet.drones[0]!.samples
+        .filter((s) => ownedBefore.has(s.t) && ownedAfter.has(s.t))
+        .map((s) => s.position);
+    expect(pick(after).length).toBeGreaterThan(0);
+    expect(pick(after)).toEqual(pick(before));
 
     // Positional deviation caused by switching authority is REPORTED, not
     // silently called a geometry edit.
