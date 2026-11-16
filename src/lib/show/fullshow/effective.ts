@@ -176,7 +176,7 @@ export function sampleEffectiveTrajectorySet(
   const startTime = reference ? alignedStartTime(options.startTime, rate) : options.startTime;
   const sourceIntervals=reference ? resolveReferenceIntervals(reference.layer) : [];
   const tail=sourceIntervals.at(-1);
-  const ownershipGrid=new Map<number,{interval:ResolvedReferenceInterval|undefined;handover:boolean}>();
+  const ownershipGrid=new Map<number,{interval:ResolvedReferenceInterval|null;handover:boolean}>();
   const sourceSample=(index:number,t:number):TrajectorySample|undefined=>{
     if(!reference)return undefined;
     const drone=reference.show.drones[index];if(!drone)return undefined;
@@ -253,7 +253,7 @@ export function sampleEffectiveTrajectorySet(
         return sample;
       }
       referenceSampleCount += 1;
-      const k9 = sourceSample(index,sample.t) ?? referenceKinematicsAt(source,sample.t,show.timing);
+      const k9 = ownershipGrid.get(sample.t)?.handover ? referenceKinematicsAt(source,sample.t,show.timing) : sample;
       return {
         t: sample.t,
         position: k9.position,
